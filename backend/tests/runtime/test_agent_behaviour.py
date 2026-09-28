@@ -9,7 +9,8 @@ turn can resume from. They exist to make the P2-3 unification of
 """
 
 import json
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, contextmanager
+from contextvars import ContextVar
 from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 
@@ -20,6 +21,7 @@ from langgraph.checkpoint.memory import InMemorySaver
 
 from app.agents.run_spec import AgentSpec
 from app.exceptions import DomainValidationError
+from app.integrations.tracing import NoOpTracing
 from app.runtime.agent import RECURSION_LIMIT_MESSAGE, Agent, ResolvedAgent
 from app.runtime.checkpoints import get_checkpoint_state
 from app.runtime.toolset import PreparedToolset, Toolset
@@ -106,7 +108,6 @@ def build_agent(
         middleware=middleware
         if middleware is not None
         else build_parent_middleware(datetime(2026, 1, 1, tzinfo=UTC), prepared),
-        callbacks=[],
         subagents=[],
         provider="openai",
     )
@@ -174,6 +175,38 @@ async def test_stream_runs_the_graph_and_emits_the_model_answer(in_memory_runtim
     # The instructions reached the model as its system prompt.
     assert model.calls[0][0].type == "system"
     assert system_text(model).startswith("You are a test agent")
+
+
+@pytest.mark.asyncio
+async def test_session_attributes_reach_model_calls(in_memory_runtime):
+    agent, _ = build_agent(script=["done"])
+    attributes = ContextVar("test_tracing_attributes", default=None)
+    exited = []
+
+    class RecordingTracing(NoOpTracing):
+        @contextmanager
+        def run_context(self, *, session_id, user_id):
+            token = attributes.set((session_id, user_id))
+            try:
+                yield
+            finally:
+                attributes.reset(token)
+                exited.append(True)
+
+    agent.tracing = RecordingTracing()
+    observed = []
+    next_message = ScriptedChatModel._next
+
+    def record_context(model):
+        observed.append(attributes.get())
+        return next_message(model)
+
+    with patch.object(ScriptedChatModel, "_next", record_context):
+        await collect(agent)
+
+    assert observed == [("thread-1", "user-1")]
+    assert attributes.get() is None
+    assert exited == [True]
 
 
 @pytest.mark.asyncio
@@ -354,7 +387,6 @@ def build_sandbox_agent(
         agent=resolved,
         model=model,
         middleware=build_parent_middleware(datetime(2026, 1, 1, tzinfo=UTC), prepared),
-        callbacks=[],
         subagents=[],
         provider="openai",
         skills=skills,
