@@ -6,6 +6,7 @@ on:
 
 permissions:
   contents: write
+  packages: write
   pull-requests: write
 
 jobs:
@@ -53,7 +54,7 @@ jobs:
             git push
           fi
 
-  publish-backend:
+  publish-backend-docker:
     needs: release-please
     if: needs.release-please.outputs.backend_released == 'true'
     uses: ./.github/workflows/docker-publish.yml
@@ -62,10 +63,28 @@ jobs:
       component: backend
       version: ${{ needs.release-please.outputs.backend_version }}
 
-  publish-web:
+  publish-web-docker:
     needs: release-please
     if: needs.release-please.outputs.web_released == 'true'
     uses: ./.github/workflows/docker-publish.yml
+    secrets: inherit
+    with:
+      component: web
+      version: ${{ needs.release-please.outputs.web_version }}
+
+  publish-backend-github:
+    needs: release-please
+    if: needs.release-please.outputs.backend_released == 'true'
+    uses: ./.github/workflows/github-publish.yml
+    secrets: inherit
+    with:
+      component: backend
+      version: ${{ needs.release-please.outputs.backend_version }}
+
+  publish-web-github:
+    needs: release-please
+    if: needs.release-please.outputs.web_released == 'true'
+    uses: ./.github/workflows/github-publish.yml
     secrets: inherit
     with:
       component: web
