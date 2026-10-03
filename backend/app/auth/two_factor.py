@@ -16,6 +16,7 @@ import qrcode
 from jose import JWTError, jwt
 
 from app.auth.settings import auth_settings
+from app.auth.token_types import TokenKind
 
 
 TOTP_PERIOD_SECONDS = 30
@@ -106,7 +107,7 @@ def create_scoped_token(
 ) -> str:
     payload: dict[str, object] = {
         "sub": str(user_id),
-        "token_type": "challenge",
+        "token_type": TokenKind.scoped,
         "scope": scope,
         "jti": secrets.token_urlsafe(24),
         "iat": datetime.now(UTC),
@@ -136,7 +137,7 @@ def decode_scoped_token(token: str, scope: str) -> ScopedToken | None:
             algorithms=[auth_settings.JWT_ALGORITHM],
         )
         if (
-            payload.get("token_type") != "challenge"
+            payload.get("token_type") != TokenKind.scoped
             or payload.get("scope") != scope
             or not isinstance(payload.get("jti"), str)
         ):
