@@ -1,6 +1,7 @@
 from datetime import datetime
 from uuid import UUID
 
+from pydantic import Field as PydanticField
 from sqlmodel import Field, SQLModel
 
 from app.users.models import OAuthAccountBase, WorkspaceRole
@@ -30,12 +31,61 @@ class UserTeamPatch(SQLModel):
 class UserResponse(SQLModel):
     id: UUID
     name: str | None
+    first_name: str | None = None
+    last_name: str | None = None
     email: str | None
     role: WorkspaceRole
     team_id: UUID | None = None
     picture_url: str | None = None
+    image_revision: UUID | None = None
+    two_factor_enabled: bool = False
     created_at: datetime
     updated_at: datetime
+
+
+class ProfilePatch(SQLModel):
+    first_name: str = Field(max_length=100)
+    last_name: str = Field(max_length=100)
+
+
+class PasswordChange(SQLModel):
+    current_password: str | None = None
+    new_password: str = PydanticField(min_length=8, max_length=128)
+
+
+class TwoFactorStatus(SQLModel):
+    enabled: bool
+    backup_codes_remaining: int = 0
+
+
+class TwoFactorSetupRequest(SQLModel):
+    current_password: str | None = None
+
+
+class TwoFactorSetupResponse(SQLModel):
+    secret: str
+    otpauth_uri: str
+    qr_code_data_url: str
+    setup_token: str
+
+
+class TwoFactorConfirmRequest(SQLModel):
+    setup_token: str
+    code: str
+
+
+class TwoFactorDisableRequest(SQLModel):
+    current_password: str | None = None
+    code: str
+
+
+class TwoFactorRegenerateRequest(SQLModel):
+    current_password: str | None = None
+    code: str
+
+
+class BackupCodesResponse(SQLModel):
+    backup_codes: list[str]
 
 
 class UserRoleCounts(SQLModel):

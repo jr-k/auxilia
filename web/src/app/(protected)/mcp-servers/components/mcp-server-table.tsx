@@ -7,6 +7,7 @@ import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import { DropdownMenu } from "@/components/ui/dropdown-menu";
 import ForbiddenErrorDialog from "@/components/forbidden-error-dialog";
 import ResourceInUseDialog from "@/components/resource-in-use-dialog";
+import { useConfirmDialog } from "@/components/providers/dialog-provider";
 import { useDeleteMcpServer } from "@/hooks/use-delete-mcp-server";
 import { useMcpServersStore } from "@/stores/mcp-servers-store";
 import { MCPServer } from "@/types/mcp-servers";
@@ -48,6 +49,7 @@ export default function MCPServerTable({
 	search,
 	onClearSearch,
 }: MCPServerTableProps) {
+	const confirmDialog = useConfirmDialog();
 	const router = useRouter();
 	const {
 		mcpServers,
@@ -113,9 +115,13 @@ export default function MCPServerTable({
 
 	const handleReset = async (server: MCPServer) => {
 		if (
-			!window.confirm(
-				"This will revoke all user connections to this MCP server. Users will need to re-authenticate. Continue?",
-			)
+			!(await confirmDialog({
+				title: "Reset all connections?",
+				description:
+					"Every user connection to this MCP server will be revoked. Users will need to authenticate again.",
+				confirmLabel: "Reset connections",
+				destructive: true,
+			}))
 		)
 			return;
 		// A stale failure banner must not outlive the next action.
@@ -140,7 +146,13 @@ export default function MCPServerTable({
 			width: "minmax(0, 1.35fr)",
 			cell: (server) => (
 				<div className="flex min-w-0 items-center gap-3">
-					<ServerIconTile iconUrl={server.iconUrl} name={server.name} size={32} />
+					<ServerIconTile
+						iconUrl={server.iconUrl}
+						serverId={server.id}
+						imageRevision={server.imageRevision}
+						name={server.name}
+						size={32}
+					/>
 					<div className="min-w-0">
 						<div className="truncate text-[13.5px] font-semibold text-foreground">
 							{server.name}

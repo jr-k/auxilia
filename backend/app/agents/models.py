@@ -1,7 +1,7 @@
 from enum import Enum
 from uuid import UUID
 
-from sqlalchemy import UniqueConstraint
+from sqlalchemy import LargeBinary, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Boolean, Column, Field, SQLModel, String, Text
 
@@ -120,6 +120,19 @@ class AgentDB(AgentBase, BaseDBModel, table=True):
         index=True,
         nullable=True,
     )
+    image_revision: UUID | None = Field(default=None, nullable=True)
+
+
+class AgentImageDB(BaseDBModel, table=True):
+    __tablename__ = "agent_images"
+    __table_args__ = (UniqueConstraint("agent_id", name="uq_agent_image_agent_id"),)
+
+    agent_id: UUID = Field(
+        foreign_key="agents.id", ondelete="CASCADE", nullable=False, index=True
+    )
+    data: bytes = Field(sa_column=Column(LargeBinary, nullable=False))
+    media_type: str = Field(max_length=50, nullable=False)
+    sha256: str = Field(max_length=64, nullable=False)
 
 
 class AgentUserPermissionDB(BaseDBModel, table=True):

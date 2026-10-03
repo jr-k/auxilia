@@ -1,4 +1,5 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { userImageUrl } from "@/lib/api/resources/users";
 import { cn } from "@/lib/utils";
 
 function getInitials(name: string | null | undefined): string {
@@ -13,6 +14,8 @@ function getInitials(name: string | null | undefined): string {
 interface UserAvatarProps {
 	name: string | null | undefined;
 	pictureUrl: string | null | undefined;
+	userId?: string;
+	imageRevision?: string | null;
 	/** Sizing/shape for the avatar root (e.g. `size-7`). */
 	className?: string;
 	/** Overrides the initials chip styling (colors, font size). */
@@ -33,13 +36,23 @@ interface UserAvatarProps {
 export function UserAvatar({
 	name,
 	pictureUrl,
+	userId,
+	imageRevision,
 	className,
 	fallbackClassName,
 }: UserAvatarProps) {
+	const uploadedImageUrl =
+		userId && imageRevision ? userImageUrl(userId, imageRevision) : null;
+	const source = uploadedImageUrl ?? pictureUrl;
 	return (
 		<Avatar className={cn("size-8", className)}>
-			{pictureUrl && (
-				<AvatarImage src={pictureUrl} alt="" referrerPolicy="no-referrer" />
+			{source && (
+				<AvatarImage
+					src={source}
+					alt=""
+					referrerPolicy="no-referrer"
+					className="rounded-full"
+				/>
 			)}
 			<AvatarFallback
 				className={cn(

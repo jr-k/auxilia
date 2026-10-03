@@ -68,6 +68,8 @@ export function SelectAgentDialog({
 							onClick={() => { handleSelectAgent(agent); }}
 						>
 							<AgentAvatar
+								agentId={agent.id}
+								imageRevision={agent.imageRevision}
 								color={agent.color}
 								emoji={agent.emoji}
 								size="md"

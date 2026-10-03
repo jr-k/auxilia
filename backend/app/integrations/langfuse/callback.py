@@ -16,55 +16,40 @@ import logging
 from langfuse import Langfuse
 from langfuse.langchain import CallbackHandler
 
-from app.integrations.langfuse.settings import langfuse_settings
+from app.observability.service import ObservabilityRuntimeConfig
 
 
 logger = logging.getLogger(__name__)
 
-_client: Langfuse | None = None
-_handler: CallbackHandler | None = None
-_built = False
+_clients: dict[str, tuple[Langfuse, CallbackHandler]] = {}
 
 
-def _build_langfuse() -> tuple[Langfuse | None, CallbackHandler | None]:
-    if not (
-        langfuse_settings.langfuse_base_url
-        and langfuse_settings.langfuse_public_key
-        and langfuse_settings.langfuse_secret_key
-    ):
-        return None, None
-
+def _build_langfuse(
+    config: ObservabilityRuntimeConfig,
+) -> tuple[Langfuse, CallbackHandler]:
     client = Langfuse(
-        public_key=langfuse_settings.langfuse_public_key,
-        secret_key=langfuse_settings.langfuse_secret_key,
-        host=langfuse_settings.langfuse_base_url,
-        timeout=langfuse_settings.langfuse_timeout,
+        public_key=config.public_key,
+        secret_key=config.secret_key,
+        host=config.base_url,
+        timeout=config.timeout_seconds,
     )
-    return client, CallbackHandler()
+    return client, CallbackHandler(public_key=config.public_key)
 
 
-def _ensure_built() -> None:
-    """Build the client once, tolerating failure.
-
-    Tracing is optional; the agent runtime is not. A construction error is
-    logged and remembered as "no tracing" rather than retried per run.
-    """
-    global _client, _handler, _built
-    if _built:
-        return
-    _built = True
+def get_langfuse_callback_handler(
+    config: ObservabilityRuntimeConfig,
+) -> CallbackHandler | None:
+    """Return a handler for the current DB revision, or None when invalid."""
+    cached = _clients.get(config.fingerprint)
+    if cached is not None:
+        return cached[1]
     try:
-        _client, _handler = _build_langfuse()
+        client, handler = _build_langfuse(config)
+        _clients[config.fingerprint] = (client, handler)
+        return handler
     except Exception:
-        # Tracing must never break a run.
         logger.exception("Langfuse is misconfigured; continuing without tracing")
-        _client, _handler = None, None
-
-
-def get_langfuse_callback_handler() -> CallbackHandler | None:
-    """The handler to attach to a run's callbacks, or None when unconfigured."""
-    _ensure_built()
-    return _handler
+        return None
 
 
 def flush_langfuse() -> None:
@@ -78,9 +63,8 @@ def flush_langfuse() -> None:
     Never built here: flushing must not be the thing that constructs a client
     the process never needed.
     """
-    if _client is None:
-        return
-    try:
-        _client.flush()
-    except Exception:  # noqa: BLE001 — a failed flush must not fail shutdown
-        logger.warning("Flushing Langfuse traces on shutdown failed", exc_info=True)
+    for client, _handler in _clients.values():
+        try:
+            client.flush()
+        except Exception:  # noqa: BLE001 — a failed flush must not fail shutdown
+            logger.warning("Flushing Langfuse traces on shutdown failed", exc_info=True)

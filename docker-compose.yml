@@ -22,7 +22,7 @@ services:
           "--no-verbose",
           "--tries=1",
           "--spider",
-          "http://localhost:3000/",
+          "http://127.0.0.1:3000/",
         ]
       interval: 30s
       timeout: 10s
@@ -49,22 +49,16 @@ services:
       # Redis
       REDIS_HOST: redis
       REDIS_PORT: 6379
-      # Auth
-      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-change-me-in-production}
-      COOKIE_SECURE: ${COOKIE_SECURE:-false}
-      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
-      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
-      GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI:-http://localhost:8000/auth/google/callback}
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
-      # API Keys
-      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
-      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
-      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
-      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
-      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
-      XIAOMI_API_KEY: ${XIAOMI_API_KEY:-}
-      METAAI_API_KEY: ${METAAI_API_KEY:-}
-      MCP_API_KEY_ENCRYPTION_SALT: ${MCP_API_KEY_ENCRYPTION_SALT:-changeme}
+      BACKEND_JWT_SECRET_KEY: ${BACKEND_JWT_SECRET_KEY:-change-me-in-production}
+      BACKEND_COOKIE_SECURE: ${BACKEND_COOKIE_SECURE:-false}
+      BACKEND_ENCRYPTION_SALT: ${BACKEND_ENCRYPTION_SALT:-changeme}
+      RUN_WORKER_CONCURRENCY: ${RUN_WORKER_CONCURRENCY:-8}
+      RUN_MAX_DURATION_SECONDS: ${RUN_MAX_DURATION_SECONDS:-1800}
+      RUN_DISPATCHER_ENABLED: ${RUN_DISPATCHER_ENABLED:-true}
+      AGENT_RECURSION_LIMIT: ${AGENT_RECURSION_LIMIT:-100}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      LOG_FORMAT: ${LOG_FORMAT:-console}
     depends_on:
       postgres:
         condition: service_healthy
@@ -77,7 +71,7 @@ services:
           "CMD",
           "python",
           "-c",
-          "import urllib.request; urllib.request.urlopen('http://localhost:8000/docs')",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/docs')",
         ]
       interval: 30s
       timeout: 10s

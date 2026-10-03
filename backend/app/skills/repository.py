@@ -2,7 +2,7 @@ from collections.abc import Iterable
 from datetime import UTC, datetime
 from uuid import UUID
 
-from sqlalchemy import Integer, delete, func, update
+from sqlalchemy import Integer, delete, func, select as sa_select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.sql.functions import FunctionElement
@@ -265,12 +265,13 @@ class SkillRepository(BaseRepository[SkillDB]):
         query — the library shows each row's agents as avatars, and a row per
         skill would be a query per row."""
         stmt = (
-            select(
-                AgentSkillDB.skill_id,
-                AgentDB.id,
-                AgentDB.name,
-                AgentDB.emoji,
-                AgentDB.color,
+            sa_select(
+                col(AgentSkillDB.skill_id),
+                col(AgentDB.id),
+                col(AgentDB.name),
+                col(AgentDB.emoji),
+                col(AgentDB.color),
+                col(AgentDB.image_revision),
             )
             .join(AgentSkillDB, col(AgentSkillDB.agent_id) == col(AgentDB.id))
             .order_by(col(AgentDB.name), col(AgentDB.id))
@@ -281,9 +282,15 @@ class SkillRepository(BaseRepository[SkillDB]):
         """`(id, name, emoji, color)` of every agent the skill is enabled on,
         by name — the skill page's "used by" list and the delete guard."""
         stmt = (
-            select(AgentDB.id, AgentDB.name, AgentDB.emoji, AgentDB.color)
+            sa_select(
+                col(AgentDB.id),
+                col(AgentDB.name),
+                col(AgentDB.emoji),
+                col(AgentDB.color),
+                col(AgentDB.image_revision),
+            )
             .join(AgentSkillDB, col(AgentSkillDB.agent_id) == col(AgentDB.id))
-            .where(AgentSkillDB.skill_id == skill_id)
+            .where(col(AgentSkillDB.skill_id) == skill_id)
             .order_by(col(AgentDB.name), col(AgentDB.id))
         )
         return (await self.db.execute(stmt)).all()

@@ -26,6 +26,7 @@ def _thread_with_agent(
     agent_name: str | None,
     agent_emoji: str | None,
     agent_color: str | None,
+    agent_image_revision: UUID | None,
     agent_archived: bool,
 ) -> ThreadResponse:
     return ThreadResponse.model_validate(
@@ -34,6 +35,7 @@ def _thread_with_agent(
             "agent_name": agent_name,
             "agent_emoji": agent_emoji,
             "agent_color": agent_color,
+            "agent_image_revision": agent_image_revision,
             "agent_archived": agent_archived,
         },
     )
@@ -44,6 +46,7 @@ def _agent_thread(
     agent_name: str | None,
     agent_emoji: str | None,
     agent_color: str | None,
+    agent_image_revision: UUID | None,
     agent_archived: bool,
     user_email: str | None,
     user_name: str | None,
@@ -54,6 +57,7 @@ def _agent_thread(
             "agent_name": agent_name,
             "agent_emoji": agent_emoji,
             "agent_color": agent_color,
+            "agent_image_revision": agent_image_revision,
             "agent_archived": agent_archived,
             "user_email": user_email,
             "user_name": user_name,

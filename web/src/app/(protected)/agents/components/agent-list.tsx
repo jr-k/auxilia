@@ -326,7 +326,7 @@ export default function AgentList({
 			<EmptyState
 				icon={<Users className="size-[22px] text-[#4CA882]" />}
 				title="Nothing shared with you yet"
-				subtitle="Ask a workspace admin or an agent's owner to give you access — or switch to All to browse everything in your workspace."
+				subtitle="Ask a workspace admin or an agent's owner to give you access, or switch to All to browse everything in your workspace."
 			/>
 		);
 	}

@@ -169,6 +169,7 @@ class SubagentResponse(SQLModel):
     name: str
     emoji: str | None = None
     color: str | None = None
+    image_revision: UUID | None = None
     description: str | None = None
 
 
@@ -182,6 +183,7 @@ class AgentOwnerInfo(SQLModel):
     name: str | None = None
     email: str | None = None
     picture_url: str | None = None
+    image_revision: UUID | None = None
 
 
 class AgentListResponse(SQLModel):
@@ -198,6 +200,7 @@ class AgentListResponse(SQLModel):
     owner_id: UUID
     emoji: str | None
     color: str | None
+    image_revision: UUID | None = None
     description: str | None
     is_archived: bool = False
     created_at: datetime

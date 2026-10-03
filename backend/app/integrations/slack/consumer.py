@@ -23,7 +23,7 @@ from app.integrations.slack.blocks import (
     build_tool_approval_blocks,
     format_tool_streamer_label,
 )
-from app.integrations.slack.settings import slack_settings
+from app.integrations.slack.utils import get_slack_client
 from app.runtime.hitl import load_interrupt_scope, pending_approval_requests
 from app.runtime.protocol.wire import decode_event
 from app.runtime.runs.delivery import DeliveryConsumer
@@ -147,9 +147,17 @@ class SlackRunConsumer(DeliveryConsumer):
         # carries channel == "slack", so the JSONB dict is a SlackDelivery.
         self.delivery = cast(SlackDelivery, record.delivery or {})
         self.redis = redis
-        self.client = AsyncWebClient(token=slack_settings.slack_bot_token)
+        self.client = AsyncWebClient(token="")
 
     async def run(self) -> None:
+        client = await get_slack_client()
+        if client is None:
+            logger.warning(
+                "Slack delivery skipped for run %s: Slack is not configured",
+                self.record.id,
+            )
+            return
+        self.client = client
         channel_id = self.delivery["channel_id"]
         thread_ts = self.delivery["thread_ts"]
         logger.info(

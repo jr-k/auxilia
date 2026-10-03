@@ -1,6 +1,7 @@
 from datetime import datetime
+from enum import Enum
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlmodel import SQLModel
 
 from app.model_providers.models import ModelProviderType
@@ -8,6 +9,25 @@ from app.model_providers.models import ModelProviderType
 
 class ModelProviderResponse(SQLModel):
     name: ModelProviderType
+
+
+class ProviderCredentialSource(str, Enum):
+    database = "database"
+    environment = "environment"
+    adc = "adc"
+    none = "none"
+
+
+class ModelProviderConfigResponse(BaseModel):
+    name: ModelProviderType
+    is_configured: bool
+    source: ProviderCredentialSource
+    last4: str | None = None
+    key_length: int | None = None
+
+
+class ModelProviderAPIKeyUpdate(BaseModel):
+    api_key: str = Field(min_length=1, max_length=4096)
 
 
 class ModelResponse(BaseModel):

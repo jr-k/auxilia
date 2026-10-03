@@ -10,8 +10,7 @@ from app.agents.models import AgentDB
 from app.agents.schemas import AgentListResponse
 from app.database import AsyncSessionLocal
 from app.integrations.slack.models import SlackInteractionPayload
-from app.integrations.slack.settings import slack_settings
-from app.integrations.slack.utils import get_user_info
+from app.integrations.slack.utils import get_slack_client, get_user_info
 from app.threads.service import ThreadService
 from app.users.models import WorkspaceRole
 from app.users.repository import UserRepository
@@ -204,7 +203,9 @@ async def handle_agent_selection(payload: SlackInteractionPayload) -> None:
         await db.commit()
 
     # Replace the picker message with a confirmation
-    client = AsyncWebClient(token=slack_settings.slack_bot_token)
+    client = await get_slack_client()
+    if client is None:
+        return
     blocks = _build_agent_selected_blocks(agent)
     if message_ts:
         await client.chat_update(

@@ -59,11 +59,13 @@ export function AgentPicker({ value, onChange, disabled }: AgentPickerProps) {
 			{selected ? (
 				<div className="flex items-center gap-2.5 min-w-0">
 					<AgentAvatar
+						agentId={selected.id}
+						imageRevision={selected.imageRevision}
 						color={selected.color}
 						emoji={selected.emoji}
 						size="xs"
 					/>
-					<span className="font-mono text-[12.5px] font-semibold tracking-[-0.01em] text-petrol truncate">
+					<span className="text-[12.5px] font-semibold tracking-[-0.01em] text-petrol truncate">
 						{selected.name}
 					</span>
 				</div>
@@ -126,6 +128,8 @@ export function AgentPicker({ value, onChange, disabled }: AgentPickerProps) {
 								}}
 							>
 								<AgentAvatar
+									agentId={agent.id}
+									imageRevision={agent.imageRevision}
 									color={agent.color}
 									emoji={agent.emoji}
 									size="md"

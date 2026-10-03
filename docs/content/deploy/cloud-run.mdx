@@ -59,9 +59,9 @@ gcloud run deploy auxilia-backend \
   --set-env-vars "DB_HOST=/cloudsql/${PROJECT_ID}:${REGION}:auxilia-db,DB_PORT=5432,DB_USER=postgres,DB_PASSWORD=YOUR_DB_PASSWORD,DB_NAME=auxilia" \
   --set-env-vars "REDIS_HOST=REDIS_IP" \
   --set-env-vars "REDIS_PORT=6379" \
-  --set-env-vars "JWT_SECRET_KEY=your-jwt-secret" \
-  --set-env-vars "SALT=your-encryption-salt" \
-  --set-env-vars "COOKIE_SECURE=true" \
+  --set-env-vars "BACKEND_JWT_SECRET_KEY=your-jwt-secret" \
+  --set-env-vars "BACKEND_ENCRYPTION_SALT=your-encryption-salt" \
+  --set-env-vars "BACKEND_COOKIE_SECURE=true" \
   --set-env-vars "FRONTEND_URL=https://auxilia-web-HASH.run.app" \
   --set-env-vars "ANTHROPIC_API_KEY=sk-ant-..." \
   --add-cloudsql-instances ${PROJECT_ID}:${REGION}:auxilia-db \

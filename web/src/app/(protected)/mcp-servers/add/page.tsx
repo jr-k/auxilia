@@ -183,8 +183,8 @@ export default function AddMCPServerPage() {
 						Add an MCP server
 					</h1>
 					<p className="mt-2 max-w-[620px] text-[15px] leading-[1.6] text-body dark:text-panel-body text-pretty">
-						Pick a server from the official catalog — endpoint and auth come
-						pre-configured — or connect your own.
+						Pick a server from the official catalog, endpoint and auth come
+						pre-configured, or connect your own.
 					</p>
 
 					<SearchBar
@@ -248,7 +248,7 @@ export default function AddMCPServerPage() {
 								Add a custom server
 							</span>
 							<span className="mt-0.5 block text-[12.5px] text-subtle dark:text-panel-body">
-								Connect any remote MCP endpoint — you configure the address and
+								Connect any remote MCP endpoint, you configure the address and
 								authentication yourself.
 							</span>
 						</span>

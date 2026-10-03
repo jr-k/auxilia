@@ -24,6 +24,7 @@ export function ChatHeader() {
 		agentName,
 		agentEmoji,
 		agentColor,
+		agentImageRevision,
 		triggerId,
 		triggerName,
 		triggerRunAt,
@@ -69,7 +70,13 @@ export function ChatHeader() {
 
 	return (
 		<div className="flex h-14 shrink-0 items-center justify-center gap-2 border-b border-border px-5">
-			<AgentAvatar color={agentColor} emoji={agentEmoji} size="xs" />
+			<AgentAvatar
+				agentId={agentId}
+				imageRevision={agentImageRevision}
+				color={agentColor}
+				emoji={agentEmoji}
+				size="xs"
+			/>
 			{agentId ? (
 				<button
 					type="button"

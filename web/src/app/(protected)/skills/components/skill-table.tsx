@@ -32,7 +32,7 @@ interface SkillTableProps {
  */
 function UsedByAvatars({ agents }: { agents: BoundAgent[] }) {
 	if (agents.length === 0) {
-		return <span className="font-mono text-[11px] text-ghost dark:text-panel-dim">—</span>;
+		return <span className="text-[11px] text-ghost dark:text-panel-dim">None</span>;
 	}
 	const shown = agents.slice(0, 4);
 	const rest = agents.length - shown.length;
@@ -43,7 +43,13 @@ function UsedByAvatars({ agents }: { agents: BoundAgent[] }) {
 					key={agent.id}
 					className="-ml-1.5 rounded-[5px] ring-2 ring-card first:ml-0 dark:ring-[#12191C]"
 				>
-					<AgentAvatar color={agent.color} emoji={agent.emoji} size="xs" shape="tile" />
+					<AgentAvatar
+						agentId={agent.id}
+						imageRevision={agent.imageRevision}
+						color={agent.color}
+						emoji={agent.emoji}
+						size="xs"
+					/>
 				</span>
 			))}
 			{rest > 0 && (
@@ -66,9 +72,9 @@ function UsedByAvatars({ agents }: { agents: BoundAgent[] }) {
 function SourceCell({ skill }: { skill: SkillSummary }) {
 	if (!isSourced(skill)) {
 		return (
-			<span className="flex min-w-0 items-center gap-1.5" title="Written in auxilia — edit it here">
+			<span className="flex min-w-0 items-center gap-1.5" title="Written in auxilia, edit it here">
 				<PencilLine className="size-3.5 shrink-0 text-meta dark:text-panel-dim" />
-				<span className="truncate font-mono text-[11px] text-meta dark:text-panel-dim">in-app</span>
+				<span className="truncate text-[11px] text-meta dark:text-panel-dim">in-app</span>
 			</span>
 		);
 	}
@@ -82,18 +88,22 @@ function SourceCell({ skill }: { skill: SkillSummary }) {
 			<span
 				className="flex min-w-0 items-center gap-1.5"
 				title={`From ${skill.sourceUrl ?? "a repository"}, which is no longer connected${
-					skill.sourcePath ? ` · ${skill.sourcePath}` : ""
+					skill.sourcePath ? `, ${skill.sourcePath}` : ""
 				}${
 					skill.sourceRevision ? ` at ${shortRevision(skill.sourceRevision)}` : ""
-				} — connect it again to change this skill`}
+				}, connect it again to change this skill`}
 			>
 				<Unplug className="size-3.5 shrink-0 text-meta dark:text-panel-dim" />
 				<span className="min-w-0">
-					<span className="block truncate font-mono text-[11px] text-meta dark:text-panel-dim">
+					<span className="block truncate text-[11px] text-meta dark:text-panel-dim">
 						{repo || "disconnected"}
 					</span>
-					<span className="block truncate font-mono text-[10px] text-meta dark:text-panel-dim">
-						{repo ? "disconnected" : shortRevision(skill.sourceRevision)}
+					<span className="block truncate text-[10px] text-meta dark:text-panel-dim">
+						{repo ? (
+							"disconnected"
+						) : (
+							<span className="font-mono">{shortRevision(skill.sourceRevision)}</span>
+						)}
 					</span>
 				</span>
 			</span>
@@ -103,12 +113,12 @@ function SourceCell({ skill }: { skill: SkillSummary }) {
 		<span
 			className="flex min-w-0 items-center gap-2"
 			title={`Synced from ${skill.sourceName ?? "a repository"}${
-				skill.sourcePath ? ` · ${skill.sourcePath}` : ""
-			}${skill.sourceRevision ? ` at ${shortRevision(skill.sourceRevision)}` : ""} — edited there, not here`}
+				skill.sourcePath ? `, ${skill.sourcePath}` : ""
+			}${skill.sourceRevision ? ` at ${shortRevision(skill.sourceRevision)}` : ""}, edited there, not here`}
 		>
 			<SourceHostTile kind={skill.sourceKind ?? "github"} size={20} />
 			<span className="min-w-0">
-				<span className="block truncate font-mono text-[11px] text-foreground">
+				<span className="block truncate text-[11px] text-foreground">
 					{skill.sourceName ?? "repository"}
 				</span>
 				{skill.sourceRevision && (
@@ -138,20 +148,20 @@ export default function SkillTable({
 			cell: (skill) => (
 				<div className="min-w-0">
 					<div className="flex min-w-0 items-center gap-2">
-						<span className="truncate font-mono text-[12.5px] font-semibold text-petrol">
+						<span className="truncate text-[12.5px] font-semibold text-petrol">
 							{skill.name}
 						</span>
 						{skill.updateAvailable && (
-							<span className="shrink-0 rounded-[4px] bg-warning-bg px-1.5 py-px font-mono text-[9px] font-semibold tracking-[0.05em] text-warning">
-								UPDATE
+							<span className="shrink-0 rounded-[4px] bg-warning-bg px-1.5 py-px text-[9px] font-semibold text-warning">
+								Update
 							</span>
 						)}
 						{skill.missingUpstream && (
 							<span
 								title="The last sync no longer found this skill in its repository. It keeps working as pinned."
-								className="shrink-0 rounded-[4px] bg-neutral-bg px-1.5 py-px font-mono text-[9px] font-semibold tracking-[0.05em] text-subtle dark:bg-white/10"
+								className="shrink-0 rounded-[4px] bg-neutral-bg px-1.5 py-px text-[9px] font-semibold text-subtle dark:bg-white/10"
 							>
-								GONE UPSTREAM
+								Gone upstream
 							</span>
 						)}
 					</div>
@@ -183,10 +193,10 @@ export default function SkillTable({
 					<SkillRequirementChip scriptCount={skill.scriptCount} />
 				) : (
 					<span
-						title="Instructions only — this skill runs on any agent."
-						className="font-mono text-[11px] text-ghost dark:text-panel-dim"
+						title="Instructions only, this skill runs on any agent."
+						className="text-[11px] text-ghost dark:text-panel-dim"
 					>
-						—
+						None
 					</span>
 				),
 		},

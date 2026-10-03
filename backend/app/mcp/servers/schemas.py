@@ -40,6 +40,7 @@ class MCPServerResponse(SQLModel):
     url: str
     auth_type: MCPAuthType
     icon_url: str | None = None
+    image_revision: UUID | None = None
     description: str | None = None
     created_at: datetime
     updated_at: datetime
@@ -79,6 +80,7 @@ class MCPServerAgentResponse(SQLModel):
     name: str
     emoji: str | None = None
     color: str | None = None
+    image_revision: UUID | None = None
 
 
 class OAuthSecretHint(SQLModel):
@@ -102,6 +104,7 @@ class MCPServerConnectionResponse(SQLModel):
     name: str | None = None
     email: str | None = None
     picture_url: str | None = None
+    image_revision: UUID | None = None
     status: Literal["active", "expired"] = "active"
 
 

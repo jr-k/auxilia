@@ -6,6 +6,7 @@ export interface MCPServer {
 	url: string;
 	authType: MCPAuthType;
 	iconUrl?: string;
+	imageRevision?: string | null;
 	description?: string;
 	createdAt: string;
 	updatedAt: string;
@@ -89,6 +90,7 @@ export interface MCPServerConnection {
 	name?: string | null;
 	email?: string | null;
 	pictureUrl?: string | null;
+	imageRevision?: string | null;
 	status: "active" | "expired";
 }
 

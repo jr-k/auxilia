@@ -12,6 +12,7 @@ from app.triggers.schemas import (
     TriggerResponse,
     TriggerRunResponse,
     TriggerThreadResponse,
+    WebhookTriggerInvoke,
 )
 from app.triggers.service import TriggerService, get_trigger_service
 from app.users.models import UserDB
@@ -52,6 +53,20 @@ async def preview_schedule(
             cron_expression, timezone, after=datetime.now(UTC), count=count
         )
     )
+
+
+@router.post(
+    "/webhooks/{webhook_id}",
+    response_model=TriggerRunResponse,
+    status_code=202,
+)
+async def invoke_webhook_trigger(
+    webhook_id: UUID,
+    data: WebhookTriggerInvoke,
+    service: TriggerService = Depends(get_trigger_service),
+) -> TriggerRunResponse:
+    """Start a webhook trigger with optional per-call execution overrides."""
+    return await service.invoke_webhook(webhook_id, data)
 
 
 @router.get("/{trigger_id}/threads", response_model=list[TriggerThreadResponse])

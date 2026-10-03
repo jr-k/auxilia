@@ -79,7 +79,7 @@ export default function SetupPage() {
 			>
 				<AuthField
 					id="name"
-					label="NAME"
+					label="Name"
 					type="text"
 					placeholder="John Doe"
 					value={name}
@@ -90,7 +90,7 @@ export default function SetupPage() {
 
 				<AuthField
 					id="email"
-					label="EMAIL"
+					label="Email"
 					type="email"
 					placeholder="you@example.com"
 					value={email}
@@ -102,7 +102,7 @@ export default function SetupPage() {
 
 				<AuthField
 					id="password"
-					label="PASSWORD"
+					label="Password"
 					type="password"
 					placeholder="••••••••••••"
 					value={password}

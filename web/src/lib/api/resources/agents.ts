@@ -85,6 +85,24 @@ export async function saveAgentConfig(agentId: string, payload: AgentWrite): Pro
 	return response.data;
 }
 
+export function agentImageUrl(agentId: string, revision: string): string {
+	return `/api/backend/agents/${agentId}/image?v=${encodeURIComponent(revision)}`;
+}
+
+export async function uploadAgentImage(agentId: string, file: File): Promise<string> {
+	const form = new FormData();
+	form.append("file", file);
+	const response = await api.put<{ imageRevision: string }>(
+		`/agents/${agentId}/image`,
+		form,
+	);
+	return response.data.imageRevision;
+}
+
+export async function deleteAgentImage(agentId: string): Promise<void> {
+	await api.delete(`/agents/${agentId}/image`);
+}
+
 export async function patchAgent(agentId: string, patch: AgentPatch): Promise<Agent> {
 	const response = await api.patch<Agent>(`/agents/${agentId}`, patch);
 	return response.data;

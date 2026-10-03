@@ -140,6 +140,8 @@ const StarterChatPage = () => {
 						className="flex items-center justify-center gap-2 mx-auto hover:opacity-80 transition-opacity cursor-pointer"
 					>
 						<AgentAvatar
+							agentId={agent?.id}
+							imageRevision={agent?.imageRevision}
 							color={agent?.color}
 							emoji={agent?.emoji || starterAgent.value?.emoji}
 							size="lg"

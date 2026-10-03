@@ -45,7 +45,7 @@ export function WorkspacePage({
 		<div className="flex h-svh min-w-0 flex-1 flex-col bg-background">
 			{/* pl-14 below md leaves room for the floating sidebar trigger */}
 			<header className="flex h-[52px] shrink-0 items-center gap-3 border-b border-border pl-14 pr-4 md:px-8">
-				<span className="font-mono text-[11.5px] text-meta dark:text-panel-dim">
+				<span className="text-[11.5px] text-meta dark:text-panel-dim">
 					workspace <span className="text-ghost dark:text-panel-dim">/</span>{" "}
 					<span className="font-medium text-foreground">{slug}</span>
 				</span>
@@ -56,6 +56,7 @@ export function WorkspacePage({
 							value={search.value}
 							onChange={search.onChange}
 							hint="⌘K"
+							focusOnModK
 							className="hidden w-80 sm:block"
 						/>
 					)}

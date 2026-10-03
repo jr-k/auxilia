@@ -1,9 +1,14 @@
-import Image from "next/image";
+"use client";
+
+import { useState } from "react";
 import { cn } from "@/lib/utils";
+import { mcpServerImageUrl } from "@/lib/api/resources/mcp-servers";
 import { DEFAULT_ICON } from "../lib/constants";
 
 interface ServerIconTileProps {
 	iconUrl?: string | null;
+	serverId?: string | null;
+	imageRevision?: string | null;
 	name: string;
 	/** Outer tile size in px (icon scales to ~55%). */
 	size?: 32 | 38 | 52;
@@ -30,26 +35,46 @@ function tileFor(size: 32 | 38 | 52): { tileClass: string; iconPx: number } {
 /** White logo tile with the design system's soft shadow. */
 export function ServerIconTile({
 	iconUrl,
+	serverId,
+	imageRevision,
 	name,
 	size = 32,
 	className,
 }: ServerIconTileProps) {
 	const { tileClass, iconPx } = tileFor(size);
+	const uploadedUrl =
+		serverId && imageRevision
+			? mcpServerImageUrl(serverId, imageRevision)
+			: null;
+	const source = uploadedUrl ?? iconUrl ?? DEFAULT_ICON;
+	const [failedSource, setFailedSource] = useState<string | null>(null);
+	const resolvedSource = failedSource === source ? DEFAULT_ICON : source;
+	const showsUploadedImage =
+		uploadedUrl !== null && resolvedSource === uploadedUrl;
+
 	return (
 		<span
 			className={cn(
-				"flex shrink-0 items-center justify-center bg-white shadow-[0_2px_6px_rgba(10,25,30,0.14)] dark:bg-white/10",
+				"flex shrink-0 items-center justify-center shadow-[0_2px_6px_rgba(10,25,30,0.14)]",
+				showsUploadedImage
+					? "overflow-hidden"
+					: "bg-white dark:bg-white/10",
 				tileClass,
 				className,
 			)}
 		>
-			<Image
-				unoptimized
-				src={iconUrl ?? DEFAULT_ICON}
+			{/* Browser-direct requests preserve auth for uploaded images and allow
+			    arbitrary external fallback hosts without Next optimizer rules. */}
+			{/* eslint-disable-next-line @next/next/no-img-element */}
+			<img
+				src={resolvedSource}
 				alt={name}
-				width={iconPx}
-				height={iconPx}
-				className="object-contain"
+				width={showsUploadedImage ? size : iconPx}
+				height={showsUploadedImage ? size : iconPx}
+				className={showsUploadedImage ? "size-full object-cover" : "object-contain"}
+				onError={() => {
+					if (resolvedSource !== DEFAULT_ICON) setFailedSource(source);
+				}}
 			/>
 		</span>
 	);

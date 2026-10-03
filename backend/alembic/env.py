@@ -1,11 +1,27 @@
-from sqlmodel import SQLModel
 from logging.config import fileConfig
 
-from sqlalchemy import engine_from_config
-from sqlalchemy import pool
+from sqlalchemy import engine_from_config, pool
+from sqlmodel import SQLModel
 
 from alembic import context
+from app.agents import models as agent_models  # noqa: F401
+from app.appearance import models as appearance_models  # noqa: F401
+from app.auth import models as auth_models  # noqa: F401
+from app.auth.tokens import models as auth_token_models  # noqa: F401
+from app.invites import models as invite_models  # noqa: F401
+from app.mcp.servers import models as mcp_server_models  # noqa: F401
+from app.model_providers import models as model_provider_models  # noqa: F401
+from app.notifications import models as notification_models  # noqa: F401
+from app.observability import models as observability_models  # noqa: F401
+from app.runtime.runs import models as run_models  # noqa: F401
+from app.sandbox import models as sandbox_models  # noqa: F401
 from app.settings import app_settings
+from app.skills import models as skill_models  # noqa: F401
+from app.tags import models as tag_models  # noqa: F401
+from app.teams import models as team_models  # noqa: F401
+from app.threads import models as thread_models  # noqa: F401
+from app.triggers import models as trigger_models  # noqa: F401
+from app.users import models as user_models  # noqa: F401
 
 
 # this is the Alembic Config object, which provides
@@ -24,21 +40,6 @@ config.set_main_option("sqlalchemy.url", database_url.replace("%", "%%"))
 
 # add your model's MetaData object here
 # for 'autogenerate' support
-# Import all models here for Alembic to detect them
-from app.mcp.servers.models import MCPServerDB  # noqa: F401
-from app.users.models import UserDB  # noqa: F401
-from app.agents.models import AgentDB, AgentMCPServerDB, AgentSubagentDB, AgentTeamDB, AgentUserPermissionDB  # noqa: F401
-from app.teams.models import TeamDB  # noqa: F401
-from app.tags.models import TagDB  # noqa: F401
-from app.threads.models import ThreadDB  # noqa: F401
-from app.runtime.runs.models import RunDB  # noqa: F401
-from app.triggers.models import TriggerDB  # noqa: F401
-from app.invites.models import InviteDB  # noqa: F401
-from app.auth.tokens.models import PersonalAccessTokenDB  # noqa: F401
-from app.model_providers.models import ModelDB  # noqa: F401
-from app.sandbox.models import SandboxDB  # noqa: F401
-from app.skills.models import SkillDB, AgentSkillDB  # noqa: F401
-
 target_metadata = SQLModel.metadata
 
 # other values from the config, defined by the needs of env.py,
@@ -85,9 +86,7 @@ def run_migrations_online() -> None:
     )
 
     with connectable.connect() as connection:
-        context.configure(
-            connection=connection, target_metadata=target_metadata
-        )
+        context.configure(connection=connection, target_metadata=target_metadata)
 
         with context.begin_transaction():
             context.run_migrations()

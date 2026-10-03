@@ -9,8 +9,14 @@ from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import func, select
 
-from app.auth.schemas import InviteAcceptRequest, SigninRequest, SignupRequest
-from app.auth.settings import auth_settings
+from app.auth.configuration import WorkspaceAuthenticationService
+from app.auth.schemas import (
+    InviteAcceptRequest,
+    SigninRequest,
+    SignupRequest,
+    TwoFactorSigninVerifyRequest,
+)
+from app.auth.two_factor import create_scoped_token, decode_scoped_token
 from app.auth.utils import create_access_token, get_password_hash, verify_password
 from app.database import get_db
 from app.exceptions import (
@@ -24,19 +30,21 @@ from app.exceptions import (
 from app.invites.models import InviteStatus
 from app.invites.service import InviteService
 from app.users.models import OAuthAccountDB, UserDB, WorkspaceRole
+from app.users.service import UserService
 
 
 class AuthService:
     def __init__(self, db: AsyncSession):
         self.db = db
         self.invites = InviteService(db)
+        self.authentication = WorkspaceAuthenticationService(db)
 
     async def count_users(self) -> int:
         result = await self.db.execute(select(func.count()).select_from(UserDB))
         return result.scalar_one()
 
-    def _ensure_password_auth(self) -> None:
-        if not auth_settings.password_enabled:
+    async def _ensure_password_auth(self) -> None:
+        if not await self.authentication.password_enabled():
             raise PermissionDeniedError("Password authentication is disabled")
 
     def build_jwt_for_user(self, user: UserDB) -> tuple[UserDB, str]:
@@ -48,13 +56,27 @@ class AuthService:
             raise AlreadyExistsError("Email already registered")
 
     async def signin(self, data: SigninRequest) -> tuple[UserDB, str]:
-        self._ensure_password_auth()
+        await self._ensure_password_auth()
         result = await self.db.execute(select(UserDB).where(UserDB.email == data.email))
         user = result.scalar_one_or_none()
         if user is None or user.password_hash is None:
             raise InvalidCredentialsError("Invalid email or password")
         if not await verify_password(data.password, user.password_hash):
             raise InvalidCredentialsError("Invalid email or password")
+        if user.two_factor_enabled:
+            return user, create_scoped_token(user.id, "two_factor_signin")
+        return self.build_jwt_for_user(user)
+
+    async def verify_two_factor_signin(
+        self, data: TwoFactorSigninVerifyRequest
+    ) -> tuple[UserDB, str]:
+        decoded = decode_scoped_token(data.challenge_token, "two_factor_signin")
+        if decoded is None:
+            raise InvalidCredentialsError("Two-factor challenge has expired")
+        user = await self.db.get(UserDB, decoded[0])
+        if user is None or not user.two_factor_enabled:
+            raise InvalidCredentialsError("Invalid two-factor challenge")
+        await UserService(self.db).verify_second_factor(user.id, data.code)
         return self.build_jwt_for_user(user)
 
     async def setup(self, data: SignupRequest) -> tuple[UserDB, str]:
@@ -72,7 +94,7 @@ class AuthService:
         return self.build_jwt_for_user(user)
 
     async def accept_invite(self, data: InviteAcceptRequest) -> tuple[UserDB, str]:
-        self._ensure_password_auth()
+        await self._ensure_password_auth()
         invite = await self.invites.get_by_token(data.token)
         if not invite:
             raise DomainValidationError("Invalid or expired invite")

@@ -3,13 +3,14 @@ from __future__ import annotations
 from collections.abc import Collection
 from uuid import UUID
 
-from sqlalchemy import delete
+from sqlalchemy import delete, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
 from app.mcp.servers.models import (
     MCPServerAPIKeyDB,
     MCPServerDB,
+    MCPServerImageDB,
     MCPServerOAuthCredentialsDB,
 )
 from app.mcp.servers.schemas import MCPServerCreate
@@ -59,6 +60,56 @@ class MCPServerRepository(BaseRepository[MCPServerDB]):
         stmt = select(MCPServerDB).where(MCPServerDB.url == url)
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
+
+    async def get_image(self, server_id: UUID) -> MCPServerImageDB | None:
+        stmt = select(MCPServerImageDB).where(
+            MCPServerImageDB.mcp_server_id == server_id
+        )
+        result = await self.db.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def set_image(
+        self,
+        server_id: UUID,
+        *,
+        data: bytes,
+        media_type: str,
+        sha256: str,
+        revision: UUID,
+    ) -> None:
+        image = await self.get_image(server_id)
+        if image is None:
+            image = MCPServerImageDB(
+                mcp_server_id=server_id,
+                data=data,
+                media_type=media_type,
+                sha256=sha256,
+            )
+        else:
+            image.data = data
+            image.media_type = media_type
+            image.sha256 = sha256
+        self.db.add(image)
+        stmt = (
+            update(MCPServerDB)
+            .where(MCPServerDB.id == server_id)
+            .values(image_revision=revision)
+        )
+        await self.db.execute(stmt)
+        await self.db.flush()
+
+    async def delete_image(self, server_id: UUID) -> None:
+        stmt = delete(MCPServerImageDB).where(
+            MCPServerImageDB.mcp_server_id == server_id
+        )
+        await self.db.execute(stmt)
+        stmt = (
+            update(MCPServerDB)
+            .where(MCPServerDB.id == server_id)
+            .values(image_revision=None)
+        )
+        await self.db.execute(stmt)
+        await self.db.flush()
 
     async def create(self, data: MCPServerCreate) -> MCPServerDB:
         db_server = MCPServerDB.model_validate(data)

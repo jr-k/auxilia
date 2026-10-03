@@ -20,12 +20,17 @@ from app.exceptions import (
     ModelUnavailableError,
     NotFoundError,
 )
-from app.model_providers.catalog import provider_api_keys
-from app.model_providers.models import ModelDB
-from app.model_providers.repository import ModelRepository
+from app.model_providers.catalog import GOOGLE_ADC_SENTINEL, provider_api_keys
+from app.model_providers.models import ModelDB, ModelProviderType
+from app.model_providers.repository import (
+    ModelProviderCredentialRepository,
+    ModelRepository,
+)
 from app.model_providers.schemas import (
     ManagedModelResponse,
     ModelCreateDB,
+    ModelProviderConfigResponse,
+    ProviderCredentialSource,
     WhitelistSyncResponse,
 )
 from app.model_providers.whitelist import (
@@ -75,6 +80,18 @@ class ModelService(BaseService[ModelDB, ModelRepository]):
 
     def __init__(self, db: AsyncSession):
         super().__init__(db, ModelRepository(db))
+        self.credential_repository = ModelProviderCredentialRepository(db)
+
+    async def _provider_api_keys(self) -> dict[str, str]:
+        """Resolve credentials with encrypted DB values taking precedence.
+
+        Environment values remain a deployment migration fallback. Google ADC
+        is not an API key and remains available when the runtime identity has
+        Vertex AI access.
+        """
+        keys = provider_api_keys()
+        keys.update(await self.credential_repository.list_api_keys())
+        return keys
 
     async def _enabled_keys(self) -> set[tuple[str, str]]:
         rows = await self.repository.list_all()
@@ -83,7 +100,7 @@ class ModelService(BaseService[ModelDB, ModelRepository]):
     async def list_available(self) -> list[SupportedModel]:
         """The models users may pick: whitelist ∧ provider key ∧ admin-enabled."""
         whitelist = await get_whitelist()
-        keys = provider_api_keys()
+        keys = await self._provider_api_keys()
         enabled = await self._enabled_keys()
         return [
             m
@@ -114,7 +131,7 @@ class ModelService(BaseService[ModelDB, ModelRepository]):
             raise ModelUnavailableError(
                 model_id, "it is not in the supported model catalog"
             )
-        api_key = provider_api_keys().get(entry.provider)
+        api_key = (await self._provider_api_keys()).get(entry.provider)
         if not api_key:
             raise ModelUnavailableError(
                 model_id,
@@ -197,11 +214,12 @@ class ModelService(BaseService[ModelDB, ModelRepository]):
         return True
 
     async def list_manage(self) -> list[ManagedModelResponse]:
-        """The admin view: every whitelist model whose provider has a key,
-        with its enablement state, plus orphan rows whose model has left the
-        whitelist (flagged deprecated so admins understand blocked threads)."""
+        """Every whitelist model with its enablement state, plus orphan rows.
+
+        Providers without credentials are included so Settings can always show
+        the complete catalog and let an admin configure them.
+        """
         whitelist = await get_whitelist()
-        keys = provider_api_keys()
         rows = {(r.provider, r.model_id): r for r in await self.repository.list_all()}
 
         managed = [
@@ -218,7 +236,6 @@ class ModelService(BaseService[ModelDB, ModelRepository]):
                 is_default=row is not None and row.is_default,
             )
             for m in whitelist
-            if m.provider in keys
         ]
         whitelisted = {(m.provider, m.model_id) for m in whitelist}
         managed.extend(
@@ -242,13 +259,21 @@ class ModelService(BaseService[ModelDB, ModelRepository]):
             row = await self.repository.get_by_provider_and_model_id(provider, model_id)
             if row is None or is_enabled:
                 raise NotFoundError("Model not found in the supported catalog")
+        if is_enabled and provider not in await self._provider_api_keys():
+            raise DomainValidationError(
+                f"Configure an API key for provider '{provider}' before enabling models."
+            )
         if not is_enabled:
+            available = await self.list_available()
+            target_is_available = any(
+                m.provider == provider and m.model_id == model_id for m in available
+            )
             remaining = [
                 m
-                for m in await self.list_available()
+                for m in available
                 if not (m.provider == provider and m.model_id == model_id)
             ]
-            if not remaining:
+            if target_is_available and not remaining:
                 raise DomainValidationError(
                     "Cannot disable the last available model in the workspace."
                 )
@@ -347,6 +372,76 @@ class ModelService(BaseService[ModelDB, ModelRepository]):
         ):
             return row.model_id
         return available[0].model_id
+
+    @staticmethod
+    def _provider_type(provider: str) -> ModelProviderType:
+        try:
+            return ModelProviderType(provider)
+        except ValueError as exc:
+            raise NotFoundError("Model provider not found") from exc
+
+    async def list_provider_configs(self) -> list[ModelProviderConfigResponse]:
+        stored = await self.credential_repository.list_api_keys()
+        fallback = provider_api_keys()
+        configs: list[ModelProviderConfigResponse] = []
+        for provider_type in ModelProviderType:
+            provider = provider_type.value
+            key = stored.get(provider) or fallback.get(provider)
+            if provider in stored:
+                source = ProviderCredentialSource.database
+            elif key == GOOGLE_ADC_SENTINEL:
+                source = ProviderCredentialSource.adc
+            elif key:
+                source = ProviderCredentialSource.environment
+            else:
+                source = ProviderCredentialSource.none
+            configs.append(
+                ModelProviderConfigResponse(
+                    name=provider_type,
+                    is_configured=bool(key),
+                    source=source,
+                    last4=key[-4:]
+                    if key and len(key) >= 10 and source != ProviderCredentialSource.adc
+                    else None,
+                    key_length=(
+                        len(key)
+                        if key and source != ProviderCredentialSource.adc
+                        else None
+                    ),
+                )
+            )
+        return configs
+
+    async def set_provider_api_key(
+        self, provider: str, api_key: str
+    ) -> ModelProviderConfigResponse:
+        provider_type = self._provider_type(provider)
+        api_key = api_key.strip()
+        if not api_key:
+            raise DomainValidationError("API key cannot be empty")
+        await self.credential_repository.set_api_key(provider_type.value, api_key)
+        return ModelProviderConfigResponse(
+            name=provider_type,
+            is_configured=True,
+            source=ProviderCredentialSource.database,
+            last4=api_key[-4:] if len(api_key) >= 10 else None,
+            key_length=len(api_key),
+        )
+
+    async def delete_provider_api_key(
+        self, provider: str
+    ) -> ModelProviderConfigResponse:
+        provider_type = self._provider_type(provider)
+        await self.credential_repository.delete_api_key(provider_type.value)
+        configs = await self.list_provider_configs()
+        config = next(config for config in configs if config.name == provider_type)
+        if not config.is_configured:
+            default = await self.repository.get_default(for_update=True)
+            if default is not None and default.provider == provider_type.value:
+                default.is_default = False
+                self.db.add(default)
+                await self.db.flush()
+        return config
 
     @staticmethod
     async def sync() -> WhitelistSyncResponse:

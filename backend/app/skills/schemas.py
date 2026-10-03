@@ -138,6 +138,7 @@ class SkillAgentRef(BaseModel):
     name: str
     emoji: str | None = None
     color: str | None = None
+    image_revision: UUID | None = None
 
 
 class SkillSummary(BaseModel):

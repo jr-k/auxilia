@@ -38,6 +38,7 @@ class ThreadRepository(BaseRepository[ThreadDB]):
                 AgentDB.name,
                 AgentDB.emoji,
                 AgentDB.color,
+                AgentDB.image_revision,
                 AgentDB.is_archived,
             )
             .join(AgentDB, ThreadDB.agent_id == AgentDB.id)
@@ -53,6 +54,7 @@ class ThreadRepository(BaseRepository[ThreadDB]):
                 AgentDB.name,
                 AgentDB.emoji,
                 AgentDB.color,
+                AgentDB.image_revision,
                 AgentDB.is_archived,
             )
             .join(AgentDB, ThreadDB.agent_id == AgentDB.id)
@@ -118,6 +120,7 @@ class ThreadRepository(BaseRepository[ThreadDB]):
                 AgentDB.name,
                 AgentDB.emoji,
                 AgentDB.color,
+                AgentDB.image_revision,
                 AgentDB.is_archived,
                 UserDB.email,
                 UserDB.name,

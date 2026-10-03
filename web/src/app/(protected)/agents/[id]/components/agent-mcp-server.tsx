@@ -304,12 +304,12 @@ export default function AgentMCPServer({
 				</span>
 				{!isCheckingConnection &&
 					(isConnected ? (
-						<span className="rounded-[4px] bg-success-bg px-2 py-0.5 font-mono text-[9.5px] font-semibold tracking-[0.05em] text-success">
-							CONNECTED
+						<span className="rounded-[4px] bg-success-bg px-2 py-0.5 text-[9.5px] font-semibold text-success">
+							Connected
 						</span>
 					) : (
-						<span className="rounded-[4px] bg-[#FBEFED] px-2 py-0.5 font-mono text-[9.5px] font-semibold tracking-[0.05em] text-[#B04A3A]">
-							NOT CONNECTED
+						<span className="rounded-[4px] bg-[#FBEFED] px-2 py-0.5 text-[9.5px] font-semibold text-[#B04A3A]">
+							Not connected
 						</span>
 					))}
 				<button

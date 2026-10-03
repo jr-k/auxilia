@@ -23,7 +23,7 @@ function syncSummary(result: MCPCatalogSyncResult): string {
 	]
 		.filter(Boolean)
 		.join(", ");
-	return `Catalog synced — ${changes || "no changes"} (${result.serverCount} servers).`;
+	return `Catalog synced, ${changes || "no changes"} (${result.serverCount} servers).`;
 }
 
 function apiErrorDetail(error: unknown): string | null {

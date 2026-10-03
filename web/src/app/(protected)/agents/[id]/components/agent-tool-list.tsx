@@ -173,8 +173,8 @@ export default function AgentToolList({
 	return (
 		<div className="flex min-h-0 flex-col">
 			<div className="mb-3 flex min-h-[24px] shrink-0 items-center justify-between">
-				<span className="font-mono text-[10.5px] font-semibold tracking-[0.09em] text-label dark:text-muted-foreground">
-					TOOLS{" "}
+				<span className="text-[10.5px] font-semibold text-label dark:text-muted-foreground">
+					Tools{" "}
 					<span className="tracking-normal text-meta dark:text-panel-dim">
 						{enabledServers.length + enabledSandboxes.length}
 					</span>
@@ -241,10 +241,10 @@ export default function AgentToolList({
 						This leaves {scriptSkillNames.length} enabled skill
 						{scriptSkillNames.length === 1 ? "" : "s"} without{" "}
 						{scriptSkillNames.length === 1 ? "its" : "their"} scripts:{" "}
-						<span className="font-mono text-[12px] font-semibold text-petrol">
+						<span className="text-[12px] font-semibold text-petrol">
 							{scriptSkillNames.join(", ")}
 						</span>
-						. {scriptSkillNames.length === 1 ? "It stays" : "They stay"} enabled —
+						. {scriptSkillNames.length === 1 ? "It stays" : "They stay"} enabled,
 						the instructions keep applying, the scripts are skipped.
 					</>
 				}

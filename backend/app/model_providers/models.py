@@ -1,6 +1,6 @@
 from enum import Enum
 
-from sqlalchemy import Index, text
+from sqlalchemy import Column, Index, Text, text
 from sqlmodel import Field, UniqueConstraint
 
 from app.models import BaseDBModel
@@ -46,3 +46,12 @@ class ModelDB(BaseDBModel, table=True):
     # first available model). Only meaningful on an enabled row: disabling a
     # model clears its flag.
     is_default: bool = Field(default=False, nullable=False)
+
+
+class ModelProviderCredentialDB(BaseDBModel, table=True):
+    """One encrypted workspace-level API key per model provider."""
+
+    __tablename__ = "model_provider_credentials"
+
+    provider: str = Field(nullable=False, unique=True, index=True)
+    api_key_encrypted: str = Field(sa_column=Column(Text, nullable=False))

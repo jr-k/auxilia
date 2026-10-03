@@ -12,6 +12,7 @@ import {
 	Unplug,
 } from "lucide-react";
 import { MessageResponse } from "@/components/ai-elements/message";
+import { useConfirmDialog } from "@/components/providers/dialog-provider";
 import ConfirmDialog from "@/components/ui/confirm-dialog";
 import { DropdownMenu } from "@/components/ui/dropdown-menu";
 import {
@@ -153,6 +154,7 @@ export default function SkillEditor({
 	onDeleted,
 	reviewOnOpen = false,
 }: SkillEditorProps) {
+	const confirmDialog = useConfirmDialog();
 	const createSkill = useSkillsStore((state) => state.createSkill);
 	const updateSkill = useSkillsStore((state) => state.updateSkill);
 	const [reviewOpen, setReviewOpen] = useState(reviewOnOpen && Boolean(skill?.updateAvailable));
@@ -230,8 +232,17 @@ export default function SkillEditor({
 		}
 	};
 
-	const handleCancel = () => {
-		if (isDirty && !confirm("Discard unsaved changes?")) return;
+	const handleCancel = async () => {
+		if (
+			isDirty &&
+			!(await confirmDialog({
+				title: "Discard unsaved changes?",
+				description: "Your skill edits will be lost and cannot be recovered.",
+				confirmLabel: "Discard changes",
+				destructive: true,
+			}))
+		)
+			return;
 		onCancel();
 	};
 
@@ -247,7 +258,7 @@ export default function SkillEditor({
 	const fieldInputClass =
 		"w-full rounded-lg border border-input bg-card px-3 py-[7px] outline-none transition-[border-color,box-shadow] placeholder:text-meta dark:placeholder:text-panel-dim focus:border-petrol focus:shadow-[0_0_0_3px_rgba(22,96,110,0.10)] disabled:cursor-default";
 	const editorClass =
-		"min-h-[300px] w-full flex-1 resize-none rounded-lg border border-input bg-sidebar p-4 font-mono text-[12.5px] leading-[1.7] text-foreground outline-none transition-[border-color,box-shadow] placeholder:text-meta dark:placeholder:text-panel-dim focus:border-petrol focus:shadow-[0_0_0_3px_rgba(22,96,110,0.10)] [scrollbar-width:thin]";
+		"min-h-[300px] w-full flex-1 resize-none rounded-lg border border-input bg-sidebar p-4 text-[12.5px] leading-[1.7] text-foreground outline-none transition-[border-color,box-shadow] placeholder:text-meta dark:placeholder:text-panel-dim focus:border-petrol focus:shadow-[0_0_0_3px_rgba(22,96,110,0.10)] [scrollbar-width:thin]";
 
 	return (
 		<div className="flex h-svh min-w-0 flex-1 flex-col bg-background animate-in fade-in duration-300">
@@ -276,17 +287,22 @@ export default function SkillEditor({
 						title={
 							detached
 								? `From a repository that is no longer connected${
-										skill.sourcePath ? ` · ${skill.sourcePath}` : ""
-									} — connect it again to change this skill`
+										skill.sourcePath ? `, ${skill.sourcePath}` : ""
+									}, connect it again to change this skill`
 								: `Synced from ${skill.sourceName ?? "a repository"}${
-										skill.sourcePath ? ` · ${skill.sourcePath}` : ""
-									} — edited in the repository, not here`
+										skill.sourcePath ? `, ${skill.sourcePath}` : ""
+									}, edited in the repository, not here`
 						}
 					/>
 				)}
 				{!readOnly && (
 					<>
-						<HeaderButton disabled={isSaving} onClick={handleCancel}>
+						<HeaderButton
+							disabled={isSaving}
+							onClick={() => {
+								void handleCancel();
+							}}
+						>
 							{skill ? "Discard" : "Cancel"}
 						</HeaderButton>
 						<HeaderPrimaryButton
@@ -377,12 +393,12 @@ export default function SkillEditor({
 						{readOnly || locked ? (
 							<div className="min-w-0 flex-1">
 								<div className="flex min-w-0 flex-wrap items-center gap-2">
-									<h1 className="min-w-0 truncate py-[2px] font-mono text-[19px] font-semibold tracking-[-0.01em] text-petrol">
+									<h1 className="min-w-0 truncate py-[2px] text-[19px] font-semibold tracking-[-0.01em] text-petrol">
 										{name || "untitled"}
 									</h1>
 									{skill?.updateAvailable && (
-										<span className="shrink-0 rounded-[4px] bg-warning-bg px-1.5 py-px font-mono text-[9px] font-semibold tracking-[0.05em] text-warning">
-											UPDATE
+										<span className="shrink-0 rounded-[4px] bg-warning-bg px-1.5 py-px text-[9px] font-semibold text-warning">
+											Update
 										</span>
 									)}
 								</div>
@@ -409,7 +425,7 @@ export default function SkillEditor({
 									placeholder="skill-name"
 									className={cn(
 										fieldInputClass,
-										"font-mono text-[15px] font-semibold tracking-[-0.01em] text-petrol",
+										"text-[15px] font-semibold tracking-[-0.01em] text-petrol",
 										nameError && fields.name && "border-destructive",
 									)}
 								/>
@@ -420,7 +436,7 @@ export default function SkillEditor({
 									onChange={(e) => {
 										setFields({ description: e.target.value });
 									}}
-									placeholder="What the skill does and when to use it — this is how agents decide to pick it"
+									placeholder="What the skill does and when to use it, this is how agents decide to pick it"
 									className={cn(fieldInputClass, "text-[13px] font-medium text-body dark:text-panel-body")}
 								/>
 								{/* Rule violations only — an empty required field is what the
@@ -449,8 +465,13 @@ export default function SkillEditor({
 								{repoLabel(skill.sourceUrl) || "Its repository"}
 							</Link>{" "}
 							is no longer connected. The skill keeps running, pinned to{" "}
-							<span className="font-mono text-[11.5px]">{shortRevision(skill.sourceRevision)}</span> — connect{" "}
-							<span className="font-mono text-[11.5px]">{skill.sourceUrl ?? "the repository"}</span> again to
+							<span className="font-mono text-[11.5px]">{shortRevision(skill.sourceRevision)}</span>, connect{" "}
+							{skill.sourceUrl ? (
+								<span className="font-mono text-[11.5px]">{skill.sourceUrl}</span>
+							) : (
+								"the repository"
+							)}{" "}
+							again to
 							change it, and this skill is re-pinned rather than imported a second time. Deleting it from the
 							library still works.
 						</EditorNotice>
@@ -462,7 +483,7 @@ export default function SkillEditor({
 							<Link href="/skills?view=sources" className="font-semibold underline">
 								{skill.sourceName ?? "its repository"}
 							</Link>{" "}
-							as of the last sync — it keeps working, pinned to{" "}
+							as of the last sync, it keeps working, pinned to{" "}
 							<span className="font-mono text-[11.5px]">{shortRevision(skill.sourceRevision)}</span>.
 						</EditorNotice>
 					)}
@@ -470,18 +491,18 @@ export default function SkillEditor({
 					{scriptCount > 0 && (
 						<EditorNotice icon={<TerminalSquare />}>
 							This skill requires an agent with code execution. Its {scriptCount}{" "}
-							script{scriptCount === 1 ? "" : "s"} only run there — the instructions
+							script{scriptCount === 1 ? "" : "s"} only run there, the instructions
 							apply on any agent.
 						</EditorNotice>
 					)}
 
 					<div className="mt-6 flex min-h-[24px] shrink-0 items-center justify-between border-b border-border pb-2">
-						<span className="font-mono text-[10.5px] font-semibold tracking-[0.09em] text-label dark:text-muted-foreground">
-							INSTRUCTIONS
+						<span className="text-[10.5px] font-semibold text-label dark:text-muted-foreground">
+							Instructions
 						</span>
 						{!readOnly && !locked && (
-							<span className="font-mono text-[10.5px] text-meta dark:text-panel-dim">
-								markdown · name, description and this text make the SKILL.md
+							<span className="text-[10.5px] text-meta dark:text-panel-dim">
+								markdown, name, description and this text make the SKILL.md
 							</span>
 						)}
 					</div>
@@ -512,7 +533,7 @@ export default function SkillEditor({
 						<SkillFilesPanel files={draft.files} skill={skill} />
 					) : (
 						<div className="rounded-[10px] border border-dashed border-input px-4 py-8 text-center text-[13px] text-meta dark:text-panel-dim">
-							A skill written here is one SKILL.md — it runs on any agent.
+							A skill written here is one SKILL.md, it runs on any agent.
 							<span className="mt-1 block text-[12px]">
 								Scripts and reference files come from a{" "}
 								<Link href="/skills?view=sources" className="font-semibold text-petrol hover:underline">

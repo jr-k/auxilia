@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Check, MoreVertical, Pencil, Plus, Trash2 } from "lucide-react";
 import * as agentsApi from "@/lib/api/resources/agents";
 import { getApiErrorMessage } from "@/lib/api/errors";
+import { useConfirmDialog } from "@/components/providers/dialog-provider";
 import { DropdownMenu } from "@/components/ui/dropdown-menu";
 import { useAgentsStore } from "@/stores/agents-store";
 import { useUserStore } from "@/stores/user-store";
@@ -24,6 +25,7 @@ const byName = (a: AgentTag, b: AgentTag) => a.name.localeCompare(b.name);
  * the shared tag vocabulary is workspace-admin only.
  */
 export default function AgentTagsPanel({ agent, canAssign }: AgentTagsPanelProps) {
+	const confirmDialog = useConfirmDialog();
 	const setAgentTag = useAgentsStore((state) => state.setAgentTag);
 	const applyTagUpdate = useAgentsStore((state) => state.applyTagUpdate);
 	const applyTagRemoval = useAgentsStore((state) => state.applyTagRemoval);
@@ -93,9 +95,13 @@ export default function AgentTagsPanel({ agent, canAssign }: AgentTagsPanelProps
 
 	const handleDeleteTag = async (tag: AgentTag) => {
 		if (
-			!window.confirm(
-				`Delete the "${tag.name}" tag? Agents with this tag become untagged.`,
-			)
+			!(await confirmDialog({
+				title: `Delete “${tag.name}”?`,
+				description:
+					"Agents using this tag will become untagged. This action cannot be undone.",
+				confirmLabel: "Delete tag",
+				destructive: true,
+			}))
 		) {
 			return;
 		}

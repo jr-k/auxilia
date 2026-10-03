@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
 from app.repository import BaseRepository
-from app.triggers.models import TriggerDB
+from app.triggers.models import TriggerDB, TriggerType
 
 
 class TriggerRepository(BaseRepository[TriggerDB]):
@@ -26,6 +26,14 @@ class TriggerRepository(BaseRepository[TriggerDB]):
         result = await self.db.execute(stmt)
         return list(result.scalars().all())
 
+    async def get_by_webhook_id(self, webhook_id: UUID) -> TriggerDB | None:
+        stmt = select(TriggerDB).where(
+            TriggerDB.webhook_id == webhook_id,
+            TriggerDB.trigger_type == TriggerType.webhook,
+        )
+        result = await self.db.execute(stmt)
+        return result.scalar_one_or_none()
+
     async def claim_due(self, now: datetime, limit: int) -> list[TriggerDB]:
         """Lock and return active triggers whose next occurrence has passed.
 
@@ -38,6 +46,7 @@ class TriggerRepository(BaseRepository[TriggerDB]):
             select(TriggerDB)
             .where(
                 TriggerDB.is_active,
+                TriggerDB.trigger_type == TriggerType.schedule,
                 TriggerDB.next_run_at.is_not(None),  # type: ignore[union-attr]
                 TriggerDB.next_run_at <= now,
             )

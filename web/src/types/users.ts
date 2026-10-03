@@ -4,10 +4,14 @@ export type WorkspaceRole = "member" | "editor" | "admin";
 export interface User {
 	id: string;
 	name: string | null;
+	firstName: string | null;
+	lastName: string | null;
 	email: string | null;
 	role: WorkspaceRole;
 	teamId: string | null;
 	pictureUrl: string | null;
+	imageRevision: string | null;
+	twoFactorEnabled: boolean;
 	createdAt: string;
 	updatedAt: string;
 }

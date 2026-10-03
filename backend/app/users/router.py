@@ -1,11 +1,21 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, File, Header, UploadFile
+from fastapi.responses import Response
 
 from app.auth.dependencies import get_current_user, require_admin
 from app.pagination import Page, PageParams
 from app.users.models import UserDB, WorkspaceRole
 from app.users.schemas import (
+    BackupCodesResponse,
+    PasswordChange,
+    ProfilePatch,
+    TwoFactorConfirmRequest,
+    TwoFactorDisableRequest,
+    TwoFactorRegenerateRequest,
+    TwoFactorSetupRequest,
+    TwoFactorSetupResponse,
+    TwoFactorStatus,
     UserCreate,
     UserPatch,
     UserResponse,
@@ -14,6 +24,7 @@ from app.users.schemas import (
     UserTeamPatch,
 )
 from app.users.service import UserService, get_user_service
+from app.utils.images import image_response, process_uploaded_image
 
 
 router = APIRouter(prefix="/users", tags=["users"])
@@ -46,6 +57,105 @@ async def count_users_by_role(
     service: UserService = Depends(get_user_service),
 ) -> UserRoleCounts:
     return await service.count_by_role()
+
+
+@router.patch("/me", response_model=UserResponse)
+async def update_profile(
+    data: ProfilePatch,
+    current_user: UserDB = Depends(get_current_user),
+    service: UserService = Depends(get_user_service),
+) -> UserResponse:
+    return UserResponse.model_validate(await service.update_profile(current_user, data))
+
+
+@router.put("/me/password", status_code=204)
+async def change_password(
+    data: PasswordChange,
+    current_user: UserDB = Depends(get_current_user),
+    service: UserService = Depends(get_user_service),
+) -> None:
+    await service.change_password(current_user, data)
+
+
+@router.get("/me/two-factor", response_model=TwoFactorStatus)
+async def get_two_factor_status(
+    current_user: UserDB = Depends(get_current_user),
+    service: UserService = Depends(get_user_service),
+) -> TwoFactorStatus:
+    return await service.get_two_factor_status(current_user)
+
+
+@router.post("/me/two-factor/setup", response_model=TwoFactorSetupResponse)
+async def begin_two_factor_setup(
+    data: TwoFactorSetupRequest,
+    current_user: UserDB = Depends(get_current_user),
+    service: UserService = Depends(get_user_service),
+) -> TwoFactorSetupResponse:
+    return await service.begin_two_factor_setup(current_user, data)
+
+
+@router.post("/me/two-factor/confirm", response_model=BackupCodesResponse)
+async def confirm_two_factor_setup(
+    data: TwoFactorConfirmRequest,
+    current_user: UserDB = Depends(get_current_user),
+    service: UserService = Depends(get_user_service),
+) -> BackupCodesResponse:
+    return await service.confirm_two_factor_setup(current_user, data)
+
+
+@router.post("/me/two-factor/disable", status_code=204)
+async def disable_two_factor(
+    data: TwoFactorDisableRequest,
+    current_user: UserDB = Depends(get_current_user),
+    service: UserService = Depends(get_user_service),
+) -> None:
+    await service.disable_two_factor(current_user, data)
+
+
+@router.post(
+    "/me/two-factor/backup-codes",
+    response_model=BackupCodesResponse,
+)
+async def regenerate_backup_codes(
+    data: TwoFactorRegenerateRequest,
+    current_user: UserDB = Depends(get_current_user),
+    service: UserService = Depends(get_user_service),
+) -> BackupCodesResponse:
+    return await service.regenerate_backup_codes(current_user, data)
+
+
+@router.put("/me/image")
+async def set_profile_image(
+    file: UploadFile = File(...),
+    current_user: UserDB = Depends(get_current_user),
+    service: UserService = Depends(get_user_service),
+) -> dict[str, UUID]:
+    image = await process_uploaded_image(file)
+    return {"image_revision": await service.set_image(current_user.id, image)}
+
+
+@router.delete("/me/image", status_code=204)
+async def delete_profile_image(
+    current_user: UserDB = Depends(get_current_user),
+    service: UserService = Depends(get_user_service),
+) -> None:
+    await service.delete_image(current_user.id)
+
+
+@router.get("/{user_id}/image", response_class=Response)
+async def get_profile_image(
+    user_id: UUID,
+    if_none_match: str | None = Header(default=None),
+    _: UserDB = Depends(get_current_user),
+    service: UserService = Depends(get_user_service),
+) -> Response:
+    image = await service.get_image(user_id)
+    return image_response(
+        data=image.data,
+        media_type=image.media_type,
+        digest=image.sha256,
+        if_none_match=if_none_match,
+    )
 
 
 @router.get("/{user_id}", response_model=UserResponse)

@@ -27,7 +27,7 @@ export default function TriggersPage() {
 		<WorkspacePage
 			slug="triggers"
 			title="Triggers"
-			intro="Your agents working in the background, on the schedule you choose."
+			intro="Run agents automatically on a schedule or from an external webhook."
 			actions={
 				<WorkspaceTopBarButton
 					onClick={() => {

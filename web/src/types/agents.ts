@@ -27,6 +27,7 @@ export interface BoundAgent {
 	name: string;
 	emoji: string | null;
 	color: string | null;
+	imageRevision?: string | null;
 }
 
 export type AgentPermission = "owner" | "admin" | "editor" | "member";
@@ -40,6 +41,7 @@ export interface SubagentInfo {
 	name: string;
 	emoji?: string | null;
 	color?: string | null;
+	imageRevision?: string | null;
 	description?: string | null;
 }
 
@@ -53,6 +55,7 @@ export interface AgentOwner {
 	name?: string | null;
 	email?: string | null;
 	pictureUrl?: string | null;
+	imageRevision?: string | null;
 }
 
 export interface Agent {
@@ -64,6 +67,7 @@ export interface Agent {
 	ownerId: string;
 	emoji?: string | null;
 	color?: string | null;
+	imageRevision?: string | null;
 	description?: string | null;
 	isArchived: boolean;
 	mcpServers: AgentMCPServer[];

@@ -34,6 +34,7 @@ from app.exceptions import DomainValidationError, NotFoundError
 from app.integrations.tracing import NoOpTracing, RunTracing, get_tracing
 from app.model_providers.catalog import ChatModelFactory
 from app.model_providers.service import ModelService
+from app.observability.service import WorkspaceObservabilityService
 from app.runtime.checkpoints import get_checkpoint_state
 from app.runtime.harness import (
     HARNESS_CONFIG,
@@ -538,13 +539,14 @@ class Agent:
         # One skill set per graph: every agent lists, reads and runs the union
         # of what the supervisor and its subagents have enabled.
         skills = await resolve_run_skills(db, spec.all_agent_ids)
+        observability = await WorkspaceObservabilityService(db).get_runtime_config()
 
         return cls(
             thread=thread,
             agent=agent,
             model=model,
             middleware=middleware,
-            tracing=get_tracing(),
+            tracing=get_tracing(observability),
             subagents=subagents,
             provider=resolved.provider,
             skills=skills,

@@ -9,6 +9,7 @@ from starlette.middleware.gzip import GZipMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.agents.router import router as agents_router
+from app.appearance.router import router as appearance_router
 from app.auth.router import router as auth_router
 from app.auth.settings import auth_settings
 from app.auth.tokens.router import router as tokens_router
@@ -24,6 +25,8 @@ from app.mcp.apps.router import router as mcp_apps_router
 from app.mcp.router import auxilia_mcp
 from app.mcp.servers.router import router as mcp_servers_router
 from app.model_providers.router import router as model_providers_router
+from app.notifications.router import router as notifications_router
+from app.observability.router import router as observability_router
 from app.redis_client import close_redis, get_redis
 from app.runtime.api.protocol_router import router as protocol_router
 from app.runtime.api.runs_router import router as runs_router, user_runs_router
@@ -226,6 +229,7 @@ async def health() -> JSONResponse:
 
 
 app.include_router(agents_router)
+app.include_router(appearance_router)
 app.include_router(protocol_router)
 app.include_router(runs_router)
 app.include_router(user_runs_router)
@@ -242,6 +246,8 @@ app.include_router(invites_router)
 app.include_router(teams_router)
 app.include_router(tags_router)
 app.include_router(model_providers_router)
+app.include_router(notifications_router)
+app.include_router(observability_router)
 app.include_router(sandboxes_router)
 app.include_router(slack_router)
 

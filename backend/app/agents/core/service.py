@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from collections import defaultdict
 from typing import Literal, overload
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from fastapi import Depends
 from sqlalchemy.exc import IntegrityError
@@ -14,6 +14,7 @@ from app.agents.mcp_servers.repository import AgentMCPServerRepository
 from app.agents.mcp_servers.service import AgentMCPServerService
 from app.agents.models import (
     AgentDB,
+    AgentImageDB,
     AgentMCPServerDB,
     AgentSubagentDB,
     AgentUserPermissionDB,
@@ -53,6 +54,7 @@ from app.skills.service import SkillService
 from app.tags.service import TagService
 from app.users.models import WorkspaceRole
 from app.users.service import UserService
+from app.utils.images import ProcessedImage
 
 
 logger = logging.getLogger(__name__)
@@ -70,6 +72,29 @@ class AgentService(BaseService[AgentDB, AgentRepository]):
         self.skill_service = SkillService(db)
         self.mcp_servers = MCPServerRepository(db)
         self.sandboxes = SandboxRepository(db)
+
+    async def get_image(self, agent_id: UUID) -> AgentImageDB:
+        await self.get_or_404(agent_id)
+        image = await self.repository.get_image(agent_id)
+        if image is None:
+            raise NotFoundError("Agent image not found")
+        return image
+
+    async def set_image(self, agent_id: UUID, image: ProcessedImage) -> UUID:
+        await self.get_or_404(agent_id)
+        revision = uuid4()
+        await self.repository.set_image(
+            agent_id,
+            data=image.data,
+            media_type=image.media_type,
+            sha256=image.sha256,
+            revision=revision,
+        )
+        return revision
+
+    async def delete_image(self, agent_id: UUID) -> None:
+        await self.get_or_404(agent_id)
+        await self.repository.delete_image(agent_id)
 
     @staticmethod
     def _resolve_permission(
@@ -232,6 +257,7 @@ class AgentService(BaseService[AgentDB, AgentRepository]):
                         name=owner.name,
                         email=owner.email,
                         picture_url=owner.picture_url,
+                        image_revision=owner.image_revision,
                     )
                     if (owner := owners_by_id.get(agent.owner_id)) is not None
                     else None
@@ -536,6 +562,7 @@ class AgentService(BaseService[AgentDB, AgentRepository]):
             name=agent.name,
             emoji=agent.emoji,
             color=agent.color,
+            image_revision=agent.image_revision,
             description=agent.description,
         )
 
@@ -644,7 +671,11 @@ class AgentService(BaseService[AgentDB, AgentRepository]):
         agents = await self.repository.list_for_sandbox(sandbox_id)
         return [
             SandboxAgentResponse(
-                id=agent.id, name=agent.name, emoji=agent.emoji, color=agent.color
+                id=agent.id,
+                name=agent.name,
+                emoji=agent.emoji,
+                color=agent.color,
+                image_revision=agent.image_revision,
             )
             for agent in agents
         ]

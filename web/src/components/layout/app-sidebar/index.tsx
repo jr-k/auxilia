@@ -24,6 +24,7 @@ import {
 	Moon,
 	Sun,
 	PanelLeftOpen,
+	UserRound,
 	type LucideIcon,
 } from "lucide-react";
 import {
@@ -47,7 +48,9 @@ import { useUserStore } from "@/stores/user-store";
 import { useAgentsStore } from "@/stores/agents-store";
 import { useTriggersStore } from "@/stores/triggers-store";
 import { useMcpServersStore } from "@/stores/mcp-servers-store";
+import { useAppearanceStore } from "@/stores/appearance-store";
 import * as threadsApi from "@/lib/api/resources/threads";
+import { appearanceLogoUrl } from "@/lib/api/resources/appearance";
 import { useSkillsStore } from "@/stores/skills-store";
 import { formatRunAt } from "@/lib/triggers/schedule";
 import { useActiveRunThreadIds } from "@/hooks/use-active-runs";
@@ -142,6 +145,7 @@ export function AppSidebar() {
 	const { toggleSidebar } = useSidebar();
 	const [renamingThread, setRenamingThread] = useState<Thread | null>(null);
 	const activeRunThreadIds = useActiveRunThreadIds(threads);
+	const appearance = useAppearanceStore((state) => state.appearance);
 
 	useEffect(() => {
 		fetchUser();
@@ -195,20 +199,33 @@ export function AppSidebar() {
 						>
 							{/* Logo at rest; fades out on hover only when collapsed. */}
 							<span className="absolute inset-0 grid place-items-center rounded-md transition-opacity duration-[140ms] group-data-[collapsible=icon]:group-hover/brand:opacity-0">
-								<Image
-									src="/logo.svg"
-									alt="auxilia"
-									height={22}
-									width={22}
-									className="dark:hidden"
-								/>
-								<Image
-									src="/logo-dark.svg"
-									alt="auxilia"
-									height={22}
-									width={22}
-									className="hidden dark:block"
-								/>
+								{appearance.logoRevision ? (
+									// Browser-direct request avoids routing a workspace image
+									// through Next's optimizer.
+									// eslint-disable-next-line @next/next/no-img-element
+									<img
+										src={appearanceLogoUrl(appearance.logoRevision)}
+										alt={appearance.appName}
+										className="size-[22px] rounded-[5px] object-cover"
+									/>
+								) : (
+									<>
+										<Image
+											src="/logo.svg"
+											alt={appearance.appName}
+											height={22}
+											width={22}
+											className="dark:hidden"
+										/>
+										<Image
+											src="/logo-dark.svg"
+											alt={appearance.appName}
+											height={22}
+											width={22}
+											className="hidden dark:block"
+										/>
+									</>
+								)}
 							</span>
 							{/* Expand glyph; revealed on hover only when collapsed. */}
 							<span className="absolute inset-0 grid place-items-center rounded-md bg-sidebar-accent text-sidebar-active-icon opacity-0 transition-opacity duration-[140ms] group-data-[collapsible=icon]:group-hover/brand:opacity-100">
@@ -219,7 +236,7 @@ export function AppSidebar() {
 							className="font-display text-[15.5px] font-bold tracking-[-0.02em] text-sidebar-foreground group-data-[collapsible=icon]:hidden animate-in fade-in duration-200"
 							style={{ animationDelay: "100ms", animationFillMode: "both" }}
 						>
-							auxilia
+							{appearance.appName}
 						</span>
 						<SidebarTrigger className="ml-auto cursor-pointer text-sidebar-muted group-data-[collapsible=icon]:hidden" />
 					</div>
@@ -252,9 +269,9 @@ export function AppSidebar() {
 					<SidebarGroup className="flex-1 min-h-0 overflow-hidden pt-0">
 						{/* mt-0 cancels shadcn's collapsed -mt-8 and nowrap keeps the
 						    (invisible) label the same height in the narrow rail, so the
-						    thread rows below don't move when collapsing */}
-						<SidebarGroupLabel className="h-auto overflow-hidden whitespace-nowrap px-2 pt-2 pb-1.5 font-mono text-[10px] font-semibold tracking-[0.09em] text-sidebar-muted-highlight group-data-[collapsible=icon]:mt-0">
-							RECENT THREADS
+						 thread rows below don't move when collapsing */}
+						<SidebarGroupLabel className="h-auto overflow-hidden whitespace-nowrap px-2 pt-2 pb-1.5 font-sans text-[10px] font-semibold text-sidebar-muted-highlight group-data-[collapsible=icon]:mt-0">
+							Recent threads
 						</SidebarGroupLabel>
 						<SidebarGroupContent className="overflow-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
 							<SidebarMenu className="gap-px">
@@ -313,6 +330,8 @@ export function AppSidebar() {
 															</span>
 														) : (
 															<AgentAvatar
+																agentId={thread.agentId}
+																imageRevision={thread.agentImageRevision}
 																color={thread.agentColor}
 																emoji={thread.agentEmoji}
 																size="xs"
@@ -336,7 +355,7 @@ export function AppSidebar() {
 															</span>
 														</div>
 														<div className="flex items-center gap-1.5">
-															<span className="truncate font-mono text-[10.5px] text-sidebar-muted-highlight">
+															<span className="truncate text-[10.5px] text-sidebar-muted-highlight">
 																{subtitle}
 															</span>
 															{activeRunThreadIds.has(thread.id) ? (
@@ -410,7 +429,7 @@ export function AppSidebar() {
 											onClick={() => {
 												void loadMoreThreads();
 											}}
-											className="mt-1 flex h-8 w-full cursor-pointer items-center justify-center gap-2 rounded-[7px] font-mono text-[10.5px] text-sidebar-muted-highlight transition-colors hover:bg-sidebar-hover hover:text-sidebar-foreground disabled:cursor-default disabled:opacity-60"
+											className="mt-1 flex h-8 w-full cursor-pointer items-center justify-center gap-2 rounded-[7px] text-[10.5px] text-sidebar-muted-highlight transition-colors hover:bg-sidebar-hover hover:text-sidebar-foreground disabled:cursor-default disabled:opacity-60"
 										>
 											{isLoadingMore ? (
 												<Loader2 className="size-3.5 animate-spin" />
@@ -426,8 +445,8 @@ export function AppSidebar() {
 					</SidebarGroup>
 
 					<SidebarGroup className="mt-auto">
-						<SidebarGroupLabel className="h-auto overflow-hidden whitespace-nowrap px-2 pt-2 pb-1.5 font-mono text-[10px] font-semibold tracking-[0.09em] text-sidebar-muted-highlight group-data-[collapsible=icon]:mt-0">
-							WORKSPACE
+						<SidebarGroupLabel className="h-auto overflow-hidden whitespace-nowrap px-2 pt-2 pb-1.5 font-sans text-[10px] font-semibold text-sidebar-muted-highlight group-data-[collapsible=icon]:mt-0">
+							Workspace
 						</SidebarGroupLabel>
 						<SidebarGroupContent>
 							<SidebarMenu className="gap-px">
@@ -500,6 +519,8 @@ export function AppSidebar() {
 										<UserAvatar
 											name={user?.name}
 											pictureUrl={user?.pictureUrl}
+											userId={user?.id}
+											imageRevision={user?.imageRevision}
 											className="size-7 shrink-0"
 											fallbackClassName="bg-primary text-[10px] text-primary-foreground dark:bg-primary"
 										/>
@@ -507,7 +528,7 @@ export function AppSidebar() {
 											<span className="truncate text-[12.5px] font-semibold text-sidebar-foreground">
 												{user?.name || "User"}
 											</span>
-											<span className="truncate font-mono text-[10px] text-sidebar-muted-highlight">
+											<span className="truncate text-[10px] text-sidebar-muted-highlight">
 												{user?.role || ""}
 											</span>
 										</div>
@@ -519,6 +540,13 @@ export function AppSidebar() {
 								sideOffset={4}
 								className="w-(--radix-dropdown-menu-trigger-width) min-w-56"
 								items={[
+									{
+										label: "Profile",
+										icon: <UserRound />,
+										onClick: () => {
+											router.push("/settings?tab=profile");
+										},
+									},
 									{
 										label: "Settings",
 										icon: <Settings />,

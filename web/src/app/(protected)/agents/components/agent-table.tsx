@@ -2,15 +2,16 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
 import { Agent, AgentPermission } from "@/types/agents";
-import { agentPastel, agentColorBackground } from "@/lib/colors";
+import { agentColorBackground } from "@/lib/colors";
 import { useMcpServersStore } from "@/stores/mcp-servers-store";
 import ArchivedAgentDialog from "@/app/(protected)/agents/components/archived-agent-dialog";
 import ForbiddenErrorDialog from "@/components/forbidden-error-dialog";
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import { UserAvatar } from "@/components/ui/user-avatar";
 import { cn } from "@/lib/utils";
+import { AgentAvatar } from "@/components/ui/agent-avatar";
+import { mcpServerImageUrl } from "@/lib/api/resources/mcp-servers";
 
 const MAX_INLINE_AVATARS = 3;
 
@@ -19,17 +20,17 @@ const MAX_INLINE_AVATARS = 3;
 const NO_TAG_ID = "__none__";
 
 const ROLE_BADGES: Record<AgentPermission, { label: string; className: string }> = {
-	owner: { label: "OWNER", className: "bg-success-bg text-success" },
-	admin: { label: "ADMIN", className: "bg-success-bg text-success" },
-	editor: { label: "EDITOR", className: "bg-warning-bg text-warning" },
+	owner: { label: "Owner", className: "bg-success-bg text-success" },
+	admin: { label: "Admin", className: "bg-success-bg text-success" },
+	editor: { label: "Editor", className: "bg-warning-bg text-warning" },
 	member: {
-		label: "MEMBER",
+		label: "Member",
 		className: "bg-neutral-bg text-meta dark:bg-white/10 dark:text-panel-dim",
 	},
 };
 
 const NO_ACCESS_BADGE = {
-	label: "NO ACCESS",
+	label: "No access",
 	className: "bg-[#FBEFED] text-[#B04A3A] dark:bg-[#B04A3A]/10",
 };
 
@@ -89,7 +90,12 @@ export default function AgentTable({
 
 	const serverInfo = (serverId: string) => {
 		const full = mcpServers.find((m) => m.id === serverId);
-		return { name: full?.name ?? serverId, iconUrl: full?.iconUrl };
+		return {
+			id: serverId,
+			name: full?.name ?? serverId,
+			iconUrl: full?.iconUrl,
+			imageRevision: full?.imageRevision,
+		};
 	};
 
 	const handleRowClick = (agent: Agent) => {
@@ -114,17 +120,17 @@ export default function AgentTable({
 			header: "Agent",
 			width: "minmax(0, 1.5fr)",
 			cell: (agent) => {
-				const pastel = agentPastel(agent.color || "#9E9E9E");
 				return (
 					<span className="flex min-w-0 items-center gap-3">
-						<span
-							style={{ background: pastel.pill }}
-							className="flex size-8 shrink-0 items-center justify-center rounded-lg text-base"
-						>
-							{agent.emoji || "🤖"}
-						</span>
+						<AgentAvatar
+							agentId={agent.id}
+							imageRevision={agent.imageRevision}
+							color={agent.color}
+							emoji={agent.emoji}
+							size="xs"
+						/>
 						<span className="min-w-0">
-							<span className="block truncate font-mono text-[12.5px] font-semibold tracking-[-0.01em] text-petrol">
+							<span className="block truncate text-[12.5px] font-semibold tracking-[-0.01em] text-petrol">
 								{agent.name}
 							</span>
 							<span className="mt-0.5 block truncate text-xs text-muted-foreground">
@@ -152,12 +158,14 @@ export default function AgentTable({
 								title={server.name}
 								className="flex size-6 shrink-0 items-center justify-center rounded-[6px] border border-border bg-card"
 							>
-								<Image
-									unoptimized
+								{/* eslint-disable-next-line @next/next/no-img-element */}
+								<img
 									width={14}
 									height={14}
 									src={
-										server.iconUrl ??
+										(server.imageRevision
+											? mcpServerImageUrl(server.id, server.imageRevision)
+											: server.iconUrl) ??
 										"https://pub-7a6e8912b3c448b8a8bfa47a0363f7bc.r2.dev/assets/icons/mcp.png"
 									}
 									alt={server.name}
@@ -230,6 +238,8 @@ export default function AgentTable({
 						<UserAvatar
 							name={ownerName}
 							pictureUrl={agent.owner?.pictureUrl}
+							userId={agent.owner?.id}
+							imageRevision={agent.owner?.imageRevision}
 							className="size-[22px] shrink-0"
 							fallbackClassName="bg-primary text-[8.5px] text-primary-foreground dark:bg-primary"
 						/>
@@ -252,7 +262,7 @@ export default function AgentTable({
 				return (
 					<span
 						className={cn(
-							"rounded-[4px] px-2 py-0.5 font-mono text-[9.5px] font-semibold tracking-[0.05em]",
+							"rounded-[4px] px-2 py-0.5 text-[9.5px] font-semibold ",
 							badge.className,
 						)}
 					>
@@ -288,7 +298,7 @@ export default function AgentTable({
 									const group = groupMeta.get(key);
 									return (
 										<>
-											<span className="font-mono text-[10px] font-semibold uppercase tracking-[0.09em] text-subtle dark:text-panel-dim">
+											<span className="text-[10px] font-semibold text-subtle dark:text-panel-dim">
 												{group?.label}
 											</span>
 											<span className="ml-2 font-mono text-[10.5px] text-meta dark:text-panel-dim">

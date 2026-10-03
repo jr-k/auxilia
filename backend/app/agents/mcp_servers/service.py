@@ -173,7 +173,11 @@ class AgentMCPServerService(BaseService[AgentMCPServerDB, AgentMCPServerReposito
         agents = await self.repository.list_agents_for_server(server_id)
         return [
             MCPServerAgentResponse(
-                id=agent.id, name=agent.name, emoji=agent.emoji, color=agent.color
+                id=agent.id,
+                name=agent.name,
+                emoji=agent.emoji,
+                color=agent.color,
+                image_revision=agent.image_revision,
             )
             for agent in agents
         ]

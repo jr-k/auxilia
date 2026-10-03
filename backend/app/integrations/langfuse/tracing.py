@@ -11,6 +11,7 @@ from app.integrations.langfuse.callback import (
     flush_langfuse,
     get_langfuse_callback_handler,
 )
+from app.observability.service import ObservabilityRuntimeConfig
 
 
 @dataclass(frozen=True)
@@ -30,6 +31,8 @@ class LangfuseTracing:
         flush_langfuse()
 
 
-def create_tracing() -> LangfuseTracing | None:
-    handler = get_langfuse_callback_handler()
+def create_tracing(
+    config: ObservabilityRuntimeConfig,
+) -> LangfuseTracing | None:
+    handler = get_langfuse_callback_handler(config)
     return LangfuseTracing(handler) if handler is not None else None

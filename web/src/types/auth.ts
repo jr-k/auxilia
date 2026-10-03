@@ -4,10 +4,14 @@ import type { WorkspaceRole } from "@/types/users";
 export interface CurrentUser {
 	id: string;
 	name: string | null;
+	firstName: string | null;
+	lastName: string | null;
 	email: string | null;
 	role: WorkspaceRole;
 	teamId: string | null;
 	pictureUrl: string | null;
+	imageRevision: string | null;
+	twoFactorEnabled: boolean;
 	createdAt: string;
 	updatedAt: string;
 }
@@ -17,6 +21,27 @@ export interface AuthProviders {
 	password: boolean;
 	google: boolean;
 	setupRequired: boolean;
+}
+
+export interface WorkspaceAuthenticationSettings {
+	enabled: boolean;
+	isConfigured: boolean;
+	googleExclusive: boolean;
+	clientIdLast4: string | null;
+	clientIdLength: number | null;
+	callbackUrl: string;
+}
+
+export interface WorkspaceAuthenticationUpdate {
+	enabled: boolean;
+	googleExclusive: boolean;
+	clientId?: string;
+	clientSecret?: string;
+}
+
+export interface SignInResult {
+	twoFactorRequired: boolean;
+	challengeToken?: string;
 }
 
 /** `GET /auth/invite/{token}` — what an invitee sees before accepting. */

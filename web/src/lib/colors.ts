@@ -15,7 +15,8 @@ const PASTELS = new Map(Object.entries(PASTEL_MAP));
 const DEFAULT_PASTEL = PASTEL_MAP["#9E9E9E"];
 
 export function agentPastel(color?: string | null): { pill: string; text: string } {
-	return (color ? PASTELS.get(color) : undefined) ?? DEFAULT_PASTEL;
+	if (!color) return DEFAULT_PASTEL;
+	return PASTELS.get(color) ?? { pill: `${color}20`, text: color };
 }
 
 export function randomAgentColor(): string {

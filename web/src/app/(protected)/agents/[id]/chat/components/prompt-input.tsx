@@ -316,7 +316,7 @@ const ChatPromptInput = ({
 											Object.entries(groupedModels).map(
 												([chefName, chefModels]) => (
 													<div key={chefName} className="px-2 pt-2">
-														<div className="px-3 pb-1.5 font-mono text-[10px] font-semibold uppercase tracking-[0.09em] text-meta dark:text-panel-dim">
+														<div className="px-3 pb-1.5 text-[10px] font-semibold text-meta dark:text-panel-dim">
 															{chefName}
 														</div>
 														<div className="flex flex-col gap-0.5">
@@ -361,7 +361,7 @@ const ChatPromptInput = ({
 							</Dialog>
 						)}
 						{readOnlyModel
-							? // Existing threads pin the effort with the model — show it
+							? // Existing threads pin the effort with the model, show it
 								// only when one was explicitly chosen (and still declared).
 								validatedEffort && (
 									<PromptInputButton disabled className={composerPillClass}>

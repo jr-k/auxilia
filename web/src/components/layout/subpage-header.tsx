@@ -24,7 +24,7 @@ export function SubpageHeader({
 }) {
 	return (
 		<header className="flex h-[52px] shrink-0 items-center gap-3 border-b border-border pl-14 pr-4 md:px-7">
-			<span className="min-w-0 truncate font-mono text-[11.5px] text-meta dark:text-panel-dim">
+			<span className="min-w-0 truncate text-[11.5px] text-meta dark:text-panel-dim">
 				{trail.map((segment, i) => {
 					const isLast = i === trail.length - 1;
 					return (
@@ -61,8 +61,8 @@ export function SubpageHeader({
 /** Amber UNSAVED chip for explicit-save editors (matches the agent editor). */
 export function UnsavedBadge() {
 	return (
-		<span className="rounded-[4px] bg-warning-bg px-2 py-0.5 font-mono text-[10px] font-semibold tracking-[0.05em] text-warning">
-			UNSAVED
+		<span className="rounded-[4px] bg-warning-bg px-2 py-0.5 text-[10px] font-semibold text-warning">
+			Unsaved
 		</span>
 	);
 }

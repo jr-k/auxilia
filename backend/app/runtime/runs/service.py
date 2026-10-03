@@ -89,31 +89,67 @@ class RunService:
         # must not hold a DB session (pool exhaustion under load).
         await ModelService.list_whitelisted()
         async with AsyncSessionLocal() as db:
-            await self._ensure_runnable_thread(db, thread_id)
-            repository = RunRepository(db)
-            if multitask_strategy == "reject":
-                # Serialize concurrent creates on this thread so two reject
-                # requests can't both pass the check (lock ends with the txn).
-                await repository.lock_thread_runs(thread_id)
-                if await repository.get_active_for_thread(thread_id) is not None:
-                    raise DomainValidationError(
-                        "This thread already has an active run."
-                    )
-            run = await repository.create(
-                RunDB(
-                    thread_id=thread_id,
-                    user_id=UUID(user_id),
-                    input=input,
-                    command=command,
-                    trigger=trigger,
-                    config_overrides=config_overrides,
-                    output_schema=output_schema,
-                    delivery=delivery,
-                    multitask_strategy=multitask_strategy,
-                )
+            run = await self.create_in_session(
+                db,
+                thread_id=thread_id,
+                user_id=user_id,
+                input=input,
+                command=command,
+                trigger=trigger,
+                config_overrides=config_overrides,
+                output_schema=output_schema,
+                delivery=delivery,
+                multitask_strategy=multitask_strategy,
+                _command_prepared=True,
             )
             await db.commit()
         return run
+
+    async def create_in_session(
+        self,
+        db: AsyncSession,
+        *,
+        thread_id: str,
+        user_id: str,
+        input: dict | None = None,
+        command: dict | None = None,
+        trigger: str | None = None,
+        config_overrides: dict | None = None,
+        output_schema: dict | None = None,
+        delivery: dict | None = None,
+        multitask_strategy: MultitaskStrategy = "reject",
+        _command_prepared: bool = False,
+    ) -> RunDB:
+        """Create a pending run in the caller's transaction.
+
+        Request-scoped workflows that create the thread and run together use
+        this variant so the dispatcher can never observe an orphaned half.
+        The caller owns commit/rollback and should warm the model catalog
+        before opening a long-lived transaction.
+        """
+        if input is not None and command is not None:
+            raise DomainValidationError("Provide either input or command, not both.")
+        if command is not None and not _command_prepared:
+            command = await self._canonical_command(thread_id, command)
+        await self._ensure_runnable_thread(db, thread_id)
+        repository = RunRepository(db)
+        if multitask_strategy == "reject":
+            await repository.lock_thread_runs(thread_id)
+            if await repository.get_active_for_thread(thread_id) is not None:
+                raise DomainValidationError("This thread already has an active run.")
+        return await repository.create(
+            RunDB(
+                thread_id=thread_id,
+                user_id=UUID(user_id),
+                input=input,
+                command=command,
+                trigger=trigger,
+                config_overrides=config_overrides,
+                output_schema=output_schema,
+                delivery=delivery,
+                multitask_strategy=multitask_strategy,
+            )
+        )
 
     @staticmethod
     async def _canonical_command(thread_id: str, command: dict) -> dict:

@@ -5,10 +5,11 @@ import time
 
 import httpx
 from fastapi import Header, HTTPException, Request
+from slack_sdk.web.async_client import AsyncWebClient
 
 from app.database import AsyncSessionLocal
 from app.integrations.slack.models import SlackUserInfo
-from app.integrations.slack.settings import slack_settings
+from app.notifications.service import SlackNotificationSettingsService
 from app.users.models import UserDB
 from app.users.repository import UserRepository
 
@@ -34,12 +35,16 @@ async def verify_slack_signature(
         raise HTTPException(status_code=403, detail="Request too old")
 
     body = await request.body()
+    async with AsyncSessionLocal() as db:
+        config = await SlackNotificationSettingsService(db).get_runtime_config()
+    if config is None:
+        raise HTTPException(status_code=503, detail="Slack is not configured")
 
     sig_basestring = f"v0:{timestamp}:{body.decode()}"
     expected = (
         "v0="
         + hmac.new(
-            slack_settings.slack_signing_secret.encode(),
+            config.signing_secret.encode(),
             sig_basestring.encode(),
             hashlib.sha256,
         ).hexdigest()
@@ -53,15 +58,24 @@ async def verify_slack_signature(
     return body
 
 
+async def get_slack_client() -> AsyncWebClient | None:
+    async with AsyncSessionLocal() as db:
+        config = await SlackNotificationSettingsService(db).get_runtime_config()
+    return AsyncWebClient(token=config.bot_token) if config else None
+
+
 async def get_user_info(user_id: str) -> SlackUserInfo | None:
     """Get user information from Slack API."""
     url = "https://slack.com/api/users.info"
-    headers = {"Authorization": f"Bearer {slack_settings.slack_bot_token}"}
+    slack_client = await get_slack_client()
+    if slack_client is None:
+        return None
+    headers = {"Authorization": f"Bearer {slack_client.token}"}
     params = {"user": user_id}
 
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient() as http_client:
         try:
-            response = await client.get(url, headers=headers, params=params)
+            response = await http_client.get(url, headers=headers, params=params)
             response.raise_for_status()
 
             data = response.json()

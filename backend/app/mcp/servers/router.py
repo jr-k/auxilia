@@ -1,7 +1,7 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query
-from fastapi.responses import JSONResponse
+from fastapi import APIRouter, Depends, File, Header, Query, UploadFile
+from fastapi.responses import JSONResponse, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.mcp_servers.service import (
@@ -29,6 +29,7 @@ from app.mcp.servers.schemas import (
 )
 from app.mcp.servers.service import MCPServerService, get_mcp_server_service
 from app.users.models import UserDB
+from app.utils.images import image_response, process_uploaded_image
 
 
 router = APIRouter(prefix="/mcp-servers", tags=["mcp-servers"])
@@ -86,6 +87,42 @@ async def get_mcp_server(
 ) -> MCPServerResponse:
     server = await service.get(server_id)
     return await service.to_response(server)
+
+
+@router.get("/{server_id}/image", response_class=Response)
+async def get_mcp_server_image(
+    server_id: UUID,
+    if_none_match: str | None = Header(default=None),
+    _current_user: UserDB = Depends(get_current_user),
+    service: MCPServerService = Depends(get_mcp_server_service),
+) -> Response:
+    image = await service.get_image(server_id)
+    return image_response(
+        data=image.data,
+        media_type=image.media_type,
+        digest=image.sha256,
+        if_none_match=if_none_match,
+    )
+
+
+@router.put("/{server_id}/image")
+async def set_mcp_server_image(
+    server_id: UUID,
+    file: UploadFile = File(...),
+    _current_user: UserDB = Depends(require_admin),
+    service: MCPServerService = Depends(get_mcp_server_service),
+) -> dict[str, UUID]:
+    image = await process_uploaded_image(file)
+    return {"image_revision": await service.set_image(server_id, image)}
+
+
+@router.delete("/{server_id}/image", status_code=204)
+async def delete_mcp_server_image(
+    server_id: UUID,
+    _current_user: UserDB = Depends(require_admin),
+    service: MCPServerService = Depends(get_mcp_server_service),
+) -> None:
+    await service.delete_image(server_id)
 
 
 @router.patch("/{server_id}", response_model=MCPServerResponse)

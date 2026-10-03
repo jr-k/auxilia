@@ -119,7 +119,7 @@ const ChatPage = () => {
             <div className="flex items-center gap-3 rounded-lg border border-border bg-muted/50 px-4 py-3">
               <ShieldCheck className="size-5 shrink-0 text-muted-foreground" />
               <p className="text-sm text-muted-foreground">
-                Viewing as admin — this thread belongs to another user and is
+                Viewing as admin, this thread belongs to another user and is
                 read-only.
               </p>
             </div>

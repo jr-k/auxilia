@@ -33,7 +33,7 @@ export function AuthShell({
 					</span>
 				</div>
 				<div className="mx-auto flex w-full max-w-[420px] flex-1 flex-col justify-center px-8">
-					<div className="font-mono text-xs font-medium tracking-[0.06em] text-petrol">
+					<div className="text-xs font-medium text-petrol">
 						{eyebrow}
 					</div>
 					<h1 className="mt-4 font-display text-[40px] font-bold leading-[1.05] tracking-[-0.035em]">
@@ -47,7 +47,7 @@ export function AuthShell({
 
 					{footer && <p className="mt-7 text-[13.5px] text-label">{footer}</p>}
 				</div>
-				<div className="flex items-center justify-between px-8 font-mono text-[11px] text-meta lg:px-14">
+				<div className="flex items-center justify-between px-8 text-[11px] text-meta lg:px-14">
 					<span>self-hosted</span>
 					<span>AGPL-3.0</span>
 				</div>
@@ -63,7 +63,7 @@ export function AuthShell({
 						backgroundSize: "40px 40px",
 					}}
 				/>
-				<div className="relative font-mono text-xs font-medium tracking-[0.06em] text-panel-terminal">
+				<div className="relative text-xs font-medium text-panel-terminal">
 					{"// AGENTS THAT WORK LIKE YOUR TEAM"}
 				</div>
 				<ProductShowcase />

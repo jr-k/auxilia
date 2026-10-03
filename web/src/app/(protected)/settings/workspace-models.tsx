@@ -1,14 +1,24 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { RefreshCw, Star } from "lucide-react";
+import { ChevronDown, RefreshCw, Search, Star, Trash2 } from "lucide-react";
 import { ModelSelectorLogo } from "@/components/ai-elements/model-selector";
 import { HeaderButton } from "@/components/layout/subpage-header";
+import {
+	Collapsible,
+	CollapsibleContent,
+	CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import * as modelsApi from "@/lib/api/resources/models";
 import { isApiError } from "@/lib/api/errors";
 import { useModelsStore } from "@/stores/models-store";
-import type { ManagedModel, WhitelistSyncResult } from "@/types/models";
+import type {
+	ManagedModel,
+	ModelProviderConfig,
+	WhitelistSyncResult,
+} from "@/types/models";
 
 const PROVIDER_LABELS = new Map<string, string>([
 	["openai", "OpenAI"],
@@ -35,7 +45,7 @@ function syncSummary(result: WhitelistSyncResult): string {
 	]
 		.filter(Boolean)
 		.join(", ");
-	return `Catalog synced — ${changes || "no changes"} (${result.modelCount} models).`;
+	return `Catalog synced, ${changes || "no changes"} (${result.modelCount} models).`;
 }
 
 /** Mono-caps chip on a model row (DEFAULT / capabilities / deprecation). */
@@ -54,7 +64,7 @@ function ModelBadge({
 				: "bg-hover text-subtle dark:bg-white/10 dark:text-panel-body";
 	return (
 		<span
-			className={`shrink-0 rounded-[4px] px-[7px] py-[2px] font-mono text-[9px] font-semibold tracking-[0.05em] ${toneClass}`}
+			className={`shrink-0 rounded-[4px] px-[7px] py-[2px] text-[9px] font-semibold ${toneClass}`}
 		>
 			{children}
 		</span>
@@ -63,7 +73,7 @@ function ModelBadge({
 
 interface WorkspaceModelsProps {
 	onForbidden: () => void;
-	/** Reports the catalog size so the settings rail can show a count. */
+	/** Reports usable models: enabled and backed by configured credentials. */
 	onCountChange?: (count: number) => void;
 }
 
@@ -73,6 +83,15 @@ export default function WorkspaceModels({
 }: WorkspaceModelsProps) {
 	const refreshModels = useModelsStore((state) => state.refreshModels);
 	const [models, setModels] = useState<ManagedModel[]>([]);
+	const [providers, setProviders] = useState<ModelProviderConfig[]>([]);
+	const [searchQuery, setSearchQuery] = useState("");
+	const [openProviders, setOpenProviders] = useState<ReadonlySet<string>>(
+		new Set(),
+	);
+	const [keyDrafts, setKeyDrafts] = useState<Record<string, string>>({});
+	const [pendingProviders, setPendingProviders] = useState<ReadonlySet<string>>(
+		new Set(),
+	);
 	const [isLoading, setIsLoading] = useState(true);
 	const [loadFailed, setLoadFailed] = useState(false);
 	const [isSyncing, setIsSyncing] = useState(false);
@@ -101,15 +120,42 @@ export default function WorkspaceModels({
 		onCountChangeRef.current = onCountChange;
 	}, [onCountChange]);
 
+	const hasLoadedModelsRef = useRef(false);
+	useEffect(() => {
+		if (!hasLoadedModelsRef.current) return;
+		const configuredProviders = new Set(
+			providers
+				.filter((provider) => provider.isConfigured)
+				.map((provider) => provider.name),
+		);
+		onCountChangeRef.current?.(
+			models.filter(
+				(model) =>
+					model.isEnabled && configuredProviders.has(model.provider),
+			).length,
+		);
+	}, [models, providers]);
+
 	const loadManaged = useCallback(async () => {
 		setIsLoading(true);
 		setLoadFailed(false);
 		try {
-			const managed = await modelsApi.listManagedModels();
+			const [managed, providerConfigs] = await Promise.all([
+				modelsApi.listManagedModels(),
+				modelsApi.listProviderConfigs(),
+			]);
 			setModels(managed);
-			// Only a successful fetch reports a count — an empty array from a
-			// failed/pending load would show a misleading "Models 0" in the rail.
-			onCountChangeRef.current?.(managed.length);
+			setProviders(providerConfigs);
+			setOpenProviders(
+				new Set(
+					providerConfigs
+						.filter((provider) => provider.isConfigured)
+						.map((provider) => provider.name),
+				),
+			);
+			// Only model state originating from a successful fetch reports a count;
+			// the initial empty array must not show a misleading "Models 0".
+			hasLoadedModelsRef.current = true;
 		} catch (error: unknown) {
 			if (isApiError(error) && error.status === 403) {
 				onForbiddenRef.current();
@@ -125,19 +171,130 @@ export default function WorkspaceModels({
 	}, []);
 
 	useEffect(() => {
-		void loadManaged();
+		const timeoutId = window.setTimeout(() => {
+			void loadManaged();
+		}, 0);
+		return () => {
+			window.clearTimeout(timeoutId);
+		};
 	}, [loadManaged]);
 
-	// Group rows by provider, preserving whitelist order.
+	// Keep provider order stable, hide empty groups only while searching, and
+	// pin enabled rows above disabled rows without disturbing catalog order.
 	const providerGroups = useMemo(() => {
-		const groups = new Map<string, ManagedModel[]>();
-		for (const model of models) {
-			const existing = groups.get(model.provider);
-			if (existing) existing.push(model);
-			else groups.set(model.provider, [model]);
+		const query = searchQuery.trim().toLocaleLowerCase();
+		return providers
+			.map((provider) => {
+				const allProviderModels = models.filter(
+					(model) => model.provider === provider.name,
+				);
+				const providerModels = allProviderModels
+					.filter(
+						(model) =>
+							!query ||
+								model.displayName.toLocaleLowerCase().includes(query) ||
+							model.modelId.toLocaleLowerCase().includes(query),
+					)
+					.sort((a, b) => Number(b.isEnabled) - Number(a.isEnabled));
+				return {
+					provider,
+					models: providerModels,
+					enabledCount: allProviderModels.filter((model) => model.isEnabled)
+						.length,
+					totalCount: allProviderModels.length,
+				};
+			})
+			.filter(({ models: providerModels }) => !query || providerModels.length > 0);
+	}, [models, providers, searchQuery]);
+
+	const updateProvider = (updated: ModelProviderConfig) => {
+		setProviders((current) =>
+			current.map((provider) =>
+				provider.name === updated.name ? updated : provider,
+			),
+		);
+	};
+
+	const handleProviderKeySave = async (provider: ModelProviderConfig) => {
+		const apiKey = keyDrafts[provider.name]?.trim();
+		if (!apiKey) return;
+		setPendingProviders((current) => new Set(current).add(provider.name));
+		setStatus(null);
+		try {
+			updateProvider(
+				await modelsApi.setProviderApiKey(provider.name, apiKey),
+			);
+			setKeyDrafts((current) => ({ ...current, [provider.name]: "" }));
+			setStatus({
+				kind: "info",
+				text: `${providerLabel(provider.name)} API key saved.`,
+			});
+			await refreshModels().catch(() => {});
+		} catch (error: unknown) {
+			if (isApiError(error) && error.status === 403) {
+				onForbidden();
+			} else {
+				setStatus({
+					kind: "error",
+					text:
+						apiErrorDetail(error) ??
+						`Could not save the ${providerLabel(provider.name)} API key.`,
+				});
+			}
+		} finally {
+			setPendingProviders((current) => {
+				const next = new Set(current);
+				next.delete(provider.name);
+				return next;
+			});
 		}
-		return [...groups.entries()];
-	}, [models]);
+	};
+
+	const handleProviderKeyDelete = async (provider: ModelProviderConfig) => {
+		setPendingProviders((current) => new Set(current).add(provider.name));
+		setStatus(null);
+		try {
+			const updated = await modelsApi.deleteProviderApiKey(provider.name);
+			updateProvider(updated);
+			if (!updated.isConfigured) {
+				setModels((current) =>
+					current.map((model) =>
+						model.provider === provider.name
+							? { ...model, isDefault: false }
+							: model,
+					),
+				);
+			}
+			setKeyDrafts((current) => ({ ...current, [provider.name]: "" }));
+			setStatus({
+				kind: "info",
+				text:
+					updated.source === "environment"
+						? `${providerLabel(provider.name)} now uses the deployment environment key.`
+						: updated.source === "adc"
+							? `${providerLabel(provider.name)} now uses Google Application Default Credentials.`
+						: `${providerLabel(provider.name)} API key removed.`,
+			});
+			await refreshModels().catch(() => {});
+		} catch (error: unknown) {
+			if (isApiError(error) && error.status === 403) {
+				onForbidden();
+			} else {
+				setStatus({
+					kind: "error",
+					text:
+						apiErrorDetail(error) ??
+						`Could not remove the ${providerLabel(provider.name)} API key.`,
+				});
+			}
+		} finally {
+			setPendingProviders((current) => {
+				const next = new Set(current);
+				next.delete(provider.name);
+				return next;
+			});
+		}
+	};
 
 	const handleToggle = async (model: ManagedModel, isEnabled: boolean) => {
 		const key = `${model.provider}/${model.modelId}`;
@@ -256,12 +413,11 @@ export default function WorkspaceModels({
 		try {
 			const managed = await modelsApi.listManagedModels();
 			setModels(managed);
-			onCountChangeRef.current?.(managed.length);
 			setStatus({ kind: "info", text: summary });
 		} catch {
 			setStatus({
 				kind: "info",
-				text: `${summary} The list below could not be refreshed — reload the page.`,
+				text: `${summary} The list below could not be refreshed, reload the page.`,
 			});
 		} finally {
 			setIsSyncing(false);
@@ -272,10 +428,10 @@ export default function WorkspaceModels({
 	return (
 		<div>
 			<div className="mb-1.5 flex items-baseline gap-2.5">
-				<span className="font-mono text-[10.5px] font-semibold tracking-[0.09em] text-subtle dark:text-panel-dim">
-					WORKSPACE MODELS
+				<span className="text-[10.5px] font-semibold text-subtle dark:text-panel-dim">
+					Workspace models
 				</span>
-				<span className="font-mono text-[10.5px] text-meta dark:text-panel-dim">
+				<span className="text-[10.5px] text-meta dark:text-panel-dim">
 					admin
 				</span>
 				<span className="flex-1" />
@@ -295,7 +451,7 @@ export default function WorkspaceModels({
 			</div>
 			<p className="mb-3.5 max-w-[640px] text-[13px] leading-[1.55] text-subtle text-pretty dark:text-panel-body">
 				Choose which models members can use in chats and triggers. New catalog
-				models start disabled. Star a model to make it the workspace default —
+				models start disabled. Star a model to make it the workspace default.
 				it preselects pickers and is used by Slack; without one, the first
 				available model is used.
 			</p>
@@ -310,6 +466,19 @@ export default function WorkspaceModels({
 					{status.text}
 				</p>
 			)}
+			<div className="relative mb-3">
+				<Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-faint" />
+				<Input
+					type="search"
+					value={searchQuery}
+					onChange={(event) => {
+						setSearchQuery(event.target.value);
+					}}
+					placeholder="Search models by name"
+					aria-label="Search models by name"
+					className="h-10 pl-9"
+				/>
+			</div>
 
 			<div className="overflow-hidden rounded-[10px] border border-border bg-card dark:border-white/10">
 				{isLoading ? (
@@ -332,22 +501,122 @@ export default function WorkspaceModels({
 					</div>
 				) : providerGroups.length === 0 ? (
 					<div className="px-4 py-12 text-center text-[14px] font-medium text-faint dark:text-muted-foreground">
-						No providers configured. Set provider API keys in the backend
-						environment to offer models.
+						No models match your search.
 					</div>
 				) : (
-					providerGroups.map(([provider, providerModels]) => (
-						<div key={provider}>
-							<div className="flex items-center border-b border-hairline bg-sidebar px-4 py-[9px] dark:border-white/5 dark:bg-white/[0.03]">
-								<span className="font-mono text-[10px] font-semibold uppercase tracking-[0.09em] text-subtle dark:text-panel-dim">
-									{providerLabel(provider)}
-								</span>
-								<span className="ml-auto font-mono text-[10.5px] text-meta dark:text-panel-dim">
-									{providerModels.filter((m) => m.isEnabled).length}/
-									{providerModels.length} enabled
-								</span>
-							</div>
-							{providerModels.map((model) => {
+					providerGroups.map(
+						({ provider, models: providerModels, enabledCount, totalCount }) => (
+							<Collapsible
+								key={provider.name}
+								open={
+									searchQuery.trim().length > 0 ||
+									openProviders.has(provider.name)
+								}
+								onOpenChange={(open) => {
+									setOpenProviders((current) => {
+										const next = new Set(current);
+										if (open) next.add(provider.name);
+										else next.delete(provider.name);
+										return next;
+									});
+								}}
+								className="border-b border-hairline last:border-b-0 dark:border-white/5"
+							>
+								<CollapsibleTrigger className="group flex w-full cursor-pointer items-center gap-3 bg-sidebar px-4 py-3 text-left transition-colors hover:bg-hover dark:bg-white/[0.03] dark:hover:bg-white/[0.06]">
+									<ChevronDown className="size-4 shrink-0 text-faint transition-transform group-data-[state=closed]:-rotate-90" />
+									<div className="min-w-0 flex-1">
+										<div className="flex items-center gap-2">
+											<span className="text-[13.5px] font-semibold text-foreground">
+												{providerLabel(provider.name)}
+											</span>
+											<span
+												className={`size-1.5 rounded-full ${
+													provider.isConfigured
+														? "bg-emerald-500"
+														: "bg-faint"
+												}`}
+											/>
+										</div>
+										<span className="mt-0.5 block text-[11px] text-meta dark:text-panel-dim">
+											{provider.source === "database"
+												? `API key configured${
+														provider.last4 ? `, ending in ${provider.last4}` : ""
+													}`
+												: provider.source === "environment"
+													? "Using deployment environment key"
+													: provider.source === "adc"
+														? "Using Google Application Default Credentials"
+														: "API key not configured"}
+										</span>
+									</div>
+									<span className="shrink-0 text-[10.5px] text-meta dark:text-panel-dim">
+										<span className="font-mono">{enabledCount}/{totalCount}</span> enabled
+									</span>
+								</CollapsibleTrigger>
+								<CollapsibleContent className="data-[state=closed]:animate-collapsible-up data-[state=open]:animate-collapsible-down overflow-hidden">
+									<form
+										className="flex flex-col gap-2 border-b border-hairline bg-card px-4 py-3 sm:flex-row sm:items-center dark:border-white/5"
+										onSubmit={(event) => {
+											event.preventDefault();
+											void handleProviderKeySave(provider);
+										}}
+									>
+										<Input
+											type="password"
+											autoComplete="new-password"
+											value={keyDrafts[provider.name] ?? ""}
+											onChange={(event) => {
+												setKeyDrafts((current) => ({
+													...current,
+													[provider.name]: event.target.value,
+												}));
+											}}
+											placeholder={
+												provider.isConfigured
+													? "Enter a new API key to replace the current key"
+													: "Enter API key"
+											}
+											aria-label={`${providerLabel(provider.name)} API key`}
+											disabled={pendingProviders.has(provider.name)}
+											className="h-9 flex-1 font-mono text-[12px]"
+										/>
+										<div className="flex items-center gap-2">
+											<HeaderButton
+												type="submit"
+												accent
+												disabled={
+													pendingProviders.has(provider.name) ||
+													!(keyDrafts[provider.name]?.trim())
+												}
+											>
+												{pendingProviders.has(provider.name)
+													? "Saving…"
+													: provider.source === "database"
+														? "Replace key"
+														: "Save key"}
+											</HeaderButton>
+											{provider.source === "database" && (
+												<button
+													type="button"
+													aria-label={`Remove ${providerLabel(provider.name)} API key`}
+													title="Remove stored API key"
+													disabled={pendingProviders.has(provider.name)}
+													onClick={() => {
+														void handleProviderKeyDelete(provider);
+													}}
+													className="flex size-8 cursor-pointer items-center justify-center rounded-[7px] text-faint transition-colors hover:bg-destructive/10 hover:text-destructive disabled:cursor-default disabled:opacity-50"
+												>
+													<Trash2 className="size-3.5" />
+												</button>
+											)}
+										</div>
+									</form>
+									{providerModels.length === 0 ? (
+										<div className="px-4 py-8 text-center text-[13px] text-faint">
+											No models available for this provider.
+										</div>
+									) : (
+										providerModels.map((model) => {
 								const key = `${model.provider}/${model.modelId}`;
 								return (
 									<div
@@ -374,19 +643,19 @@ export default function WorkspaceModels({
 													{model.displayName}
 												</span>
 												{model.isDefault && (
-													<ModelBadge tone="accent">DEFAULT</ModelBadge>
+													<ModelBadge tone="accent">Default</ModelBadge>
 												)}
 												{model.deprecated && (
 													<ModelBadge tone="destructive">
-														NO LONGER SUPPORTED
+														No longer supported
 													</ModelBadge>
 												)}
 												{model.multimodal && (
-													<ModelBadge tone="neutral">MULTIMODAL</ModelBadge>
+													<ModelBadge tone="neutral">Multimodal</ModelBadge>
 												)}
 												{model.supportsStructuredOutput && (
 													<ModelBadge tone="neutral">
-														STRUCTURED OUTPUT
+														Structured output
 													</ModelBadge>
 												)}
 											</div>
@@ -420,6 +689,7 @@ export default function WorkspaceModels({
 												isSyncing ||
 												isDefaultUpdating ||
 												!model.isEnabled ||
+												!provider.isConfigured ||
 												model.deprecated
 											}
 											onClick={() => {
@@ -444,6 +714,7 @@ export default function WorkspaceModels({
 											disabled={
 												pendingKeys.has(key) ||
 												isSyncing ||
+												(!provider.isConfigured && !model.isEnabled) ||
 												(model.deprecated && !model.isEnabled)
 											}
 											onCheckedChange={(checked) => {
@@ -453,9 +724,12 @@ export default function WorkspaceModels({
 										/>
 									</div>
 								);
-							})}
-						</div>
-					))
+										})
+									)}
+								</CollapsibleContent>
+							</Collapsible>
+						),
+					)
 				)}
 			</div>
 		</div>

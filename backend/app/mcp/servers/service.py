@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 from datetime import UTC, datetime
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from fastapi import Depends
 from sqlalchemy.exc import IntegrityError
@@ -23,7 +23,7 @@ from app.mcp.client.connectivity import (
 from app.mcp.client.exceptions import OAuthAuthorizationRequired
 from app.mcp.client.storage import TokenStorageFactory
 from app.mcp.servers import catalog as mcp_catalog
-from app.mcp.servers.models import MCPAuthType, MCPServerDB
+from app.mcp.servers.models import MCPAuthType, MCPServerDB, MCPServerImageDB
 from app.mcp.servers.repository import MCPServerRepository
 from app.mcp.servers.schemas import (
     AuthorizationRequired,
@@ -40,6 +40,7 @@ from app.mcp.servers.schemas import (
 from app.service import BaseService
 from app.users.repository import UserRepository
 from app.utils.encryption import decrypt_value
+from app.utils.images import ProcessedImage
 
 
 logger = logging.getLogger(__name__)
@@ -50,6 +51,29 @@ class MCPServerService(BaseService[MCPServerDB, MCPServerRepository]):
 
     def __init__(self, db: AsyncSession):
         super().__init__(db, MCPServerRepository(db))
+
+    async def get_image(self, server_id: UUID) -> MCPServerImageDB:
+        await self.get_or_404(server_id)
+        image = await self.repository.get_image(server_id)
+        if image is None:
+            raise NotFoundError("MCP server image not found")
+        return image
+
+    async def set_image(self, server_id: UUID, image: ProcessedImage) -> UUID:
+        await self.get_or_404(server_id)
+        revision = uuid4()
+        await self.repository.set_image(
+            server_id,
+            data=image.data,
+            media_type=image.media_type,
+            sha256=image.sha256,
+            revision=revision,
+        )
+        return revision
+
+    async def delete_image(self, server_id: UUID) -> None:
+        await self.get_or_404(server_id)
+        await self.repository.delete_image(server_id)
 
     async def create(self, data: MCPServerCreate) -> MCPServerDB:
         if await self.repository.get_by_url(data.url):
@@ -288,6 +312,7 @@ class MCPServerService(BaseService[MCPServerDB, MCPServerRepository]):
                     name=user.name if user else None,
                     email=user.email if user else None,
                     picture_url=user.picture_url if user else None,
+                    image_revision=user.image_revision if user else None,
                     status="expired" if expired else "active",
                 )
             )

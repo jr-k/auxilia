@@ -1,4 +1,5 @@
 import { Search } from "lucide-react";
+import { useEffect, useRef } from "react";
 
 interface SearchBarProps {
 	placeholder?: string;
@@ -6,6 +7,7 @@ interface SearchBarProps {
 	onChange: (value: string) => void;
 	className?: string;
 	hint?: string;
+	focusOnModK?: boolean;
 }
 
 export function SearchBar({
@@ -14,11 +16,35 @@ export function SearchBar({
 	onChange,
 	className = "",
 	hint,
+	focusOnModK = false,
 }: SearchBarProps) {
+	const inputRef = useRef<HTMLInputElement>(null);
+
+	useEffect(() => {
+		if (!focusOnModK) return;
+
+		const handleKeyDown = (event: KeyboardEvent) => {
+			if (
+				(event.metaKey || event.ctrlKey) &&
+				event.key.toLowerCase() === "k"
+			) {
+				event.preventDefault();
+				inputRef.current?.focus();
+				inputRef.current?.select();
+			}
+		};
+
+		window.addEventListener("keydown", handleKeyDown);
+		return () => {
+			window.removeEventListener("keydown", handleKeyDown);
+		};
+	}, [focusOnModK]);
+
 	return (
 		<div className={`relative ${className}`}>
 			<Search className="absolute left-3 top-1/2 size-[15px] -translate-y-1/2 text-meta dark:text-panel-dim" />
 			<input
+				ref={inputRef}
 				type="text"
 				placeholder={placeholder}
 				value={value}

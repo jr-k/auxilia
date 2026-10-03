@@ -13,6 +13,7 @@ import {
 	Trash2,
 } from "lucide-react";
 import ForbiddenErrorDialog from "@/components/forbidden-error-dialog";
+import { useConfirmDialog } from "@/components/providers/dialog-provider";
 import InviteDialog from "./invite-dialog";
 import NewTeamDialog, { type Team } from "./new-team-dialog";
 import {
@@ -75,6 +76,7 @@ function getInviterShortName(name: string | null): string {
 }
 
 export default function UsersPage() {
+	const confirmDialog = useConfirmDialog();
 	const currentUser = useUserStore((state) => state.user);
 	const [users, setUsers] = useState<User[]>([]);
 	const [total, setTotal] = useState(0);
@@ -280,13 +282,15 @@ export default function UsersPage() {
 
 	const handleDeleteTeam = async (team: Team) => {
 		const memberCount = team.memberCount;
-		const confirmed = window.confirm(
-			`Delete "${team.name}"?${
+		const confirmed = await confirmDialog({
+			title: `Delete “${team.name}”?`,
+			description:
 				memberCount > 0
-					? ` ${memberCount} member${memberCount === 1 ? "" : "s"} will be unassigned`
-					: ""
-			} and its agent links will be removed.`,
-		);
+					? `${memberCount} member${memberCount === 1 ? "" : "s"} will be unassigned and the team’s agent links will be removed.`
+					: "The team’s agent links will be removed. This action cannot be undone.",
+			confirmLabel: "Delete team",
+			destructive: true,
+		});
 		if (!confirmed) return;
 
 		try {
@@ -310,9 +314,13 @@ export default function UsersPage() {
 	};
 
 	const handleRemoveUser = async (userId: string, userName: string | null) => {
-		const confirmed = window.confirm(
-			`Are you sure you want to remove ${userName || "this user"} from the workspace?`,
-		);
+		const confirmed = await confirmDialog({
+			title: `Remove ${userName || "this user"}?`,
+			description:
+				"They will lose access to this workspace and its shared resources.",
+			confirmLabel: "Remove user",
+			destructive: true,
+		});
 		if (!confirmed) return;
 
 		try {
@@ -346,6 +354,8 @@ export default function UsersPage() {
 						<UserAvatar
 							name={user.name}
 							pictureUrl={user.pictureUrl}
+							userId={user.id}
+							imageRevision={user.imageRevision}
 							className="shrink-0"
 						/>
 						<div className="min-w-0">
@@ -354,8 +364,8 @@ export default function UsersPage() {
 									{user.name || "Unnamed"}
 								</span>
 								{isCurrentUser && (
-									<span className="shrink-0 rounded-[4px] bg-petrol-tint px-1.5 py-0.5 font-mono text-[9px] font-bold tracking-[0.06em] text-petrol">
-										YOU
+									<span className="shrink-0 rounded-[4px] bg-petrol-tint px-1.5 py-0.5 text-[9px] font-bold text-petrol">
+										You
 									</span>
 								)}
 							</div>
@@ -534,19 +544,21 @@ export default function UsersPage() {
 				teams={teams}
 				onInviteCreated={(invite) => { setInvites((prev) => [...prev, invite]); }}
 			/>
-			<NewTeamDialog
-				open={newTeamDialogOpen}
-				onOpenChange={(open) => {
-					setNewTeamDialogOpen(open);
-					if (!open) {
-						setPendingTeamUserId(null);
-						setEditingTeam(null);
-					}
-				}}
-				team={editingTeam}
-				onTeamCreated={handleTeamCreated}
-				onTeamUpdated={handleTeamUpdated}
-			/>
+			{newTeamDialogOpen && (
+				<NewTeamDialog
+					open
+					onOpenChange={(open) => {
+						setNewTeamDialogOpen(open);
+						if (!open) {
+							setPendingTeamUserId(null);
+							setEditingTeam(null);
+						}
+					}}
+					team={editingTeam}
+					onTeamCreated={handleTeamCreated}
+					onTeamUpdated={handleTeamUpdated}
+				/>
+			)}
 			{/* Role filter chips (design 13c: pills above the table) */}
 			<div className="flex flex-wrap items-center gap-2 pb-[18px] pt-1.5">
 				{ROLE_FILTERS.map((filter) => {
@@ -635,8 +647,9 @@ export default function UsersPage() {
 							<span className="flex-1 truncate text-[13.5px] font-semibold text-foreground">
 								{team.name}
 							</span>
-							<span className="shrink-0 font-mono text-[10.5px] text-meta dark:text-panel-dim">
-								{team.memberCount} member{team.memberCount === 1 ? "" : "s"}
+							<span className="shrink-0 text-[10.5px] text-meta dark:text-panel-dim">
+								<span className="font-mono">{team.memberCount}</span> member
+								{team.memberCount === 1 ? "" : "s"}
 							</span>
 							<DropdownMenu
 								trigger={
@@ -694,7 +707,7 @@ export default function UsersPage() {
 											{invite.email}
 										</div>
 										<div className="mt-0.5 truncate text-[11.5px] text-meta dark:text-panel-dim">
-											Invited {timeAgo(invite.createdAt)} · by{" "}
+											Invited {timeAgo(invite.createdAt)}, by{" "}
 											{getInviterShortName(invite.invitedByName)}
 										</div>
 									</div>

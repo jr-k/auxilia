@@ -143,8 +143,8 @@ export default function SkillsPage() {
 			{view === "sources" ? (
 				sourcesInitialized && sources.length === 0 ? (
 					<div className="rounded-[12px] border border-dashed border-input p-6 dark:border-white/10">
-						<p className="font-mono text-[10.5px] font-semibold tracking-[0.09em] text-label dark:text-muted-foreground">
-							NO REPOSITORY CONNECTED
+						<p className="text-[10.5px] font-semibold text-label dark:text-muted-foreground">
+							No repository connected
 						</p>
 						<p className="mt-2 max-w-[560px] text-[13.5px] leading-[1.55] text-body dark:text-panel-body">
 							Keep the company&apos;s skills in one git repository, public or private, reviewed and versioned there. Connect it and every
@@ -176,11 +176,11 @@ export default function SkillsPage() {
 				)
 			) : isEmpty ? (
 				<div className="rounded-[12px] border border-dashed border-input p-6 dark:border-white/10">
-					<p className="font-mono text-[10.5px] font-semibold tracking-[0.09em] text-label dark:text-muted-foreground">
-						YOUR LIBRARY IS EMPTY
+					<p className="text-[10.5px] font-semibold text-label dark:text-muted-foreground">
+						Your library is empty
 					</p>
 					<p className="mt-2 max-w-[560px] text-[13.5px] leading-[1.55] text-body dark:text-panel-body">
-						A skill is a SKILL.md — its name, when to use it, the steps — that any
+						A skill is a SKILL.md, its name, when to use it, the steps, that any
 						agent in the workspace can be given. Write one here, or connect a
 						repository to bring in skills with scripts and references, reviewed and
 						versioned there; those need an agent that runs code.
@@ -218,9 +218,9 @@ export default function SkillsPage() {
 			) : (
 				<>
 					{updates > 0 && (
-						<p className="mb-3 shrink-0 font-mono text-[11px] text-warning">
+						<p className="mb-3 shrink-0 text-[11px] text-warning">
 							{updates} skill{updates === 1 ? " has" : "s have"} a newer version in{" "}
-							{updates === 1 ? "its" : "their"} repository — open {updates === 1 ? "it" : "them"} to review and adopt.
+							{updates === 1 ? "its" : "their"} repository, open {updates === 1 ? "it" : "them"} to review and adopt.
 						</p>
 					)}
 				<SkillTable

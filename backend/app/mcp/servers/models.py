@@ -28,6 +28,24 @@ class MCPServerDB(MCPServerBase, BaseDBModel, table=True):
     auth_type: MCPAuthType = Field(
         default=MCPAuthType.none, sa_column=Column(Enum(MCPAuthType), nullable=False)
     )
+    image_revision: UUID | None = Field(default=None, nullable=True)
+
+
+class MCPServerImageDB(BaseDBModel, table=True):
+    __tablename__ = "mcp_server_images"
+    __table_args__ = (
+        sa.UniqueConstraint("mcp_server_id", name="uq_mcp_server_image_server_id"),
+    )
+
+    mcp_server_id: UUID = Field(
+        foreign_key="mcp_servers.id",
+        ondelete="CASCADE",
+        nullable=False,
+        index=True,
+    )
+    data: bytes = Field(sa_column=Column(sa.LargeBinary, nullable=False))
+    media_type: str = Field(max_length=50, nullable=False)
+    sha256: str = Field(max_length=64, nullable=False)
 
 
 class MCPServerAPIKeyDB(BaseDBModel, table=True):

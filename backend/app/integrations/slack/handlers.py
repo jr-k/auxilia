@@ -27,8 +27,7 @@ from app.integrations.slack.commands.chat import (
 )
 from app.integrations.slack.consumer import build_slack_delivery
 from app.integrations.slack.models import SlackEvent, SlackInteractionPayload
-from app.integrations.slack.settings import slack_settings
-from app.integrations.slack.utils import get_user_info, resolve_user
+from app.integrations.slack.utils import get_slack_client, get_user_info, resolve_user
 from app.runtime.hitl import (
     PendingInterrupt,
     load_interrupt_scope,
@@ -354,7 +353,9 @@ async def handle_assistant_thread_started(event: SlackEvent) -> None:
     thread_ts = at.thread_ts
     slack_user_id = at.user_id
 
-    client = AsyncWebClient(token=slack_settings.slack_bot_token)
+    client = await get_slack_client()
+    if client is None:
+        return
     await client.assistant_threads_setStatus(
         channel_id=channel_id,
         thread_ts=thread_ts,
@@ -447,7 +448,9 @@ async def handle_message(event: SlackEvent, *, team_id: str | None = None) -> No
     if not user:
         return
 
-    client = AsyncWebClient(token=slack_settings.slack_bot_token)
+    client = await get_slack_client()
+    if client is None:
+        return
 
     # Look up the existing thread (created when the user picked an agent)
     async with AsyncSessionLocal() as db:
@@ -539,7 +542,9 @@ async def handle_interaction(payload: SlackInteractionPayload) -> None:
     if not channel_id or not thread_ts:
         return
 
-    client = AsyncWebClient(token=slack_settings.slack_bot_token)
+    client = await get_slack_client()
+    if client is None:
+        return
     original_blocks = payload.message.blocks if payload.message else []
 
     # The checkpoint arbitrates: which interrupt is pending, and is the

@@ -52,7 +52,7 @@ interface DataTableProps<T> {
 }
 
 const HEADER_LABEL_CLASS =
-	"font-mono text-[10px] font-semibold uppercase tracking-[0.09em] text-meta dark:text-panel-dim";
+	"text-[10px] font-semibold text-meta dark:text-panel-dim";
 const ROW_CLASS =
 	"group border-b border-hairline py-[11px] transition-colors duration-[110ms] last:border-b-0 hover:bg-sidebar dark:border-white/5 dark:hover:bg-white/5";
 const PAGER_BUTTON_CLASS =
@@ -104,8 +104,9 @@ function PaginationFooter({
 
 	return (
 		<div className="flex items-center justify-between px-1 py-3.5">
-			<span className="font-mono text-[11px] text-meta dark:text-panel-dim">
-				{start}–{end} of {total}
+			<span className="text-[11px] text-meta dark:text-panel-dim">
+				<span className="font-mono">{start}–{end}</span> of{" "}
+				<span className="font-mono">{total}</span>
 				{itemLabel ? ` ${itemLabel}` : ""}
 			</span>
 			{pageCount > 1 && (

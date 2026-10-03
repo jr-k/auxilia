@@ -10,6 +10,7 @@ from sqlmodel import SQLModel, select
 
 from app.agents.models import (
     AgentDB,
+    AgentImageDB,
     AgentMCPServerDB,
     AgentSandboxBase,
     AgentSandboxDB,
@@ -48,6 +49,7 @@ class AgentRepository(BaseRepository[AgentDB]):
         AgentDB.owner_id,
         AgentDB.emoji,
         AgentDB.color,
+        AgentDB.image_revision,
         AgentDB.description,
         AgentDB.is_archived,
         AgentDB.tag_id,
@@ -294,6 +296,48 @@ class AgentRepository(BaseRepository[AgentDB]):
             return
         stmt = update(AgentDB).where(AgentDB.id == agent_id).values(**values)
         await self.db.execute(stmt)
+
+    async def get_image(self, agent_id: UUID) -> AgentImageDB | None:
+        stmt = select(AgentImageDB).where(AgentImageDB.agent_id == agent_id)
+        result = await self.db.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def set_image(
+        self,
+        agent_id: UUID,
+        *,
+        data: bytes,
+        media_type: str,
+        sha256: str,
+        revision: UUID,
+    ) -> None:
+        image = await self.get_image(agent_id)
+        if image is None:
+            image = AgentImageDB(
+                agent_id=agent_id,
+                data=data,
+                media_type=media_type,
+                sha256=sha256,
+            )
+        else:
+            image.data = data
+            image.media_type = media_type
+            image.sha256 = sha256
+        self.db.add(image)
+        stmt = (
+            update(AgentDB)
+            .where(AgentDB.id == agent_id)
+            .values(image_revision=revision)
+        )
+        await self.db.execute(stmt)
+        await self.db.flush()
+
+    async def delete_image(self, agent_id: UUID) -> None:
+        stmt = delete(AgentImageDB).where(AgentImageDB.agent_id == agent_id)
+        await self.db.execute(stmt)
+        stmt = update(AgentDB).where(AgentDB.id == agent_id).values(image_revision=None)
+        await self.db.execute(stmt)
+        await self.db.flush()
 
     async def set_archived(self, agent_id: UUID, *, archived: bool) -> None:
         """Archive or restore, idempotently.
