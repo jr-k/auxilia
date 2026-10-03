@@ -214,11 +214,11 @@ def upgrade() -> None:
     )
     for table in scoped_tables:
         op.add_column(table, sa.Column("workspace_id", sa.Uuid(), nullable=True))
-        op.execute(
-            sa.text(f"UPDATE {table} SET workspace_id = :workspace_id").bindparams(
-                workspace_id=workspace_id
-            )
+        scoped_table = sa.table(
+            table,
+            sa.column("workspace_id", sa.Uuid()),
         )
+        op.execute(scoped_table.update().values(workspace_id=workspace_id))
         op.create_foreign_key(
             f"fk_{table}_workspace_id_workspaces",
             table,

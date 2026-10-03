@@ -218,6 +218,8 @@ const ChatPage = () => {
             onUpdateQueued={async (id, text) => {
               await promptQueue.update(id, text);
             }}
+            onBeginQueuedEdit={promptQueue.beginEdit}
+            onEndQueuedEdit={promptQueue.endEdit}
             onRemoveQueued={promptQueue.remove}
             onReorderQueued={promptQueue.reorder}
           />

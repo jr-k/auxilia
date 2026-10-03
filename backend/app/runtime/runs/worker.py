@@ -72,12 +72,8 @@ class RunWorker:
 
     async def run(self, record: RunDB) -> None:
         """Execute a run the dispatcher just claimed (already `running`)."""
-        events = RunEventStream(
-            record.id, self.redis, workspace_id=record.workspace_id
-        )
-        liveness = RunLiveness(
-            record.id, self.redis, workspace_id=record.workspace_id
-        )
+        events = RunEventStream(record.id, self.redis, workspace_id=record.workspace_id)
+        liveness = RunLiveness(record.id, self.redis, workspace_id=record.workspace_id)
         # Stamp before anything else: the reaper treats a running run with no
         # liveness key (past the grace window) as a dead worker.
         await liveness.stamp(ttl=run_settings.heartbeat_timeout_seconds)
@@ -85,9 +81,7 @@ class RunWorker:
         cancel_watch = asyncio.create_task(
             RunControl(
                 record.id, self.redis, workspace_id=record.workspace_id
-            ).wait_for_cancel(
-                poll_seconds=run_settings.cancel_poll_seconds
-            )
+            ).wait_for_cancel(poll_seconds=run_settings.cancel_poll_seconds)
         )
         # A push consumer (e.g. Slack) relays the event log concurrently; it reads
         # from id 0, so there's no race with the events we publish below, and it

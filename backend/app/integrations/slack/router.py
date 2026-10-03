@@ -80,9 +80,7 @@ async def slack_events(
         return JSONResponse(content={"ok": True})
 
     if event.type == "assistant_thread_started":
-        _spawn(
-            handle_assistant_thread_started(event, verified.workspace_id)
-        )
+        _spawn(handle_assistant_thread_started(event, verified.workspace_id))
 
     elif event.type == "message" and event.user:
         if event.bot_id or event.subtype == "bot_message":

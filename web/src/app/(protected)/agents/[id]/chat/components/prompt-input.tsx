@@ -71,6 +71,8 @@ interface ChatPromptInputProps {
 	queuedPrompts?: QueuedPrompt[];
 	onEnqueue?: (text: string) => Promise<void>;
 	onUpdateQueued?: (id: string, text: string) => Promise<void>;
+	onBeginQueuedEdit?: (id: string) => Promise<void>;
+	onEndQueuedEdit?: (id: string) => Promise<void>;
 	onRemoveQueued?: (id: string) => Promise<void>;
 	onReorderQueued?: (orderedIds: string[]) => Promise<void>;
 	queueLoading?: boolean;
@@ -120,6 +122,8 @@ const ChatPromptInput = ({
 	queuedPrompts = [],
 	onEnqueue,
 	onUpdateQueued,
+	onBeginQueuedEdit,
+	onEndQueuedEdit,
 	onRemoveQueued,
 	onReorderQueued,
 	queueLoading = false,
@@ -138,6 +142,7 @@ const ChatPromptInput = ({
 	const [busyId, setBusyId] = useState<string | null>(null);
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const submittingRef = useRef(false);
+	const refocusAfterSubmitRef = useRef(false);
 	const draftRef = useRef<string | null>(null);
 	const restoreFrameRef = useRef<number | null>(null);
 	const effectiveEditingId =
@@ -227,6 +232,17 @@ const ChatPromptInput = ({
 		[],
 	);
 
+	useEffect(() => {
+		if (isSubmitting || !refocusAfterSubmitRef.current) return;
+		refocusAfterSubmitRef.current = false;
+		const frame = requestAnimationFrame(() => {
+			textareaRef.current?.focus({ preventScroll: true });
+		});
+		return () => {
+			cancelAnimationFrame(frame);
+		};
+	}, [isSubmitting]);
+
 	const handleSubmit = async (message: PromptInputMessage) => {
 		if (!message || queueLoading || submittingRef.current) return;
 
@@ -236,6 +252,7 @@ const ChatPromptInput = ({
 			return;
 		}
 		submittingRef.current = true;
+		refocusAfterSubmitRef.current = true;
 		setIsSubmitting(true);
 		try {
 			if (effectiveEditingId) {
@@ -322,26 +339,66 @@ const ChatPromptInput = ({
 		}
 	};
 
+	const finishEditingLocally = () => {
+		setEditingId(null);
+		controller.textInput.setInput(draftRef.current ?? "");
+		draftRef.current = null;
+	};
+
 	const beginEdit = (item: QueuedPrompt) => {
 		if (controller.attachments.files.length > 0) {
 			toast.error("Send or remove the current attachments before editing.");
 			return;
 		}
-		if (editingId === null) {
-			draftRef.current = controller.textInput.value;
-		}
-		controller.textInput.setInput(item.text);
-		setEditingId(item.id);
-		requestAnimationFrame(() => {
-			textareaRef.current?.focus();
-		});
+		setBusyId(item.id);
+		void (async () => {
+			try {
+				await onBeginQueuedEdit?.(item.id);
+				if (editingId === null) {
+					draftRef.current = controller.textInput.value;
+				}
+				controller.textInput.setInput(item.text);
+				setEditingId(item.id);
+				requestAnimationFrame(() => {
+					textareaRef.current?.focus();
+				});
+			} catch (error) {
+				toast.error(
+					getApiErrorMessage(error, "This queued prompt can no longer be edited."),
+				);
+			} finally {
+				setBusyId(null);
+			}
+		})();
 	};
 
 	const cancelEdit = () => {
-		setEditingId(null);
-		controller.textInput.setInput(draftRef.current ?? "");
-		draftRef.current = null;
+		if (!effectiveEditingId) return;
+		const id = effectiveEditingId;
+		setBusyId(id);
+		void (async () => {
+			try {
+				await onEndQueuedEdit?.(id);
+				finishEditingLocally();
+			} catch (error) {
+				toast.error(
+					getApiErrorMessage(error, "The queued prompt edit could not be closed."),
+				);
+			} finally {
+				setBusyId(null);
+			}
+		})();
 	};
+
+	useEffect(() => {
+		if (!effectiveEditingId || !onBeginQueuedEdit) return;
+		const timer = window.setInterval(() => {
+			void onBeginQueuedEdit(effectiveEditingId).catch(() => {});
+		}, 10_000);
+		return () => {
+			window.clearInterval(timer);
+		};
+	}, [effectiveEditingId, onBeginQueuedEdit]);
 
 	useEffect(() => {
 		if (
@@ -352,7 +409,6 @@ const ChatPromptInput = ({
 		}
 		// The queue is an external server subscription; losing its item ends
 		// the local editing session.
-		// eslint-disable-next-line react-hooks/set-state-in-effect
 		setEditingId(null);
 		controller.textInput.setInput(draftRef.current ?? "");
 		draftRef.current = null;
@@ -363,7 +419,7 @@ const ChatPromptInput = ({
 		setBusyId(id);
 		try {
 			await onRemoveQueued?.(id);
-			if (editingId === id) cancelEdit();
+			if (editingId === id) finishEditingLocally();
 		} catch (error) {
 			toast.error(
 				getApiErrorMessage(error, "The queued prompt could not be removed."),

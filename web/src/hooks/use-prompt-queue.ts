@@ -124,6 +124,20 @@ export function usePromptQueue(threadId: string, runActive: boolean) {
 		[refresh, threadId],
 	);
 
+	const beginEdit = useCallback(
+		async (id: string) => {
+			await threadsApi.beginQueuedPromptEdit(threadId, id);
+		},
+		[threadId],
+	);
+
+	const endEdit = useCallback(
+		async (id: string) => {
+			await threadsApi.endQueuedPromptEdit(threadId, id);
+		},
+		[threadId],
+	);
+
 	const remove = useCallback(
 		async (id: string) => {
 			const version = requestVersion.current;
@@ -186,6 +200,8 @@ export function usePromptQueue(threadId: string, runActive: boolean) {
 		isLoading: isLoading || loadedThreadId !== threadId,
 		enqueue,
 		update,
+		beginEdit,
+		endEdit,
 		remove,
 		reorder,
 		refresh,

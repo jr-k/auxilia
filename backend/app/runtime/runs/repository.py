@@ -98,7 +98,7 @@ class RunRepository(BaseRepository[RunDB]):
         result = await self.db.execute(stmt)
         return result.scalar_one()
 
-    async def update_queued_prompt(self, run_id: str, input: dict) -> RunDB | None:
+    async def update_queued_prompt(self, run_id: str, run_input: dict) -> RunDB | None:
         stmt = (
             update(RunDB)
             .where(
@@ -107,7 +107,7 @@ class RunRepository(BaseRepository[RunDB]):
                 RunDB.queue_position.is_not(None),
                 RunDB.input.is_not(None),
             )
-            .values(input=input)
+            .values(input=run_input)
             .returning(RunDB.id)
         )
         stmt = self._scope(stmt)
@@ -292,6 +292,11 @@ class RunRepository(BaseRepository[RunDB]):
                     and_(
                         RunDB.command.is_(None),
                         func.coalesce(ThreadDB.awaiting_input, False).is_(False),
+                        or_(
+                            ThreadDB.id.is_(None),
+                            ThreadDB.queue_edit_expires_at.is_(None),
+                            ThreadDB.queue_edit_expires_at <= func.now(),
+                        ),
                     ),
                 ),
                 # Never skip a locked/reordered older prompt from this thread.

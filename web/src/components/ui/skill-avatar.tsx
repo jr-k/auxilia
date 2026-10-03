@@ -7,12 +7,18 @@ import { cn } from "@/lib/utils";
 
 type SkillAvatarSize = "xs" | "sm" | "md" | "lg";
 
-const SIZE_CLASSES: Record<SkillAvatarSize, string> = {
-	xs: "size-6 rounded-[6px] text-[12px]",
-	sm: "size-8 rounded-[8px] text-[15px]",
-	md: "size-12 rounded-xl text-[22px]",
-	lg: "size-16 rounded-[14px] text-[28px]",
-};
+function sizeClass(size: SkillAvatarSize): string {
+	switch (size) {
+		case "xs":
+			return "size-6 rounded-[6px] text-[12px]";
+		case "sm":
+			return "size-8 rounded-[8px] text-[15px]";
+		case "md":
+			return "size-12 rounded-xl text-[22px]";
+		case "lg":
+			return "size-16 rounded-[14px] text-[28px]";
+	}
+}
 
 interface SkillAvatarProps {
 	skillId?: string;
@@ -50,7 +56,7 @@ export function SkillAvatar({
 			}
 			className={cn(
 				"relative flex shrink-0 items-center justify-center overflow-hidden font-bold uppercase",
-				SIZE_CLASSES[size],
+				sizeClass(size),
 				className,
 			)}
 			title={name}

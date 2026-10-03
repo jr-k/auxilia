@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, UploadFile
+from fastapi import APIRouter, Depends, File, Header, UploadFile
 from fastapi.responses import Response
 
 from app.auth.dependencies import get_current_user, require_editor
@@ -50,11 +50,17 @@ async def get_skill(
 @router.get("/{skill_id}/image", response_class=Response)
 async def get_skill_image(
     skill_id: UUID,
+    if_none_match: str | None = Header(default=None),
     user: UserDB = Depends(get_current_user),
     service: SkillService = Depends(get_skill_service),
 ) -> Response:
     image = await service.get_image(skill_id, user)
-    return image_response(image.data, image.media_type, image.sha256)
+    return image_response(
+        data=image.data,
+        media_type=image.media_type,
+        digest=image.sha256,
+        if_none_match=if_none_match,
+    )
 
 
 @router.put("/{skill_id}/image")

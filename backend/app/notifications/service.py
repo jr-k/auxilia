@@ -28,9 +28,7 @@ class SlackNotificationSettingsService:
         self.db = db
         self.repository = SlackNotificationSettingsRepository(db)
 
-    async def get_runtime_config(
-        self, workspace_id: UUID
-    ) -> SlackRuntimeConfig | None:
+    async def get_runtime_config(self, workspace_id: UUID) -> SlackRuntimeConfig | None:
         row = await self.repository.get_settings(workspace_id)
         credentials = await self.repository.get_credentials(workspace_id)
         if credentials is None or row is None or not row.slack_team_id:
@@ -94,7 +92,9 @@ class SlackNotificationSettingsService:
         slack_team_id = (
             data.slack_team_id.strip()
             if data.slack_team_id is not None
-            else existing.slack_team_id if existing else None
+            else existing.slack_team_id
+            if existing
+            else None
         )
         if bot_token is not None and not slack_team_id:
             try:

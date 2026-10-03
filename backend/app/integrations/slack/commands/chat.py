@@ -202,9 +202,9 @@ async def handle_agent_selection(
 
     # Fetch the agent
     async with AsyncSessionLocal() as db:
-        agent = await AgentService(
-            db, workspace_id
-        ).repository.get_scoped(UUID(agent_id))
+        agent = await AgentService(db, workspace_id).repository.get_scoped(
+            UUID(agent_id)
+        )
     if not agent:
         return
 

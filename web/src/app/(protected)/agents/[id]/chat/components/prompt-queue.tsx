@@ -49,12 +49,19 @@ export function PromptQueue({
 		const to = from + direction;
 		if (from < 0 || to < 0 || to >= items.length) return;
 		const ids = items.map((item) => item.id);
-		[ids[from], ids[to]] = [ids[to], ids[from]];
+		const fromId = ids.at(from);
+		const toId = ids.at(to);
+		if (!fromId || !toId) return;
+		const reordered = ids.map((id, index) => {
+			if (index === from) return toId;
+			if (index === to) return fromId;
+			return id;
+		});
 		setAnnouncement((current) => ({
 			message: `Moved prompt to position ${to + 1} of ${items.length}.`,
 			revision: current.revision + 1,
 		}));
-		void onReorder(ids);
+		void onReorder(reordered);
 	};
 
 	const drop = (event: DragEvent, targetId: string) => {

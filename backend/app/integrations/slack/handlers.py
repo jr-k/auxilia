@@ -233,7 +233,8 @@ def _collect_batch_decisions(thread_messages: list[dict]) -> list[str] | None:
 
 
 async def _pending_hitl_state(
-    workspace_id: UUID, thread_id: str,
+    workspace_id: UUID,
+    thread_id: str,
 ) -> tuple[PendingInterrupt, list[dict]] | None:
     """The pending interrupt and its approval requests, from the checkpoint.
 
@@ -423,9 +424,9 @@ async def _is_agent_ready(
     from uuid import UUID
 
     try:
-        readiness = await AgentService(
-            db, workspace_id
-        ).describe_readiness(UUID(agent_id), user_id)
+        readiness = await AgentService(db, workspace_id).describe_readiness(
+            UUID(agent_id), user_id
+        )
     except Exception:  # noqa: BLE001 — fail-open, per the docstring above
         logger.warning(
             "Slack readiness check for agent %s failed; letting the run proceed",
@@ -625,9 +626,7 @@ async def handle_interaction(
         return
 
     # All decided — resume the agent via a new run
-    await _resume_agent(
-        client, payload, workspace_id, channel_id, thread_ts, command
-    )
+    await _resume_agent(client, payload, workspace_id, channel_id, thread_ts, command)
 
 
 def _extract_interaction_context(

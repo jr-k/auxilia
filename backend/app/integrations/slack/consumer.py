@@ -178,9 +178,7 @@ class SlackRunConsumer(DeliveryConsumer):
             return self.client
         for attempt in range(3):
             try:
-                return await get_slack_client(
-                    UUID(self.delivery["workspace_id"])
-                )
+                return await get_slack_client(UUID(self.delivery["workspace_id"]))
             except Exception:
                 if attempt == 2:
                     logger.exception(
@@ -295,9 +293,9 @@ class SlackRunConsumer(DeliveryConsumer):
             if record.error != MCP_REAUTH_ERROR:
                 return False
             async with AsyncSessionLocal() as db:
-                thread = await ThreadRepository(
-                    db, self.record.workspace_id
-                ).get(self.record.thread_id)
+                thread = await ThreadRepository(db, self.record.workspace_id).get(
+                    self.record.thread_id
+                )
             if thread is None:
                 return False
             connect_url = f"{auth_settings.FRONTEND_URL}/agents/{thread.agent_id}/chat"
@@ -331,9 +329,7 @@ class SlackRunConsumer(DeliveryConsumer):
         async with get_checkpointer() as checkpointer:
             scope = await load_interrupt_scope(
                 checkpointer,
-                checkpoint_thread_id(
-                    self.record.workspace_id, self.record.thread_id
-                ),
+                checkpoint_thread_id(self.record.workspace_id, self.record.thread_id),
             )
         if scope is None:
             return
@@ -362,9 +358,9 @@ class SlackRunConsumer(DeliveryConsumer):
     async def _post_auxilia_link(self, channel_id: str, thread_ts: str) -> None:
         """Post a divider + 'View in auxilia' link once the turn finishes cleanly."""
         async with AsyncSessionLocal() as db:
-            thread = await ThreadRepository(
-                db, self.record.workspace_id
-            ).get(self.record.thread_id)
+            thread = await ThreadRepository(db, self.record.workspace_id).get(
+                self.record.thread_id
+            )
         if thread is None:
             return
         url = f"{auth_settings.FRONTEND_URL}/agents/{thread.agent_id}/chat/{thread.id}"

@@ -50,6 +50,8 @@ from app.threads.repository import ThreadRepository
 
 logger = logging.getLogger(__name__)
 
+QUEUE_EDIT_LEASE_SECONDS = 30
+
 
 def _is_plain_text_input(agent_input: dict) -> bool:
     messages = agent_input.get("messages")
@@ -328,9 +330,7 @@ class RunService:
             raise NotFoundError("Run not found")
         return record
 
-    async def list_for_thread(
-        self, thread_id: str, workspace_id: UUID
-    ) -> list[RunDB]:
+    async def list_for_thread(self, thread_id: str, workspace_id: UUID) -> list[RunDB]:
         async with AsyncSessionLocal() as db:
             return await RunRepository(db, workspace_id).list_for_thread(thread_id)
 
@@ -354,17 +354,46 @@ class RunService:
         async with AsyncSessionLocal() as db:
             return await RunRepository(db, workspace_id).list_queued_prompts(thread_id)
 
+    async def begin_queue_edit(
+        self, thread_id: str, run_id: str, workspace_id: UUID
+    ) -> None:
+        async with AsyncSessionLocal() as db:
+            records = await RunRepository(db, workspace_id).list_queued_prompts(
+                thread_id, for_update=True
+            )
+            if run_id not in {record.id for record in records}:
+                raise StaleRevisionError(
+                    "This prompt has already started and can no longer be edited."
+                )
+            expires_at = datetime.now(UTC) + timedelta(seconds=QUEUE_EDIT_LEASE_SECONDS)
+            await ThreadRepository(db, workspace_id).set_queue_edit_lease(
+                thread_id, run_id, expires_at
+            )
+            await db.commit()
+
+    async def end_queue_edit(
+        self, thread_id: str, run_id: str, workspace_id: UUID
+    ) -> None:
+        async with AsyncSessionLocal() as db:
+            await ThreadRepository(db, workspace_id).clear_queue_edit_lease(
+                thread_id, run_id
+            )
+            await db.commit()
+
     async def update_queued_prompt(
-        self, run_id: str, input: dict, workspace_id: UUID
+        self, run_id: str, run_input: dict, workspace_id: UUID
     ) -> RunDB:
         async with AsyncSessionLocal() as db:
-            record = await RunRepository(
-                db, workspace_id
-            ).update_queued_prompt(run_id, input)
+            record = await RunRepository(db, workspace_id).update_queued_prompt(
+                run_id, run_input
+            )
             if record is None:
                 raise StaleRevisionError(
                     "This prompt has already started and can no longer be edited."
                 )
+            await ThreadRepository(db, workspace_id).clear_queue_edit_lease(
+                record.thread_id, run_id
+            )
             await db.commit()
         return record
 
@@ -405,6 +434,7 @@ class RunService:
             raise StaleRevisionError(
                 "This prompt has already started and can no longer be removed."
             )
+        await self.end_queue_edit(record.thread_id, run_id, record.workspace_id)
 
     async def list_active_for_user(
         self, user_id: str, workspace_id: UUID, *, recent_seconds: int = 0

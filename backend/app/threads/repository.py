@@ -114,6 +114,34 @@ class ThreadRepository(BaseRepository[ThreadDB]):
             stmt = stmt.where(ThreadDB.workspace_id == self.workspace_id)
         await self.db.execute(stmt)
 
+    async def set_queue_edit_lease(
+        self, thread_id: str, run_id: str, expires_at: datetime
+    ) -> None:
+        stmt = (
+            update(ThreadDB)
+            .where(ThreadDB.id == thread_id)
+            .values(
+                queue_edit_run_id=run_id,
+                queue_edit_expires_at=expires_at,
+            )
+        )
+        if self.workspace_id is not None:
+            stmt = stmt.where(ThreadDB.workspace_id == self.workspace_id)
+        await self.db.execute(stmt)
+
+    async def clear_queue_edit_lease(self, thread_id: str, run_id: str) -> None:
+        stmt = (
+            update(ThreadDB)
+            .where(
+                ThreadDB.id == thread_id,
+                ThreadDB.queue_edit_run_id == run_id,
+            )
+            .values(queue_edit_run_id=None, queue_edit_expires_at=None)
+        )
+        if self.workspace_id is not None:
+            stmt = stmt.where(ThreadDB.workspace_id == self.workspace_id)
+        await self.db.execute(stmt)
+
     async def clear_sandbox(self, source_id: UUID) -> None:
         """Forget the sandbox of every thread stamped by this sandbox row.
 
