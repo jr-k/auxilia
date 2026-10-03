@@ -684,7 +684,12 @@ export default function ProfileSettings({
 	user: CurrentUser;
 	section: ProfileSection;
 }) {
-	const copy = sectionCopy[section];
+	const copy =
+		section === "information"
+			? sectionCopy.information
+			: section === "security"
+				? sectionCopy.security
+				: sectionCopy.preferences;
 
 	return (
 		<div className="flex flex-col gap-4">

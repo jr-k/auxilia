@@ -131,9 +131,12 @@ export function GroupPicker({ value, groups, onChange }: GroupPickerProps) {
 									event.preventDefault();
 									setActiveIndex((index) => Math.max(index - 1, 0));
 								}
-								if (event.key === "Enter" && items[activeIndex]) {
-									event.preventDefault();
-									choose(items[activeIndex]);
+								if (event.key === "Enter") {
+									const activeItem = items.at(activeIndex);
+									if (activeItem) {
+										event.preventDefault();
+										choose(activeItem);
+									}
 								}
 							}}
 							className="h-9 w-full rounded-lg border border-input bg-background px-3 text-[12.5px] text-foreground outline-none placeholder:text-meta focus:border-petrol"
