@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -61,6 +61,7 @@ import { RenameThreadDialog } from "@/components/layout/app-sidebar/rename-threa
 import { AboutDialog } from "@/components/layout/app-sidebar/about-dialog";
 import { Thread } from "@/types/threads";
 import { useTheme } from "next-themes";
+import { WorkspaceSwitcher } from "@/components/layout/app-sidebar/workspace-switcher";
 
 const navItems: {
 	title: string;
@@ -123,50 +124,28 @@ function IconSlot({ children }: { children: React.ReactNode }) {
 export function AppSidebar() {
 	const router = useRouter();
 	const pathname = usePathname();
-	const { agents, isInitialized: agentsReady, fetchAgents } = useAgentsStore();
+	const { agents, isInitialized: agentsReady } = useAgentsStore();
 	const {
 		threads,
 		total,
 		isLoadingMore,
-		fetchThreads,
 		loadMoreThreads,
 		removeThread,
 	} = useThreadsStore();
 	const triggers = useTriggersStore((state) => state.triggers);
 	const triggersReady = useTriggersStore((state) => state.isInitialized);
-	const fetchTriggers = useTriggersStore((state) => state.fetchTriggers);
 	const mcpServers = useMcpServersStore((state) => state.mcpServers);
 	const mcpServersReady = useMcpServersStore((state) => state.isInitialized);
-	const fetchMcpServers = useMcpServersStore((state) => state.fetchMcpServers);
 	const skills = useSkillsStore((state) => state.skills);
 	const skillsReady = useSkillsStore((state) => state.isInitialized);
-	const fetchSkills = useSkillsStore((state) => state.fetchSkills);
 	const hasMoreThreads = threads.length < total;
-	const { user, fetchUser, logout } = useUserStore();
+	const { user, logout } = useUserStore();
 	const { resolvedTheme, setTheme } = useTheme();
 	const { toggleSidebar } = useSidebar();
 	const [renamingThread, setRenamingThread] = useState<Thread | null>(null);
 	const [aboutOpen, setAboutOpen] = useState(false);
 	const activeRunThreadIds = useActiveRunThreadIds(threads);
 	const appearance = useAppearanceStore((state) => state.appearance);
-
-	useEffect(() => {
-		fetchUser();
-		fetchThreads();
-		fetchAgents();
-		// Fetched for the workspace nav counts; stores are shared with the
-		// pages. Failures just leave the counts blank — never unhandled.
-		fetchTriggers().catch(() => {});
-		fetchMcpServers().catch(() => {});
-		fetchSkills().catch(() => {});
-	}, [
-		fetchUser,
-		fetchThreads,
-		fetchAgents,
-		fetchTriggers,
-		fetchMcpServers,
-		fetchSkills,
-	]);
 
 	const navCounts: Record<string, number | undefined> = {
 		"/agents": agentsReady ? agents.length : undefined,
@@ -243,6 +222,7 @@ export function AppSidebar() {
 						</span>
 						<SidebarTrigger className="ml-auto cursor-pointer text-sidebar-muted group-data-[collapsible=icon]:hidden" />
 					</div>
+					<WorkspaceSwitcher />
 				</SidebarHeader>
 
 				<SidebarContent>
@@ -334,6 +314,7 @@ export function AppSidebar() {
 														) : (
 															<AgentAvatar
 																agentId={thread.agentId}
+																name={thread.agentName}
 																imageRevision={thread.agentImageRevision}
 																color={thread.agentColor}
 																emoji={thread.agentEmoji}

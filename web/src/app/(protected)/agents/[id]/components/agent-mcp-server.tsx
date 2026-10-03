@@ -377,7 +377,7 @@ export default function AgentMCPServer({
 						>
 							{hasTools && (
 								<button
-									className="cursor-pointer rounded-[7px] px-3 py-1.5 text-[12.5px] font-semibold text-petrol transition-opacity hover:opacity-80"
+									className="cursor-pointer rounded-[7px] px-3 py-1.5 text-[12.5px] font-semibold text-petrol transition-opacity hover:opacity-80 dark:text-panel-terminal"
 									onClick={() => {
 										setDetailsOpen(true);
 									}}

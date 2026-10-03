@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { FileText, Plus, X } from "lucide-react";
+import { Plus, X } from "lucide-react";
 import {
 	Dialog,
 	DialogContent,
@@ -11,6 +11,7 @@ import {
 	DialogTitle,
 } from "@/components/ui/dialog";
 import { SearchBar } from "@/components/ui/search-bar";
+import { SkillAvatar } from "@/components/ui/skill-avatar";
 import { SkillRequirementChip } from "@/app/(protected)/skills/components/skill-requirement-chip";
 import { useSkillsStore } from "@/stores/skills-store";
 import type { AgentSkill } from "@/types/skills";
@@ -60,6 +61,9 @@ export default function AgentSkillList({
 			id,
 			name: "unknown skill",
 			description: "",
+			emoji: null,
+			color: null,
+			imageRevision: null,
 			scriptCount: 0,
 		};
 	const enabled = skillIds.map(resolve);
@@ -90,7 +94,7 @@ export default function AgentSkillList({
 				{!readOnly && (
 					<button
 						type="button"
-						className="flex cursor-pointer items-center gap-1 text-[12.5px] font-semibold text-petrol transition-opacity hover:opacity-80"
+						className="flex cursor-pointer items-center gap-1 text-[12.5px] font-semibold text-petrol transition-opacity hover:opacity-80 dark:text-panel-terminal"
 						onClick={() => {
 							setDialogOpen(true);
 						}}
@@ -111,14 +115,19 @@ export default function AgentSkillList({
 								className="rounded-[10px] border border-border bg-card px-4 py-3"
 							>
 								<div className="flex items-center gap-3">
-									<span className="flex size-[26px] shrink-0 items-center justify-center rounded-[6px] border border-input bg-petrol-tint text-petrol dark:border-white/10 dark:bg-white/10">
-										<FileText className="size-3.5" />
-									</span>
+									<SkillAvatar
+										skillId={skill.id}
+										name={skill.name}
+										emoji={skill.emoji}
+										color={skill.color}
+										imageRevision={skill.imageRevision}
+										size="xs"
+									/>
 									<div className="min-w-0 flex-1">
 										<div className="flex min-w-0 items-center gap-2">
 											<Link
 												href={`/skills/${skill.id}`}
-												className="truncate text-[12.5px] font-semibold text-petrol hover:underline"
+												className="truncate text-[12.5px] font-semibold text-petrol hover:underline dark:text-panel-terminal"
 											>
 												{skill.name}
 											</Link>
@@ -238,7 +247,7 @@ export default function AgentSkillList({
 									{skills.length === 0 ? (
 										<>
 											No skills in the workspace yet.{" "}
-											<Link href="/skills/new" className="text-petrol underline">
+											<Link href="/skills/new" className="text-petrol underline dark:text-panel-terminal">
 												Write one
 											</Link>
 											.

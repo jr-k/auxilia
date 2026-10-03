@@ -1,5 +1,6 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { userImageUrl } from "@/lib/api/resources/users";
+import { avatarColorStyle } from "@/lib/colors";
 import { cn } from "@/lib/utils";
 
 function getInitials(name: string | null | undefined): string {
@@ -44,6 +45,7 @@ export function UserAvatar({
 	const uploadedImageUrl =
 		userId && imageRevision ? userImageUrl(userId, imageRevision) : null;
 	const source = uploadedImageUrl ?? pictureUrl;
+	const fallbackStyle = avatarColorStyle(null, name ?? userId ?? "user");
 	return (
 		<Avatar className={cn("size-8", className)}>
 			{source && (
@@ -55,8 +57,9 @@ export function UserAvatar({
 				/>
 			)}
 			<AvatarFallback
+				style={fallbackStyle}
 				className={cn(
-					"bg-ink text-[10.5px] font-bold text-white dark:bg-white/15",
+					"text-[10.5px] font-bold",
 					fallbackClassName,
 				)}
 			>

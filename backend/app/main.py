@@ -43,6 +43,7 @@ from app.triggers.scanner import TriggerScanner
 from app.triggers.settings import trigger_settings
 from app.users.router import router as users_router
 from app.version import BACKEND_VERSION
+from app.workspaces.router import router as workspaces_router
 
 
 configure_logging()
@@ -247,6 +248,7 @@ app.include_router(triggers_router)
 app.include_router(skill_sources_router)  # before /skills/{skill_id}
 app.include_router(skills_router)
 app.include_router(users_router)
+app.include_router(workspaces_router)
 app.include_router(invites_router)
 app.include_router(teams_router)
 app.include_router(model_providers_router)

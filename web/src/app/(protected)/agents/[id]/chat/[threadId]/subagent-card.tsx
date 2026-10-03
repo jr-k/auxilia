@@ -222,6 +222,7 @@ export const SubAgentCard = memo(function SubAgentCard({
         // (~8% alpha), so an opaque card layer sits under it to hide the rail.
         <span className="relative z-[1] flex size-[22px] shrink-0 rounded-full bg-card">
           <AgentAvatar
+            name={agent?.name}
             color={agent?.color}
             emoji={agent?.emoji}
             size="2xs"

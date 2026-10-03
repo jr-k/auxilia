@@ -176,7 +176,7 @@ export function GroupPicker({ value, groups, onChange }: GroupPickerProps) {
 									choose(normalizedQuery);
 								}}
 								className={cn(
-									"flex w-full cursor-pointer items-center gap-2 rounded-lg px-3 py-2.5 text-left text-[12.5px] font-medium text-petrol transition-colors",
+									"flex w-full cursor-pointer items-center gap-2 rounded-lg px-3 py-2.5 text-left text-[12.5px] font-medium text-petrol transition-colors dark:text-panel-terminal",
 									activeIndex === filtered.length &&
 										"bg-petrol-tint dark:bg-white/5",
 								)}

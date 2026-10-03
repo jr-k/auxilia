@@ -7,16 +7,16 @@ import { HeaderButton } from "@/components/layout/subpage-header";
 import * as appearanceApi from "@/lib/api/resources/appearance";
 import { isApiError } from "@/lib/api/errors";
 import { useAppearanceStore } from "@/stores/appearance-store";
-import type { WorkspaceAppearance } from "@/types/appearance";
+import type { InstanceAppearance } from "@/types/appearance";
 
-interface WorkspaceAppearanceProps {
+interface InstanceAppearanceProps {
 	onForbidden: () => void;
 }
 
 function AppearanceForm({
 	appearance,
 	onForbidden,
-}: WorkspaceAppearanceProps & { appearance: WorkspaceAppearance }) {
+}: InstanceAppearanceProps & { appearance: InstanceAppearance }) {
 	const setAppearance = useAppearanceStore((state) => state.setAppearance);
 	const [appName, setAppName] = useState(appearance.appName);
 	const [logoFile, setLogoFile] = useState<File | null>(null);
@@ -65,7 +65,7 @@ function AppearanceForm({
 					text:
 						isApiError(error) && error.detail
 							? error.detail
-							: "Could not save the workspace appearance.",
+							: "Could not save the instance appearance.",
 				});
 			}
 		} finally {
@@ -77,15 +77,14 @@ function AppearanceForm({
 		<div>
 			<div className="mb-1.5 flex items-baseline gap-2.5">
 				<span className="text-[10.5px] font-semibold text-subtle dark:text-panel-dim">
-					Workspace appearance
+					Instance appearance
 				</span>
 				<span className="text-[10.5px] text-meta dark:text-panel-dim">
 					admin
 				</span>
 			</div>
 			<p className="mb-3.5 max-w-[620px] text-[13px] leading-[1.55] text-subtle dark:text-panel-body">
-				Customize the name shown in the browser and sidebar, and use one
-				workspace logo for the sidebar and favicon.
+				Customize the name and logo used throughout this auxilia instance.
 			</p>
 
 			<div className="overflow-hidden rounded-[10px] border border-border bg-card dark:border-white/10">
@@ -179,9 +178,9 @@ function AppearanceForm({
 	);
 }
 
-export default function WorkspaceAppearanceSettings({
+export default function InstanceAppearanceSettings({
 	onForbidden,
-}: WorkspaceAppearanceProps) {
+}: InstanceAppearanceProps) {
 	const appearance = useAppearanceStore((state) => state.appearance);
 	const isInitialized = useAppearanceStore((state) => state.isInitialized);
 

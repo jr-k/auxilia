@@ -60,6 +60,7 @@ export function AgentPicker({ value, onChange, disabled }: AgentPickerProps) {
 				<div className="flex items-center gap-2.5 min-w-0">
 					<AgentAvatar
 						agentId={selected.id}
+						name={selected.name}
 						imageRevision={selected.imageRevision}
 						color={selected.color}
 						emoji={selected.emoji}
@@ -129,6 +130,7 @@ export function AgentPicker({ value, onChange, disabled }: AgentPickerProps) {
 							>
 								<AgentAvatar
 									agentId={agent.id}
+									name={agent.name}
 									imageRevision={agent.imageRevision}
 									color={agent.color}
 									emoji={agent.emoji}

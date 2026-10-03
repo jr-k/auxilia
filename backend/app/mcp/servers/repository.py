@@ -19,11 +19,22 @@ from app.utils.encryption import decrypt_value, encrypt_value
 
 
 class MCPServerRepository(BaseRepository[MCPServerDB]):
-    def __init__(self, db: AsyncSession):
+    def __init__(self, db: AsyncSession, workspace_id: UUID | None = None):
         super().__init__(MCPServerDB, db)
+        self.workspace_id = workspace_id
+
+    def _scope(self, stmt):
+        if self.workspace_id is not None:
+            return stmt.where(MCPServerDB.workspace_id == self.workspace_id)
+        return stmt
+
+    async def get_scoped(self, server_id: UUID) -> MCPServerDB | None:
+        stmt = self._scope(select(MCPServerDB).where(MCPServerDB.id == server_id))
+        result = await self.db.execute(stmt)
+        return result.scalar_one_or_none()
 
     async def list(self) -> list[MCPServerDB]:
-        stmt = select(MCPServerDB).order_by(MCPServerDB.created_at.asc())
+        stmt = self._scope(select(MCPServerDB)).order_by(MCPServerDB.created_at.asc())
         result = await self.db.execute(stmt)
         return list(result.scalars().all())
 
@@ -36,7 +47,7 @@ class MCPServerRepository(BaseRepository[MCPServerDB]):
         """
         if not server_ids:
             return []
-        stmt = select(MCPServerDB).where(MCPServerDB.id.in_(server_ids))
+        stmt = self._scope(select(MCPServerDB).where(MCPServerDB.id.in_(server_ids)))
         result = await self.db.execute(stmt)
         return list(result.scalars().all())
 
@@ -53,11 +64,12 @@ class MCPServerRepository(BaseRepository[MCPServerDB]):
             )
             .order_by(MCPServerDB.created_at.asc())
         )
+        stmt = self._scope(stmt)
         result = await self.db.execute(stmt)
         return result.all()
 
     async def get_by_url(self, url: str) -> MCPServerDB | None:
-        stmt = select(MCPServerDB).where(MCPServerDB.url == url)
+        stmt = self._scope(select(MCPServerDB).where(MCPServerDB.url == url))
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
@@ -118,7 +130,11 @@ class MCPServerRepository(BaseRepository[MCPServerDB]):
         await self.db.flush()
 
     async def create(self, data: MCPServerCreate) -> MCPServerDB:
-        db_server = MCPServerDB.model_validate(data)
+        if self.workspace_id is None:
+            raise RuntimeError("workspace_id is required to create an MCP server")
+        db_server = MCPServerDB.model_validate(
+            data, update={"workspace_id": self.workspace_id}
+        )
         self.db.add(db_server)
         await self.db.flush()
         return db_server
@@ -233,5 +249,7 @@ class MCPServerRepository(BaseRepository[MCPServerDB]):
         """Every installed server's url — the catalog matches on it to decide
         which of its entries are already installed."""
         stmt = select(MCPServerDB.url)
+        if self.workspace_id is not None:
+            stmt = stmt.where(MCPServerDB.workspace_id == self.workspace_id)
         result = await self.db.execute(stmt)
         return set(result.scalars().all())

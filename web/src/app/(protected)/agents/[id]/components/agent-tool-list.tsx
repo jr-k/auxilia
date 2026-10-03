@@ -181,7 +181,7 @@ export default function AgentToolList({
 				</span>
 				{!readOnly && (
 					<button
-						className="flex cursor-pointer items-center gap-1 text-[12.5px] font-semibold text-petrol transition-opacity hover:opacity-80"
+						className="flex cursor-pointer items-center gap-1 text-[12.5px] font-semibold text-petrol transition-opacity hover:opacity-80 dark:text-panel-terminal"
 						onClick={() => { setDialogOpen(true); }}
 					>
 						<Plus className="size-3" />
@@ -241,7 +241,7 @@ export default function AgentToolList({
 						This leaves {scriptSkillNames.length} enabled skill
 						{scriptSkillNames.length === 1 ? "" : "s"} without{" "}
 						{scriptSkillNames.length === 1 ? "its" : "their"} scripts:{" "}
-						<span className="text-[12px] font-semibold text-petrol">
+						<span className="text-[12px] font-semibold text-petrol dark:text-panel-terminal">
 							{scriptSkillNames.join(", ")}
 						</span>
 						. {scriptSkillNames.length === 1 ? "It stays" : "They stay"} enabled,

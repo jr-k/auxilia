@@ -88,7 +88,7 @@ export function ImageUpload({
 					<label
 						htmlFor={inputId}
 						className={cn(
-							"cursor-pointer rounded-[7px] border border-input bg-card px-3 py-1.5 text-[12px] font-semibold text-petrol transition-colors hover:border-border-hover",
+							"cursor-pointer rounded-[7px] border border-input bg-card px-3 py-1.5 text-[12px] font-semibold text-petrol transition-colors hover:border-border-hover dark:border-white/10 dark:bg-white/[0.03] dark:text-panel-terminal dark:hover:border-white/20",
 							disabled && "pointer-events-none opacity-50",
 						)}
 					>

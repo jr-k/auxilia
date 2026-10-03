@@ -9,6 +9,7 @@ create/update, the picker endpoint, and the thread response's
 """
 
 import logging
+from uuid import UUID
 
 from fastapi import Depends
 from pydantic import BaseModel
@@ -39,6 +40,7 @@ from app.model_providers.whitelist import (
     sync_whitelist,
 )
 from app.service import BaseService
+from app.workspaces.dependencies import get_active_workspace_id
 
 
 logger = logging.getLogger(__name__)
@@ -78,9 +80,10 @@ def _managed(entry: SupportedModel | None, row: ModelDB) -> ManagedModelResponse
 class ModelService(BaseService[ModelDB, ModelRepository]):
     not_found_message = "Model not found"
 
-    def __init__(self, db: AsyncSession):
-        super().__init__(db, ModelRepository(db))
-        self.credential_repository = ModelProviderCredentialRepository(db)
+    def __init__(self, db: AsyncSession, workspace_id: UUID | None = None):
+        super().__init__(db, ModelRepository(db, workspace_id))
+        self.workspace_id = workspace_id
+        self.credential_repository = ModelProviderCredentialRepository(db, workspace_id)
 
     async def _provider_api_keys(self) -> dict[str, str]:
         """Resolve credentials with encrypted DB values taking precedence.
@@ -284,9 +287,14 @@ class ModelService(BaseService[ModelDB, ModelRepository]):
             provider, model_id, for_update=True
         )
         if row is None:
+            if self.workspace_id is None:
+                raise RuntimeError("workspace_id is required to configure models")
             row = await self.repository.create(
                 ModelCreateDB(
-                    provider=provider, model_id=model_id, is_enabled=is_enabled
+                    workspace_id=self.workspace_id,
+                    provider=provider,
+                    model_id=model_id,
+                    is_enabled=is_enabled,
                 )
             )
         else:
@@ -453,5 +461,8 @@ class ModelService(BaseService[ModelDB, ModelRepository]):
         return WhitelistSyncResponse(**await sync_whitelist())
 
 
-def get_model_service(db: AsyncSession = Depends(get_db)) -> ModelService:
-    return ModelService(db)
+def get_model_service(
+    db: AsyncSession = Depends(get_db),
+    workspace_id: UUID = Depends(get_active_workspace_id),
+) -> ModelService:
+    return ModelService(db, workspace_id)

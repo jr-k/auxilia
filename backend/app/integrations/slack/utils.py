@@ -1,7 +1,11 @@
 import hashlib
 import hmac
+import json
 import logging
 import time
+from dataclasses import dataclass
+from urllib.parse import parse_qs
+from uuid import UUID
 
 import httpx
 from fastapi import Header, HTTPException, Request
@@ -12,6 +16,7 @@ from app.integrations.slack.models import SlackUserInfo
 from app.notifications.service import SlackNotificationSettingsService
 from app.users.models import UserDB
 from app.users.repository import UserRepository
+from app.workspaces.repository import WorkspaceRepository
 
 
 logger = logging.getLogger(__name__)
@@ -19,11 +24,30 @@ logger = logging.getLogger(__name__)
 _MAX_AGE_SECONDS = 60 * 5
 
 
+@dataclass(frozen=True)
+class VerifiedSlackRequest:
+    body: bytes
+    workspace_id: UUID
+    team_id: str
+
+
+def _team_id(body: bytes) -> str | None:
+    try:
+        data = json.loads(body)
+    except json.JSONDecodeError:
+        raw = parse_qs(body.decode()).get("payload", [None])[0]
+        if raw is None:
+            return None
+        data = json.loads(raw)
+    team = data.get("team")
+    return data.get("team_id") or (team.get("id") if isinstance(team, dict) else None)
+
+
 async def verify_slack_signature(
     request: Request,
     x_slack_request_timestamp: str = Header(...),
     x_slack_signature: str = Header(...),
-) -> bytes:
+) -> VerifiedSlackRequest:
     """FastAPI dependency that verifies the Slack request signature.
 
     Returns the raw request body so downstream handlers don't need to
@@ -35,8 +59,13 @@ async def verify_slack_signature(
         raise HTTPException(status_code=403, detail="Request too old")
 
     body = await request.body()
+    team_id = _team_id(body)
+    if not team_id:
+        raise HTTPException(status_code=403, detail="Unknown Slack workspace")
     async with AsyncSessionLocal() as db:
-        config = await SlackNotificationSettingsService(db).get_runtime_config()
+        config = await SlackNotificationSettingsService(
+            db
+        ).get_runtime_config_for_team(team_id)
     if config is None:
         raise HTTPException(status_code=503, detail="Slack is not configured")
 
@@ -55,19 +84,23 @@ async def verify_slack_signature(
     if not match:
         raise HTTPException(status_code=403, detail="Invalid signature")
 
-    return body
+    return VerifiedSlackRequest(
+        body=body, workspace_id=config.workspace_id, team_id=team_id
+    )
 
 
-async def get_slack_client() -> AsyncWebClient | None:
+async def get_slack_client(workspace_id: UUID) -> AsyncWebClient | None:
     async with AsyncSessionLocal() as db:
-        config = await SlackNotificationSettingsService(db).get_runtime_config()
+        config = await SlackNotificationSettingsService(db).get_runtime_config(
+            workspace_id
+        )
     return AsyncWebClient(token=config.bot_token) if config else None
 
 
-async def get_user_info(user_id: str) -> SlackUserInfo | None:
+async def get_user_info(user_id: str, workspace_id: UUID) -> SlackUserInfo | None:
     """Get user information from Slack API."""
     url = "https://slack.com/api/users.info"
-    slack_client = await get_slack_client()
+    slack_client = await get_slack_client(workspace_id)
     if slack_client is None:
         return None
     headers = {"Authorization": f"Bearer {slack_client.token}"}
@@ -95,10 +128,19 @@ async def get_user_info(user_id: str) -> SlackUserInfo | None:
             return None
 
 
-async def resolve_user(slack_user_id: str) -> UserDB | None:
+async def resolve_user(slack_user_id: str, workspace_id: UUID) -> UserDB | None:
     """Map a Slack user ID to an internal user via email lookup."""
-    user_info = await get_user_info(slack_user_id)
+    user_info = await get_user_info(slack_user_id, workspace_id)
     if not user_info or not user_info.profile.email:
         return None
     async with AsyncSessionLocal() as db:
-        return await UserRepository(db).get_by_email(user_info.profile.email)
+        user = await UserRepository(db).get_by_email(user_info.profile.email)
+        if user is None:
+            return None
+        membership = await WorkspaceRepository(db).get_membership(
+            workspace_id, user.id
+        )
+        if membership is None:
+            return None
+        user.set_workspace_membership(membership)
+        return user

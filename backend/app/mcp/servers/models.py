@@ -14,6 +14,7 @@ class MCPAuthType(str, enum.Enum):
 
 
 class MCPServerBase(SQLModel):
+    workspace_id: UUID = Field(foreign_key="workspaces.id", nullable=False, index=True)
     name: str = Field(nullable=False)
     url: str = Field(nullable=False)
     auth_type: MCPAuthType = Field(default=MCPAuthType.none)
@@ -24,8 +25,11 @@ class MCPServerBase(SQLModel):
 
 class MCPServerDB(MCPServerBase, BaseDBModel, table=True):
     __tablename__ = "mcp_servers"
+    __table_args__ = (
+        sa.UniqueConstraint("workspace_id", "url", name="uq_mcp_server_workspace_url"),
+    )
 
-    url: str = Field(nullable=False, unique=True)
+    url: str = Field(nullable=False)
     auth_type: MCPAuthType = Field(
         default=MCPAuthType.none, sa_column=Column(Enum(MCPAuthType), nullable=False)
     )

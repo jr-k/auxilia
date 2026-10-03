@@ -33,6 +33,7 @@ export default function SkillUsedBy({ agents }: { agents: BoundAgent[] }) {
 						>
 							<AgentAvatar
 								agentId={agent.id}
+								name={agent.name}
 								imageRevision={agent.imageRevision}
 								color={agent.color}
 								emoji={agent.emoji}

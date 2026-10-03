@@ -1,3 +1,5 @@
+from uuid import UUID
+
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
@@ -11,15 +13,23 @@ class SlackNotificationSettingsRepository(BaseRepository[SlackNotificationSettin
     def __init__(self, db: AsyncSession):
         super().__init__(SlackNotificationSettingsDB, db)
 
-    async def get_settings(self) -> SlackNotificationSettingsDB | None:
+    async def get_settings(
+        self, workspace_id: UUID | None = None
+    ) -> SlackNotificationSettingsDB | None:
         stmt = select(SlackNotificationSettingsDB).where(
             SlackNotificationSettingsDB.key == "default"
         )
+        if workspace_id is not None:
+            stmt = stmt.where(SlackNotificationSettingsDB.workspace_id == workspace_id)
+        else:
+            stmt = stmt.limit(1)
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
-    async def get_credentials(self) -> tuple[str, str] | None:
-        row = await self.get_settings()
+    async def get_credentials(
+        self, workspace_id: UUID | None = None
+    ) -> tuple[str, str] | None:
+        row = await self.get_settings(workspace_id)
         if (
             row is None
             or not row.enabled
@@ -32,17 +42,27 @@ class SlackNotificationSettingsRepository(BaseRepository[SlackNotificationSettin
             decrypt_value(row.signing_secret_encrypted),
         )
 
-    async def _get_or_create(self) -> SlackNotificationSettingsDB:
-        row = await self.get_settings()
+    async def get_by_team_id(
+        self, team_id: str
+    ) -> SlackNotificationSettingsDB | None:
+        stmt = select(SlackNotificationSettingsDB).where(
+            SlackNotificationSettingsDB.slack_team_id == team_id,
+            SlackNotificationSettingsDB.enabled,
+        )
+        result = await self.db.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def _get_or_create(self, workspace_id: UUID) -> SlackNotificationSettingsDB:
+        row = await self.get_settings(workspace_id)
         if row is not None:
             return row
         try:
             async with self.db.begin_nested():
-                row = SlackNotificationSettingsDB()
+                row = SlackNotificationSettingsDB(workspace_id=workspace_id)
                 self.db.add(row)
                 await self.db.flush()
         except IntegrityError:
-            row = await self.get_settings()
+            row = await self.get_settings(workspace_id)
             if row is None:
                 raise
         return row
@@ -50,12 +70,15 @@ class SlackNotificationSettingsRepository(BaseRepository[SlackNotificationSettin
     async def save(
         self,
         *,
+        workspace_id: UUID,
         enabled: bool,
         bot_token: str | None,
         signing_secret: str | None,
+        slack_team_id: str | None,
     ) -> SlackNotificationSettingsDB:
-        row = await self._get_or_create()
+        row = await self._get_or_create(workspace_id)
         row.enabled = enabled
+        row.slack_team_id = slack_team_id
         if bot_token is not None:
             row.bot_token_encrypted = encrypt_value(bot_token)
         if signing_secret is not None:
@@ -65,8 +88,8 @@ class SlackNotificationSettingsRepository(BaseRepository[SlackNotificationSettin
         await self.db.refresh(row)
         return row
 
-    async def clear(self) -> None:
-        row = await self.get_settings()
+    async def clear(self, workspace_id: UUID) -> None:
+        row = await self.get_settings(workspace_id)
         if row is not None:
             await self.db.delete(row)
         await self.db.flush()

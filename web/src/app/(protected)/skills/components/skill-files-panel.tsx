@@ -121,7 +121,7 @@ function Heading({ count, skill }: { count: number; skill?: Skill }) {
 			</span>
 			{skill && isSourced(skill) && (
 				<span className="truncate text-[10.5px] text-meta dark:text-panel-dim">
-					<Link href="/skills?view=sources" className="font-semibold text-petrol hover:underline">
+					<Link href="/skills?view=sources" className="font-semibold text-petrol hover:underline dark:text-panel-terminal">
 						{skill.sourceName ?? (isDetached(skill) ? "disconnected" : "repository")}
 					</Link>
 					{skill.sourceRevision ? (

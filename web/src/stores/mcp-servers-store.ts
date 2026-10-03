@@ -6,6 +6,7 @@ import {
 } from "@/types/mcp-servers";
 import { createOnce } from "@/lib/api/once";
 import * as mcpServersApi from "@/lib/api/resources/mcp-servers";
+import { getWorkspaceGeneration, isCurrentWorkspaceGeneration } from "@/lib/workspace-generation";
 
 interface McpServersState {
 	mcpServers: MCPServer[];
@@ -21,10 +22,14 @@ interface McpServersState {
 /** Mutations own their cache update: callers state intent, never mirror HTTP results. */
 export const useMcpServersStore = create<McpServersState>((set, get) => {
 	const load = createOnce(async () => {
+		const generation = getWorkspaceGeneration();
 		try {
 			const servers = await mcpServersApi.listMcpServers();
-			set({ mcpServers: servers, isInitialized: true });
+			if (isCurrentWorkspaceGeneration(generation)) {
+				set({ mcpServers: servers, isInitialized: true });
+			}
 		} catch (error) {
+			if (!isCurrentWorkspaceGeneration(generation)) return;
 			console.error("Error fetching MCP servers:", error);
 			set({ isInitialized: true });
 			throw error;

@@ -164,6 +164,7 @@ export default function AgentThreadsPage() {
 							<div className="flex items-center gap-2 shrink-0 min-w-0">
 								<AgentAvatar
 									agentId={agent.id}
+									name={agent.name}
 									imageRevision={agent.imageRevision}
 									color={agent.color}
 									emoji={agent.emoji}

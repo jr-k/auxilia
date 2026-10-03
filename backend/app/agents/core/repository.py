@@ -35,8 +35,16 @@ class AgentAccess(NamedTuple):
 
 
 class AgentRepository(BaseRepository[AgentDB]):
-    def __init__(self, db: AsyncSession):
+    def __init__(self, db: AsyncSession, workspace_id: UUID | None = None):
         super().__init__(AgentDB, db)
+        self.workspace_id = workspace_id
+
+    async def get_scoped(self, agent_id: UUID) -> AgentDB | None:
+        stmt = select(AgentDB).where(AgentDB.id == agent_id)
+        if self.workspace_id is not None:
+            stmt = stmt.where(AgentDB.workspace_id == self.workspace_id)
+        result = await self.db.execute(stmt)
+        return result.scalar_one_or_none()
 
     #: The columns the list projection renders (`AgentListResponse`).
     #: Everything else — `instructions` above all, which runs to tens of KB per agent and is
@@ -111,6 +119,8 @@ class AgentRepository(BaseRepository[AgentDB]):
         stmt = select(*columns).outerjoin(
             AgentMCPServerDB, AgentDB.id == AgentMCPServerDB.agent_id
         )
+        if self.workspace_id is not None:
+            stmt = stmt.where(AgentDB.workspace_id == self.workspace_id)
         if slim:
             stmt = stmt.options(
                 load_only(*self.LIST_COLUMNS),
@@ -174,6 +184,8 @@ class AgentRepository(BaseRepository[AgentDB]):
                 & (AgentTeamDB.team_id == user_team_id),
             )
         stmt = stmt.where(AgentDB.id == agent_id)
+        if self.workspace_id is not None:
+            stmt = stmt.where(AgentDB.workspace_id == self.workspace_id)
         if not include_archived:
             stmt = stmt.where(AgentDB.is_archived == False)  # noqa: E712
 
@@ -224,6 +236,8 @@ class AgentRepository(BaseRepository[AgentDB]):
                 AgentSubagentDB.id.asc(),
             )
         )
+        if self.workspace_id is not None:
+            stmt = stmt.where(AgentDB.workspace_id == self.workspace_id)
         rows = (await self.db.execute(stmt)).all()
 
         parent: AgentDB | None = None
@@ -256,6 +270,7 @@ class AgentRepository(BaseRepository[AgentDB]):
         def to_spec(agent: AgentDB) -> AgentSpec:
             return AgentSpec(
                 id=agent.id,
+                workspace_id=agent.workspace_id,
                 name=agent.name,
                 instructions=agent.instructions,
                 description=agent.description,
@@ -273,6 +288,8 @@ class AgentRepository(BaseRepository[AgentDB]):
         if not ids:
             return []
         stmt = select(AgentDB).where(AgentDB.id.in_(ids))
+        if self.workspace_id is not None:
+            stmt = stmt.where(AgentDB.workspace_id == self.workspace_id)
         result = await self.db.execute(stmt)
         return list(result.scalars().all())
 

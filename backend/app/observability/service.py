@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from datetime import datetime
 from hashlib import sha256
+from uuid import UUID
 
 from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -36,9 +37,11 @@ class WorkspaceObservabilityService:
         self.db = db
         self.repository = WorkspaceObservabilityRepository(db)
 
-    async def get_runtime_config(self) -> ObservabilityRuntimeConfig | None:
-        row = await self.repository.get_settings()
-        credentials = await self.repository.get_credentials()
+    async def get_runtime_config(
+        self, workspace_id: UUID
+    ) -> ObservabilityRuntimeConfig | None:
+        row = await self.repository.get_settings(workspace_id)
+        credentials = await self.repository.get_credentials(workspace_id)
         if row is None or credentials is None:
             return None
         return ObservabilityRuntimeConfig(
@@ -49,9 +52,9 @@ class WorkspaceObservabilityService:
             revision=row.updated_at,
         )
 
-    async def get_response(self) -> WorkspaceObservabilityResponse:
-        row = await self.repository.get_settings()
-        credentials = await self.repository.get_credentials()
+    async def get_response(self, workspace_id: UUID) -> WorkspaceObservabilityResponse:
+        row = await self.repository.get_settings(workspace_id)
+        credentials = await self.repository.get_credentials(workspace_id)
         public_key = credentials[0] if credentials else None
         return WorkspaceObservabilityResponse(
             enabled=bool(row and row.enabled),
@@ -64,9 +67,9 @@ class WorkspaceObservabilityService:
         )
 
     async def update(
-        self, data: WorkspaceObservabilityUpdate
+        self, workspace_id: UUID, data: WorkspaceObservabilityUpdate
     ) -> WorkspaceObservabilityResponse:
-        existing = await self.repository.get_settings()
+        existing = await self.repository.get_settings(workspace_id)
         has_existing_pair = bool(
             existing and existing.public_key_encrypted and existing.secret_key_encrypted
         )
@@ -83,17 +86,18 @@ class WorkspaceObservabilityService:
         if data.enabled and not has_existing_pair and public_key is None:
             raise DomainValidationError("Langfuse credentials are required")
         await self.repository.save(
+            workspace_id=workspace_id,
             enabled=data.enabled,
             base_url=str(data.base_url).rstrip("/"),
             timeout_seconds=data.timeout_seconds,
             public_key=public_key,
             secret_key=secret_key,
         )
-        return await self.get_response()
+        return await self.get_response(workspace_id)
 
-    async def clear(self) -> WorkspaceObservabilityResponse:
-        await self.repository.clear()
-        return await self.get_response()
+    async def clear(self, workspace_id: UUID) -> WorkspaceObservabilityResponse:
+        await self.repository.clear(workspace_id)
+        return await self.get_response(workspace_id)
 
 
 def get_workspace_observability_service(

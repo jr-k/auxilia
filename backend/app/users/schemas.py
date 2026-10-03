@@ -14,10 +14,17 @@ class UserCreate(SQLModel):
     role: WorkspaceRole = WorkspaceRole.member
 
 
+class UserCreateDB(SQLModel):
+    name: str | None = Field(default=None, max_length=255)
+    email: str | None = Field(default=None, max_length=255)
+    password_hash: str | None = None
+
+
 class UserPatch(SQLModel):
     name: str | None = Field(default=None, max_length=255)
     email: str | None = Field(default=None, max_length=255)
     password_hash: str | None = None
+    can_create_workspace: bool | None = None
 
 
 class UserRolePatch(SQLModel):
@@ -36,6 +43,7 @@ class UserResponse(SQLModel):
     email: str | None
     role: WorkspaceRole
     team_id: UUID | None = None
+    can_create_workspace: bool = False
     picture_url: str | None = None
     image_revision: UUID | None = None
     created_at: datetime
@@ -43,6 +51,7 @@ class UserResponse(SQLModel):
 
 
 class CurrentUserResponse(UserResponse):
+    workspace_id: UUID | None = None
     two_factor_enabled: bool = False
 
 

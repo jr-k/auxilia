@@ -6,8 +6,8 @@ from sqlmodel import Field
 from app.models import BaseDBModel
 
 
-class WorkspaceAppearanceDB(BaseDBModel, table=True):
-    __tablename__ = "workspace_appearance"
+class InstanceAppearanceDB(BaseDBModel, table=True):
+    __tablename__ = "instance_appearance"
 
     key: str = Field(default="default", nullable=False, unique=True)
     app_name: str = Field(default="auxilia", max_length=50, nullable=False)

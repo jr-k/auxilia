@@ -1,16 +1,16 @@
 import { create } from "zustand";
 import { createOnce } from "@/lib/api/once";
 import * as appearanceApi from "@/lib/api/resources/appearance";
-import type { WorkspaceAppearance } from "@/types/appearance";
+import type { InstanceAppearance } from "@/types/appearance";
 
 interface AppearanceState {
-	appearance: WorkspaceAppearance;
+	appearance: InstanceAppearance;
 	isInitialized: boolean;
 	fetchAppearance: () => Promise<void>;
-	setAppearance: (appearance: WorkspaceAppearance) => void;
+	setAppearance: (appearance: InstanceAppearance) => void;
 }
 
-const DEFAULT_APPEARANCE: WorkspaceAppearance = {
+const DEFAULT_APPEARANCE: InstanceAppearance = {
 	appName: "auxilia",
 	logoRevision: null,
 };
@@ -21,7 +21,7 @@ export const useAppearanceStore = create<AppearanceState>((set, get) => {
 			const appearance = await appearanceApi.getAppearance();
 			set({ appearance, isInitialized: true });
 		} catch (error) {
-			console.error("Error fetching workspace appearance:", error);
+			console.error("Error fetching instance appearance:", error);
 			set({ isInitialized: false });
 		}
 	});

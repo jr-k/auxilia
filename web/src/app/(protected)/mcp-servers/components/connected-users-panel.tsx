@@ -191,7 +191,7 @@ export function ConnectedUsersPanel({
 								setIsLoading(true);
 								void fetchConnections();
 							}}
-							className="cursor-pointer text-[13px] font-semibold text-petrol hover:underline"
+							className="cursor-pointer text-[13px] font-semibold text-petrol hover:underline dark:text-panel-terminal"
 						>
 							Retry loading connections
 						</button>

@@ -282,7 +282,7 @@ export default function CustomMCPServerPage() {
 				<div className="mx-auto max-w-[640px]">
 					<Link
 						href="/mcp-servers/add"
-						className="text-[13px] font-semibold text-petrol hover:underline"
+						className="text-[13px] font-semibold text-petrol hover:underline dark:text-panel-terminal"
 					>
 						‹ Catalog
 					</Link>

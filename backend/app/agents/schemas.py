@@ -36,6 +36,7 @@ def _normalize_color(value: str | None) -> str | None:
 
 
 class AgentCreateDB(SQLModel):
+    workspace_id: UUID
     name: str
     instructions: str
     owner_id: UUID

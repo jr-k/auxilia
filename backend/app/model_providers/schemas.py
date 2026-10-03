@@ -1,5 +1,6 @@
 from datetime import datetime
 from enum import Enum
+from uuid import UUID
 
 from pydantic import BaseModel, Field
 from sqlmodel import SQLModel
@@ -55,6 +56,7 @@ class ModelCreateDB(SQLModel):
     server-generated — passing a full ModelDB through BaseRepository.create
     would fail validation on its None timestamps)."""
 
+    workspace_id: UUID
     provider: str
     model_id: str
     is_enabled: bool

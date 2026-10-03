@@ -131,6 +131,7 @@ export default function TriggerCard({ trigger, onDelete }: TriggerCardProps) {
 				<div className="flex h-[30px] items-center gap-1.75 rounded-full border border-[#ECF1EE] dark:border-white/10 bg-[#F4F7F5] dark:bg-white/5 pl-1.5 pr-3">
 					<AgentAvatar
 						agentId={agent?.id}
+						name={agent?.name}
 						imageRevision={agent?.imageRevision}
 						color={agent?.color}
 						emoji={agent?.emoji}

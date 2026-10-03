@@ -5,18 +5,8 @@ from sqlalchemy import LargeBinary, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Boolean, Column, Field, SQLModel, String, Text
 
+from app.colors import ALLOWED_COLORS as ALLOWED_COLORS
 from app.models import BaseDBModel
-
-
-ALLOWED_COLORS = {
-    "#6C5CE7",
-    "#00B894",
-    "#E17055",
-    "#0984E3",
-    "#FDCB6E",
-    "#E84393",
-    "#9E9E9E",
-}
 
 
 class PermissionLevel(str, Enum):
@@ -96,6 +86,7 @@ class AgentSandboxDB(AgentSandboxBase, BaseDBModel, table=True):
 
 
 class AgentBase(SQLModel):
+    workspace_id: UUID = Field(foreign_key="workspaces.id", nullable=False, index=True)
     name: str = Field(max_length=255, nullable=False)
     instructions: str = Field(sa_column=Column(Text, nullable=False))
     owner_id: UUID = Field(foreign_key="users.id", nullable=False)

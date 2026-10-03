@@ -103,7 +103,7 @@ export default function AgentSubagentList({
 				</span>
 				{!readOnly && (
 					<button
-						className="flex cursor-pointer items-center gap-1 text-[12.5px] font-semibold text-petrol transition-opacity hover:opacity-80"
+						className="flex cursor-pointer items-center gap-1 text-[12.5px] font-semibold text-petrol transition-opacity hover:opacity-80 dark:text-panel-terminal"
 						onClick={() => { setDialogOpen(true); }}
 					>
 						<Plus className="size-3" />
@@ -131,6 +131,7 @@ export default function AgentSubagentList({
 							>
 								<AgentAvatar
 									agentId={sub.id}
+									name={sub.name}
 									imageRevision={sub.imageRevision}
 									color={sub.color}
 									emoji={sub.emoji}

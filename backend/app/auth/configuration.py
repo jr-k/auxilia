@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from uuid import UUID
 
 from authlib.integrations.starlette_client import OAuth
 from fastapi import Depends
@@ -30,24 +31,24 @@ class WorkspaceAuthenticationService:
     def callback_url(self) -> str:
         return f"{auth_settings.FRONTEND_URL}/api/backend/auth/google/callback"
 
-    async def get_runtime_config(self) -> GoogleOAuthConfig | None:
-        credentials = await self.repository.get_credentials()
+    async def get_runtime_config(self, workspace_id: UUID) -> GoogleOAuthConfig | None:
+        credentials = await self.repository.get_credentials(workspace_id)
         if credentials is None:
             return None
-        row = await self.repository.get_settings()
+        row = await self.repository.get_settings(workspace_id)
         return GoogleOAuthConfig(
             client_id=credentials[0],
             client_secret=credentials[1],
             google_exclusive=bool(row and row.google_exclusive),
         )
 
-    async def password_enabled(self) -> bool:
-        config = await self.get_runtime_config()
+    async def password_enabled(self, workspace_id: UUID) -> bool:
+        config = await self.get_runtime_config(workspace_id)
         return config is None or not config.google_exclusive
 
-    async def get_response(self) -> WorkspaceAuthenticationResponse:
-        row = await self.repository.get_settings()
-        credentials = await self.repository.get_credentials()
+    async def get_response(self, workspace_id: UUID) -> WorkspaceAuthenticationResponse:
+        row = await self.repository.get_settings(workspace_id)
+        credentials = await self.repository.get_credentials(workspace_id)
         client_id = credentials[0] if credentials else None
         return WorkspaceAuthenticationResponse(
             enabled=bool(row and row.enabled),
@@ -59,9 +60,9 @@ class WorkspaceAuthenticationService:
         )
 
     async def update(
-        self, data: WorkspaceAuthenticationUpdate
+        self, workspace_id: UUID, data: WorkspaceAuthenticationUpdate
     ) -> WorkspaceAuthenticationResponse:
-        existing = await self.repository.get_settings()
+        existing = await self.repository.get_settings(workspace_id)
         has_existing_pair = bool(
             existing
             and existing.google_client_id_encrypted
@@ -84,19 +85,20 @@ class WorkspaceAuthenticationService:
                 "Google client ID and client secret are required"
             )
         await self.repository.save(
+            workspace_id=workspace_id,
             enabled=data.enabled,
             google_exclusive=data.google_exclusive if data.enabled else False,
             client_id=client_id,
             client_secret=client_secret,
         )
-        return await self.get_response()
+        return await self.get_response(workspace_id)
 
-    async def clear(self) -> WorkspaceAuthenticationResponse:
-        await self.repository.clear()
-        return await self.get_response()
+    async def clear(self, workspace_id: UUID) -> WorkspaceAuthenticationResponse:
+        await self.repository.clear(workspace_id)
+        return await self.get_response(workspace_id)
 
-    async def build_oauth(self) -> OAuth | None:
-        config = await self.get_runtime_config()
+    async def build_oauth(self, workspace_id: UUID) -> OAuth | None:
+        config = await self.get_runtime_config(workspace_id)
         if config is None:
             return None
         oauth = OAuth()

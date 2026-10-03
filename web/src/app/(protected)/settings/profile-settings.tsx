@@ -119,7 +119,7 @@ function BackupCodes({
 					<button
 						type="button"
 						onClick={downloadCodes}
-						className="flex cursor-pointer items-center gap-1.5 rounded-[7px] border border-input bg-card px-3 py-1.5 text-[12px] font-semibold text-petrol"
+						className="flex cursor-pointer items-center gap-1.5 rounded-[7px] border border-input bg-card px-3 py-1.5 text-[12px] font-semibold text-petrol transition-colors hover:border-border-hover dark:border-white/10 dark:bg-white/[0.03] dark:text-panel-terminal dark:hover:border-white/20"
 					>
 						<Download className="size-3.5" />
 						Download
@@ -129,7 +129,7 @@ function BackupCodes({
 						onClick={() => {
 							void copyCodes();
 						}}
-						className="flex cursor-pointer items-center gap-1.5 rounded-[7px] border border-input bg-card px-3 py-1.5 text-[12px] font-semibold text-petrol"
+						className="flex cursor-pointer items-center gap-1.5 rounded-[7px] border border-input bg-card px-3 py-1.5 text-[12px] font-semibold text-petrol transition-colors hover:border-border-hover dark:border-white/10 dark:bg-white/[0.03] dark:text-panel-terminal dark:hover:border-white/20"
 					>
 						{copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
 						{copied ? "Copied" : "Copy all"}

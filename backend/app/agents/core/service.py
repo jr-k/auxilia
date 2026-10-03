@@ -49,9 +49,12 @@ from app.sandbox.repository import SandboxRepository
 from app.sandbox.schemas import SandboxAgentResponse
 from app.service import BaseService
 from app.skills.service import SkillService
+from app.teams.repository import TeamRepository
 from app.users.models import WorkspaceRole
 from app.users.service import UserService
 from app.utils.images import ProcessedImage
+from app.workspaces.dependencies import get_active_workspace_id
+from app.workspaces.repository import WorkspaceRepository
 
 
 logger = logging.getLogger(__name__)
@@ -60,24 +63,33 @@ logger = logging.getLogger(__name__)
 class AgentService(BaseService[AgentDB, AgentRepository]):
     not_found_message = "Agent not found"
 
-    def __init__(self, db: AsyncSession):
-        super().__init__(db, AgentRepository(db))
+    def __init__(self, db: AsyncSession, workspace_id: UUID | None = None):
+        super().__init__(db, AgentRepository(db, workspace_id))
+        self.workspace_id = workspace_id
         self.user_service = UserService(db)
         self.mcp_server_repository = AgentMCPServerRepository(db)
-        self.mcp_server_service = AgentMCPServerService(db)
-        self.skill_service = SkillService(db)
-        self.mcp_servers = MCPServerRepository(db)
+        self.mcp_server_service = AgentMCPServerService(db, workspace_id)
+        self.skill_service = SkillService(db, workspace_id)
+        self.mcp_servers = MCPServerRepository(db, workspace_id)
         self.sandboxes = SandboxRepository(db)
+        self.workspaces = WorkspaceRepository(db)
+        self.teams = TeamRepository(db)
+
+    async def _get_scoped(self, agent_id: UUID) -> AgentDB:
+        row = await self.repository.get_scoped(agent_id)
+        if row is None:
+            raise NotFoundError(self.not_found_message)
+        return row
 
     async def get_image(self, agent_id: UUID) -> AgentImageDB:
-        await self.get_or_404(agent_id)
+        await self._get_scoped(agent_id)
         image = await self.repository.get_image(agent_id)
         if image is None:
             raise NotFoundError("Agent image not found")
         return image
 
     async def set_image(self, agent_id: UUID, image: ProcessedImage) -> UUID:
-        await self.get_or_404(agent_id)
+        await self._get_scoped(agent_id)
         revision = uuid4()
         await self.repository.set_image(
             agent_id,
@@ -89,7 +101,7 @@ class AgentService(BaseService[AgentDB, AgentRepository]):
         return revision
 
     async def delete_image(self, agent_id: UUID) -> None:
-        await self.get_or_404(agent_id)
+        await self._get_scoped(agent_id)
         await self.repository.delete_image(agent_id)
 
     @staticmethod
@@ -313,8 +325,11 @@ class AgentService(BaseService[AgentDB, AgentRepository]):
         """Create an agent from a full config document in one transaction —
         the create-mode counterpart of `set_config`. Nothing persists if any
         binding is invalid, so a failed draft never leaves a stray agent."""
+        if self.workspace_id is None:
+            raise RuntimeError("workspace_id is required to create an agent")
         agent = await self.repository.create(
             AgentCreateDB(
+                workspace_id=self.workspace_id,
                 name=config.name,
                 instructions=config.instructions,
                 owner_id=owner_id,
@@ -523,12 +538,27 @@ class AgentService(BaseService[AgentDB, AgentRepository]):
     async def set_permissions(
         self, agent_id: UUID, permissions: list[AgentPermissionCreate]
     ) -> list[AgentUserPermissionDB]:
+        if self.workspace_id is None:
+            raise RuntimeError("workspace_id is required to manage permissions")
+        for permission in permissions:
+            if (
+                await self.workspaces.get_membership(
+                    self.workspace_id, permission.user_id
+                )
+                is None
+            ):
+                raise NotFoundError("User not found")
         return await self.repository.set_permissions(agent_id, permissions)
 
     async def get_team_ids(self, agent_id: UUID) -> list[UUID]:
         return await self.repository.get_team_ids(agent_id)
 
     async def set_teams(self, agent_id: UUID, team_ids: list[UUID]) -> list[UUID]:
+        if self.workspace_id is None:
+            raise RuntimeError("workspace_id is required to manage teams")
+        for team_id in team_ids:
+            if await self.teams.get_in_workspace(team_id, self.workspace_id) is None:
+                raise NotFoundError("Team not found")
         return await self.repository.set_teams(agent_id, team_ids)
 
     # -- Subagents -------------------------------------------------------------
@@ -586,11 +616,11 @@ class AgentService(BaseService[AgentDB, AgentRepository]):
         if supervisor_id == subagent_id:
             raise DomainValidationError("Cannot add an agent as its own subagent")
 
-        supervisor = await self.repository.get(supervisor_id)
+        supervisor = await self.repository.get_scoped(supervisor_id)
         if not supervisor or supervisor.is_archived:
             raise NotFoundError("Supervisor agent not found")
 
-        subagent = await self.repository.get(subagent_id)
+        subagent = await self.repository.get_scoped(subagent_id)
         if not subagent or subagent.is_archived:
             raise NotFoundError("Subagent not found")
 
@@ -674,7 +704,10 @@ class AgentService(BaseService[AgentDB, AgentRepository]):
         semantics as `AgentMCPServerService.set_for_agent`, minus tool
         discovery — the sandbox tool surface is static."""
         wanted = configs[0] if configs else None
-        if wanted is not None and not await self.sandboxes.get(wanted.sandbox_id):
+        if wanted is not None and (
+            self.workspace_id is None
+            or not await self.sandboxes.get_scoped(wanted.sandbox_id, self.workspace_id)
+        ):
             raise NotFoundError("Sandbox not found")
         await self.repository.set_sandbox(agent_id, wanted)
 
@@ -725,7 +758,11 @@ class AgentService(BaseService[AgentDB, AgentRepository]):
         server_ids = {b.mcp_server_id for b in bindings}  # dedupe for the probe
         servers = await self.mcp_servers.list_by_ids(server_ids)
 
-        authorized = await probe_authorization(servers, user_id)
+        if self.workspace_id is None:
+            raise RuntimeError("workspace_id is required for MCP authorization")
+        authorized = await probe_authorization(
+            servers, user_id, self.workspace_id
+        )
         disconnected = [
             str(server.id) for server in servers if not authorized.get(server.id, True)
         ]
@@ -740,5 +777,8 @@ class AgentService(BaseService[AgentDB, AgentRepository]):
         }
 
 
-def get_agent_service(db: AsyncSession = Depends(get_db)) -> AgentService:
-    return AgentService(db)
+def get_agent_service(
+    db: AsyncSession = Depends(get_db),
+    workspace_id: UUID = Depends(get_active_workspace_id),
+) -> AgentService:
+    return AgentService(db, workspace_id)

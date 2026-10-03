@@ -8,6 +8,8 @@ export interface CurrentUser {
 	lastName: string | null;
 	email: string | null;
 	role: WorkspaceRole;
+	workspaceId: string | null;
+	canCreateWorkspace: boolean;
 	teamId: string | null;
 	pictureUrl: string | null;
 	imageRevision: string | null;
@@ -47,6 +49,7 @@ export interface SignInResult {
 export interface InviteInfo {
 	email: string;
 	role: string;
+	workspaceName: string;
 	passwordEnabled: boolean;
 	googleEnabled: boolean;
 }

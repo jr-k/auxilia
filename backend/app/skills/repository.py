@@ -10,7 +10,13 @@ from sqlmodel import col, select
 
 from app.agents.models import AgentDB
 from app.repository import BaseRepository
-from app.skills.models import AgentSkillDB, SkillDB, SkillSourceDB, SkillVersionDB
+from app.skills.models import (
+    AgentSkillDB,
+    SkillDB,
+    SkillImageDB,
+    SkillSourceDB,
+    SkillVersionDB,
+)
 from app.skills.schemas import SCRIPTS_DIR
 
 
@@ -92,8 +98,19 @@ def _agent_count():
 
 
 class SkillRepository(BaseRepository[SkillDB]):
-    def __init__(self, db: AsyncSession):
+    def __init__(self, db: AsyncSession, workspace_id: UUID | None = None):
         super().__init__(SkillDB, db)
+        self.workspace_id = workspace_id
+
+    def _skills(self):
+        stmt = select(SkillDB)
+        if self.workspace_id is not None:
+            stmt = stmt.where(SkillDB.workspace_id == self.workspace_id)
+        return stmt
+
+    async def get_scoped(self, skill_id: UUID) -> SkillDB | None:
+        stmt = self._skills().where(SkillDB.id == skill_id)
+        return (await self.db.execute(stmt)).scalar_one_or_none()
 
     async def list_summaries(self):
         """Every skill's row minus the document and files, plus a file count —
@@ -104,6 +121,9 @@ class SkillRepository(BaseRepository[SkillDB]):
             SkillDB.name,
             SkillDB.description,
             SkillDB.group,
+            SkillDB.emoji,
+            SkillDB.color,
+            SkillDB.image_revision,
             SkillDB.revision,
             SkillDB.updated_at,
             json_array_length(SkillDB.files).label("file_count"),
@@ -122,13 +142,18 @@ class SkillRepository(BaseRepository[SkillDB]):
         stmt = stmt.select_from(SkillDB).outerjoin(
             SkillSourceDB, col(SkillSourceDB.id) == col(SkillDB.source_id)
         )
+        if self.workspace_id is not None:
+            stmt = stmt.where(SkillDB.workspace_id == self.workspace_id)
         stmt = stmt.order_by(col(SkillDB.updated_at).desc(), SkillDB.id)
         return (await self.db.execute(stmt)).all()
 
     # -- sourced skills and their versions ------------------------------------
 
     async def get_source(self, source_id: UUID) -> SkillSourceDB | None:
-        return await self.db.get(SkillSourceDB, source_id)
+        stmt = select(SkillSourceDB).where(SkillSourceDB.id == source_id)
+        if self.workspace_id is not None:
+            stmt = stmt.where(SkillSourceDB.workspace_id == self.workspace_id)
+        return (await self.db.execute(stmt)).scalar_one_or_none()
 
     async def list_for_source(self, source_id: UUID) -> list[SkillDB]:
         stmt = (
@@ -240,9 +265,12 @@ class SkillRepository(BaseRepository[SkillDB]):
         The pin is `source_revision` and not `digest` — every save computes a
         digest, so a skill written in the app would otherwise look detached.
         """
+        if self.workspace_id is None:
+            raise RuntimeError("workspace_id is required")
         stmt = (
             select(SkillDB)
             .where(
+                SkillDB.workspace_id == self.workspace_id,
                 col(SkillDB.source_id).is_(None),
                 col(SkillDB.source_revision).is_not(None),
                 SkillDB.source_url == url,
@@ -255,10 +283,14 @@ class SkillRepository(BaseRepository[SkillDB]):
         """`(id, name)` for the whole library — the one namespace a sync and
         a save both have to fit into, read in a single query."""
         stmt = select(SkillDB.id, SkillDB.name)
+        if self.workspace_id is not None:
+            stmt = stmt.where(SkillDB.workspace_id == self.workspace_id)
         return (await self.db.execute(stmt)).all()
 
     async def get_by_name(self, name: str) -> SkillDB | None:
         stmt = select(SkillDB).where(SkillDB.name == name)
+        if self.workspace_id is not None:
+            stmt = stmt.where(SkillDB.workspace_id == self.workspace_id)
         return (await self.db.execute(stmt)).scalar_one_or_none()
 
     async def list_agents_by_skill(self):
@@ -299,13 +331,58 @@ class SkillRepository(BaseRepository[SkillDB]):
     async def get_for_update(self, skill_id: UUID) -> SkillDB | None:
         """The row, locked for the rest of the transaction (save/delete)."""
         stmt = select(SkillDB).where(SkillDB.id == skill_id).with_for_update()
+        if self.workspace_id is not None:
+            stmt = stmt.where(SkillDB.workspace_id == self.workspace_id)
         return (await self.db.execute(stmt)).scalar_one_or_none()
+
+    async def get_image(self, skill_id: UUID) -> SkillImageDB | None:
+        stmt = select(SkillImageDB).where(SkillImageDB.skill_id == skill_id)
+        return (await self.db.execute(stmt)).scalar_one_or_none()
+
+    async def set_image(
+        self,
+        skill_id: UUID,
+        *,
+        data: bytes,
+        media_type: str,
+        sha256: str,
+        revision: UUID,
+    ) -> None:
+        image = await self.get_image(skill_id)
+        if image is None:
+            image = SkillImageDB(
+                skill_id=skill_id,
+                data=data,
+                media_type=media_type,
+                sha256=sha256,
+            )
+        else:
+            image.data = data
+            image.media_type = media_type
+            image.sha256 = sha256
+        self.db.add(image)
+        stmt = (
+            update(SkillDB)
+            .where(SkillDB.id == skill_id)
+            .values(image_revision=revision)
+        )
+        await self.db.execute(stmt)
+        await self.db.flush()
+
+    async def delete_image(self, skill_id: UUID) -> None:
+        stmt = delete(SkillImageDB).where(SkillImageDB.skill_id == skill_id)
+        await self.db.execute(stmt)
+        stmt = update(SkillDB).where(SkillDB.id == skill_id).values(image_revision=None)
+        await self.db.execute(stmt)
+        await self.db.flush()
 
     async def list_existing_ids(self, skill_ids: Iterable[UUID]) -> set[UUID]:
         ids = list(skill_ids)
         if not ids:
             return set()
         stmt = select(SkillDB.id).where(col(SkillDB.id).in_(ids))
+        if self.workspace_id is not None:
+            stmt = stmt.where(SkillDB.workspace_id == self.workspace_id)
         return set((await self.db.execute(stmt)).scalars().all())
 
     async def list_for_agents(self, agent_ids: Iterable[UUID]) -> list[SkillDB]:
@@ -330,6 +407,9 @@ class SkillRepository(BaseRepository[SkillDB]):
                 SkillDB.id,
                 SkillDB.name,
                 SkillDB.description,
+                SkillDB.emoji,
+                SkillDB.color,
+                SkillDB.image_revision,
                 json_script_count(SkillDB.files).label("script_count"),
             )
             .join(AgentSkillDB, col(AgentSkillDB.skill_id) == col(SkillDB.id))

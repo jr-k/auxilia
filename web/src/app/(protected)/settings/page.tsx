@@ -7,7 +7,7 @@ import { useConfirmDialog } from "@/components/providers/dialog-provider";
 import CreateTokenDialog, { type PersonalAccessToken } from "./create-token-dialog";
 import WorkspaceModels from "./workspace-models";
 import WorkspaceSandboxes from "./workspace-sandboxes";
-import WorkspaceAppearanceSettings from "./workspace-appearance";
+import InstanceAppearanceSettings from "./workspace-appearance";
 import WorkspaceAuthentication from "./workspace-authentication";
 import WorkspaceNotifications from "./workspace-notifications";
 import WorkspaceObservability from "./workspace-observability";
@@ -96,13 +96,12 @@ type SettingsTab =
 	| "authentication"
 	| "notifications"
 	| "observability"
-	| "tokens"
 	| "models"
 	| "sandboxes";
 
 function isAdminSettingsTab(
 	tab: string,
-): tab is Exclude<SettingsTab, "profile" | "tokens"> {
+): tab is Exclude<SettingsTab, "profile"> {
 	return (
 		tab === "appearance" ||
 		tab === "authentication" ||
@@ -113,11 +112,14 @@ function isAdminSettingsTab(
 	);
 }
 
-function isProfileSection(value: string): value is ProfileSection {
+type ProfilePageSection = ProfileSection | "tokens";
+
+function isProfileSection(value: string): value is ProfilePageSection {
 	return (
 		value === "information" ||
 		value === "security" ||
-		value === "preferences"
+		value === "preferences" ||
+		value === "tokens"
 	);
 }
 
@@ -142,19 +144,20 @@ export default function SettingsPage() {
 		"section",
 		"information",
 	);
-	const profileSection: ProfileSection = isProfileSection(profileSectionParam)
-		? profileSectionParam
-		: "information";
+	const profileSection: ProfilePageSection =
+		tabParam === "tokens"
+			? "tokens"
+			: isProfileSection(profileSectionParam)
+				? profileSectionParam
+				: "information";
 	const tab: SettingsTab =
-		tabParam === "profile"
+		tabParam === "profile" || tabParam === "tokens"
 			? "profile"
 			: isAdmin && isAdminSettingsTab(tabParam)
 				? tabParam
-				: tabParam === "tokens"
-					? "tokens"
-					: isAdmin
-						? "appearance"
-						: "tokens";
+				: isAdmin
+					? "appearance"
+					: "profile";
 
 	useEffect(() => {
 		void fetchUser();
@@ -299,34 +302,58 @@ export default function SettingsPage() {
 						{tab === "profile" ? "Profile" : "Settings"}
 					</h1>
 					{tab === "profile" ? (
-						<div className="flex flex-col gap-0.5">
-							<button
-								type="button"
-								className={railTabClass(profileSection === "information")}
-								onClick={() => {
-									setProfileSection("information");
-								}}
-							>
-								Information
-							</button>
-							<button
-								type="button"
-								className={railTabClass(profileSection === "security")}
-								onClick={() => {
-									setProfileSection("security");
-								}}
-							>
-								Security
-							</button>
-							<button
-								type="button"
-								className={railTabClass(profileSection === "preferences")}
-								onClick={() => {
-									setProfileSection("preferences");
-								}}
-							>
-								Preferences
-							</button>
+						<div className="flex flex-col">
+							<div className="mb-5">
+								<p className="mb-1.5 px-3.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-meta dark:text-panel-dim">
+									Account
+								</p>
+								<button
+									type="button"
+									className={railTabClass(profileSection === "information")}
+									onClick={() => {
+										setProfileSection("information");
+									}}
+								>
+									Information
+								</button>
+								<button
+									type="button"
+									className={railTabClass(profileSection === "security")}
+									onClick={() => {
+										setProfileSection("security");
+									}}
+								>
+									Security
+								</button>
+								<button
+									type="button"
+									className={railTabClass(profileSection === "preferences")}
+									onClick={() => {
+										setProfileSection("preferences");
+									}}
+								>
+									Preferences
+								</button>
+							</div>
+							<div>
+								<p className="mb-1.5 px-3.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-meta dark:text-panel-dim">
+									Developer
+								</p>
+								<button
+									type="button"
+									className={railTabClass(profileSection === "tokens")}
+									onClick={() => {
+										setProfileSection("tokens");
+									}}
+								>
+									Access tokens
+									{isAdmin && (
+										<span className="font-mono text-[10.5px] font-normal text-meta dark:text-panel-dim">
+											{tokens.length}
+										</span>
+									)}
+								</button>
+							</div>
 						</div>
 					) : (
 						<div className="flex flex-col">
@@ -335,15 +362,6 @@ export default function SettingsPage() {
 								<p className="mb-1.5 px-3.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-meta dark:text-panel-dim">
 									General
 								</p>
-								<button
-									type="button"
-									className={railTabClass(tab === "appearance")}
-									onClick={() => {
-										setTab("appearance");
-									}}
-								>
-									Appearance
-								</button>
 								<button
 									type="button"
 									className={railTabClass(tab === "models")}
@@ -408,25 +426,22 @@ export default function SettingsPage() {
 								</button>
 							</div>
 						)}
-						<div>
-							<p className="mb-1.5 px-3.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-meta dark:text-panel-dim">
-								Developer
-							</p>
-							<button
-								type="button"
-								className={railTabClass(tab === "tokens")}
-								onClick={() => {
-									setTab("tokens");
-								}}
-							>
-								Access tokens
-								{isAdmin && (
-									<span className="font-mono text-[10.5px] font-normal text-meta dark:text-panel-dim">
-										{tokens.length}
-									</span>
-								)}
-							</button>
-						</div>
+						{isAdmin && (
+							<div className="mb-5">
+								<p className="mb-1.5 px-3.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-meta dark:text-panel-dim">
+									Server
+								</p>
+								<button
+									type="button"
+									className={railTabClass(tab === "appearance")}
+									onClick={() => {
+										setTab("appearance");
+									}}
+								>
+									Appearance
+								</button>
+							</div>
+						)}
 						</div>
 					)}
 				</div>
@@ -434,17 +449,24 @@ export default function SettingsPage() {
 				{/* Content */}
 				<div className="min-w-0 flex-1 overflow-y-auto px-9 py-8 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
 					<div className="mx-auto max-w-[800px]">
-						<section className={tab === "profile" ? "" : "hidden"}>
-							{user ? (
-								<ProfileSettings user={user} section={profileSection} />
-							) : (
-								<div className="h-40 animate-pulse rounded-[12px] border border-border bg-card" />
-							)}
+						<section
+							className={
+								tab === "profile" && profileSection !== "tokens"
+									? ""
+									: "hidden"
+							}
+						>
+							{profileSection !== "tokens" &&
+								(user ? (
+									<ProfileSettings user={user} section={profileSection} />
+								) : (
+									<div className="h-40 animate-pulse rounded-[12px] border border-border bg-card" />
+								))}
 						</section>
 
 						{isAdmin && (
 							<section className={tab === "appearance" ? "" : "hidden"}>
-								<WorkspaceAppearanceSettings
+								<InstanceAppearanceSettings
 									onForbidden={() => {
 										setErrorDialogOpen(true);
 									}}
@@ -476,8 +498,14 @@ export default function SettingsPage() {
 							</section>
 						)}
 
-						{/* Access tokens — kept mounted so the rail count stays live */}
-						<section className={tab === "tokens" ? "" : "hidden"}>
+						{/* Access tokens — kept mounted so the profile count stays live */}
+						<section
+							className={
+								tab === "profile" && profileSection === "tokens"
+									? ""
+									: "hidden"
+							}
+						>
 							<div className="mb-1.5 flex items-baseline gap-2.5">
 								<span className="text-[10.5px] font-semibold text-subtle dark:text-panel-dim">
 									Personal access tokens

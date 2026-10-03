@@ -49,6 +49,7 @@ class InviteInfoResponse(BaseModel):
 
     email: str
     role: str
+    workspace_name: str
     password_enabled: bool
     google_enabled: bool
 

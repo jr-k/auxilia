@@ -34,6 +34,14 @@ export async function setUserTeam(userId: string, teamId: string | null): Promis
 	await api.patch(`/users/${userId}/team`, { teamId });
 }
 
+export async function setCanCreateWorkspace(
+	userId: string,
+	canCreateWorkspace: boolean,
+): Promise<User> {
+	const response = await api.patch<User>(`/users/${userId}`, { canCreateWorkspace });
+	return response.data;
+}
+
 export async function deleteUser(userId: string): Promise<void> {
 	await api.delete(`/users/${userId}`);
 }

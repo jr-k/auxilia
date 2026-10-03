@@ -280,7 +280,7 @@ export default function MCPServerTable({
 								<button
 									type="button"
 									onClick={onClearSearch}
-									className="cursor-pointer font-semibold text-petrol hover:underline"
+									className="cursor-pointer font-semibold text-petrol hover:underline dark:text-panel-terminal"
 								>
 									Clear search
 								</button>
@@ -391,7 +391,7 @@ export default function MCPServerTable({
 								<button
 									type="button"
 									onClick={onClearSearch}
-									className="cursor-pointer font-semibold text-petrol hover:underline"
+									className="cursor-pointer font-semibold text-petrol hover:underline dark:text-panel-terminal"
 								>
 									Clear search
 								</button>

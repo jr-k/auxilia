@@ -22,6 +22,7 @@ class TriggerCreate(TriggerBase):
 
 
 class TriggerCreateDB(TriggerBase):
+    workspace_id: UUID
     owner_id: UUID
     trigger_type: TriggerType
     webhook_id: UUID | None = None
@@ -41,6 +42,7 @@ class TriggerPatch(SQLModel):
 
 class TriggerResponse(SQLModel):
     id: UUID
+    workspace_id: UUID
     name: str
     instructions: str
     owner_id: UUID

@@ -228,7 +228,7 @@ const ToolResult = ({ tc }: { tc: ToolCallView }) => {
                     setLoadError(null);
                     setAttempt((n) => n + 1);
                   }}
-                  className="cursor-pointer font-semibold text-petrol underline-offset-2 hover:underline"
+                  className="cursor-pointer font-semibold text-petrol underline-offset-2 hover:underline dark:text-panel-terminal"
                 >
                   Retry
                 </button>

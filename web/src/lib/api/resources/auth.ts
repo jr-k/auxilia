@@ -90,8 +90,13 @@ export async function acceptInvite(payload: {
 	token: string;
 	password: string;
 	name: string;
-}): Promise<void> {
-	await api.post("/auth/invite/accept", payload);
+}): Promise<SignInResult> {
+	const response = await api.post<{
+		twoFactorRequired?: boolean;
+	}>("/auth/invite/accept", payload);
+	return {
+		twoFactorRequired: response.data.twoFactorRequired === true,
+	};
 }
 
 export async function listTokens(): Promise<PersonalAccessToken[]> {

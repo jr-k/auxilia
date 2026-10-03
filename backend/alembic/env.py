@@ -21,6 +21,7 @@ from app.teams import models as team_models  # noqa: F401
 from app.threads import models as thread_models  # noqa: F401
 from app.triggers import models as trigger_models  # noqa: F401
 from app.users import models as user_models  # noqa: F401
+from app.workspaces import models as workspace_models  # noqa: F401
 
 
 # this is the Alembic Config object, which provides

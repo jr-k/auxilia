@@ -107,6 +107,7 @@ export default function AgentCard({
 				<div className="mb-2.5 flex min-w-0 items-center gap-[11px]">
 					<AgentAvatar
 						agentId={agent.id}
+						name={agent.name}
 						imageRevision={agent.imageRevision}
 						color={agent.color}
 						emoji={agent.emoji}

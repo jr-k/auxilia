@@ -8,7 +8,7 @@ from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.core.service import AgentService
-from app.agents.models import AgentDB, EffectivePermission
+from app.agents.models import EffectivePermission
 from app.auth.settings import auth_settings
 from app.database import get_db
 from app.exceptions import (
@@ -36,6 +36,8 @@ from app.triggers.schemas import (
 )
 from app.triggers.settings import trigger_settings
 from app.users.models import UserDB, WorkspaceRole
+from app.workspaces.dependencies import get_active_workspace_id
+from app.workspaces.repository import WorkspaceRepository
 
 
 logger = logging.getLogger(__name__)
@@ -44,11 +46,11 @@ logger = logging.getLogger(__name__)
 class TriggerService(BaseService[TriggerDB, TriggerRepository]):
     not_found_message = "Trigger not found"
 
-    def __init__(self, db: AsyncSession):
-        super().__init__(db, TriggerRepository(db))
-        self.agent_service = AgentService(db)
-        self.thread_service = ThreadService(db)
-        self.model_service = ModelService(db)
+    def __init__(self, db: AsyncSession, workspace_id: UUID | None = None):
+        super().__init__(db, TriggerRepository(db, workspace_id))
+        self.workspace_id = workspace_id
+        self.agent_service = AgentService(db, workspace_id)
+        self.model_service = ModelService(db, workspace_id)
 
     # ------------------------------------------------------------------
     # Guards
@@ -59,11 +61,15 @@ class TriggerService(BaseService[TriggerDB, TriggerRepository]):
         if trigger.owner_id != user.id and user.role != WorkspaceRole.admin:
             raise PermissionDeniedError("Not authorized to access this trigger")
 
-    async def _ensure_agent_usable(self, agent_id: UUID, owner: UserDB) -> None:
+    async def _ensure_agent_usable(
+        self, agent_id: UUID, owner: UserDB, workspace_id: UUID | None = None
+    ) -> None:
         """The trigger's agent must be one its *owner* is allowed to use —
         runs execute with the owner's identity and MCP credentials."""
         try:
-            await self.agent_service.require_permission(
+            await AgentService(
+                self.db, workspace_id or self.workspace_id
+            ).require_permission(
                 agent_id,
                 at_least=EffectivePermission.member,
                 action="use this agent",
@@ -82,6 +88,12 @@ class TriggerService(BaseService[TriggerDB, TriggerRepository]):
         owner = await self.db.get(UserDB, trigger.owner_id)
         if owner is None:  # FK guarantees this in practice
             raise DomainValidationError("Trigger owner no longer exists")
+        membership = await WorkspaceRepository(self.db).get_membership(
+            trigger.workspace_id, owner.id
+        )
+        if membership is None:
+            raise DomainValidationError("Trigger owner no longer belongs to workspace")
+        owner.set_workspace_membership(membership)
         return owner
 
     # ------------------------------------------------------------------
@@ -137,10 +149,14 @@ class TriggerService(BaseService[TriggerDB, TriggerRepository]):
         trigger = await self.get_or_404(trigger_id)
         self._ensure_can_manage(trigger, user)
         since = datetime.now(UTC) - timedelta(days=30)
-        threads = await self.thread_service.list_for_trigger(trigger_id, since=since)
+        threads = await ThreadService(
+            self.db, trigger.workspace_id
+        ).list_for_trigger(trigger_id, since=since)
         return [TriggerThreadResponse.model_validate(t) for t in threads]
 
     async def create(self, data: TriggerCreate, owner: UserDB) -> TriggerResponse:
+        if self.workspace_id is None:
+            raise RuntimeError("workspace_id is required to create a trigger")
         if data.trigger_type == TriggerType.schedule:
             if data.cron_expression is None or data.timezone is None:
                 raise DomainValidationError(
@@ -152,7 +168,7 @@ class TriggerService(BaseService[TriggerDB, TriggerRepository]):
         await ModelService.validate_reasoning_effort(
             data.model_id, data.reasoning_effort
         )
-        await self._ensure_agent_usable(data.agent_id, owner)
+        await self._ensure_agent_usable(data.agent_id, owner, self.workspace_id)
         next_run_at = (
             compute_next_run_at(
                 data.cron_expression, data.timezone, after=datetime.now(UTC)
@@ -163,6 +179,7 @@ class TriggerService(BaseService[TriggerDB, TriggerRepository]):
         trigger = await self.repository.create(
             TriggerCreateDB(
                 **data.model_dump(),
+                workspace_id=self.workspace_id,
                 owner_id=owner.id,
                 webhook_id=(
                     uuid4() if data.trigger_type == TriggerType.webhook else None
@@ -219,7 +236,9 @@ class TriggerService(BaseService[TriggerDB, TriggerRepository]):
             owner = (
                 user if user.id == trigger.owner_id else await self._get_owner(trigger)
             )
-            await self._ensure_agent_usable(update_data["agent_id"], owner)
+            await self._ensure_agent_usable(
+                update_data["agent_id"], owner, trigger.workspace_id
+            )
 
         trigger = await self.repository.update(trigger, data)
 
@@ -268,7 +287,9 @@ class TriggerService(BaseService[TriggerDB, TriggerRepository]):
         """
         trigger = await self.get_or_404(trigger_id)
         self._ensure_can_manage(trigger, user)
-        agent = await self.db.get(AgentDB, trigger.agent_id)
+        agent = await AgentService(
+            self.db, trigger.workspace_id
+        ).repository.get_scoped(trigger.agent_id)
         if agent is None or agent.is_archived:
             raise DomainValidationError("Trigger agent is archived or deleted")
         # Before creating the fire thread — RunService.create would reject the
@@ -281,7 +302,10 @@ class TriggerService(BaseService[TriggerDB, TriggerRepository]):
         # doomed run. Scheduled firings get the same protection from the
         # worker's pre-flight (`_mcp_unauthorized`).
         if await RunService.required_oauth_url(
-            self.db, trigger.agent_id, str(trigger.owner_id)
+            self.db,
+            trigger.agent_id,
+            str(trigger.owner_id),
+            trigger.workspace_id,
         ):
             raise DomainValidationError(
                 "The trigger owner must reconnect this agent's MCP servers "
@@ -315,11 +339,13 @@ class TriggerService(BaseService[TriggerDB, TriggerRepository]):
         if not instructions.strip():
             raise DomainValidationError("Webhook instructions cannot be empty")
 
-        await self._ensure_agent_usable(agent_id, owner)
-        agent = await self.db.get(AgentDB, agent_id)
+        await self._ensure_agent_usable(agent_id, owner, trigger.workspace_id)
+        agent = await AgentService(
+            self.db, trigger.workspace_id
+        ).repository.get_scoped(agent_id)
         if agent is None or agent.is_archived:
             raise DomainValidationError("Webhook agent is archived or deleted")
-        await self.model_service.ensure_available(model_id)
+        await ModelService(self.db, trigger.workspace_id).ensure_available(model_id)
 
         reasoning_effort = (
             trigger.reasoning_effort if model_id == trigger.model_id else None
@@ -350,7 +376,7 @@ class TriggerService(BaseService[TriggerDB, TriggerRepository]):
         reasoning_effort: str | None = None,
     ):
         """One fresh thread per firing, owned by the trigger owner."""
-        return await self.thread_service.create(
+        return await ThreadService(self.db, trigger.workspace_id).create(
             ThreadCreate(
                 agent_id=agent_id or trigger.agent_id,
                 model_id=model_id or trigger.model_id,
@@ -395,7 +421,9 @@ class TriggerService(BaseService[TriggerDB, TriggerRepository]):
         )
         launches: list[tuple[str, str, str]] = []  # (thread_id, owner_id, message)
         for trigger in claimed:
-            agent = await self.db.get(AgentDB, trigger.agent_id)
+            agent = await AgentService(
+                self.db, trigger.workspace_id
+            ).repository.get_scoped(trigger.agent_id)
             if agent is None or agent.is_archived:
                 logger.warning(
                     "Pausing trigger %s: agent %s is archived or gone",
@@ -420,7 +448,9 @@ class TriggerService(BaseService[TriggerDB, TriggerRepository]):
                 trigger.next_run_at = None
                 self.db.add(trigger)
                 continue
-            if not await self.model_service.is_available(trigger.model_id):
+            if not await ModelService(
+                self.db, trigger.workspace_id
+            ).is_available(trigger.model_id):
                 # Skip the firing but keep the schedule advancing (mirrors the
                 # missed-run policy); the trigger recovers by itself when an
                 # admin re-enables the model. `last_run_at` tracks actual
@@ -454,5 +484,8 @@ class TriggerService(BaseService[TriggerDB, TriggerRepository]):
         return run_ids
 
 
-def get_trigger_service(db: AsyncSession = Depends(get_db)) -> TriggerService:
-    return TriggerService(db)
+def get_trigger_service(
+    db: AsyncSession = Depends(get_db),
+    workspace_id: UUID = Depends(get_active_workspace_id),
+) -> TriggerService:
+    return TriggerService(db, workspace_id)

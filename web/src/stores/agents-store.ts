@@ -3,6 +3,7 @@ import { Agent } from "@/types/agents";
 import { createOnce } from "@/lib/api/once";
 import * as agentsApi from "@/lib/api/resources/agents";
 import type { AgentWrite } from "@/lib/api/resources/agents";
+import { getWorkspaceGeneration, isCurrentWorkspaceGeneration } from "@/lib/workspace-generation";
 
 interface AgentsState {
 	agents: Agent[];
@@ -31,10 +32,14 @@ interface AgentsState {
 
 export const useAgentsStore = create<AgentsState>((set, get) => {
 	const loader = createOnce(async () => {
+		const generation = getWorkspaceGeneration();
 		try {
 			const agents = await agentsApi.listAgents();
-			set({ agents, isInitialized: true });
+			if (isCurrentWorkspaceGeneration(generation)) {
+				set({ agents, isInitialized: true });
+			}
 		} catch (error) {
+			if (!isCurrentWorkspaceGeneration(generation)) return;
 			console.error("Error fetching agents:", error);
 			set({ isInitialized: true });
 			throw error;

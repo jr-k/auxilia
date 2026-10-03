@@ -94,8 +94,10 @@ export function HeaderButton({
 	return (
 		<button
 			type="button"
-			className={`flex cursor-pointer items-center gap-1.5 rounded-[7px] border border-input bg-card px-4 py-2 text-[13px] font-semibold transition-colors hover:border-border-hover disabled:cursor-not-allowed disabled:opacity-50 ${
-				accent ? "text-petrol" : "text-foreground"
+			className={`flex cursor-pointer items-center gap-1.5 rounded-[7px] border border-input bg-card px-4 py-2 text-[13px] font-semibold transition-colors hover:border-border-hover disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/10 dark:bg-white/[0.03] dark:hover:border-white/20 ${
+				accent
+					? "text-petrol dark:text-panel-terminal"
+					: "text-foreground"
 			} ${className ?? ""}`}
 			{...props}
 		>

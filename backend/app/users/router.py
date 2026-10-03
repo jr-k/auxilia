@@ -26,6 +26,7 @@ from app.users.schemas import (
 )
 from app.users.service import UserService, get_user_service
 from app.utils.images import image_response, process_uploaded_image
+from app.workspaces.dependencies import get_active_workspace_id
 
 
 router = APIRouter(prefix="/users", tags=["users"])
@@ -35,9 +36,10 @@ router = APIRouter(prefix="/users", tags=["users"])
 async def create_user(
     user: UserCreate,
     _: UserDB = Depends(require_admin),
+    workspace_id: UUID = Depends(get_active_workspace_id),
     service: UserService = Depends(get_user_service),
 ) -> UserResponse:
-    return await service.create(user)
+    return await service.create(user, workspace_id)
 
 
 @router.get("/", response_model=Page[UserResponse])
@@ -46,18 +48,20 @@ async def get_users(
     search: str | None = None,
     page: PageParams = Depends(),
     _: UserDB = Depends(get_current_user),
+    workspace_id: UUID = Depends(get_active_workspace_id),
     service: UserService = Depends(get_user_service),
 ) -> Page[UserResponse]:
-    return await service.list(page, role=role, search=search)
+    return await service.list(workspace_id, page, role=role, search=search)
 
 
 # Declared before /{user_id} so "role-counts" is not captured as a user id.
 @router.get("/role-counts", response_model=UserRoleCounts)
 async def count_users_by_role(
     _: UserDB = Depends(get_current_user),
+    workspace_id: UUID = Depends(get_active_workspace_id),
     service: UserService = Depends(get_user_service),
 ) -> UserRoleCounts:
-    return await service.count_by_role()
+    return await service.count_by_role(workspace_id)
 
 
 @router.patch("/me", response_model=CurrentUserResponse)
@@ -66,8 +70,9 @@ async def update_profile(
     current_user: UserDB = Depends(get_current_user),
     service: UserService = Depends(get_user_service),
 ) -> CurrentUserResponse:
+    user = await service.update_profile(current_user, data)
     return CurrentUserResponse.model_validate(
-        await service.update_profile(current_user, data)
+        user, update={"workspace_id": current_user.active_workspace_id}
     )
 
 
@@ -150,9 +155,10 @@ async def get_profile_image(
     user_id: UUID,
     if_none_match: str | None = Header(default=None),
     _: UserDB = Depends(get_current_user),
+    workspace_id: UUID = Depends(get_active_workspace_id),
     service: UserService = Depends(get_user_service),
 ) -> Response:
-    image = await service.get_image(user_id)
+    image = await service.get_image(user_id, workspace_id)
     return image_response(
         data=image.data,
         media_type=image.media_type,
@@ -165,18 +171,20 @@ async def get_profile_image(
 async def get_user(
     user_id: UUID,
     _: UserDB = Depends(get_current_user),
+    workspace_id: UUID = Depends(get_active_workspace_id),
     service: UserService = Depends(get_user_service),
 ) -> UserResponse:
-    return await service.get(user_id)
+    return await service.get(user_id, workspace_id)
 
 
 @router.get("/email/{email}", response_model=UserResponse)
 async def get_user_by_email(
     email: str,
     _: UserDB = Depends(get_current_user),
+    workspace_id: UUID = Depends(get_active_workspace_id),
     service: UserService = Depends(get_user_service),
 ) -> UserResponse:
-    return await service.get_by_email(email)
+    return await service.get_by_email(email, workspace_id)
 
 
 @router.patch("/{user_id}", response_model=UserResponse)
@@ -184,9 +192,10 @@ async def update_user(
     user_id: UUID,
     user_update: UserPatch,
     _: UserDB = Depends(require_admin),
+    workspace_id: UUID = Depends(get_active_workspace_id),
     service: UserService = Depends(get_user_service),
 ) -> UserResponse:
-    return await service.update(user_id, user_update)
+    return await service.update(user_id, workspace_id, user_update)
 
 
 @router.patch("/{user_id}/role", response_model=UserResponse)
@@ -194,9 +203,10 @@ async def update_user_role(
     user_id: UUID,
     role_update: UserRolePatch,
     _: UserDB = Depends(require_admin),
+    workspace_id: UUID = Depends(get_active_workspace_id),
     service: UserService = Depends(get_user_service),
 ) -> UserResponse:
-    return await service.update_role(user_id, role_update)
+    return await service.update_role(user_id, workspace_id, role_update)
 
 
 @router.patch("/{user_id}/team", response_model=UserResponse)
@@ -204,15 +214,17 @@ async def update_user_team(
     user_id: UUID,
     team_update: UserTeamPatch,
     _: UserDB = Depends(require_admin),
+    workspace_id: UUID = Depends(get_active_workspace_id),
     service: UserService = Depends(get_user_service),
 ) -> UserResponse:
-    return await service.update_team(user_id, team_update)
+    return await service.update_team(user_id, workspace_id, team_update)
 
 
 @router.delete("/{user_id}", status_code=204)
 async def delete_user(
     user_id: UUID,
     _: UserDB = Depends(require_admin),
+    workspace_id: UUID = Depends(get_active_workspace_id),
     service: UserService = Depends(get_user_service),
 ) -> None:
-    await service.delete(user_id)
+    await service.delete(user_id, workspace_id)

@@ -13,6 +13,7 @@ only enqueues the run (see `router.py`).
 import asyncio
 import logging
 from typing import Any, Final, Literal, TypedDict, cast
+from uuid import UUID
 
 from redis.asyncio import Redis
 from slack_sdk.web.async_client import AsyncWebClient
@@ -25,13 +26,14 @@ from app.integrations.slack.blocks import (
     format_tool_streamer_label,
 )
 from app.integrations.slack.utils import get_slack_client
+from app.runtime.checkpoints import checkpoint_thread_id
 from app.runtime.hitl import load_interrupt_scope, pending_approval_requests
 from app.runtime.protocol.wire import decode_event
 from app.runtime.runs.delivery import DeliveryConsumer
 from app.runtime.runs.models import RunDB
 from app.runtime.runs.service import RunService
 from app.runtime.runs.state import MCP_REAUTH_ERROR, RunStatus, is_terminal
-from app.threads.models import ThreadDB
+from app.threads.repository import ThreadRepository
 
 
 logger = logging.getLogger(__name__)
@@ -54,6 +56,7 @@ class SlackDelivery(TypedDict):
     thread_ts: str
     slack_user_id: str
     team_id: str | None
+    workspace_id: str
 
 
 def build_slack_run_consumer(record: RunDB) -> "SlackRunConsumer | None":
@@ -61,11 +64,19 @@ def build_slack_run_consumer(record: RunDB) -> "SlackRunConsumer | None":
     delivery = record.delivery
     if not delivery or delivery.get("channel") != SLACK_CHANNEL:
         return None
+    if delivery.get("workspace_id") != str(record.workspace_id):
+        logger.error("Slack delivery workspace mismatch for run %s", record.id)
+        return None
     return SlackRunConsumer(record)
 
 
 def build_slack_delivery(
-    *, channel_id: str, thread_ts: str, slack_user_id: str, team_id: str | None
+    *,
+    channel_id: str,
+    thread_ts: str,
+    slack_user_id: str,
+    team_id: str | None,
+    workspace_id: UUID,
 ) -> SlackDelivery:
     """The delivery descriptor stored on a Slack-bound run."""
     return {
@@ -74,6 +85,7 @@ def build_slack_delivery(
         "thread_ts": thread_ts,
         "slack_user_id": slack_user_id,
         "team_id": team_id,
+        "workspace_id": str(workspace_id),
     }
 
 
@@ -166,7 +178,9 @@ class SlackRunConsumer(DeliveryConsumer):
             return self.client
         for attempt in range(3):
             try:
-                return await get_slack_client()
+                return await get_slack_client(
+                    UUID(self.delivery["workspace_id"])
+                )
             except Exception:
                 if attempt == 2:
                     logger.exception(
@@ -281,7 +295,9 @@ class SlackRunConsumer(DeliveryConsumer):
             if record.error != MCP_REAUTH_ERROR:
                 return False
             async with AsyncSessionLocal() as db:
-                thread = await db.get(ThreadDB, self.record.thread_id)
+                thread = await ThreadRepository(
+                    db, self.record.workspace_id
+                ).get(self.record.thread_id)
             if thread is None:
                 return False
             connect_url = f"{auth_settings.FRONTEND_URL}/agents/{thread.agent_id}/chat"
@@ -313,7 +329,12 @@ class SlackRunConsumer(DeliveryConsumer):
     async def _post_approvals(self, channel_id: str, thread_ts: str) -> None:
         """Post a Block Kit approve/reject message per pending tool call."""
         async with get_checkpointer() as checkpointer:
-            scope = await load_interrupt_scope(checkpointer, self.record.thread_id)
+            scope = await load_interrupt_scope(
+                checkpointer,
+                checkpoint_thread_id(
+                    self.record.workspace_id, self.record.thread_id
+                ),
+            )
         if scope is None:
             return
         # A subagent's gated calls live in its own checkpoint; the card says
@@ -341,7 +362,9 @@ class SlackRunConsumer(DeliveryConsumer):
     async def _post_auxilia_link(self, channel_id: str, thread_ts: str) -> None:
         """Post a divider + 'View in auxilia' link once the turn finishes cleanly."""
         async with AsyncSessionLocal() as db:
-            thread = await db.get(ThreadDB, self.record.thread_id)
+            thread = await ThreadRepository(
+                db, self.record.workspace_id
+            ).get(self.record.thread_id)
         if thread is None:
             return
         url = f"{auth_settings.FRONTEND_URL}/agents/{thread.agent_id}/chat/{thread.id}"

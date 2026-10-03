@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { cn } from "@/lib/utils";
-import { AGENT_COLORS, agentColorBackground } from "@/lib/colors";
+import { avatarColorStyle } from "@/lib/colors";
 import { agentImageUrl } from "@/lib/api/resources/agents";
 
 type AvatarSize = "2xs" | "xs" | "sm" | "md" | "lg" | "xl";
@@ -21,6 +21,7 @@ function getSizeClass(size: AvatarSize): string {
 interface AgentAvatarProps {
 	color?: string | null;
 	emoji?: string | null;
+	name?: string | null;
 	agentId?: string | null;
 	imageRevision?: string | null;
 	size?: AvatarSize;
@@ -30,6 +31,7 @@ interface AgentAvatarProps {
 export function AgentAvatar({
 	color,
 	emoji,
+	name,
 	agentId,
 	imageRevision,
 	size = "md",
@@ -40,28 +42,19 @@ export function AgentAvatar({
 	const [failedUrl, setFailedUrl] = useState<string | null>(null);
 	const imageFailed = imageUrl !== null && failedUrl === imageUrl;
 	const showsImage = imageUrl !== null && !imageFailed;
-	const normalizedColor = color?.toUpperCase() ?? null;
-	const usesPresetColor =
-		normalizedColor !== null && AGENT_COLORS.includes(normalizedColor);
+	const identityStyle = avatarColorStyle(color, name ?? agentId ?? "agent");
+	const initial = name?.trim().charAt(0).toUpperCase();
 
 	return (
 		<div
 			style={
-				!showsImage && normalizedColor
-					? {
-							background: usesPresetColor
-								? agentColorBackground(normalizedColor)
-								: normalizedColor,
-							border: `1.5px solid ${
-								usesPresetColor ? `${normalizedColor}18` : normalizedColor
-							}`,
-						}
+				!showsImage
+					? identityStyle
 					: undefined
 			}
 			className={cn(
-				"flex shrink-0 items-center justify-center overflow-hidden rounded-full",
+				"flex shrink-0 items-center justify-center overflow-hidden rounded-full font-bold uppercase",
 				getSizeClass(size),
-				!showsImage && !color && "bg-hover dark:bg-white/10",
 				className,
 			)}
 		>
@@ -77,7 +70,7 @@ export function AgentAvatar({
 					}}
 				/>
 			) : (
-				emoji || "🤖"
+				emoji || initial || "🤖"
 			)}
 		</div>
 	);

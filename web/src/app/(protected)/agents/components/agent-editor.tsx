@@ -301,7 +301,7 @@ export default function AgentEditor({
 							onClick={() => {
 								router.push(`/agents/${agent.id}/chat`);
 							}}
-							className="flex cursor-pointer items-center gap-1.5 rounded-[7px] border border-input bg-card px-4 py-2 text-[13px] font-semibold text-petrol transition-colors hover:border-border-hover"
+							className="flex cursor-pointer items-center gap-1.5 rounded-[7px] border border-input bg-card px-4 py-2 text-[13px] font-semibold text-petrol transition-colors hover:border-border-hover dark:border-white/10 dark:bg-white/[0.03] dark:text-panel-terminal dark:hover:border-white/20"
 						>
 							<Play className="size-3" fill="currentColor" />
 							Test in chat
@@ -385,7 +385,12 @@ export default function AgentEditor({
 							readOnly ? "items-center" : "items-start",
 						)}
 					>
-						<div className="relative shrink-0">
+						<div
+							className={cn(
+								"relative shrink-0",
+								!readOnly && "mt-[22px]",
+							)}
+						>
 							<button
 								type="button"
 								disabled={readOnly}
@@ -401,6 +406,7 @@ export default function AgentEditor({
 								) : (
 									<AgentAvatar
 										agentId={agent?.id}
+										name={form.name}
 										imageRevision={
 											removeImage ? null : agent?.imageRevision
 										}
@@ -497,33 +503,44 @@ export default function AgentEditor({
 								</p>
 							</div>
 						) : (
-							<div className="flex min-w-0 flex-1 flex-col gap-1.5">
-								<input
-									type="text"
-									maxLength={255}
-									value={form.name}
-									onChange={(e) => {
-										setField("name", e.target.value);
-									}}
-									placeholder="Agent name"
-									className={cn(
-										fieldInputClass,
-										"text-[15px] font-semibold tracking-[-0.01em] text-petrol",
-									)}
-								/>
-								<input
-									type="text"
-									maxLength={255}
-									value={form.description}
-									onChange={(e) => {
-										setField("description", e.target.value);
-									}}
-									placeholder="Describe what this agent does"
-									className={cn(
-										fieldInputClass,
-										"text-[13px] font-medium text-body dark:text-panel-body",
-									)}
-								/>
+							<div className="flex min-w-0 flex-1 flex-col gap-4">
+								<label>
+									<span className="mb-1.5 block text-[11px] font-semibold text-label dark:text-muted-foreground">
+										Name
+									</span>
+									<input
+										type="text"
+										maxLength={255}
+										value={form.name}
+										onChange={(e) => {
+											setField("name", e.target.value);
+										}}
+										placeholder="Agent name"
+										className={cn(
+											fieldInputClass,
+											"text-[15px] font-semibold tracking-[-0.01em] text-petrol dark:text-panel-terminal",
+										)}
+									/>
+								</label>
+								<label>
+									<span className="mb-1.5 block text-[11px] font-semibold text-label dark:text-muted-foreground">
+										Description{" "}
+										<span className="font-normal text-meta">(Optional)</span>
+									</span>
+									<textarea
+										maxLength={255}
+										value={form.description}
+										onChange={(e) => {
+											setField("description", e.target.value);
+										}}
+										placeholder="Describe what this agent does"
+										rows={3}
+										className={cn(
+											fieldInputClass,
+											"resize-y py-2.5 text-[13px] font-medium leading-5 text-body dark:text-panel-body",
+										)}
+									/>
+								</label>
 								<GroupPicker
 									value={form.group}
 									groups={availableGroups}

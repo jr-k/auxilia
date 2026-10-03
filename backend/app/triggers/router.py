@@ -2,8 +2,10 @@ from datetime import UTC, datetime
 from uuid import UUID
 
 from fastapi import APIRouter, Body, Depends, Query
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import get_current_user, require_editor
+from app.database import get_db
 from app.triggers.schedule import compute_next_run_ats, ensure_valid_schedule
 from app.triggers.schemas import (
     SchedulePreviewResponse,
@@ -63,10 +65,10 @@ async def preview_schedule(
 async def invoke_webhook_trigger(
     webhook_id: UUID,
     data: WebhookTriggerInvoke = Body(default_factory=WebhookTriggerInvoke),
-    service: TriggerService = Depends(get_trigger_service),
+    db: AsyncSession = Depends(get_db),
 ) -> TriggerRunResponse:
     """Start a webhook trigger with optional per-call execution overrides."""
-    return await service.invoke_webhook(webhook_id, data)
+    return await TriggerService(db).invoke_webhook(webhook_id, data)
 
 
 @router.get("/{trigger_id}/threads", response_model=list[TriggerThreadResponse])

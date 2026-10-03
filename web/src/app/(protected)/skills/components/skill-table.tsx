@@ -7,6 +7,7 @@ import { AgentAvatar } from "@/components/ui/agent-avatar";
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import { DropdownMenu } from "@/components/ui/dropdown-menu";
 import { GroupedCardTree } from "@/components/ui/grouped-card-tree";
+import { SkillAvatar } from "@/components/ui/skill-avatar";
 import type { ViewMode } from "@/components/ui/view-toggle";
 import { buildGroupTree } from "@/lib/groups";
 import type { BoundAgent } from "@/types/agents";
@@ -50,6 +51,7 @@ function UsedByAvatars({ agents }: { agents: BoundAgent[] }) {
 				>
 					<AgentAvatar
 						agentId={agent.id}
+						name={agent.name}
 						imageRevision={agent.imageRevision}
 						color={agent.color}
 						emoji={agent.emoji}
@@ -153,27 +155,37 @@ export default function SkillTable({
 			header: "Skill",
 			width: "minmax(0, 1.5fr)",
 			cell: (skill) => (
-				<div className="min-w-0">
-					<div className="flex min-w-0 items-center gap-2">
-						<span className="truncate text-[12.5px] font-semibold text-petrol">
-							{skill.name}
-						</span>
-						{skill.updateAvailable && (
-							<span className="shrink-0 rounded-[4px] bg-warning-bg px-1.5 py-px text-[9px] font-semibold text-warning">
-								Update
+				<div className="flex min-w-0 items-center gap-2.5">
+					<SkillAvatar
+						skillId={skill.id}
+						name={skill.name}
+						emoji={skill.emoji}
+						color={skill.color}
+						imageRevision={skill.imageRevision}
+						size="xs"
+					/>
+					<div className="min-w-0">
+						<div className="flex min-w-0 items-center gap-2">
+							<span className="truncate text-[12.5px] font-semibold text-petrol dark:text-panel-terminal">
+								{skill.name}
 							</span>
-						)}
-						{skill.missingUpstream && (
-							<span
-								title="The last sync no longer found this skill in its repository. It keeps working as pinned."
-								className="shrink-0 rounded-[4px] bg-neutral-bg px-1.5 py-px text-[9px] font-semibold text-subtle dark:bg-white/10"
-							>
-								Gone upstream
-							</span>
-						)}
-					</div>
-					<div className="mt-px truncate text-[12px] text-subtle dark:text-muted-foreground">
-						{skill.description}
+							{skill.updateAvailable && (
+								<span className="shrink-0 rounded-[4px] bg-warning-bg px-1.5 py-px text-[9px] font-semibold text-warning">
+									Update
+								</span>
+							)}
+							{skill.missingUpstream && (
+								<span
+									title="The last sync no longer found this skill in its repository. It keeps working as pinned."
+									className="shrink-0 rounded-[4px] bg-neutral-bg px-1.5 py-px text-[9px] font-semibold text-subtle dark:bg-white/10"
+								>
+									Gone upstream
+								</span>
+							)}
+						</div>
+						<div className="mt-px truncate text-[12px] text-subtle dark:text-muted-foreground">
+							{skill.description}
+						</div>
 					</div>
 				</div>
 			),
@@ -292,7 +304,7 @@ export default function SkillTable({
 							<button
 								type="button"
 								onClick={onClearSearch}
-								className="cursor-pointer font-semibold text-petrol hover:underline"
+								className="cursor-pointer font-semibold text-petrol hover:underline dark:text-panel-terminal"
 							>
 								Clear search
 							</button>
@@ -324,12 +336,22 @@ export default function SkillTable({
 							<span className="sr-only">Open {skill.name}</span>
 						</Link>
 						<div className="pointer-events-none flex min-w-0 items-start justify-between gap-2">
-							<div className="min-w-0">
-								<h2 className="truncate font-mono text-[13.5px] font-semibold text-petrol">
-									{skill.name}
-								</h2>
-								<div className="mt-2">
-									<SourceCell skill={skill} />
+							<div className="flex min-w-0 items-start gap-2.5">
+								<SkillAvatar
+									skillId={skill.id}
+									name={skill.name}
+									emoji={skill.emoji}
+									color={skill.color}
+									imageRevision={skill.imageRevision}
+									size="sm"
+								/>
+								<div className="min-w-0">
+									<h2 className="truncate font-mono text-[13.5px] font-semibold text-petrol dark:text-panel-terminal">
+										{skill.name}
+									</h2>
+									<div className="mt-2">
+										<SourceCell skill={skill} />
+									</div>
 								</div>
 							</div>
 							<div className="flex shrink-0 flex-wrap justify-end gap-1">
@@ -432,7 +454,7 @@ export default function SkillTable({
 						<button
 							type="button"
 							onClick={onClearSearch}
-							className="cursor-pointer font-semibold text-petrol hover:underline"
+							className="cursor-pointer font-semibold text-petrol hover:underline dark:text-panel-terminal"
 						>
 							Clear search
 						</button>

@@ -256,7 +256,7 @@ function SyncButton({ source, onError }: { source: SkillSource; onError: (m: str
 				disabled={busy}
 				title="Read the repository again and see what would change"
 				onClick={open}
-				className="flex cursor-pointer items-center gap-1.5 rounded-[7px] border border-border px-[11px] py-[5px] text-[12px] font-semibold text-petrol transition-colors hover:bg-sidebar disabled:cursor-default dark:hover:bg-white/5"
+				className="flex cursor-pointer items-center gap-1.5 rounded-[7px] border border-border px-[11px] py-[5px] text-[12px] font-semibold text-petrol transition-colors hover:bg-sidebar disabled:cursor-default dark:border-white/10 dark:text-panel-terminal dark:hover:bg-white/5"
 			>
 				<RefreshCw className={busy ? "size-3 animate-spin" : "size-3"} />
 				{busy ? "Reading…" : "Sync"}

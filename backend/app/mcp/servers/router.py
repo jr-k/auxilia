@@ -223,9 +223,10 @@ async def revoke_mcp_server_connection(
 async def oauth_callback(
     code: str = Query(..., description="Authorization code from OAuth provider"),
     state: str = Query(..., description="State parameter from OAuth provider"),
+    current_user: UserDB = Depends(get_current_user),
     service: MCPServerService = Depends(get_mcp_server_service),
 ):
-    result = await service.handle_oauth_callback(code, state)
+    result = await service.handle_oauth_callback(code, state, current_user.id)
     return JSONResponse(status_code=200, content=result)
 
 
@@ -233,7 +234,7 @@ async def oauth_callback(
 async def list_tools(
     mcp_server: MCPServerDB = Depends(get_mcp_server_dependency),
     current_user: UserDB = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    service: MCPServerService = Depends(get_mcp_server_service),
 ) -> ToolsListed | AuthorizationRequired:
     """List available tools from an MCP server.
 
@@ -249,7 +250,7 @@ async def list_tools(
     server that holds the standalone GET stream can still wedge this call for
     ~15s. See `mcp-streamable-http-deadlock.md`.
     """
-    return await MCPServerService(db).list_tools(mcp_server, str(current_user.id))
+    return await service.list_tools(mcp_server, str(current_user.id))
 
 
 @router.get("/{server_id}/is-connected")
@@ -267,7 +268,12 @@ async def is_connected(
     credential check, not a handshake — use ``/test-connection`` to probe the
     server itself.
     """
-    connected = await is_authorized(mcp_server, str(current_user.id), refresh=refresh)
+    connected = await is_authorized(
+        mcp_server,
+        str(current_user.id),
+        mcp_server.workspace_id,
+        refresh=refresh,
+    )
     return {"connected": connected}
 
 
@@ -297,4 +303,6 @@ async def test_saved_connection(
     Returns discovered tools on success; an unauthorized OAuth server is
     reported as ``oauth_required`` with the ``auth_url`` to open, not a 401.
     """
-    return await test_connection(mcp_server, str(current_user.id), db)
+    return await test_connection(
+        mcp_server, str(current_user.id), mcp_server.workspace_id, db
+    )

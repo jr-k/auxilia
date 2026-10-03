@@ -21,8 +21,8 @@ export function EditorSection({
 }: EditorSectionProps) {
 	return (
 		<div className={cn("flex flex-col", className)}>
-			<div className="mb-2.5 flex min-h-[30px] items-center justify-between gap-2">
-				<label className="text-[10.5px] font-semibold text-subtle dark:text-panel-dim">
+			<div className="mb-1.5 flex items-center justify-between gap-2">
+				<label className="text-[11px] font-semibold text-label dark:text-muted-foreground">
 					{label}
 				</label>
 				{actions ??

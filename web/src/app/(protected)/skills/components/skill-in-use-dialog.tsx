@@ -59,6 +59,7 @@ export default function SkillInUseDialog({
 						>
 							<AgentAvatar
 								agentId={agent.id}
+								name={agent.name}
 								imageRevision={agent.imageRevision}
 								color={agent.color}
 								emoji={agent.emoji}

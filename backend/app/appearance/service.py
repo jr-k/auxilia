@@ -3,36 +3,36 @@ from uuid import uuid4
 from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.appearance.models import WorkspaceAppearanceDB
-from app.appearance.repository import WorkspaceAppearanceRepository
-from app.appearance.schemas import WorkspaceAppearanceResponse
+from app.appearance.models import InstanceAppearanceDB
+from app.appearance.repository import InstanceAppearanceRepository
+from app.appearance.schemas import InstanceAppearanceResponse
 from app.database import get_db
 from app.exceptions import DomainValidationError
 from app.service import BaseService
 from app.utils.images import ProcessedImage
 
 
-class WorkspaceAppearanceService(
-    BaseService[WorkspaceAppearanceDB, WorkspaceAppearanceRepository]
+class InstanceAppearanceService(
+    BaseService[InstanceAppearanceDB, InstanceAppearanceRepository]
 ):
     def __init__(self, db: AsyncSession):
-        super().__init__(db, WorkspaceAppearanceRepository(db))
+        super().__init__(db, InstanceAppearanceRepository(db))
 
     @staticmethod
     def to_response(
-        row: WorkspaceAppearanceDB | None,
-    ) -> WorkspaceAppearanceResponse:
+        row: InstanceAppearanceDB | None,
+    ) -> InstanceAppearanceResponse:
         if row is None:
-            return WorkspaceAppearanceResponse(app_name="auxilia")
-        return WorkspaceAppearanceResponse(
+            return InstanceAppearanceResponse(app_name="auxilia")
+        return InstanceAppearanceResponse(
             app_name=row.app_name,
             logo_revision=row.logo_revision,
         )
 
-    async def get_settings(self) -> WorkspaceAppearanceResponse:
+    async def get_settings(self) -> InstanceAppearanceResponse:
         return self.to_response(await self.repository.get_settings())
 
-    async def update_name(self, app_name: str) -> WorkspaceAppearanceResponse:
+    async def update_name(self, app_name: str) -> InstanceAppearanceResponse:
         app_name = app_name.strip()
         if not app_name:
             raise DomainValidationError("Application name cannot be empty")
@@ -43,7 +43,7 @@ class WorkspaceAppearanceService(
         await self.db.refresh(row)
         return self.to_response(row)
 
-    async def set_logo(self, image: ProcessedImage) -> WorkspaceAppearanceResponse:
+    async def set_logo(self, image: ProcessedImage) -> InstanceAppearanceResponse:
         row = await self.repository.get_or_create()
         row.logo_data = image.data
         row.logo_media_type = image.media_type
@@ -54,7 +54,7 @@ class WorkspaceAppearanceService(
         await self.db.refresh(row)
         return self.to_response(row)
 
-    async def delete_logo(self) -> WorkspaceAppearanceResponse:
+    async def delete_logo(self) -> InstanceAppearanceResponse:
         row = await self.repository.get_settings()
         if row is None:
             return self.to_response(None)
@@ -67,12 +67,12 @@ class WorkspaceAppearanceService(
         await self.db.refresh(row)
         return self.to_response(row)
 
-    async def get_logo(self) -> WorkspaceAppearanceDB | None:
+    async def get_logo(self) -> InstanceAppearanceDB | None:
         row = await self.repository.get_settings()
         return row if row is not None and row.logo_data is not None else None
 
 
-def get_workspace_appearance_service(
+def get_instance_appearance_service(
     db: AsyncSession = Depends(get_db),
-) -> WorkspaceAppearanceService:
-    return WorkspaceAppearanceService(db)
+) -> InstanceAppearanceService:
+    return InstanceAppearanceService(db)

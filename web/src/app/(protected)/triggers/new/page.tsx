@@ -1,15 +1,26 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight, CalendarClock, Webhook } from "lucide-react";
 import TriggerEditor from "@/app/(protected)/triggers/components/trigger-editor";
 import { SubpageHeader } from "@/components/layout/subpage-header";
+import { useUserStore } from "@/stores/user-store";
 import { TriggerType } from "@/types/triggers";
 
 export default function NewTriggerPage() {
 	const router = useRouter();
+	const currentUser = useUserStore((state) => state.user);
+	const userInitialized = useUserStore((state) => state.isInitialized);
 	const [triggerType, setTriggerType] = useState<TriggerType | null>(null);
+
+	useEffect(() => {
+		if (userInitialized && currentUser?.role === "member") {
+			router.replace("/triggers");
+		}
+	}, [currentUser, router, userInitialized]);
+
+	if (!userInitialized || currentUser?.role === "member") return null;
 
 	if (triggerType) {
 		return (
@@ -42,7 +53,7 @@ export default function NewTriggerPage() {
 				"Expose a unique URL and run an agent whenever it receives a POST.",
 			icon: Webhook,
 			accent:
-				"bg-[#F2EEE7] text-[#8A623E] dark:bg-amber-400/10 dark:text-amber-300",
+				"bg-petrol-tint text-petrol dark:bg-petrol/20 dark:text-panel-terminal",
 		},
 	];
 

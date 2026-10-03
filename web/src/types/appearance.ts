@@ -1,4 +1,4 @@
-export interface WorkspaceAppearance {
+export interface InstanceAppearance {
 	appName: string;
 	logoRevision: string | null;
 }

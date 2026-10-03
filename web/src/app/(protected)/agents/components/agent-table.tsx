@@ -86,6 +86,7 @@ export default function AgentTable({
 					<span className="flex min-w-0 items-center gap-3">
 						<AgentAvatar
 							agentId={agent.id}
+							name={agent.name}
 							imageRevision={agent.imageRevision}
 							color={agent.color}
 							emoji={agent.emoji}

@@ -1,16 +1,16 @@
-from enum import Enum
+from typing import TYPE_CHECKING
 from uuid import UUID
 
+from pydantic import PrivateAttr
 from sqlalchemy import JSON, Column, LargeBinary, String
 from sqlmodel import Field, Relationship, SQLModel, UniqueConstraint
 
 from app.models import BaseDBModel
+from app.workspaces.models import WorkspaceRole
 
 
-class WorkspaceRole(str, Enum):
-    member = "member"
-    editor = "editor"
-    admin = "admin"
+if TYPE_CHECKING:
+    from app.workspaces.models import WorkspaceMembershipDB
 
 
 class UserBase(SQLModel):
@@ -19,7 +19,7 @@ class UserBase(SQLModel):
     last_name: str | None = Field(default=None, max_length=100)
     email: str | None = Field(default=None, max_length=255, unique=True, index=True)
     password_hash: str | None = Field(default=None)
-    role: WorkspaceRole = Field(default=WorkspaceRole.member, nullable=False)
+    can_create_workspace: bool = Field(default=False, nullable=False)
     picture_url: str | None = Field(default=None, max_length=1024)
     image_revision: UUID | None = Field(default=None, nullable=True)
     two_factor_enabled: bool = Field(default=False, nullable=False)
@@ -28,14 +28,28 @@ class UserBase(SQLModel):
 class UserDB(UserBase, BaseDBModel, table=True):
     __tablename__ = "users"
 
-    team_id: UUID | None = Field(
-        default=None,
-        foreign_key="teams.id",
-        ondelete="SET NULL",
-        nullable=True,
-    )
+    _workspace_role: WorkspaceRole = PrivateAttr(default=WorkspaceRole.member)
+    _workspace_team_id: UUID | None = PrivateAttr(default=None)
+    _active_workspace_id: UUID | None = PrivateAttr(default=None)
 
     oauth_accounts: list["OAuthAccountDB"] = Relationship(back_populates="user")
+
+    @property
+    def role(self) -> WorkspaceRole:
+        return self._workspace_role
+
+    @property
+    def team_id(self) -> UUID | None:
+        return self._workspace_team_id
+
+    @property
+    def active_workspace_id(self) -> UUID | None:
+        return self._active_workspace_id
+
+    def set_workspace_membership(self, membership: "WorkspaceMembershipDB") -> None:
+        self._workspace_role = membership.role
+        self._workspace_team_id = membership.team_id
+        self._active_workspace_id = membership.workspace_id
 
 
 class UserImageDB(BaseDBModel, table=True):

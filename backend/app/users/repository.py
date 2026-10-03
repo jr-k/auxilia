@@ -7,6 +7,7 @@ from sqlmodel import select
 from app.pagination import PageParams
 from app.repository import BaseRepository
 from app.users.models import UserDB, UserImageDB, UserTwoFactorDB, WorkspaceRole
+from app.workspaces.models import WorkspaceMembershipDB
 
 
 def _escape_like(value: str) -> str:
@@ -33,6 +34,23 @@ class UserRepository(BaseRepository[UserDB]):
         stmt = select(UserDB).where(UserDB.id == user_id).with_for_update()
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
+
+    async def get_in_workspace(
+        self, user_id: UUID, workspace_id: UUID
+    ) -> tuple[UserDB, WorkspaceMembershipDB] | None:
+        stmt = (
+            select(UserDB, WorkspaceMembershipDB)
+            .join(
+                WorkspaceMembershipDB,
+                WorkspaceMembershipDB.user_id == UserDB.id,
+            )
+            .where(
+                UserDB.id == user_id,
+                WorkspaceMembershipDB.workspace_id == workspace_id,
+            )
+        )
+        result = await self.db.execute(stmt)
+        return result.one_or_none()
 
     async def get_image(self, user_id: UUID) -> UserImageDB | None:
         stmt = select(UserImageDB).where(UserImageDB.user_id == user_id)
@@ -130,13 +148,22 @@ class UserRepository(BaseRepository[UserDB]):
 
     async def list(
         self,
+        workspace_id: UUID,
         page: PageParams,
         role: WorkspaceRole | None = None,
         search: str | None = None,
-    ) -> tuple[list[UserDB], int]:
-        stmt = select(UserDB).order_by(UserDB.created_at.desc(), UserDB.id)
+    ) -> tuple[list[tuple[UserDB, WorkspaceMembershipDB]], int]:
+        stmt = (
+            select(UserDB, WorkspaceMembershipDB)
+            .join(
+                WorkspaceMembershipDB,
+                WorkspaceMembershipDB.user_id == UserDB.id,
+            )
+            .where(WorkspaceMembershipDB.workspace_id == workspace_id)
+            .order_by(UserDB.created_at.desc(), UserDB.id)
+        )
         if role is not None:
-            stmt = stmt.where(UserDB.role == role)
+            stmt = stmt.where(WorkspaceMembershipDB.role == role)
         if search:
             pattern = f"%{_escape_like(search)}%"
             stmt = stmt.where(
@@ -146,9 +173,13 @@ class UserRepository(BaseRepository[UserDB]):
                 )
             )
         result, total = await self.paginate(stmt, page)
-        return list(result.scalars().all()), total
+        return list(result.all()), total
 
-    async def count_by_role(self) -> dict[WorkspaceRole, int]:
-        stmt = select(UserDB.role, func.count()).group_by(UserDB.role)
+    async def count_by_role(self, workspace_id: UUID) -> dict[WorkspaceRole, int]:
+        stmt = (
+            select(WorkspaceMembershipDB.role, func.count())
+            .where(WorkspaceMembershipDB.workspace_id == workspace_id)
+            .group_by(WorkspaceMembershipDB.role)
+        )
         result = await self.db.execute(stmt)
         return dict(result.all())

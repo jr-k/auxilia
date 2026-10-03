@@ -40,6 +40,7 @@ from app.users.schemas import (
     TwoFactorSetupResponse,
     TwoFactorStatus,
     UserCreate,
+    UserCreateDB,
     UserPatch,
     UserResponse,
     UserRoleCounts,
@@ -48,6 +49,8 @@ from app.users.schemas import (
 )
 from app.utils.encryption import decrypt_value, encrypt_value
 from app.utils.images import ProcessedImage
+from app.workspaces.models import WorkspaceMembershipDB
+from app.workspaces.repository import WorkspaceRepository
 
 
 class UserService(BaseService[UserDB, UserRepository]):
@@ -56,24 +59,45 @@ class UserService(BaseService[UserDB, UserRepository]):
     def __init__(self, db: AsyncSession):
         super().__init__(db, UserRepository(db))
         self.team_repository = TeamRepository(db)
+        self.workspace_repository = WorkspaceRepository(db)
 
     async def _ensure_email_available(self, email: str) -> None:
         if await self.repository.get_by_email(email):
             raise AlreadyExistsError("Email already registered")
 
-    async def create(self, data: UserCreate) -> UserDB:
+    async def create(self, data: UserCreate, workspace_id: UUID) -> UserDB:
         if data.email:
             await self._ensure_email_available(data.email)
-        return await self.repository.create(data)
+        user_data = UserCreateDB.model_validate(data.model_dump(exclude={"role"}))
+        user = await self.repository.create(user_data)
+        membership = await self.workspace_repository.create_membership(
+            WorkspaceMembershipDB(
+                workspace_id=workspace_id,
+                user_id=user.id,
+                role=data.role,
+            )
+        )
+        user.set_workspace_membership(membership)
+        return user
 
-    async def get(self, user_id: UUID) -> UserDB:
-        return await self.get_or_404(user_id)
+    async def _get_in_workspace(
+        self, user_id: UUID, workspace_id: UUID
+    ) -> tuple[UserDB, WorkspaceMembershipDB]:
+        row = await self.repository.get_in_workspace(user_id, workspace_id)
+        if row is None:
+            raise NotFoundError(self.not_found_message)
+        return row
 
-    async def get_by_email(self, email: str) -> UserDB:
+    async def get(self, user_id: UUID, workspace_id: UUID) -> UserDB:
+        user, membership = await self._get_in_workspace(user_id, workspace_id)
+        user.set_workspace_membership(membership)
+        return user
+
+    async def get_by_email(self, email: str, workspace_id: UUID) -> UserDB:
         user = await self.repository.get_by_email(email)
         if not user:
             raise NotFoundError(self.not_found_message)
-        return user
+        return await self.get(user.id, workspace_id)
 
     async def update_profile(self, user: UserDB, data: ProfilePatch) -> UserDB:
         first_name = data.first_name.strip() or None
@@ -92,8 +116,8 @@ class UserService(BaseService[UserDB, UserRepository]):
         self.db.add(user)
         await self.db.flush()
 
-    async def get_image(self, user_id: UUID) -> UserImageDB:
-        await self.get_or_404(user_id)
+    async def get_image(self, user_id: UUID, workspace_id: UUID) -> UserImageDB:
+        await self._get_in_workspace(user_id, workspace_id)
         image = await self.repository.get_image(user_id)
         if image is None:
             raise NotFoundError("User image not found")
@@ -217,16 +241,22 @@ class UserService(BaseService[UserDB, UserRepository]):
 
     async def list(
         self,
+        workspace_id: UUID,
         page: PageParams,
         role: WorkspaceRole | None = None,
         search: str | None = None,
     ) -> Page[UserResponse]:
-        users, total = await self.repository.list(page, role=role, search=search)
-        items = [UserResponse.model_validate(user) for user in users]
+        rows, total = await self.repository.list(
+            workspace_id, page, role=role, search=search
+        )
+        items = []
+        for user, membership in rows:
+            user.set_workspace_membership(membership)
+            items.append(UserResponse.model_validate(user))
         return Page.build(items, total, page)
 
-    async def count_by_role(self) -> UserRoleCounts:
-        counts = await self.repository.count_by_role()
+    async def count_by_role(self, workspace_id: UUID) -> UserRoleCounts:
+        counts = await self.repository.count_by_role(workspace_id)
         return UserRoleCounts(
             total=sum(counts.values()),
             member=counts.get(WorkspaceRole.member, 0),
@@ -237,29 +267,45 @@ class UserService(BaseService[UserDB, UserRepository]):
     async def list_by_ids(self, user_ids: list[UUID]) -> list[UserDB]:
         return await self.repository.list_by_ids(user_ids)
 
-    async def update(self, user_id: UUID, data: UserPatch) -> UserDB:
-        user = await self.get_or_404(user_id)
+    async def update(
+        self, user_id: UUID, workspace_id: UUID, data: UserPatch
+    ) -> UserDB:
+        user, membership = await self._get_in_workspace(user_id, workspace_id)
         update_data = data.model_dump(exclude_unset=True)
         new_email = update_data.get("email")
         if "email" in update_data and new_email is not None and new_email != user.email:
             await self._ensure_email_available(new_email)
-        return await self.repository.update(user, data)
+        updated = await self.repository.update(user, data)
+        updated.set_workspace_membership(membership)
+        return updated
 
-    async def update_role(self, user_id: UUID, data: UserRolePatch) -> UserDB:
-        user = await self.get_or_404(user_id)
-        return await self.repository.update(user, data)
+    async def update_role(
+        self, user_id: UUID, workspace_id: UUID, data: UserRolePatch
+    ) -> UserDB:
+        user, membership = await self._get_in_workspace(user_id, workspace_id)
+        membership.role = data.role
+        self.db.add(membership)
+        await self.db.flush()
+        user.set_workspace_membership(membership)
+        return user
 
-    async def update_team(self, user_id: UUID, data: UserTeamPatch) -> UserDB:
-        user = await self.get_or_404(user_id)
-        if data.team_id is not None and not await self.team_repository.get(
-            data.team_id
+    async def update_team(
+        self, user_id: UUID, workspace_id: UUID, data: UserTeamPatch
+    ) -> UserDB:
+        user, membership = await self._get_in_workspace(user_id, workspace_id)
+        if data.team_id is not None and not await self.team_repository.get_in_workspace(
+            data.team_id, workspace_id
         ):
             raise NotFoundError("Team not found")
-        return await self.repository.update(user, data)
+        membership.team_id = data.team_id
+        self.db.add(membership)
+        await self.db.flush()
+        user.set_workspace_membership(membership)
+        return user
 
-    async def delete(self, user_id: UUID) -> None:
-        user = await self.get_or_404(user_id)
-        await self.repository.delete(user)
+    async def delete(self, user_id: UUID, workspace_id: UUID) -> None:
+        _, membership = await self._get_in_workspace(user_id, workspace_id)
+        await self.workspace_repository.delete_membership(membership)
 
 
 def get_user_service(db: AsyncSession = Depends(get_db)) -> UserService:

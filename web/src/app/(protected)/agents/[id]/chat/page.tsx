@@ -141,6 +141,7 @@ const StarterChatPage = () => {
 					>
 						<AgentAvatar
 							agentId={agent?.id}
+							name={agent?.name}
 							imageRevision={agent?.imageRevision}
 							color={agent?.color}
 							emoji={agent?.emoji || starterAgent.value?.emoji}

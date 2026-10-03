@@ -1,29 +1,29 @@
 import { api } from "@/lib/api/client";
-import type { WorkspaceAppearance } from "@/types/appearance";
+import type { InstanceAppearance } from "@/types/appearance";
 
-export async function getAppearance(): Promise<WorkspaceAppearance> {
-	const response = await api.get<WorkspaceAppearance>("/appearance/");
+export async function getAppearance(): Promise<InstanceAppearance> {
+	const response = await api.get<InstanceAppearance>("/appearance/");
 	return response.data;
 }
 
 export async function updateAppearance(
 	appName: string,
-): Promise<WorkspaceAppearance> {
-	const response = await api.patch<WorkspaceAppearance>("/appearance/", {
+): Promise<InstanceAppearance> {
+	const response = await api.patch<InstanceAppearance>("/appearance/", {
 		appName,
 	});
 	return response.data;
 }
 
-export async function uploadLogo(file: File): Promise<WorkspaceAppearance> {
+export async function uploadLogo(file: File): Promise<InstanceAppearance> {
 	const body = new FormData();
 	body.append("image", file);
-	const response = await api.put<WorkspaceAppearance>("/appearance/logo", body);
+	const response = await api.put<InstanceAppearance>("/appearance/logo", body);
 	return response.data;
 }
 
-export async function deleteLogo(): Promise<WorkspaceAppearance> {
-	const response = await api.delete<WorkspaceAppearance>("/appearance/logo");
+export async function deleteLogo(): Promise<InstanceAppearance> {
+	const response = await api.delete<InstanceAppearance>("/appearance/logo");
 	return response.data;
 }
 

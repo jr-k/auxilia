@@ -18,6 +18,7 @@ import { chatHeaderFromThread, useThreadSession } from "@/lib/thread-session";
 import { getApiErrorMessage } from "@/lib/api/errors";
 import { isResponseSoundEnabled } from "@/lib/user-preferences";
 import { ConversationBody } from "./conversation-body";
+import { usePromptQueue } from "@/hooks/use-prompt-queue";
 
 /**
  * The chat page renders one thread session. Run state, HITL, hydration and
@@ -41,6 +42,7 @@ const ChatPage = () => {
       audio.play().catch(() => {});
     },
   });
+  const promptQueue = usePromptQueue(threadId, run.status !== "idle");
   const thread = meta.thread;
 
   const canConfigure = useAgentsStore((s) =>
@@ -195,8 +197,10 @@ const ChatPage = () => {
           </div>
         ) : (
           <ChatPromptInput
+            key={threadId}
             onSubmit={actions.send}
             status={run.isLoading ? "streaming" : "ready"}
+            queueMode={run.status !== "idle" || promptQueue.items.length > 0}
             className="w-full max-w-4xl mx-auto lg:px-10 sm:px-6 px-3 py-4"
             stop={actions.stop}
             selectedModel={thread?.modelId ?? undefined}
@@ -205,6 +209,17 @@ const ChatPage = () => {
             agentReady={agentReady}
             disconnectedServers={disconnectedMcpServers}
             onAllConnected={refetchReady}
+            queuedPrompts={promptQueue.items}
+            queueLoading={promptQueue.isLoading}
+            onQueueAuthorizationRequired={refetchReady}
+            onEnqueue={async (text) => {
+              await promptQueue.enqueue(text);
+            }}
+            onUpdateQueued={async (id, text) => {
+              await promptQueue.update(id, text);
+            }}
+            onRemoveQueued={promptQueue.remove}
+            onReorderQueued={promptQueue.reorder}
           />
         )}
       </div>

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { mcpServerImageUrl } from "@/lib/api/resources/mcp-servers";
-import { DEFAULT_ICON } from "../lib/constants";
+import { avatarColorStyle } from "@/lib/colors";
 
 interface ServerIconTileProps {
 	iconUrl?: string | null;
@@ -46,36 +46,44 @@ export function ServerIconTile({
 		serverId && imageRevision
 			? mcpServerImageUrl(serverId, imageRevision)
 			: null;
-	const source = uploadedUrl ?? iconUrl ?? DEFAULT_ICON;
+	const source = uploadedUrl ?? iconUrl ?? null;
 	const [failedSource, setFailedSource] = useState<string | null>(null);
-	const resolvedSource = failedSource === source ? DEFAULT_ICON : source;
-	const showsUploadedImage =
-		uploadedUrl !== null && resolvedSource === uploadedUrl;
+	const showsImage = source !== null && failedSource !== source;
+	const showsUploadedImage = showsImage && source === uploadedUrl;
+	const fallbackStyle = avatarColorStyle(null, name);
+	const initial = name.trim().charAt(0).toUpperCase() || "M";
 
 	return (
 		<span
+			style={showsImage ? undefined : fallbackStyle}
 			className={cn(
-				"flex shrink-0 items-center justify-center shadow-[0_2px_6px_rgba(10,25,30,0.14)]",
+				"flex shrink-0 items-center justify-center font-bold uppercase shadow-[0_2px_6px_rgba(10,25,30,0.14)]",
 				showsUploadedImage
 					? "overflow-hidden"
-					: "bg-white dark:bg-white/10",
+					: showsImage && "bg-white dark:bg-white/10",
 				tileClass,
 				className,
 			)}
 		>
 			{/* Browser-direct requests preserve auth for uploaded images and allow
-			    arbitrary external fallback hosts without Next optimizer rules. */}
-			{/* eslint-disable-next-line @next/next/no-img-element */}
-			<img
-				src={resolvedSource}
-				alt={name}
-				width={showsUploadedImage ? size : iconPx}
-				height={showsUploadedImage ? size : iconPx}
-				className={showsUploadedImage ? "size-full object-cover" : "object-contain"}
-				onError={() => {
-					if (resolvedSource !== DEFAULT_ICON) setFailedSource(source);
-				}}
-			/>
+			    arbitrary external hosts without Next optimizer rules. */}
+			{showsImage ? (
+				// eslint-disable-next-line @next/next/no-img-element
+				<img
+					src={source}
+					alt={name}
+					width={showsUploadedImage ? size : iconPx}
+					height={showsUploadedImage ? size : iconPx}
+					className={
+						showsUploadedImage ? "size-full object-cover" : "object-contain"
+					}
+					onError={() => {
+						setFailedSource(source);
+					}}
+				/>
+			) : (
+				initial
+			)}
 		</span>
 	);
 }

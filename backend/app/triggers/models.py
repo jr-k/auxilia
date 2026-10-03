@@ -51,6 +51,9 @@ class TriggerDB(TriggerBase, BaseDBModel, table=True):
         ),
     )
 
+    workspace_id: UUID = Field(
+        foreign_key="workspaces.id", nullable=False, index=True
+    )
     owner_id: UUID = Field(
         foreign_key="users.id", ondelete="CASCADE", index=True, nullable=False
     )
