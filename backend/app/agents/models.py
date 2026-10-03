@@ -1,22 +1,12 @@
 from enum import Enum
 from uuid import UUID
 
-from sqlalchemy import UniqueConstraint
+from sqlalchemy import LargeBinary, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Boolean, Column, Field, SQLModel, String, Text
 
+from app.colors import ALLOWED_COLORS as ALLOWED_COLORS
 from app.models import BaseDBModel
-
-
-ALLOWED_COLORS = {
-    "#6C5CE7",
-    "#00B894",
-    "#E17055",
-    "#0984E3",
-    "#FDCB6E",
-    "#E84393",
-    "#9E9E9E",
-}
 
 
 class PermissionLevel(str, Enum):
@@ -96,6 +86,7 @@ class AgentSandboxDB(AgentSandboxBase, BaseDBModel, table=True):
 
 
 class AgentBase(SQLModel):
+    workspace_id: UUID = Field(foreign_key="workspaces.id", nullable=False, index=True)
     name: str = Field(max_length=255, nullable=False)
     instructions: str = Field(sa_column=Column(Text, nullable=False))
     owner_id: UUID = Field(foreign_key="users.id", nullable=False)
@@ -104,6 +95,7 @@ class AgentBase(SQLModel):
     description: str | None = Field(
         default=None, max_length=255, sa_column=Column(String(255), nullable=True)
     )
+    group: str | None = Field(default=None, max_length=255, nullable=True, index=True)
 
 
 class AgentDB(AgentBase, BaseDBModel, table=True):
@@ -113,13 +105,19 @@ class AgentDB(AgentBase, BaseDBModel, table=True):
         default=False,
         sa_column=Column(Boolean, nullable=False, server_default="false"),
     )
-    tag_id: UUID | None = Field(
-        default=None,
-        foreign_key="tags.id",
-        ondelete="SET NULL",
-        index=True,
-        nullable=True,
+    image_revision: UUID | None = Field(default=None, nullable=True)
+
+
+class AgentImageDB(BaseDBModel, table=True):
+    __tablename__ = "agent_images"
+    __table_args__ = (UniqueConstraint("agent_id", name="uq_agent_image_agent_id"),)
+
+    agent_id: UUID = Field(
+        foreign_key="agents.id", ondelete="CASCADE", nullable=False, index=True
     )
+    data: bytes = Field(sa_column=Column(LargeBinary, nullable=False))
+    media_type: str = Field(max_length=50, nullable=False)
+    sha256: str = Field(max_length=64, nullable=False)
 
 
 class AgentUserPermissionDB(BaseDBModel, table=True):

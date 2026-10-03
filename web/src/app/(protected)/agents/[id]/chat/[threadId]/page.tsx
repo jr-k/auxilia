@@ -16,7 +16,9 @@ import { useAgentReadiness } from "@/hooks/use-agent-readiness";
 import { useChatHeaderStore } from "@/stores/chat-header-store";
 import { chatHeaderFromThread, useThreadSession } from "@/lib/thread-session";
 import { getApiErrorMessage } from "@/lib/api/errors";
+import { isResponseSoundEnabled } from "@/lib/user-preferences";
 import { ConversationBody } from "./conversation-body";
+import { usePromptQueue } from "@/hooks/use-prompt-queue";
 
 /**
  * The chat page renders one thread session. Run state, HITL, hydration and
@@ -35,10 +37,12 @@ const ChatPage = () => {
       window.location.reload();
     },
     onCompleted: () => {
+      if (!isResponseSoundEnabled()) return;
       const audio = new Audio("/success.mp3");
       audio.play().catch(() => {});
     },
   });
+  const promptQueue = usePromptQueue(threadId, run.status !== "idle");
   const thread = meta.thread;
 
   const canConfigure = useAgentsStore((s) =>
@@ -119,7 +123,7 @@ const ChatPage = () => {
             <div className="flex items-center gap-3 rounded-lg border border-border bg-muted/50 px-4 py-3">
               <ShieldCheck className="size-5 shrink-0 text-muted-foreground" />
               <p className="text-sm text-muted-foreground">
-                Viewing as admin — this thread belongs to another user and is
+                Viewing as admin, this thread belongs to another user and is
                 read-only.
               </p>
             </div>
@@ -193,8 +197,10 @@ const ChatPage = () => {
           </div>
         ) : (
           <ChatPromptInput
+            key={threadId}
             onSubmit={actions.send}
             status={run.isLoading ? "streaming" : "ready"}
+            queueMode={run.status !== "idle" || promptQueue.items.length > 0}
             className="w-full max-w-4xl mx-auto lg:px-10 sm:px-6 px-3 py-4"
             stop={actions.stop}
             selectedModel={thread?.modelId ?? undefined}
@@ -203,6 +209,17 @@ const ChatPage = () => {
             agentReady={agentReady}
             disconnectedServers={disconnectedMcpServers}
             onAllConnected={refetchReady}
+            queuedPrompts={promptQueue.items}
+            queueLoading={promptQueue.isLoading}
+            onQueueAuthorizationRequired={refetchReady}
+            onEnqueue={async (text) => {
+              await promptQueue.enqueue(text);
+            }}
+            onUpdateQueued={async (id, text) => {
+              await promptQueue.update(id, text);
+            }}
+            onRemoveQueued={promptQueue.remove}
+            onReorderQueued={promptQueue.reorder}
           />
         )}
       </div>
