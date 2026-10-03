@@ -7,11 +7,13 @@ import { Eye, EyeOff, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import ForbiddenErrorDialog from "@/components/forbidden-error-dialog";
 import { Alert } from "@/components/ui/alert";
+import { GroupPicker } from "@/components/ui/group-picker";
 import { ImageUpload } from "@/components/ui/image-upload";
 import * as mcpServersApi from "@/lib/api/resources/mcp-servers";
 import { getApiErrorMessage } from "@/lib/api/errors";
 import { useMcpServersStore } from "@/stores/mcp-servers-store";
 import { MCPAuthType, OfficialMCPServer } from "@/types/mcp-servers";
+import { groupOptions } from "@/lib/groups";
 import { ConnectionTestBanner } from "../../components/connection-test-banner";
 import {
 	HeaderButton,
@@ -31,6 +33,7 @@ const emptyForm: MCPServerCreateFormValues = {
 	name: "",
 	url: "",
 	description: "",
+	group: "",
 	authType: "none",
 	apiKey: "",
 	oauthClientId: "",
@@ -132,6 +135,7 @@ export default function CustomMCPServerPage() {
 	const officialUrl = searchParams.get("official");
 	const createMcpServer = useMcpServersStore((state) => state.createMcpServer);
 	const updateMcpServer = useMcpServersStore((state) => state.updateMcpServer);
+	const mcpServers = useMcpServersStore((state) => state.mcpServers);
 
 	const [form, setForm] = useState<MCPServerCreateFormValues>(emptyForm);
 	const [errors, setErrors] = useState<MCPServerCreateFormErrors>({});
@@ -163,6 +167,7 @@ export default function CustomMCPServerPage() {
 					name: official.name,
 					url: official.url,
 					description: official.description ?? "",
+					group: "",
 					authType: official.authType,
 					apiKey: "",
 					oauthClientId: "",
@@ -364,6 +369,14 @@ export default function CustomMCPServerPage() {
 								className={`${INPUT_CLASS} resize-none leading-[1.55]`}
 							/>
 						</div>
+
+						<GroupPicker
+							value={form.group}
+							groups={groupOptions(mcpServers)}
+							onChange={(group) => {
+								handleFormChange("group", group);
+							}}
+						/>
 
 						{/* Authentication method */}
 						<div className="flex flex-col gap-2.5">

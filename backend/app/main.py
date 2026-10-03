@@ -36,13 +36,13 @@ from app.runtime.runs.worker import RunDispatcher
 from app.sandbox.router import sandboxes_router
 from app.skills.router import router as skills_router
 from app.skills.sources.router import router as skill_sources_router
-from app.tags.router import router as tags_router
 from app.teams.router import router as teams_router
 from app.threads.router import router as threads_router
 from app.triggers.router import router as triggers_router
 from app.triggers.scanner import TriggerScanner
 from app.triggers.settings import trigger_settings
 from app.users.router import router as users_router
+from app.version import BACKEND_VERSION
 
 
 configure_logging()
@@ -113,7 +113,7 @@ async def lifespan(app: FastAPI):
             await close_redis()
 
 
-app = FastAPI(lifespan=lifespan)
+app = FastAPI(lifespan=lifespan, version=BACKEND_VERSION)
 
 
 # There is deliberately no `OAuthAuthorizationRequired` handler. "This MCP
@@ -228,6 +228,11 @@ async def health() -> JSONResponse:
     )
 
 
+@app.get("/version/", tags=["health"])
+async def version() -> dict[str, str]:
+    return {"version": BACKEND_VERSION}
+
+
 app.include_router(agents_router)
 app.include_router(appearance_router)
 app.include_router(protocol_router)
@@ -244,7 +249,6 @@ app.include_router(skills_router)
 app.include_router(users_router)
 app.include_router(invites_router)
 app.include_router(teams_router)
-app.include_router(tags_router)
 app.include_router(model_providers_router)
 app.include_router(notifications_router)
 app.include_router(observability_router)

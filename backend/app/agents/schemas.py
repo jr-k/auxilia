@@ -15,6 +15,17 @@ from app.sandbox.models import SandboxProviderType
 from app.skills.schemas import AgentSkillResponse
 
 
+def _normalize_group(value: str | None) -> str | None:
+    if value is None:
+        return None
+    normalized = "/".join(part.strip() for part in value.split("/") if part.strip())
+    if not normalized:
+        return None
+    if len(normalized) > 255:
+        raise ValueError("group must be at most 255 characters")
+    return normalized
+
+
 class AgentCreateDB(SQLModel):
     name: str
     instructions: str
@@ -22,6 +33,7 @@ class AgentCreateDB(SQLModel):
     emoji: str | None = None
     color: str | None = None
     description: str | None = None
+    group: str | None = None
 
     @field_validator("color")
     @classmethod
@@ -37,7 +49,7 @@ class AgentPatch(SQLModel):
     emoji: str | None = None
     color: str | None = None
     description: str | None = None
-    tag_id: UUID | None = None
+    group: str | None = None
 
     @field_validator("color")
     @classmethod
@@ -45,6 +57,11 @@ class AgentPatch(SQLModel):
         if v is not None and v not in ALLOWED_COLORS:
             raise ValueError(f"color must be one of {sorted(ALLOWED_COLORS)}")
         return v
+
+    @field_validator("group")
+    @classmethod
+    def normalize_group(cls, value: str | None) -> str | None:
+        return _normalize_group(value)
 
 
 class AgentMCPServerConfig(SQLModel):
@@ -67,11 +84,17 @@ class AgentConfig(SQLModel):
     description: str | None = None
     emoji: str | None = None
     color: str | None = None
+    group: str | None = None
     mcp_servers: list[AgentMCPServerConfig] = []
     sandboxes: list[AgentSandboxConfig] = []
     subagent_ids: list[UUID] = []
     # Skills enabled on the agent — whole-set, like the other bindings.
     skill_ids: list[UUID] = []
+
+    @field_validator("group")
+    @classmethod
+    def normalize_group(cls, value: str | None) -> str | None:
+        return _normalize_group(value)
 
     @field_validator("sandboxes")
     @classmethod
@@ -173,11 +196,6 @@ class SubagentResponse(SQLModel):
     description: str | None = None
 
 
-class TagInfo(SQLModel):
-    id: UUID
-    name: str
-
-
 class AgentOwnerInfo(SQLModel):
     id: UUID
     name: str | None = None
@@ -207,7 +225,7 @@ class AgentListResponse(SQLModel):
     updated_at: datetime
     mcp_servers: list[AgentMCPServerListResponse] | None = None
     subagents: list[SubagentResponse] | None = None
-    tag: TagInfo | None = None
+    group: str | None = None
     owner: AgentOwnerInfo | None = None
     is_subagent: bool = False
     current_user_permission: EffectivePermission | None = None

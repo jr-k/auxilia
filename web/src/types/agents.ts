@@ -45,11 +45,6 @@ export interface SubagentInfo {
 	description?: string | null;
 }
 
-export interface AgentTag {
-	id: string;
-	name: string;
-}
-
 export interface AgentOwner {
 	id: string;
 	name?: string | null;
@@ -76,7 +71,7 @@ export interface Agent {
 	/** Skills enabled on the agent. Detail responses only, like sandboxes. */
 	skills?: AgentSkill[];
 	subagents: SubagentInfo[];
-	tag?: AgentTag | null;
+	group?: string | null;
 	owner?: AgentOwner | null;
 	isSubagent: boolean;
 	currentUserPermission?: AgentPermission | null;

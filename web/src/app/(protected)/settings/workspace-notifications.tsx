@@ -71,6 +71,33 @@ export default function WorkspaceNotifications({ onForbidden }: Props) {
 		}
 	};
 
+	const toggleEnabled = async (checked: boolean) => {
+		setEnabled(checked);
+		setStatus(null);
+		if (checked && !settings.isConfigured) return;
+
+		setSaving(true);
+		try {
+			const updated = await notificationsApi.updateSlackSettings({
+				enabled: checked,
+			});
+			setSettings(updated);
+			setStatus(
+				checked ? "Slack notifications enabled." : "Slack notifications disabled.",
+			);
+		} catch (error: unknown) {
+			setEnabled(!checked);
+			if (isApiError(error) && error.status === 403) onForbidden();
+			setStatus(
+				isApiError(error) && error.detail
+					? error.detail
+					: "Could not update notification settings.",
+			);
+		} finally {
+			setSaving(false);
+		}
+	};
+
 	return (
 		<div>
 			<div className="mb-1.5 flex items-baseline gap-2.5">
@@ -97,61 +124,78 @@ export default function WorkspaceNotifications({ onForbidden }: Props) {
 						</div>
 						<Switch
 							checked={enabled}
-							onCheckedChange={setEnabled}
+							disabled={saving}
+							onCheckedChange={(checked) => {
+								void toggleEnabled(checked);
+							}}
 							className="cursor-pointer data-[state=checked]:bg-petrol"
 						/>
 					</div>
-					<label className="block">
-						<span className={labelClass}>Bot token</span>
-						<Input
-							type="password"
-							value={botToken}
-							onChange={(event) => {
-								setBotToken(event.target.value);
-							}}
-							placeholder={
-								settings.isConfigured ? "Leave blank to keep current" : "xoxb-…"
-							}
-						/>
-					</label>
-					<label className="block">
-						<span className={labelClass}>Signing secret</span>
-						<Input
-							type="password"
-							value={signingSecret}
-							onChange={(event) => {
-								setSigningSecret(event.target.value);
-							}}
-							placeholder={
-								settings.isConfigured ? "Leave blank to keep current" : ""
-							}
-						/>
-					</label>
-					<label className="block">
-						<span className={labelClass}>Events request URL</span>
-						<Input readOnly value={settings.eventsUrl} className="font-mono" />
-					</label>
-					<label className="block">
-						<span className={labelClass}>Interactions request URL</span>
-						<Input
-							readOnly
-							value={settings.interactionsUrl}
-							className="font-mono"
-						/>
-					</label>
+					{enabled && (
+						<>
+							<label className="block">
+								<span className={labelClass}>Bot token</span>
+								<Input
+									type="password"
+									value={botToken}
+									onChange={(event) => {
+										setBotToken(event.target.value);
+									}}
+									placeholder={
+										settings.isConfigured
+											? "Leave blank to keep current"
+											: "xoxb-…"
+									}
+								/>
+							</label>
+							<label className="block">
+								<span className={labelClass}>Signing secret</span>
+								<Input
+									type="password"
+									value={signingSecret}
+									onChange={(event) => {
+										setSigningSecret(event.target.value);
+									}}
+									placeholder={
+										settings.isConfigured ? "Leave blank to keep current" : ""
+									}
+								/>
+							</label>
+							<label className="block">
+								<span className={labelClass}>Events request URL</span>
+								<Input
+									readOnly
+									value={settings.eventsUrl}
+									className="font-mono"
+								/>
+							</label>
+							<label className="block">
+								<span className={labelClass}>Interactions request URL</span>
+								<Input
+									readOnly
+									value={settings.interactionsUrl}
+									className="font-mono"
+								/>
+							</label>
+						</>
+					)}
 				</div>
-				<div className="flex items-center gap-3 border-t border-hairline px-4 py-3">
-					<HeaderButton
-						accent
-						disabled={saving}
-						onClick={() => {
-							void save();
-						}}
-					>
-						{saving ? "Saving…" : "Save changes"}
-					</HeaderButton>
-					{status && <span className="text-[12px] text-subtle">{status}</span>}
-				</div>
+				{enabled && (
+					<div className="flex items-center gap-3 border-t border-hairline px-4 py-3">
+						<HeaderButton
+							accent
+							disabled={saving}
+							onClick={() => {
+								void save();
+							}}
+						>
+							{saving ? "Saving…" : "Save changes"}
+						</HeaderButton>
+						{status && (
+							<span className="text-[12px] text-subtle">{status}</span>
+						)}
+					</div>
+				)}
 			</div>
 		</div>
 	);

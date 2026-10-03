@@ -48,6 +48,28 @@ function syncSummary(result: WhitelistSyncResult): string {
 	return `Catalog synced, ${changes || "no changes"} (${result.modelCount} models).`;
 }
 
+function orderManagedModels(models: ManagedModel[]): ManagedModel[] {
+	return [...models].sort(
+		(a, b) => Number(b.isEnabled) - Number(a.isEnabled),
+	);
+}
+
+function preserveManagedModelOrder(
+	current: ManagedModel[],
+	incoming: ManagedModel[],
+): ManagedModel[] {
+	const byKey = new Map(
+		incoming.map((model) => [`${model.provider}/${model.modelId}`, model]),
+	);
+	const ordered = current.flatMap((model) => {
+		const updated = byKey.get(`${model.provider}/${model.modelId}`);
+		if (!updated) return [];
+		byKey.delete(`${model.provider}/${model.modelId}`);
+		return [updated];
+	});
+	return [...ordered, ...byKey.values()];
+}
+
 /** Mono-caps chip on a model row (DEFAULT / capabilities / deprecation). */
 function ModelBadge({
 	tone,
@@ -75,11 +97,16 @@ interface WorkspaceModelsProps {
 	onForbidden: () => void;
 	/** Reports usable models: enabled and backed by configured credentials. */
 	onCountChange?: (count: number) => void;
+	/** Refresh the remote catalog once before the initial list is loaded. */
+	syncOnMount?: boolean;
+	showSyncControl?: boolean;
 }
 
 export default function WorkspaceModels({
 	onForbidden,
 	onCountChange,
+	syncOnMount = false,
+	showSyncControl = true,
 }: WorkspaceModelsProps) {
 	const refreshModels = useModelsStore((state) => state.refreshModels);
 	const [models, setModels] = useState<ManagedModel[]>([]);
@@ -122,6 +149,7 @@ export default function WorkspaceModels({
 		onCountChangeRef.current = onCountChange;
 	}, [onCountChange]);
 
+	const hasSyncedOnMountRef = useRef(false);
 	const hasLoadedModelsRef = useRef(false);
 	useEffect(() => {
 		if (!hasLoadedModelsRef.current) return;
@@ -141,12 +169,33 @@ export default function WorkspaceModels({
 	const loadManaged = useCallback(async () => {
 		setIsLoading(true);
 		setLoadFailed(false);
+		if (syncOnMount && !hasSyncedOnMountRef.current) {
+			hasSyncedOnMountRef.current = true;
+			setIsSyncing(true);
+			try {
+				await modelsApi.syncWhitelist();
+			} catch (error: unknown) {
+				if (isApiError(error) && error.status === 403) {
+					onForbiddenRef.current();
+					setIsLoading(false);
+					return;
+				}
+				setStatus({
+					kind: "error",
+					text:
+						apiErrorDetail(error) ??
+						"Catalog sync failed. The existing catalog is shown instead.",
+				});
+			} finally {
+				setIsSyncing(false);
+			}
+		}
 		try {
 			const [managed, providerConfigs] = await Promise.all([
 				modelsApi.listManagedModels(),
 				modelsApi.listProviderConfigs(),
 			]);
-			setModels(managed);
+			setModels(orderManagedModels(managed));
 			setProviders(providerConfigs);
 			setOpenProviders(
 				new Set(
@@ -170,7 +219,7 @@ export default function WorkspaceModels({
 		} finally {
 			setIsLoading(false);
 		}
-	}, []);
+	}, [syncOnMount]);
 
 	useEffect(() => {
 		const timeoutId = window.setTimeout(() => {
@@ -181,8 +230,8 @@ export default function WorkspaceModels({
 		};
 	}, [loadManaged]);
 
-	// Keep provider order stable, hide empty groups only while searching, and
-	// pin enabled rows above disabled rows without disturbing catalog order.
+	// The order is frozen from the last load: toggling a row updates it in place
+	// instead of making it jump between the enabled and disabled sections.
 	const providerGroups = useMemo(() => {
 		const query = searchQuery.trim().toLocaleLowerCase();
 		return providers
@@ -190,14 +239,12 @@ export default function WorkspaceModels({
 				const allProviderModels = models.filter(
 					(model) => model.provider === provider.name,
 				);
-				const providerModels = allProviderModels
-					.filter(
-						(model) =>
-							!query ||
-								model.displayName.toLocaleLowerCase().includes(query) ||
-							model.modelId.toLocaleLowerCase().includes(query),
-					)
-					.sort((a, b) => Number(b.isEnabled) - Number(a.isEnabled));
+				const providerModels = allProviderModels.filter(
+					(model) =>
+						!query ||
+						model.displayName.toLocaleLowerCase().includes(query) ||
+						model.modelId.toLocaleLowerCase().includes(query),
+				);
 				return {
 					provider,
 					models: providerModels,
@@ -414,7 +461,7 @@ export default function WorkspaceModels({
 		// failed (the backend has already applied the new catalog).
 		try {
 			const managed = await modelsApi.listManagedModels();
-			setModels(managed);
+			setModels((current) => preserveManagedModelOrder(current, managed));
 			setStatus({ kind: "info", text: summary });
 		} catch {
 			setStatus({
@@ -437,19 +484,23 @@ export default function WorkspaceModels({
 					admin
 				</span>
 				<span className="flex-1" />
-				<HeaderButton
-					accent
-					className="gap-1.5 px-3.5 py-[7px] text-[12.5px]"
-					disabled={isSyncing}
-					onClick={() => {
-						void handleSync();
-					}}
-				>
-					<RefreshCw
-						className={isSyncing ? "size-[13px] animate-spin" : "size-[13px]"}
-					/>
-					Sync catalog
-				</HeaderButton>
+				{showSyncControl && (
+					<HeaderButton
+						accent
+						className="gap-1.5 px-3.5 py-[7px] text-[12.5px]"
+						disabled={isSyncing}
+						onClick={() => {
+							void handleSync();
+						}}
+					>
+						<RefreshCw
+							className={
+								isSyncing ? "size-[13px] animate-spin" : "size-[13px]"
+							}
+						/>
+						Sync catalog
+					</HeaderButton>
+				)}
 			</div>
 			<p className="mb-3.5 max-w-[640px] text-[13px] leading-[1.55] text-subtle text-pretty dark:text-panel-body">
 				Choose which models members can use in chats and triggers. New catalog

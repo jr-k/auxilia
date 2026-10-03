@@ -5,7 +5,9 @@ import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
 import ConfirmDialog from "@/components/ui/confirm-dialog";
 import { UnderlineTabs } from "@/components/ui/underline-tabs";
+import { ViewToggle } from "@/components/ui/view-toggle";
 import { WorkspacePage, WorkspaceTopBarButton } from "@/components/layout/workspace-page";
+import { usePersistedViewMode } from "@/hooks/use-persisted-view-mode";
 import { useQueryParamState } from "@/hooks/use-query-param-state";
 import { getApiErrorMessage } from "@/lib/api/errors";
 import { useSkillsStore } from "@/stores/skills-store";
@@ -34,6 +36,7 @@ export default function SkillsPage() {
 	const [search, setSearch] = useQueryParamState("q");
 	const [viewParam, setViewParam] = useQueryParamState("view", "library");
 	const view: View = viewParam === "sources" ? "sources" : "library";
+	const [viewMode, setViewMode] = usePersistedViewMode("skills:view-mode");
 	const [error, setError] = useState<string | null>(null);
 
 	useEffect(() => {
@@ -50,7 +53,9 @@ export default function SkillsPage() {
 		if (!term) return skills;
 		return skills.filter(
 			(skill) =>
-				skill.name.includes(term) || skill.description.toLowerCase().includes(term),
+				skill.name.includes(term) ||
+				skill.description.toLowerCase().includes(term) ||
+				(skill.group ?? "").toLowerCase().includes(term),
 		);
 	}, [skills, search]);
 
@@ -76,24 +81,29 @@ export default function SkillsPage() {
 					? "Repositories the workspace syncs skills from. Sync makes new versions available; each skill is adopted on its own, against a diff."
 					: "Procedures any agent in the workspace can be given: a SKILL.md that says when to use it and what to do. Skills with scripts and references come from a connected repository."
 			}
-			fillHeight
+			fillHeight={view === "sources" || viewMode === "table"}
 			search={
 				view === "library"
 					? { placeholder: "Search skills…", value: search, onChange: setSearch }
 					: undefined
 			}
 			headerRight={
-				<UnderlineTabs<View>
-					tabs={[
-						{ key: "library", label: "Library", count: isInitialized ? skills.length : undefined },
-						{ key: "sources", label: "Sources", count: sourcesInitialized ? sources.length : undefined },
-					]}
-					value={view}
-					onChange={(key) => {
-						setViewParam(key);
-					}}
-					className="border-b border-border"
-				/>
+				<div className="flex items-center gap-3">
+					<UnderlineTabs<View>
+						tabs={[
+							{ key: "library", label: "Library", count: isInitialized ? skills.length : undefined },
+							{ key: "sources", label: "Sources", count: sourcesInitialized ? sources.length : undefined },
+						]}
+						value={view}
+						onChange={(key) => {
+							setViewParam(key);
+						}}
+						className="border-b border-border"
+					/>
+					{view === "library" && (
+						<ViewToggle value={viewMode} onChange={setViewMode} />
+					)}
+				</div>
 			}
 			actions={
 				view === "sources" ? (
@@ -224,6 +234,7 @@ export default function SkillsPage() {
 						</p>
 					)}
 				<SkillTable
+					mode={viewMode}
 					skills={visible}
 					isLoading={!isInitialized}
 					search={search}

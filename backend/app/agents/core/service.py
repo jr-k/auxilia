@@ -6,7 +6,6 @@ from typing import Literal, overload
 from uuid import UUID, uuid4
 
 from fastapi import Depends
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.core.repository import AgentRepository
@@ -35,7 +34,6 @@ from app.agents.schemas import (
     AgentSandboxResponse,
     AgentSkillResponse,
     SubagentResponse,
-    TagInfo,
 )
 from app.database import get_db
 from app.exceptions import (
@@ -51,7 +49,6 @@ from app.sandbox.repository import SandboxRepository
 from app.sandbox.schemas import SandboxAgentResponse
 from app.service import BaseService
 from app.skills.service import SkillService
-from app.tags.service import TagService
 from app.users.models import WorkspaceRole
 from app.users.service import UserService
 from app.utils.images import ProcessedImage
@@ -65,7 +62,6 @@ class AgentService(BaseService[AgentDB, AgentRepository]):
 
     def __init__(self, db: AsyncSession):
         super().__init__(db, AgentRepository(db))
-        self.tag_service = TagService(db)
         self.user_service = UserService(db)
         self.mcp_server_repository = AgentMCPServerRepository(db)
         self.mcp_server_service = AgentMCPServerService(db)
@@ -228,8 +224,6 @@ class AgentService(BaseService[AgentDB, AgentRepository]):
                         url=sandbox.url,
                     )
                 )
-        tag_ids = list({a.tag_id for a in agents if a.tag_id is not None})
-        tags_by_id = {t.id: t for t in await self.tag_service.list_by_ids(tag_ids)}
         owner_ids = list({a.owner_id for a in agents})
         owners_by_id = {u.id: u for u in await self.user_service.list_by_ids(owner_ids)}
         response_cls = AgentListResponse if slim else AgentResponse
@@ -246,11 +240,6 @@ class AgentService(BaseService[AgentDB, AgentRepository]):
                     }
                 ),
                 subagents=subagents_map.get(agent.id, []),
-                tag=(
-                    TagInfo(id=tag.id, name=tag.name)
-                    if (tag := tags_by_id.get(agent.tag_id)) is not None
-                    else None
-                ),
                 owner=(
                     AgentOwnerInfo(
                         id=owner.id,
@@ -332,6 +321,7 @@ class AgentService(BaseService[AgentDB, AgentRepository]):
                 emoji=config.emoji,
                 color=config.color,
                 description=config.description,
+                group=config.group,
             )
         )
         await self.mcp_server_service.set_for_agent(agent.id, config.mcp_servers)
@@ -420,16 +410,7 @@ class AgentService(BaseService[AgentDB, AgentRepository]):
             user_role=user_role,
             user_team_id=user_team_id,
         )
-        if data.tag_id is not None:
-            await self.tag_service.get(data.tag_id)
-        try:
-            await self.repository.update_by_id(agent_id, data)
-        except IntegrityError as exc:
-            if "fk_agents_tag_id_tags" not in str(getattr(exc, "orig", exc)):
-                raise
-            # The tag existed at validation time but was deleted before the
-            # flush — surface the same 404 the validation would have raised.
-            raise NotFoundError("Tag not found") from exc
+        await self.repository.update_by_id(agent_id, data)
         return await self.get(
             agent_id, user_id=user_id, user_role=user_role, user_team_id=user_team_id
         )
@@ -462,6 +443,7 @@ class AgentService(BaseService[AgentDB, AgentRepository]):
                 description=config.description,
                 emoji=config.emoji,
                 color=config.color,
+                group=config.group,
             ),
         )
         await self.mcp_server_service.set_for_agent(agent_id, config.mcp_servers)

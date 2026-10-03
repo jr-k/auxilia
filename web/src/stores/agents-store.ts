@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { Agent, AgentTag } from "@/types/agents";
+import { Agent } from "@/types/agents";
 import { createOnce } from "@/lib/api/once";
 import * as agentsApi from "@/lib/api/resources/agents";
 import type { AgentWrite } from "@/lib/api/resources/agents";
@@ -22,14 +22,11 @@ interface AgentsState {
 	/** Un-archive: the live list is reloaded so the agent reappears in place. */
 	restoreAgent: (agentId: string) => Promise<void>;
 	permanentlyDeleteAgent: (agentId: string) => Promise<void>;
-	setAgentTag: (agentId: string, tagId: string | null) => Promise<Agent>;
 
 	// --- local cache edits, for callers whose HTTP call lives elsewhere ------
 	addAgent: (agent: Agent) => void;
 	updateAgent: (agentId: string, agent: Partial<Agent>) => void;
 	removeAgent: (agentId: string) => void;
-	applyTagUpdate: (tag: AgentTag) => void;
-	applyTagRemoval: (tagId: string) => void;
 }
 
 export const useAgentsStore = create<AgentsState>((set, get) => {
@@ -79,12 +76,6 @@ export const useAgentsStore = create<AgentsState>((set, get) => {
 			await agentsApi.permanentlyDeleteAgent(agentId);
 			get().removeAgent(agentId);
 		},
-		setAgentTag: async (agentId, tagId) => {
-			const updated = await agentsApi.patchAgent(agentId, { tagId });
-			get().updateAgent(agentId, updated);
-			return updated;
-		},
-
 		addAgent: (agent) => {
 			set((state) => ({ agents: [agent, ...state.agents] }));
 		},
@@ -96,16 +87,6 @@ export const useAgentsStore = create<AgentsState>((set, get) => {
 		removeAgent: (agentId) => {
 			set((state) => ({
 				agents: state.agents.filter((agent) => agent.id !== agentId),
-			}));
-		},
-		applyTagUpdate: (tag) => {
-			set((state) => ({
-				agents: state.agents.map((a) => (a.tag?.id === tag.id ? { ...a, tag } : a)),
-			}));
-		},
-		applyTagRemoval: (tagId) => {
-			set((state) => ({
-				agents: state.agents.map((a) => (a.tag?.id === tagId ? { ...a, tag: null } : a)),
 			}));
 		},
 	};

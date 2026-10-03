@@ -15,6 +15,7 @@ import { MessageResponse } from "@/components/ai-elements/message";
 import { useConfirmDialog } from "@/components/providers/dialog-provider";
 import ConfirmDialog from "@/components/ui/confirm-dialog";
 import { DropdownMenu } from "@/components/ui/dropdown-menu";
+import { GroupPicker } from "@/components/ui/group-picker";
 import {
 	HeaderButton,
 	HeaderPrimaryButton,
@@ -23,6 +24,7 @@ import {
 	UnsavedBadge,
 } from "@/components/layout/subpage-header";
 import { getApiErrorMessage } from "@/lib/api/errors";
+import { groupOptions } from "@/lib/groups";
 import { SkillDeleteDescription } from "./skill-delete-description";
 import { cn } from "@/lib/utils";
 import { useSkillsStore } from "@/stores/skills-store";
@@ -132,6 +134,7 @@ interface SkillEditorProps {
 interface Draft {
 	content: string;
 	files: SkillFile[];
+	group: string;
 }
 
 /**
@@ -157,6 +160,7 @@ export default function SkillEditor({
 	const confirmDialog = useConfirmDialog();
 	const createSkill = useSkillsStore((state) => state.createSkill);
 	const updateSkill = useSkillsStore((state) => state.updateSkill);
+	const librarySkills = useSkillsStore((state) => state.skills);
 	const [reviewOpen, setReviewOpen] = useState(reviewOnOpen && Boolean(skill?.updateAvailable));
 	// The repository's, whether or not it is still connected: the files and
 	// scripts are in the row either way, so they are shown either way.
@@ -166,8 +170,8 @@ export default function SkillEditor({
 	const initial = useMemo<Draft>(
 		() =>
 			skill
-				? { content: skill.content, files: skill.files }
-				: { content: NEW_SKILL, files: [] },
+				? { content: skill.content, files: skill.files, group: skill.group ?? "" }
+				: { content: NEW_SKILL, files: [], group: "" },
 		[skill],
 	);
 	const [draft, setDraft] = useState<Draft>(initial);
@@ -279,7 +283,7 @@ export default function SkillEditor({
 						Review update
 					</HeaderPrimaryButton>
 				)}
-				{readOnly && onEdit && !sourced && (
+				{readOnly && onEdit && (
 					<HeaderPrimaryButton onClick={onEdit}>Edit</HeaderPrimaryButton>
 				)}
 				{readOnly && skill && sourced && (
@@ -390,7 +394,7 @@ export default function SkillEditor({
 						<span className="flex size-12 shrink-0 items-center justify-center rounded-xl border border-input bg-petrol-tint text-petrol dark:border-white/10 dark:bg-white/10">
 							<FileText className="size-[22px]" />
 						</span>
-						{readOnly || locked ? (
+						{readOnly || sourced || locked ? (
 							<div className="min-w-0 flex-1">
 								<div className="flex min-w-0 flex-wrap items-center gap-2">
 									<h1 className="min-w-0 truncate py-[2px] text-[19px] font-semibold tracking-[-0.01em] text-petrol">
@@ -450,6 +454,17 @@ export default function SkillEditor({
 						)}
 					</div>
 
+					{!readOnly && (
+						<div className="mt-3">
+							<GroupPicker
+								value={draft.group}
+								groups={groupOptions(librarySkills)}
+								onChange={(group) => {
+									setDraft((current) => ({ ...current, group }));
+								}}
+							/>
+						</div>
+					)}
 
 					{error && (
 						<EditorNotice tone="alert" icon={<CircleAlert />}>
@@ -508,7 +523,7 @@ export default function SkillEditor({
 					</div>
 
 					<div className="flex min-h-0 flex-1 flex-col pt-4">
-						{readOnly || locked ? (
+						{readOnly || sourced || locked ? (
 							<div className="min-h-[200px] w-full flex-1 overflow-y-auto rounded-lg border border-border bg-sidebar p-4 [scrollbar-width:thin]">
 								<MessageResponse className="text-[13px] leading-[1.65] text-foreground">
 									{body?.trim() || "*No instructions*"}

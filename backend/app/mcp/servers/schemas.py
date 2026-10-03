@@ -2,9 +2,19 @@ from datetime import datetime
 from typing import Annotated, Literal
 from uuid import UUID
 
+from pydantic import field_validator
 from sqlmodel import Field, SQLModel
 
 from app.mcp.servers.models import MCPAuthType
+
+
+def _normalize_group(value: str | None) -> str | None:
+    if value is None:
+        return None
+    normalized = "/".join(part.strip() for part in value.split("/") if part.strip())
+    if len(normalized) > 255:
+        raise ValueError("group must be at most 255 characters")
+    return normalized or None
 
 
 class MCPServerCreate(SQLModel):
@@ -13,10 +23,16 @@ class MCPServerCreate(SQLModel):
     auth_type: MCPAuthType = MCPAuthType.none
     icon_url: str | None = None
     description: str | None = None
+    group: str | None = None
     api_key: str | None = Field(default=None, exclude=True)
     oauth_client_id: str | None = Field(default=None, exclude=True)
     oauth_client_secret: str | None = Field(default=None, exclude=True)
     oauth_token_endpoint_auth_method: str | None = Field(default=None, exclude=True)
+
+    @field_validator("group")
+    @classmethod
+    def normalize_group(cls, value: str | None) -> str | None:
+        return _normalize_group(value)
 
 
 class MCPServerPatch(SQLModel):
@@ -25,6 +41,7 @@ class MCPServerPatch(SQLModel):
     auth_type: MCPAuthType | None = None
     icon_url: str | None = None
     description: str | None = None
+    group: str | None = None
     # Credentials are excluded from serialization so they never touch the
     # mcp_servers row (they live in separate tables); the service persists them
     # via the repository's create_or_update_* methods.
@@ -32,6 +49,11 @@ class MCPServerPatch(SQLModel):
     oauth_client_id: str | None = Field(default=None, exclude=True)
     oauth_client_secret: str | None = Field(default=None, exclude=True)
     oauth_token_endpoint_auth_method: str | None = Field(default=None, exclude=True)
+
+    @field_validator("group")
+    @classmethod
+    def normalize_group(cls, value: str | None) -> str | None:
+        return _normalize_group(value)
 
 
 class MCPServerResponse(SQLModel):
@@ -42,6 +64,7 @@ class MCPServerResponse(SQLModel):
     icon_url: str | None = None
     image_revision: UUID | None = None
     description: str | None = None
+    group: str | None = None
     created_at: datetime
     updated_at: datetime
     # Static OAuth client_id when configured (public identifier, not a secret);

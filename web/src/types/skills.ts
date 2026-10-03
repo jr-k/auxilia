@@ -24,6 +24,7 @@ export interface SkillSummary {
 	ownerId: string;
 	name: string;
 	description: string;
+	group?: string | null;
 	revision: number;
 	fileCount: number;
 	scriptCount: number;
@@ -249,6 +250,7 @@ export const repoLabel = (url: string | null | undefined): string => {
 export interface SkillSave {
 	content: string;
 	files: SkillFile[];
+	group?: string | null;
 	/** The revision the editor loaded; required on update, refused when stale. */
 	revision?: number;
 }

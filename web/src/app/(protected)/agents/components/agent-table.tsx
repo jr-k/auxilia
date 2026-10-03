@@ -12,12 +12,9 @@ import { UserAvatar } from "@/components/ui/user-avatar";
 import { cn } from "@/lib/utils";
 import { AgentAvatar } from "@/components/ui/agent-avatar";
 import { mcpServerImageUrl } from "@/lib/api/resources/mcp-servers";
+import { buildGroupTree } from "@/lib/groups";
 
 const MAX_INLINE_AVATARS = 3;
-
-// Agents with no tag are collected under this trailing pseudo-group
-// (mirrors the card grid's tag sections).
-const NO_TAG_ID = "__none__";
 
 const ROLE_BADGES: Record<AgentPermission, { label: string; className: string }> = {
 	owner: { label: "Owner", className: "bg-success-bg text-success" },
@@ -40,9 +37,7 @@ interface AgentTableProps {
 	onRemoved?: (agentId: string) => void;
 }
 
-/** Design 7a agents table on the shared DataTable: teal mono names, favicon
- * and subagent chips, owner, role badge, tag-grouped subheaders; the body
- * caps at the page height and scrolls internally. */
+/** Agents table with slash-delimited, collapsible group rows. */
 export default function AgentTable({
 	agents,
 	archived = false,
@@ -53,40 +48,7 @@ export default function AgentTable({
 	const [archivedAgent, setArchivedAgent] = useState<Agent | null>(null);
 	const [forbiddenOpen, setForbiddenOpen] = useState(false);
 
-	// Group by tag like the card grid: tags alphabetically, untagged agents
-	// under a trailing "Others" group. Rows are flattened in group order so
-	// the table's subheaders line up with pagination slices.
-	const { orderedAgents, groupMeta } = useMemo(() => {
-		const byTag = new Map<string, { label: string; items: Agent[] }>();
-		const untagged: Agent[] = [];
-		for (const agent of agents) {
-			if (!agent.tag) {
-				untagged.push(agent);
-				continue;
-			}
-			const existing = byTag.get(agent.tag.id);
-			if (existing) existing.items.push(agent);
-			else byTag.set(agent.tag.id, { label: agent.tag.name, items: [agent] });
-		}
-		const ordered = [...byTag.entries()].sort(([, a], [, b]) =>
-			a.label.localeCompare(b.label),
-		);
-		if (untagged.length > 0) {
-			ordered.push([NO_TAG_ID, { label: "Others", items: untagged }]);
-		}
-		return {
-			orderedAgents: ordered.flatMap(([, group]) => group.items),
-			groupMeta: new Map(
-				ordered.map(([id, group]) => [
-					id,
-					{ label: group.label, count: group.items.length },
-				]),
-			),
-		};
-	}, [agents]);
-
-	// A lone "Others" group means tags aren't in use — headers would be noise.
-	const showGroups = !(groupMeta.size === 1 && groupMeta.has(NO_TAG_ID));
+	const groupTree = useMemo(() => buildGroupTree(agents), [agents]);
 
 	const serverInfo = (serverId: string) => {
 		const full = mcpServers.find((m) => m.id === serverId);
@@ -285,31 +247,15 @@ export default function AgentTable({
 		<>
 			<DataTable
 				columns={columns}
-				rows={orderedAgents}
+				rows={agents}
 				rowKey={(agent) => agent.id}
 				onRowClick={handleRowClick}
 				emptyMessage="No agents here."
 				scrollBody
-				groupBy={
-					showGroups
-						? {
-								key: (agent) => agent.tag?.id ?? NO_TAG_ID,
-								header: (key) => {
-									const group = groupMeta.get(key);
-									return (
-										<>
-											<span className="text-[10px] font-semibold text-subtle dark:text-panel-dim">
-												{group?.label}
-											</span>
-											<span className="ml-2 font-mono text-[10.5px] text-meta dark:text-panel-dim">
-												{group?.count}
-											</span>
-										</>
-									);
-								},
-							}
-						: undefined
-				}
+				groupTree={{
+					...groupTree,
+					storageKey: "agents:table-group",
+				}}
 			/>
 
 			{archivedAgent && archived && (

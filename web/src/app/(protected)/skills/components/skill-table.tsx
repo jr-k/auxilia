@@ -1,10 +1,14 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { GitCompareArrows, Pencil, PencilLine, Trash2, Unplug } from "lucide-react";
 import { AgentAvatar } from "@/components/ui/agent-avatar";
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import { DropdownMenu } from "@/components/ui/dropdown-menu";
+import { GroupedCardTree } from "@/components/ui/grouped-card-tree";
+import type { ViewMode } from "@/components/ui/view-toggle";
+import { buildGroupTree } from "@/lib/groups";
 import type { BoundAgent } from "@/types/agents";
 import { isDetached, isSourced, repoLabel, shortRevision, type SkillSummary } from "@/types/skills";
 import { relativeTime } from "../lib/relative-time";
@@ -12,6 +16,7 @@ import { SkillRequirementChip } from "./skill-requirement-chip";
 import { SourceHostTile } from "./source-host-tile";
 
 interface SkillTableProps {
+	mode: ViewMode;
 	skills: SkillSummary[];
 	isLoading: boolean;
 	search: string;
@@ -132,6 +137,7 @@ function SourceCell({ skill }: { skill: SkillSummary }) {
 }
 
 export default function SkillTable({
+	mode,
 	skills,
 	isLoading,
 	search,
@@ -139,6 +145,7 @@ export default function SkillTable({
 	onDelete,
 }: SkillTableProps) {
 	const router = useRouter();
+	const groupTree = buildGroupTree(skills);
 
 	const columns: DataTableColumn<SkillSummary>[] = [
 		{
@@ -233,10 +240,14 @@ export default function SkillTable({
 					<DropdownMenu
 						items={[
 							{
-								label: skill.canEdit ? "Edit" : "Open",
+								label: skill.canEdit || skill.canManage ? "Edit" : "Open",
 								icon: <Pencil />,
 								onClick: () => {
-									router.push(`/skills/${skill.id}${skill.canEdit ? "?edit=1" : ""}`);
+									router.push(
+										`/skills/${skill.id}${
+											skill.canEdit || skill.canManage ? "?edit=1" : ""
+										}`,
+									);
 								},
 							},
 							...(skill.updateAvailable
@@ -270,6 +281,136 @@ export default function SkillTable({
 		},
 	];
 
+	if (mode === "cards") {
+		if (isLoading) return null;
+		if (skills.length === 0) {
+			return (
+				<div className="flex min-h-48 items-center justify-center rounded-[10px] border border-dashed border-border px-6 text-center text-[13px] text-subtle">
+					{search ? (
+						<span>
+							No skill matches “{search}”.{" "}
+							<button
+								type="button"
+								onClick={onClearSearch}
+								className="cursor-pointer font-semibold text-petrol hover:underline"
+							>
+								Clear search
+							</button>
+						</span>
+					) : (
+						"No skills yet."
+					)}
+				</div>
+			);
+		}
+
+		return (
+			<GroupedCardTree
+				tree={groupTree}
+				storageKey="skills:card-group"
+				renderItem={(skill, index) => (
+					<article
+						key={skill.id}
+						className="group relative flex min-h-[200px] animate-in flex-col rounded-xl border border-[#e1ebe6] bg-white p-4 fade-in slide-in-from-bottom-3 transition-[border-color,box-shadow] duration-400 ease-out hover:border-[#cfe0d8] hover:shadow-[0_3px_10px_rgba(30,45,40,0.06)] dark:border-white/10 dark:bg-card dark:hover:border-white/20"
+						style={{
+							animationDelay: `${index * 40}ms`,
+							animationFillMode: "both",
+						}}
+					>
+						<Link
+							href={`/skills/${skill.id}`}
+							className="absolute inset-0 rounded-xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-petrol"
+						>
+							<span className="sr-only">Open {skill.name}</span>
+						</Link>
+						<div className="pointer-events-none flex min-w-0 items-start justify-between gap-2">
+							<div className="min-w-0">
+								<h2 className="truncate font-mono text-[13.5px] font-semibold text-petrol">
+									{skill.name}
+								</h2>
+								<div className="mt-2">
+									<SourceCell skill={skill} />
+								</div>
+							</div>
+							<div className="flex shrink-0 flex-wrap justify-end gap-1">
+								{skill.updateAvailable && (
+									<span className="rounded-[4px] bg-warning-bg px-1.5 py-px text-[9px] font-semibold text-warning">
+										Update
+									</span>
+								)}
+								{skill.missingUpstream && (
+									<span className="rounded-[4px] bg-neutral-bg px-1.5 py-px text-[9px] font-semibold text-subtle dark:bg-white/10">
+										Gone upstream
+									</span>
+								)}
+							</div>
+						</div>
+						<p className="pointer-events-none mt-3 line-clamp-3 min-h-[57px] flex-1 text-[12.5px] leading-[1.5] text-subtle dark:text-muted-foreground">
+							{skill.description}
+						</p>
+						<div className="pointer-events-none mt-3 flex items-center justify-between border-t border-[#edf2ef] pt-3 dark:border-white/5">
+							<div>
+								{skill.scriptCount > 0 ? (
+									<SkillRequirementChip scriptCount={skill.scriptCount} />
+								) : (
+									<span className="text-[11px] text-ghost dark:text-panel-dim">
+										Instructions only
+									</span>
+								)}
+							</div>
+							<UsedByAvatars agents={skill.agents} />
+						</div>
+						<div className="relative z-10 mt-3 flex items-center justify-between">
+							<span className="pointer-events-none font-mono text-[10.5px] text-meta dark:text-panel-dim">
+								Updated {relativeTime(skill.updatedAt)}
+							</span>
+							<DropdownMenu
+								items={[
+									{
+										label:
+											skill.canEdit || skill.canManage ? "Edit" : "Open",
+										icon: <Pencil />,
+										onClick: () => {
+											router.push(
+												`/skills/${skill.id}${
+													skill.canEdit || skill.canManage ? "?edit=1" : ""
+												}`,
+											);
+										},
+									},
+									...(skill.updateAvailable
+										? [
+												{
+													label: "Review update",
+													icon: <GitCompareArrows />,
+													onClick: () => {
+														router.push(`/skills/${skill.id}?review=1`);
+													},
+												},
+											]
+										: []),
+									...(skill.canManage
+										? [
+												{ separator: true as const },
+												{
+													label: "Delete skill",
+													icon: <Trash2 />,
+													destructive: true,
+													onClick: () => {
+														onDelete(skill);
+													},
+												},
+											]
+										: []),
+								]}
+							/>
+						</div>
+					</article>
+				)}
+			/>
+		);
+	}
+
 	return (
 		<DataTable
 			columns={columns}
@@ -277,6 +418,10 @@ export default function SkillTable({
 			rowKey={(skill) => skill.id}
 			isLoading={isLoading}
 			scrollBody
+			groupTree={{
+				...groupTree,
+				storageKey: "skills:table-group",
+			}}
 			onRowClick={(skill) => {
 				router.push(`/skills/${skill.id}`);
 			}}

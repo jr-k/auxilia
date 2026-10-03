@@ -112,6 +112,7 @@ class SkillDB(BaseDBModel, table=True):
     owner_id: UUID = Field(foreign_key="users.id", ondelete="CASCADE", index=True)
     name: str = Field(max_length=64, index=True, unique=True)
     description: str = Field(max_length=1024)
+    group: str | None = Field(default=None, max_length=255, nullable=True, index=True)
     content: str = Field(sa_column=Column(Text, nullable=False))
     # JSONB on Postgres; plain JSON elsewhere (the test suite runs on SQLite).
     files: list = Field(

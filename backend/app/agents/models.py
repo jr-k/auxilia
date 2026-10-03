@@ -104,6 +104,7 @@ class AgentBase(SQLModel):
     description: str | None = Field(
         default=None, max_length=255, sa_column=Column(String(255), nullable=True)
     )
+    group: str | None = Field(default=None, max_length=255, nullable=True, index=True)
 
 
 class AgentDB(AgentBase, BaseDBModel, table=True):
@@ -112,13 +113,6 @@ class AgentDB(AgentBase, BaseDBModel, table=True):
     is_archived: bool = Field(
         default=False,
         sa_column=Column(Boolean, nullable=False, server_default="false"),
-    )
-    tag_id: UUID | None = Field(
-        default=None,
-        foreign_key="tags.id",
-        ondelete="SET NULL",
-        index=True,
-        nullable=True,
     )
     image_revision: UUID | None = Field(default=None, nullable=True)
 

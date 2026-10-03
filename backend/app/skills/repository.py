@@ -103,6 +103,7 @@ class SkillRepository(BaseRepository[SkillDB]):
             SkillDB.owner_id,
             SkillDB.name,
             SkillDB.description,
+            SkillDB.group,
             SkillDB.revision,
             SkillDB.updated_at,
             json_array_length(SkillDB.files).label("file_count"),

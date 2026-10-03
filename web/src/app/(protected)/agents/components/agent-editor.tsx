@@ -11,7 +11,7 @@ import { Agent } from "@/types/agents";
 import AgentToolList from "../[id]/components/agent-tool-list";
 import AgentSubagentList from "../[id]/components/agent-subagent-list";
 import AgentSkillList from "../[id]/components/agent-skill-list";
-import AgentTagsPanel from "./agent-tags-panel";
+import { GroupPicker } from "@/components/ui/group-picker";
 import AgentPermissionsPanel from "./agent-permissions-panel";
 import { MessageResponse } from "@/components/ai-elements/message";
 import { getApiErrorMessage } from "@/lib/api/errors";
@@ -23,6 +23,7 @@ import { useConfirmDialog } from "@/components/providers/dialog-provider";
 import { DropdownMenu } from "@/components/ui/dropdown-menu";
 import { UnderlineTabs } from "@/components/ui/underline-tabs";
 import { cn } from "@/lib/utils";
+import { groupOptions } from "@/lib/groups";
 import * as agentsApi from "@/lib/api/resources/agents";
 import { AgentAvatar } from "@/components/ui/agent-avatar";
 import {
@@ -37,7 +38,7 @@ import {
 	toPayload,
 } from "../lib/agent-form";
 
-type EditorTab = "instructions" | "tags" | "permissions";
+type EditorTab = "instructions" | "permissions";
 
 const slugify = (name: string) =>
 	name.trim().toLowerCase().replace(/\s+/g, "-") || "…";
@@ -69,6 +70,7 @@ export default function AgentEditor({
 	const saveAgentConfig = useAgentsStore((state) => state.saveAgentConfig);
 	const refreshAgent = useAgentsStore((state) => state.refreshAgent);
 	const archiveAgent = useAgentsStore((state) => state.archiveAgent);
+	const workspaceAgents = useAgentsStore((state) => state.agents);
 	const markAgentArchived = useThreadsStore((state) => state.markAgentArchived);
 	const user = useUserStore((state) => state.user);
 	const isAdmin = user?.role === "admin";
@@ -78,8 +80,6 @@ export default function AgentEditor({
 		agent?.currentUserPermission === "owner" ||
 		agent?.currentUserPermission === "admin";
 
-	// Tag assignment is an instant action (own PATCH, not part of the config
-	// draft), so it stays available to editors even in read mode.
 	const canEditAgent =
 		!agent ||
 		canManageAgent ||
@@ -92,6 +92,10 @@ export default function AgentEditor({
 		[agent],
 	);
 	const [form, setForm] = useState<AgentFormState>(initialForm);
+	const availableGroups = useMemo(
+		() => groupOptions(workspaceAgents),
+		[workspaceAgents],
+	);
 	// Enabled skills whose scripts need the sandbox — the tool list warns
 	// before the sandbox is removed while any exist.
 	const scriptSkillNames = useMemo(
@@ -143,8 +147,6 @@ export default function AgentEditor({
 
 	const tabs: { key: EditorTab; label: string }[] = [
 		{ key: "instructions", label: "Instructions" },
-		// Tags/permissions act on the saved agent — they appear once it exists.
-		...(agent ? [{ key: "tags" as const, label: "Tags" }] : []),
 		...(agent && canManageAgent
 			? [{ key: "permissions" as const, label: "Permissions" }]
 			: []),
@@ -512,6 +514,13 @@ export default function AgentEditor({
 										"text-[13px] font-medium text-body dark:text-panel-body",
 									)}
 								/>
+								<GroupPicker
+									value={form.group}
+									groups={availableGroups}
+									onChange={(group) => {
+										setField("group", group);
+									}}
+								/>
 							</div>
 						)}
 					</div>
@@ -549,9 +558,6 @@ export default function AgentEditor({
 									className="min-h-[300px] w-full flex-1 resize-none rounded-lg border border-input bg-sidebar p-4 text-[12.5px] leading-[1.7] text-foreground outline-none transition-[border-color,box-shadow] placeholder:text-meta dark:placeholder:text-panel-dim focus:border-petrol focus:shadow-[0_0_0_3px_rgba(22,96,110,0.10)] [scrollbar-width:thin]"
 								/>
 							))}
-						{tab === "tags" && agent && (
-							<AgentTagsPanel agent={agent} canAssign={canEditAgent} />
-						)}
 						{tab === "permissions" && agent && canManageAgent && (
 							<AgentPermissionsPanel
 								agentId={agent.id}

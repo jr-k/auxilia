@@ -17,7 +17,6 @@ from app.runtime.runs import models as run_models  # noqa: F401
 from app.sandbox import models as sandbox_models  # noqa: F401
 from app.settings import app_settings
 from app.skills import models as skill_models  # noqa: F401
-from app.tags import models as tag_models  # noqa: F401
 from app.teams import models as team_models  # noqa: F401
 from app.threads import models as thread_models  # noqa: F401
 from app.triggers import models as trigger_models  # noqa: F401

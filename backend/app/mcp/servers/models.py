@@ -19,6 +19,7 @@ class MCPServerBase(SQLModel):
     auth_type: MCPAuthType = Field(default=MCPAuthType.none)
     icon_url: str | None = Field(default=None)
     description: str | None = Field(default=None)
+    group: str | None = Field(default=None, max_length=255, nullable=True, index=True)
 
 
 class MCPServerDB(MCPServerBase, BaseDBModel, table=True):

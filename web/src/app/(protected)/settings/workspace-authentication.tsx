@@ -75,6 +75,35 @@ export default function WorkspaceAuthentication({ onForbidden }: Props) {
 		}
 	};
 
+	const toggleEnabled = async (checked: boolean) => {
+		setEnabled(checked);
+		setStatus(null);
+		if (checked && !settings.isConfigured) return;
+
+		setSaving(true);
+		try {
+			const updated = await authApi.updateWorkspaceAuthentication({
+				enabled: checked,
+				googleExclusive: checked && exclusive,
+			});
+			setSettings(updated);
+			setExclusive(updated.googleExclusive);
+			setStatus(
+				checked ? "Google authentication enabled." : "Google authentication disabled.",
+			);
+		} catch (error: unknown) {
+			setEnabled(!checked);
+			if (isApiError(error) && error.status === 403) onForbidden();
+			setStatus(
+				isApiError(error) && error.detail
+					? error.detail
+					: "Could not update authentication settings.",
+			);
+		} finally {
+			setSaving(false);
+		}
+	};
+
 	return (
 		<div>
 			<div className="mb-1.5 flex items-baseline gap-2.5">
@@ -102,68 +131,86 @@ export default function WorkspaceAuthentication({ onForbidden }: Props) {
 						</div>
 						<Switch
 							checked={enabled}
-							onCheckedChange={setEnabled}
+							disabled={saving}
+							onCheckedChange={(checked) => {
+								void toggleEnabled(checked);
+							}}
 							className="cursor-pointer data-[state=checked]:bg-petrol"
 						/>
 					</div>
-					<label className="block">
-						<span className={labelClass}>Client ID</span>
-						<Input
-							value={clientId}
-							onChange={(event) => {
-								setClientId(event.target.value);
-							}}
-							placeholder={
-								settings.isConfigured ? "Leave blank to keep current" : ""
-							}
-						/>
-					</label>
-					<label className="block">
-						<span className={labelClass}>Client secret</span>
-						<Input
-							type="password"
-							value={clientSecret}
-							onChange={(event) => {
-								setClientSecret(event.target.value);
-							}}
-							placeholder={
-								settings.isConfigured ? "Leave blank to keep current" : ""
-							}
-						/>
-					</label>
-					<label className="block">
-						<span className={labelClass}>Authorized redirect URI</span>
-						<Input readOnly value={settings.callbackUrl} className="font-mono" />
-					</label>
-					<div className="flex items-center justify-between gap-4 border-t border-hairline pt-4">
-						<div>
-							<div className="text-[13px] font-semibold text-foreground">
-								Google-only authentication
+					{enabled && (
+						<>
+							<label className="block">
+								<span className={labelClass}>Client ID</span>
+								<Input
+									value={clientId}
+									onChange={(event) => {
+										setClientId(event.target.value);
+									}}
+									placeholder={
+										settings.isConfigured
+											? "Leave blank to keep current"
+											: ""
+									}
+								/>
+							</label>
+							<label className="block">
+								<span className={labelClass}>Client secret</span>
+								<Input
+									type="password"
+									value={clientSecret}
+									onChange={(event) => {
+										setClientSecret(event.target.value);
+									}}
+									placeholder={
+										settings.isConfigured
+											? "Leave blank to keep current"
+											: ""
+									}
+								/>
+							</label>
+							<label className="block">
+								<span className={labelClass}>Authorized redirect URI</span>
+								<Input
+									readOnly
+									value={settings.callbackUrl}
+									className="font-mono"
+								/>
+							</label>
+							<div className="flex items-center justify-between gap-4 border-t border-hairline pt-4">
+								<div>
+									<div className="text-[13px] font-semibold text-foreground">
+										Google-only authentication
+									</div>
+									<div className="text-[11.5px] text-meta">
+										Disable password sign-in and invite acceptance.
+									</div>
+								</div>
+								<Switch
+									checked={exclusive}
+									onCheckedChange={setExclusive}
+									className="cursor-pointer data-[state=checked]:bg-petrol"
+								/>
 							</div>
-							<div className="text-[11.5px] text-meta">
-								Disable password sign-in and invite acceptance.
-							</div>
-						</div>
-						<Switch
-							checked={exclusive}
-							disabled={!enabled}
-							onCheckedChange={setExclusive}
-							className="cursor-pointer data-[state=checked]:bg-petrol"
-						/>
+						</>
+					)}
+				</div>
+				{enabled && (
+					<div className="flex items-center gap-3 border-t border-hairline px-4 py-3">
+						<HeaderButton
+							accent
+							disabled={saving}
+							onClick={() => {
+								void save();
+							}}
+						>
+							{saving ? "Saving…" : "Save changes"}
+						</HeaderButton>
+						{status && (
+							<span className="text-[12px] text-subtle">{status}</span>
+						)}
 					</div>
-				</div>
-				<div className="flex items-center gap-3 border-t border-hairline px-4 py-3">
-					<HeaderButton
-						accent
-						disabled={saving}
-						onClick={() => {
-							void save();
-						}}
-					>
-						{saving ? "Saving…" : "Save changes"}
-					</HeaderButton>
-					{status && <span className="text-[12px] text-subtle">{status}</span>}
-				</div>
+				)}
 			</div>
 		</div>
 	);

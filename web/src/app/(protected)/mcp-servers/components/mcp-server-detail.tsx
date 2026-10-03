@@ -9,9 +9,11 @@ import { useConfirmDialog } from "@/components/providers/dialog-provider";
 import { useDeleteMcpServer } from "@/hooks/use-delete-mcp-server";
 import { Alert } from "@/components/ui/alert";
 import { DropdownMenu } from "@/components/ui/dropdown-menu";
+import { GroupPicker } from "@/components/ui/group-picker";
 import { ImageUpload } from "@/components/ui/image-upload";
 import * as mcpServersApi from "@/lib/api/resources/mcp-servers";
 import { getApiErrorMessage } from "@/lib/api/errors";
+import { groupOptions } from "@/lib/groups";
 import { useMcpServersStore } from "@/stores/mcp-servers-store";
 import { useUserStore } from "@/stores/user-store";
 import {
@@ -47,6 +49,7 @@ interface EditFormValues {
 	url: string;
 	iconUrl: string;
 	description: string;
+	group: string;
 	apiKey: string;
 	oauthClientId: string;
 	oauthClientSecret: string;
@@ -58,6 +61,7 @@ function formFromServer(server: MCPServer): EditFormValues {
 		url: server.url,
 		iconUrl: server.iconUrl ?? "",
 		description: server.description ?? "",
+		group: server.group ?? "",
 		apiKey: "",
 		// client_id is a public identifier — prefill it so it's editable; the
 		// secret is write-only and stays blank ("leave blank to keep").
@@ -103,7 +107,8 @@ export default function MCPServerDetail({
 	const confirmDialog = useConfirmDialog();
 	const user = useUserStore((state) => state.user);
 	const isAdmin = user?.role === "admin";
-	const { updateMcpServer, resetMcpServerConnections } = useMcpServersStore();
+	const { mcpServers, updateMcpServer, resetMcpServerConnections } =
+		useMcpServersStore();
 
 	const [server, setServer] = useState<MCPServer>(initialServer);
 	const [isEditing, setIsEditing] = useState(initialEdit);
@@ -253,6 +258,7 @@ export default function MCPServerDetail({
 				// Explicit null clears the stored value — undefined would be
 				// dropped from the PATCH and silently keep the old one.
 				description: form.description.trim() ? form.description : null,
+				group: form.group || null,
 				iconUrl: form.iconUrl.trim() ? form.iconUrl : null,
 				// Credentials are sent only when the field was filled in; a blank
 				// field keeps the stored secret untouched.
@@ -618,6 +624,13 @@ export default function MCPServerDetail({
 									className={`${INPUT_CLASS} resize-none leading-[1.55]`}
 								/>
 							</div>
+							<GroupPicker
+								value={form.group}
+								groups={groupOptions(mcpServers)}
+								onChange={(group) => {
+									handleFormChange("group", group);
+								}}
+							/>
 							<div className="flex flex-col gap-1">
 								<span className={LABEL_CLASS}>Authentication method</span>
 								<span className="text-[13.5px] text-subtle dark:text-panel-body">

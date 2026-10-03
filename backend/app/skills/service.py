@@ -86,7 +86,7 @@ class SkillService(BaseService[SkillDB, SkillRepository]):
         await self._name_is_free(bundle.name)
         try:
             row = await self.repository.create(
-                SkillCreateDB(owner_id=user.id, **_columns(bundle))
+                SkillCreateDB(owner_id=user.id, group=data.group, **_columns(bundle))
             )
         except IntegrityError as exc:
             raise _name_taken(bundle.name) from exc
@@ -95,15 +95,19 @@ class SkillService(BaseService[SkillDB, SkillRepository]):
     async def update(
         self, skill_id: UUID, data: SkillSave, user: UserDB
     ) -> SkillResponse:
-        _reject_files(data)
         bundle = parse_skill(data.content, data.files)
         row = await self._editable(skill_id, user)
-        if _is_sourced(row.source_revision):
-            raise DomainValidationError(_repository_owns(row))
         if data.revision != row.revision:
             raise StaleRevisionError(
                 "This skill changed since you opened it. Reload it before saving."
             )
+        if _is_sourced(row.source_revision):
+            current = row.to_bundle()
+            if bundle.content != current.content or bundle.files != current.files:
+                raise DomainValidationError(_repository_owns(row))
+            row.group = data.group
+            return await self._response(await self._flush(row), user)
+        _reject_files(data)
         if bundle.name != row.name:
             await self._name_is_free(bundle.name)
             if await self.repository.is_attached(row.id):
@@ -113,7 +117,13 @@ class SkillService(BaseService[SkillDB, SkillRepository]):
                 raise DomainValidationError(
                     "Disable this skill on every agent before renaming it"
                 )
-        row.sqlmodel_update({**_columns(bundle), "revision": row.revision + 1})
+        row.sqlmodel_update(
+            {
+                **_columns(bundle),
+                "group": data.group,
+                "revision": row.revision + 1,
+            }
+        )
         return await self._response(await self._flush(row), user)
 
     async def delete(self, skill_id: UUID, user: UserDB) -> None:
@@ -254,6 +264,7 @@ class SkillService(BaseService[SkillDB, SkillRepository]):
             owner_id=row.owner_id,
             name=bundle.name,
             description=bundle.description,
+            group=row.group,
             revision=row.revision,
             file_count=len(bundle.files),
             script_count=count_scripts(bundle.files),

@@ -25,6 +25,7 @@ import {
 	Sun,
 	PanelLeftOpen,
 	UserRound,
+	Info,
 	type LucideIcon,
 } from "lucide-react";
 import {
@@ -57,6 +58,7 @@ import { useActiveRunThreadIds } from "@/hooks/use-active-runs";
 import { AgentAvatar } from "@/components/ui/agent-avatar";
 import { UserAvatar } from "@/components/ui/user-avatar";
 import { RenameThreadDialog } from "@/components/layout/app-sidebar/rename-thread-dialog";
+import { AboutDialog } from "@/components/layout/app-sidebar/about-dialog";
 import { Thread } from "@/types/threads";
 import { useTheme } from "next-themes";
 
@@ -144,6 +146,7 @@ export function AppSidebar() {
 	const { resolvedTheme, setTheme } = useTheme();
 	const { toggleSidebar } = useSidebar();
 	const [renamingThread, setRenamingThread] = useState<Thread | null>(null);
+	const [aboutOpen, setAboutOpen] = useState(false);
 	const activeRunThreadIds = useActiveRunThreadIds(threads);
 	const appearance = useAppearanceStore((state) => state.appearance);
 
@@ -568,6 +571,13 @@ export function AppSidebar() {
 											setTheme(resolvedTheme === "dark" ? "light" : "dark");
 										},
 									},
+									{
+										label: "About",
+										icon: <Info />,
+										onClick: () => {
+											setAboutOpen(true);
+										},
+									},
 									{ separator: true },
 									{
 										label: "Log out",
@@ -587,6 +597,7 @@ export function AppSidebar() {
 					if (!open) setRenamingThread(null);
 				}}
 			/>
+			<AboutDialog open={aboutOpen} onOpenChange={setAboutOpen} />
 		</>
 	);
 }

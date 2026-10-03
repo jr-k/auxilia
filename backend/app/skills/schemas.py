@@ -31,6 +31,15 @@ NAME_PATTERN = r"^[a-z0-9]+(?:-[a-z0-9]+)*$"
 _PATH_CHARS = re.compile(r"[A-Za-z0-9_.\-/]+")
 
 
+def _normalize_group(value: str | None) -> str | None:
+    if value is None:
+        return None
+    normalized = "/".join(part.strip() for part in value.split("/") if part.strip())
+    if len(normalized) > 255:
+        raise ValueError("group must be at most 255 characters")
+    return normalized or None
+
+
 class SkillFile(BaseModel):
     """A supporting file, relative to the skill folder. Text is stored as-is,
     binaries base64-encoded (`encoding` says which)."""
@@ -107,7 +116,13 @@ class SkillSave(BaseModel):
 
     content: str = Field(min_length=1, max_length=110_000)
     files: list[SkillFile] = Field(default_factory=list, max_length=MAX_FILES)
+    group: str | None = None
     revision: int | None = None
+
+    @field_validator("group")
+    @classmethod
+    def normalize_group(cls, value: str | None) -> str | None:
+        return _normalize_group(value)
 
 
 class SkillCreateDB(SQLModel):
@@ -117,6 +132,7 @@ class SkillCreateDB(SQLModel):
     owner_id: UUID
     name: str
     description: str
+    group: str | None = None
     content: str
     files: list[dict]
     digest: str | None = None
@@ -160,6 +176,7 @@ class SkillSummary(BaseModel):
     owner_id: UUID
     name: str
     description: str
+    group: str | None = None
     revision: int
     file_count: int
     script_count: int

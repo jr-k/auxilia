@@ -78,6 +78,35 @@ export default function WorkspaceObservability({ onForbidden }: Props) {
 		}
 	};
 
+	const toggleEnabled = async (checked: boolean) => {
+		setEnabled(checked);
+		setStatus(null);
+		if (checked && !settings.isConfigured) return;
+
+		setSaving(true);
+		try {
+			const updated = await observabilityApi.updateObservabilitySettings({
+				enabled: checked,
+				baseUrl: baseUrl.trim(),
+				timeoutSeconds: timeout,
+			});
+			setSettings(updated);
+			setStatus(
+				checked ? "Observability enabled." : "Observability disabled.",
+			);
+		} catch (error: unknown) {
+			setEnabled(!checked);
+			if (isApiError(error) && error.status === 403) onForbidden();
+			setStatus(
+				isApiError(error) && error.detail
+					? error.detail
+					: "Could not update observability settings.",
+			);
+		} finally {
+			setSaving(false);
+		}
+	};
+
 	return (
 		<div>
 			<div className="mb-1.5 flex items-baseline gap-2.5">
@@ -104,73 +133,88 @@ export default function WorkspaceObservability({ onForbidden }: Props) {
 						</div>
 						<Switch
 							checked={enabled}
-							onCheckedChange={setEnabled}
+							disabled={saving}
+							onCheckedChange={(checked) => {
+								void toggleEnabled(checked);
+							}}
 							className="cursor-pointer data-[state=checked]:bg-petrol"
 						/>
 					</div>
-					<label className="block">
-						<span className={labelClass}>Base URL</span>
-						<Input
-							type="url"
-							value={baseUrl}
-							onChange={(event) => {
-								setBaseUrl(event.target.value);
+					{enabled && (
+						<>
+							<label className="block">
+								<span className={labelClass}>Base URL</span>
+								<Input
+									type="url"
+									value={baseUrl}
+									onChange={(event) => {
+										setBaseUrl(event.target.value);
+									}}
+								/>
+							</label>
+							<div className="grid gap-4 sm:grid-cols-2">
+								<label className="block">
+									<span className={labelClass}>Public key</span>
+									<Input
+										type="password"
+										value={publicKey}
+										onChange={(event) => {
+											setPublicKey(event.target.value);
+										}}
+										placeholder={
+											settings.isConfigured
+												? "Leave blank to keep current"
+												: ""
+										}
+									/>
+								</label>
+								<label className="block">
+									<span className={labelClass}>Secret key</span>
+									<Input
+										type="password"
+										value={secretKey}
+										onChange={(event) => {
+											setSecretKey(event.target.value);
+										}}
+										placeholder={
+											settings.isConfigured
+												? "Leave blank to keep current"
+												: ""
+										}
+									/>
+								</label>
+							</div>
+							<label className="block max-w-[180px]">
+								<span className={labelClass}>Timeout in seconds</span>
+								<Input
+									type="number"
+									min={1}
+									max={120}
+									value={timeout}
+									onChange={(event) => {
+										setTimeoutValue(Number(event.target.value));
+									}}
+								/>
+							</label>
+						</>
+					)}
+				</div>
+				{enabled && (
+					<div className="flex items-center gap-3 border-t border-hairline px-4 py-3">
+						<HeaderButton
+							accent
+							disabled={saving}
+							onClick={() => {
+								void save();
 							}}
-						/>
-					</label>
-					<div className="grid gap-4 sm:grid-cols-2">
-						<label className="block">
-							<span className={labelClass}>Public key</span>
-							<Input
-								type="password"
-								value={publicKey}
-								onChange={(event) => {
-									setPublicKey(event.target.value);
-								}}
-								placeholder={
-									settings.isConfigured ? "Leave blank to keep current" : ""
-								}
-							/>
-						</label>
-						<label className="block">
-							<span className={labelClass}>Secret key</span>
-							<Input
-								type="password"
-								value={secretKey}
-								onChange={(event) => {
-									setSecretKey(event.target.value);
-								}}
-								placeholder={
-									settings.isConfigured ? "Leave blank to keep current" : ""
-								}
-							/>
-						</label>
+						>
+							{saving ? "Saving…" : "Save changes"}
+						</HeaderButton>
+						{status && (
+							<span className="text-[12px] text-subtle">{status}</span>
+						)}
 					</div>
-					<label className="block max-w-[180px]">
-						<span className={labelClass}>Timeout in seconds</span>
-						<Input
-							type="number"
-							min={1}
-							max={120}
-							value={timeout}
-							onChange={(event) => {
-								setTimeoutValue(Number(event.target.value));
-							}}
-						/>
-					</label>
-				</div>
-				<div className="flex items-center gap-3 border-t border-hairline px-4 py-3">
-					<HeaderButton
-						accent
-						disabled={saving}
-						onClick={() => {
-							void save();
-						}}
-					>
-						{saving ? "Saving…" : "Save changes"}
-					</HeaderButton>
-					{status && <span className="text-[12px] text-subtle">{status}</span>}
-				</div>
+				)}
 			</div>
 		</div>
 	);

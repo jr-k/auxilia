@@ -38,9 +38,8 @@ class AgentRepository(BaseRepository[AgentDB]):
     def __init__(self, db: AsyncSession):
         super().__init__(AgentDB, db)
 
-    #: The columns the list projection renders (`AgentListResponse`), plus
-    #: `tag_id`, which the service resolves into a `TagInfo`. Everything else
-    #: — `instructions` above all, which runs to tens of KB per agent and is
+    #: The columns the list projection renders (`AgentListResponse`).
+    #: Everything else — `instructions` above all, which runs to tens of KB per agent and is
     #: repeated once per MCP binding by the join — stays in the database
     #: (design review §3.5).
     LIST_COLUMNS = (
@@ -51,8 +50,8 @@ class AgentRepository(BaseRepository[AgentDB]):
         AgentDB.color,
         AgentDB.image_revision,
         AgentDB.description,
+        AgentDB.group,
         AgentDB.is_archived,
-        AgentDB.tag_id,
         AgentDB.created_at,
         AgentDB.updated_at,
     )

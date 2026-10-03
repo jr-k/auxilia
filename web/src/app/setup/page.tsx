@@ -44,7 +44,7 @@ export default function SetupPage() {
 
 		try {
 			await authApi.completeSetup({ email, password, name });
-			router.push("/agents");
+			router.push("/onboarding/models");
 		} catch (err: unknown) {
 			setError(getApiErrorMessage(err, "An error occurred"));
 		} finally {

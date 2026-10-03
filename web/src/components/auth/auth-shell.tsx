@@ -10,18 +10,24 @@ export function AuthShell({
 	title,
 	description,
 	footer,
+	wide = false,
 	children,
 }: {
 	eyebrow: string;
 	title: string;
 	description: string;
 	footer?: React.ReactNode;
+	wide?: boolean;
 	children: React.ReactNode;
 }) {
 	return (
-		<div className="flex min-h-full">
+		<div className={`flex ${wide ? "h-svh overflow-hidden" : "min-h-full"}`}>
 			{/* Left: form */}
-			<div className="flex min-w-0 flex-1 flex-col py-10">
+			<div
+				className={`flex min-w-0 flex-1 flex-col py-10 ${
+					wide ? "h-svh overflow-y-auto" : ""
+				}`}
+			>
 				<div className="flex items-center gap-2.5 px-8 lg:px-14">
 					{/* eslint-disable-next-line @next/next/no-img-element -- local SVG, next/image blocks SVG sources */}
 					<img src="/logo.svg" alt="auxilia" width={25} height={25} />
@@ -32,7 +38,11 @@ export function AuthShell({
 						v{version}
 					</span>
 				</div>
-				<div className="mx-auto flex w-full max-w-[420px] flex-1 flex-col justify-center px-8">
+				<div
+					className={`mx-auto flex w-full flex-1 flex-col px-8 ${
+						wide ? "max-w-[760px]" : "max-w-[420px]"
+					} ${wide ? "justify-start py-10" : "justify-center"}`}
+				>
 					<div className="text-xs font-medium text-petrol">
 						{eyebrow}
 					</div>
@@ -54,7 +64,11 @@ export function AuthShell({
 			</div>
 
 			{/* Right: dark showcase panel */}
-			<div className="relative hidden w-[46%] flex-none flex-col justify-center gap-6 overflow-hidden bg-panel px-14 py-16 lg:flex">
+			<div
+				className={`relative hidden w-[46%] flex-none flex-col justify-center gap-6 overflow-hidden bg-panel px-14 py-16 lg:flex ${
+					wide ? "h-svh" : ""
+				}`}
+			>
 				<div
 					className="absolute inset-0"
 					style={{
