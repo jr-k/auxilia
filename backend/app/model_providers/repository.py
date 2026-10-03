@@ -1,3 +1,4 @@
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
@@ -63,13 +64,22 @@ class ModelProviderCredentialRepository:
         row = result.scalar_one_or_none()
         encrypted = encrypt_value(api_key)
         if row is None:
-            row = ModelProviderCredentialDB(
-                provider=provider,
-                api_key_encrypted=encrypted,
-            )
+            try:
+                async with self.db.begin_nested():
+                    row = ModelProviderCredentialDB(
+                        provider=provider,
+                        api_key_encrypted=encrypted,
+                    )
+                    self.db.add(row)
+                    await self.db.flush()
+            except IntegrityError:
+                result = await self.db.execute(stmt)
+                row = result.scalar_one()
+                row.api_key_encrypted = encrypted
+                self.db.add(row)
         else:
             row.api_key_encrypted = encrypted
-        self.db.add(row)
+            self.db.add(row)
         await self.db.flush()
 
     async def delete_api_key(self, provider: str) -> None:

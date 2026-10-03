@@ -295,7 +295,10 @@ export default function TriggerDetail({ trigger }: TriggerDetailProps) {
 								<EditorSection label="Frequency">
 									<div className="flex items-center rounded-[10px] border border-border bg-card px-4.5 py-[18px]">
 										<span className="text-[15px] font-semibold text-foreground">
-											{describeSchedule(schedule).replace(", ", " at ")}
+											{describeSchedule(schedule).replace(
+												/, (?=[^,]*$)/,
+												" at ",
+											)}
 										</span>
 									</div>
 								</EditorSection>

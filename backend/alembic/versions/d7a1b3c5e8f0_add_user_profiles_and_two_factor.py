@@ -48,7 +48,9 @@ def upgrade() -> None:
             nullable=False,
         ),
     )
-    op.execute("UPDATE users SET first_name = name WHERE name IS NOT NULL")
+    op.execute(
+        "UPDATE users SET first_name = left(name, 100) WHERE name IS NOT NULL"
+    )
 
     op.create_table(
         "user_images",
@@ -74,6 +76,7 @@ def upgrade() -> None:
         sa.Column("user_id", sa.Uuid(), nullable=False),
         sa.Column("secret_encrypted", sa.String(), nullable=False),
         sa.Column("backup_code_hashes", sa.JSON(), nullable=False),
+        sa.Column("last_used_totp_counter", sa.BigInteger(), nullable=True),
         sa.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint("user_id", name="uq_user_two_factor_user_id"),

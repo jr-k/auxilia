@@ -1,5 +1,3 @@
-from urllib.parse import quote
-
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import JSONResponse, RedirectResponse, Response
 
@@ -27,10 +25,11 @@ from app.auth.two_factor import create_scoped_token
 from app.exceptions import NoInviteError
 from app.invites.service import InviteService, get_invite_service
 from app.users.models import UserDB
-from app.users.schemas import UserResponse
+from app.users.schemas import CurrentUserResponse
 
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+TWO_FACTOR_CHALLENGE_COOKIE = "two_factor_challenge"
 
 
 def _attach_auth_cookie(response: Response, token: str) -> None:
@@ -45,8 +44,30 @@ def _attach_auth_cookie(response: Response, token: str) -> None:
     )
 
 
+def _attach_two_factor_cookie(response: Response, token: str) -> None:
+    response.set_cookie(
+        key=TWO_FACTOR_CHALLENGE_COOKIE,
+        value=token,
+        httponly=True,
+        secure=auth_settings.COOKIE_SECURE,
+        samesite=auth_settings.COOKIE_SAMESITE,
+        domain=auth_settings.COOKIE_DOMAIN,
+        max_age=10 * 60,
+    )
+
+
+def _delete_two_factor_cookie(response: Response) -> None:
+    response.delete_cookie(
+        key=TWO_FACTOR_CHALLENGE_COOKIE,
+        httponly=True,
+        secure=auth_settings.COOKIE_SECURE,
+        samesite=auth_settings.COOKIE_SAMESITE,
+        domain=auth_settings.COOKIE_DOMAIN,
+    )
+
+
 def _auth_response(user: UserDB, token: str, status_code: int = 200) -> JSONResponse:
-    user_read = UserResponse.model_validate(user)
+    user_read = CurrentUserResponse.model_validate(user)
     response = JSONResponse(
         status_code=status_code,
         content=user_read.model_dump(mode="json"),
@@ -109,7 +130,7 @@ async def get_setup_status(
     return SetupStatusResponse(setup_required=await service.count_users() == 0)
 
 
-@router.post("/setup", response_model=UserResponse, status_code=201)
+@router.post("/setup", response_model=CurrentUserResponse, status_code=201)
 async def setup(
     signup_data: SignupRequest,
     service: AuthService = Depends(get_auth_service),
@@ -118,28 +139,37 @@ async def setup(
     return _auth_response(user, token, status_code=201)
 
 
-@router.post("/signin", response_model=UserResponse | TwoFactorSigninResponse)
+@router.post("/signin", response_model=CurrentUserResponse | TwoFactorSigninResponse)
 async def signin(
     signin_data: SigninRequest,
     service: AuthService = Depends(get_auth_service),
 ) -> JSONResponse:
     user, token = await service.signin(signin_data)
     if user.two_factor_enabled:
-        return JSONResponse(
-            content=TwoFactorSigninResponse(challenge_token=token).model_dump(
-                mode="json"
-            )
+        response = JSONResponse(
+            content=TwoFactorSigninResponse().model_dump(mode="json")
         )
+        _attach_two_factor_cookie(response, token)
+        return response
     return _auth_response(user, token)
 
 
-@router.post("/signin/two-factor", response_model=UserResponse)
+@router.post("/signin/two-factor", response_model=CurrentUserResponse)
 async def verify_two_factor_signin(
+    request: Request,
     data: TwoFactorSigninVerifyRequest,
     service: AuthService = Depends(get_auth_service),
 ) -> JSONResponse:
-    user, token = await service.verify_two_factor_signin(data)
-    return _auth_response(user, token)
+    challenge = request.cookies.get(TWO_FACTOR_CHALLENGE_COOKIE)
+    if not challenge:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Two-factor challenge has expired",
+        )
+    user, token = await service.verify_two_factor_signin(challenge, data)
+    response = _auth_response(user, token)
+    _delete_two_factor_cookie(response)
+    return response
 
 
 @router.post("/signout", response_model=AuthMessageResponse)
@@ -155,6 +185,7 @@ async def signout() -> JSONResponse:
         samesite=auth_settings.COOKIE_SAMESITE,
         domain=auth_settings.COOKIE_DOMAIN,
     )
+    _delete_two_factor_cookie(response)
     return response
 
 
@@ -180,7 +211,7 @@ async def get_invite_info(
     )
 
 
-@router.post("/invite/accept", response_model=UserResponse, status_code=201)
+@router.post("/invite/accept", response_model=CurrentUserResponse, status_code=201)
 async def accept_invite(
     data: InviteAcceptRequest,
     service: AuthService = Depends(get_auth_service),
@@ -268,13 +299,12 @@ async def google_callback(
 
     if user.two_factor_enabled:
         challenge = create_scoped_token(user.id, "two_factor_signin")
-        return RedirectResponse(
-            url=(
-                f"{auth_settings.FRONTEND_URL}/auth"
-                f"?two_factor_challenge={quote(challenge)}"
-            ),
+        response = RedirectResponse(
+            url=f"{auth_settings.FRONTEND_URL}/auth?two_factor=required",
             status_code=302,
         )
+        _attach_two_factor_cookie(response, challenge)
+        return response
 
     response = RedirectResponse(
         url=f"{auth_settings.FRONTEND_URL}/agents",
@@ -284,8 +314,8 @@ async def google_callback(
     return response
 
 
-@router.get("/me", response_model=UserResponse)
+@router.get("/me", response_model=CurrentUserResponse)
 async def get_me(
     current_user: UserDB = Depends(get_current_user),
-) -> UserResponse:
-    return UserResponse.model_validate(current_user)
+) -> CurrentUserResponse:
+    return CurrentUserResponse.model_validate(current_user)

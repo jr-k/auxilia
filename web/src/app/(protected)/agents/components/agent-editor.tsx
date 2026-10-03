@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import EmojiPicker, { EmojiClickData, Theme } from "emoji-picker-react";
 import { ArchiveIcon, History, Pencil, Play } from "lucide-react";
+import { toast } from "sonner";
 import { AGENT_COLORS } from "@/lib/colors";
 import { useTheme } from "next-themes";
 import { Agent } from "@/types/agents";
@@ -193,13 +194,19 @@ export default function AgentEditor({
 		setIsSaving(true);
 		setError(null);
 		try {
+			let imageUploadFailed = false;
 			let saved: Agent = agent
 				? await saveAgentConfig(agent.id, toPayload(form))
 				: await createAgent(toPayload(form));
 			if (imageFile) {
-				const revision = await agentsApi.uploadAgentImage(saved.id, imageFile);
-				saved = { ...saved, imageRevision: revision };
-				updateAgent(saved.id, saved);
+				try {
+					const revision = await agentsApi.uploadAgentImage(saved.id, imageFile);
+					saved = { ...saved, imageRevision: revision };
+					updateAgent(saved.id, saved);
+				} catch (imageError) {
+					if (agent) throw imageError;
+					imageUploadFailed = true;
+				}
 			} else if (removeImage && saved.imageRevision) {
 				await agentsApi.deleteAgentImage(saved.id);
 				saved = { ...saved, imageRevision: null };
@@ -216,6 +223,9 @@ export default function AgentEditor({
 			// Supervisor links changed: the linked agents' `isSubagent` flag did too.
 			await Promise.all(affected.map((id) => refreshAgent(id).catch(() => {})));
 
+			if (imageUploadFailed) {
+				toast.warning("Agent created, but its image could not be uploaded.");
+			}
 			onSaved(saved);
 		} catch (err) {
 			setError(getApiErrorMessage(err, "Failed to save the agent."));

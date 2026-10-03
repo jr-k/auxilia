@@ -14,7 +14,7 @@ from app.auth.two_factor import (
     generate_backup_codes,
     generate_totp_secret,
     hash_backup_code,
-    verify_totp,
+    matching_totp_counter,
 )
 from app.auth.utils import get_password_hash, verify_password
 from app.database import get_db
@@ -142,19 +142,24 @@ class UserService(BaseService[UserDB, UserRepository]):
     async def confirm_two_factor_setup(
         self, user: UserDB, data: TwoFactorConfirmRequest
     ) -> BackupCodesResponse:
-        if user.two_factor_enabled:
-            raise DomainValidationError("Two-factor authentication is already enabled")
         decoded = decode_scoped_token(data.setup_token, "two_factor_setup")
-        if decoded is None or decoded[0] != user.id or not decoded[1]:
+        if decoded is None or decoded.user_id != user.id or not decoded.secret:
             raise DomainValidationError("Two-factor setup has expired")
-        secret = decoded[1]
-        if not verify_totp(secret, data.code):
+        locked_user = await self.repository.get_for_update(user.id)
+        if locked_user is None:
+            raise NotFoundError(self.not_found_message)
+        if locked_user.two_factor_enabled:
+            raise DomainValidationError("Two-factor authentication is already enabled")
+        secret = decoded.secret
+        counter = matching_totp_counter(secret, data.code)
+        if counter is None:
             raise InvalidCredentialsError("Invalid authentication code")
         backup_codes = generate_backup_codes()
         await self.repository.set_two_factor(
             user.id,
             secret_encrypted=encrypt_value(secret),
             backup_code_hashes=[hash_backup_code(code) for code in backup_codes],
+            last_used_totp_counter=counter,
         )
         return BackupCodesResponse(backup_codes=backup_codes)
 
@@ -182,7 +187,14 @@ class UserService(BaseService[UserDB, UserRepository]):
         if two_factor is None:
             raise InvalidCredentialsError("Two-factor authentication is not enabled")
         secret = decrypt_value(two_factor.secret_encrypted)
-        if verify_totp(secret, code):
+        counter = matching_totp_counter(secret, code)
+        if counter is not None and (
+            two_factor.last_used_totp_counter is None
+            or counter > two_factor.last_used_totp_counter
+        ):
+            two_factor.last_used_totp_counter = counter
+            self.db.add(two_factor)
+            await self.db.flush()
             return two_factor
         backup_index = find_backup_code(code, two_factor.backup_code_hashes)
         if backup_index is None:

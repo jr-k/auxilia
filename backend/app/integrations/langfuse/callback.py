@@ -12,6 +12,7 @@ thread per run.
 """
 
 import logging
+from dataclasses import dataclass
 
 from langfuse import Langfuse
 from langfuse.langchain import CallbackHandler
@@ -21,7 +22,35 @@ from app.observability.service import ObservabilityRuntimeConfig
 
 logger = logging.getLogger(__name__)
 
-_clients: dict[str, tuple[Langfuse, CallbackHandler]] = {}
+
+@dataclass
+class _ClientEntry:
+    client: Langfuse
+    handler: CallbackHandler
+    leases: int = 0
+    retired: bool = False
+
+
+@dataclass
+class LangfuseLease:
+    fingerprint: str
+    handler: CallbackHandler
+    _released: bool = False
+
+    def release(self) -> None:
+        if self._released:
+            return
+        self._released = True
+        entry = _clients.get(self.fingerprint)
+        if entry is None:
+            return
+        entry.leases = max(entry.leases - 1, 0)
+        if entry.retired and entry.leases == 0:
+            _shutdown_entry(self.fingerprint, entry)
+
+
+_clients: dict[str, _ClientEntry] = {}
+_current_fingerprint: str | None = None
 
 
 def _build_langfuse(
@@ -36,20 +65,57 @@ def _build_langfuse(
     return client, CallbackHandler(public_key=config.public_key)
 
 
+def _shutdown_entry(fingerprint: str, entry: _ClientEntry) -> None:
+    try:
+        entry.client.flush()
+        entry.client.shutdown()
+    except Exception:  # noqa: BLE001 — optional telemetry cleanup is best effort
+        logger.warning("Retiring Langfuse client failed", exc_info=True)
+    finally:
+        _clients.pop(fingerprint, None)
+
+
+def acquire_langfuse_callback_handler(
+    config: ObservabilityRuntimeConfig,
+) -> LangfuseLease | None:
+    """Lease a handler until the run context exits."""
+    global _current_fingerprint
+
+    cached = _clients.get(config.fingerprint)
+    if cached is None:
+        try:
+            client, handler = _build_langfuse(config)
+            cached = _ClientEntry(client=client, handler=handler)
+            _clients[config.fingerprint] = cached
+        except Exception:
+            logger.exception("Langfuse is misconfigured; continuing without tracing")
+            return None
+
+    if _current_fingerprint != config.fingerprint:
+        previous_fingerprint = _current_fingerprint
+        _current_fingerprint = config.fingerprint
+        cached.retired = False
+        if previous_fingerprint is not None:
+            previous = _clients.get(previous_fingerprint)
+            if previous is not None:
+                previous.retired = True
+                if previous.leases == 0:
+                    _shutdown_entry(previous_fingerprint, previous)
+
+    cached.leases += 1
+    return LangfuseLease(config.fingerprint, cached.handler)
+
+
 def get_langfuse_callback_handler(
     config: ObservabilityRuntimeConfig,
 ) -> CallbackHandler | None:
-    """Return a handler for the current DB revision, or None when invalid."""
-    cached = _clients.get(config.fingerprint)
-    if cached is not None:
-        return cached[1]
-    try:
-        client, handler = _build_langfuse(config)
-        _clients[config.fingerprint] = (client, handler)
-        return handler
-    except Exception:
-        logger.exception("Langfuse is misconfigured; continuing without tracing")
+    """Compatibility accessor for callers that do not need a run lease."""
+    lease = acquire_langfuse_callback_handler(config)
+    if lease is None:
         return None
+    handler = lease.handler
+    lease.release()
+    return handler
 
 
 def flush_langfuse() -> None:
@@ -63,8 +129,14 @@ def flush_langfuse() -> None:
     Never built here: flushing must not be the thing that constructs a client
     the process never needed.
     """
-    for client, _handler in _clients.values():
+    global _current_fingerprint
+
+    for fingerprint, entry in list(_clients.items()):
         try:
-            client.flush()
+            entry.client.flush()
+            entry.client.shutdown()
         except Exception:  # noqa: BLE001 — a failed flush must not fail shutdown
             logger.warning("Flushing Langfuse traces on shutdown failed", exc_info=True)
+        finally:
+            _clients.pop(fingerprint, None)
+    _current_fingerprint = None

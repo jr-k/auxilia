@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from datetime import datetime
+from hashlib import sha256
 
 from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -23,10 +24,11 @@ class ObservabilityRuntimeConfig:
 
     @property
     def fingerprint(self) -> str:
-        return (
+        raw = (
             f"{self.base_url}\0{self.public_key}\0{self.secret_key}\0"
             f"{self.timeout_seconds}\0{self.revision.isoformat()}"
         )
+        return sha256(raw.encode()).hexdigest()
 
 
 class WorkspaceObservabilityService:

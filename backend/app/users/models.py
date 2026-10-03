@@ -62,6 +62,7 @@ class UserTwoFactorDB(BaseDBModel, table=True):
         default_factory=list,
         sa_column=Column(JSON, nullable=False),
     )
+    last_used_totp_counter: int | None = Field(default=None, nullable=True)
 
 
 class OAuthAccountBase(SQLModel):

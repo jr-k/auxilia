@@ -50,6 +50,10 @@ gcloud builds submit web/ \
 
 ## 4. Deploy the backend
 
+If this is an upgrade, set `BACKEND_ENCRYPTION_SALT` to the exact existing
+`SALT` or `MCP_API_KEY_ENCRYPTION_SALT` value. Generating a new value makes
+credentials and TOTP secrets already encrypted in PostgreSQL unreadable.
+
 ```bash
 gcloud run deploy auxilia-backend \
   --image ${REGION}-docker.pkg.dev/${PROJECT_ID}/auxilia/backend \

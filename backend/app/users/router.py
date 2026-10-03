@@ -8,6 +8,7 @@ from app.pagination import Page, PageParams
 from app.users.models import UserDB, WorkspaceRole
 from app.users.schemas import (
     BackupCodesResponse,
+    CurrentUserResponse,
     PasswordChange,
     ProfilePatch,
     TwoFactorConfirmRequest,
@@ -59,13 +60,15 @@ async def count_users_by_role(
     return await service.count_by_role()
 
 
-@router.patch("/me", response_model=UserResponse)
+@router.patch("/me", response_model=CurrentUserResponse)
 async def update_profile(
     data: ProfilePatch,
     current_user: UserDB = Depends(get_current_user),
     service: UserService = Depends(get_user_service),
-) -> UserResponse:
-    return UserResponse.model_validate(await service.update_profile(current_user, data))
+) -> CurrentUserResponse:
+    return CurrentUserResponse.model_validate(
+        await service.update_profile(current_user, data)
+    )
 
 
 @router.put("/me/password", status_code=204)

@@ -1,5 +1,6 @@
 """Validation and normalization for user-uploaded resource images."""
 
+import asyncio
 from dataclasses import dataclass
 from hashlib import sha256
 from io import BytesIO
@@ -30,7 +31,10 @@ async def process_uploaded_image(upload: UploadFile) -> ProcessedImage:
         raise DomainValidationError("Image must be 5 MB or smaller")
     if not raw:
         raise DomainValidationError("Image file is empty")
+    return await asyncio.to_thread(_process_image, raw)
 
+
+def _process_image(raw: bytes) -> ProcessedImage:
     try:
         with Image.open(BytesIO(raw)) as source:
             if source.format not in {"JPEG", "PNG", "WEBP"}:

@@ -1,3 +1,4 @@
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
@@ -19,8 +20,14 @@ class WorkspaceAppearanceRepository(BaseRepository[WorkspaceAppearanceDB]):
     async def get_or_create(self) -> WorkspaceAppearanceDB:
         row = await self.get_settings()
         if row is None:
-            row = WorkspaceAppearanceDB()
-            self.db.add(row)
-            await self.db.flush()
+            try:
+                async with self.db.begin_nested():
+                    row = WorkspaceAppearanceDB()
+                    self.db.add(row)
+                    await self.db.flush()
+            except IntegrityError:
+                row = await self.get_settings()
+                if row is None:
+                    raise
             await self.db.refresh(row)
         return row

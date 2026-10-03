@@ -1,3 +1,4 @@
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
@@ -31,6 +32,21 @@ class SlackNotificationSettingsRepository(BaseRepository[SlackNotificationSettin
             decrypt_value(row.signing_secret_encrypted),
         )
 
+    async def _get_or_create(self) -> SlackNotificationSettingsDB:
+        row = await self.get_settings()
+        if row is not None:
+            return row
+        try:
+            async with self.db.begin_nested():
+                row = SlackNotificationSettingsDB()
+                self.db.add(row)
+                await self.db.flush()
+        except IntegrityError:
+            row = await self.get_settings()
+            if row is None:
+                raise
+        return row
+
     async def save(
         self,
         *,
@@ -38,9 +54,7 @@ class SlackNotificationSettingsRepository(BaseRepository[SlackNotificationSettin
         bot_token: str | None,
         signing_secret: str | None,
     ) -> SlackNotificationSettingsDB:
-        row = await self.get_settings()
-        if row is None:
-            row = SlackNotificationSettingsDB()
+        row = await self._get_or_create()
         row.enabled = enabled
         if bot_token is not None:
             row.bot_token_encrypted = encrypt_value(bot_token)

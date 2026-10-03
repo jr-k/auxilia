@@ -1,3 +1,4 @@
+import re
 from datetime import datetime
 from uuid import UUID
 
@@ -5,7 +6,6 @@ from pydantic import field_validator
 from sqlmodel import SQLModel
 
 from app.agents.models import (
-    ALLOWED_COLORS,
     AgentMCPServerBase,
     EffectivePermission,
     PermissionLevel,
@@ -26,6 +26,15 @@ def _normalize_group(value: str | None) -> str | None:
     return normalized
 
 
+def _normalize_color(value: str | None) -> str | None:
+    if value is None:
+        return None
+    normalized = value.upper()
+    if re.fullmatch(r"#[0-9A-F]{6}", normalized) is None:
+        raise ValueError("color must be a six-digit hex value")
+    return normalized
+
+
 class AgentCreateDB(SQLModel):
     name: str
     instructions: str
@@ -38,9 +47,7 @@ class AgentCreateDB(SQLModel):
     @field_validator("color")
     @classmethod
     def validate_color(cls, v: str | None) -> str | None:
-        if v is not None and v not in ALLOWED_COLORS:
-            raise ValueError(f"color must be one of {sorted(ALLOWED_COLORS)}")
-        return v
+        return _normalize_color(v)
 
 
 class AgentPatch(SQLModel):
@@ -54,9 +61,7 @@ class AgentPatch(SQLModel):
     @field_validator("color")
     @classmethod
     def validate_color(cls, v: str | None) -> str | None:
-        if v is not None and v not in ALLOWED_COLORS:
-            raise ValueError(f"color must be one of {sorted(ALLOWED_COLORS)}")
-        return v
+        return _normalize_color(v)
 
     @field_validator("group")
     @classmethod
@@ -110,9 +115,7 @@ class AgentConfig(SQLModel):
     @field_validator("color")
     @classmethod
     def validate_color(cls, v: str | None) -> str | None:
-        if v is not None and v not in ALLOWED_COLORS:
-            raise ValueError(f"color must be one of {sorted(ALLOWED_COLORS)}")
-        return v
+        return _normalize_color(v)
 
     @field_validator("mcp_servers")
     @classmethod

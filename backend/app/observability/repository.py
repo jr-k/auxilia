@@ -1,3 +1,4 @@
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
@@ -31,6 +32,21 @@ class WorkspaceObservabilityRepository(BaseRepository[WorkspaceObservabilityDB])
             decrypt_value(row.secret_key_encrypted),
         )
 
+    async def _get_or_create(self) -> WorkspaceObservabilityDB:
+        row = await self.get_settings()
+        if row is not None:
+            return row
+        try:
+            async with self.db.begin_nested():
+                row = WorkspaceObservabilityDB()
+                self.db.add(row)
+                await self.db.flush()
+        except IntegrityError:
+            row = await self.get_settings()
+            if row is None:
+                raise
+        return row
+
     async def save(
         self,
         *,
@@ -40,9 +56,7 @@ class WorkspaceObservabilityRepository(BaseRepository[WorkspaceObservabilityDB])
         public_key: str | None,
         secret_key: str | None,
     ) -> WorkspaceObservabilityDB:
-        row = await self.get_settings()
-        if row is None:
-            row = WorkspaceObservabilityDB()
+        row = await self._get_or_create()
         row.enabled = enabled
         row.base_url = base_url
         row.timeout_seconds = timeout_seconds

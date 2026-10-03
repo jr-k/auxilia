@@ -9,7 +9,16 @@ export function AppearanceInitializer() {
 	const fetchAppearance = useAppearanceStore((state) => state.fetchAppearance);
 
 	useEffect(() => {
-		void fetchAppearance();
+		const retry = () => {
+			void fetchAppearance();
+		};
+		retry();
+		window.addEventListener("online", retry);
+		window.addEventListener("focus", retry);
+		return () => {
+			window.removeEventListener("online", retry);
+			window.removeEventListener("focus", retry);
+		};
 	}, [fetchAppearance]);
 
 	useEffect(() => {

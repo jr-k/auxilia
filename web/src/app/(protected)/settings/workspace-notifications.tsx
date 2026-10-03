@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { HeaderButton } from "@/components/layout/subpage-header";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
-import { isApiError } from "@/lib/api/errors";
+import { getApiErrorMessage, isApiError } from "@/lib/api/errors";
 import * as notificationsApi from "@/lib/api/resources/notifications";
 import type { SlackNotificationSettings } from "@/types/notifications";
 
@@ -22,20 +22,51 @@ export default function WorkspaceNotifications({ onForbidden }: Props) {
 	const [signingSecret, setSigningSecret] = useState("");
 	const [saving, setSaving] = useState(false);
 	const [status, setStatus] = useState<string | null>(null);
+	const [loadError, setLoadError] = useState<string | null>(null);
 
-	useEffect(() => {
-		void notificationsApi
-			.getSlackSettings()
-			.then((value) => {
-				setSettings(value);
-				setEnabled(value.enabled);
-			})
-			.catch((error: unknown) => {
-				if (isApiError(error) && error.status === 403) onForbidden();
-			});
+	const load = useCallback(async () => {
+		setLoadError(null);
+		try {
+			const value = await notificationsApi.getSlackSettings();
+			setSettings(value);
+			setEnabled(value.enabled);
+		} catch (error: unknown) {
+			if (isApiError(error) && error.status === 403) {
+				onForbidden();
+				return;
+			}
+			setLoadError(
+				getApiErrorMessage(error, "Could not load notification settings."),
+			);
+		}
 	}, [onForbidden]);
 
+	useEffect(() => {
+		const timeoutId = window.setTimeout(() => {
+			void load();
+		}, 0);
+		return () => {
+			window.clearTimeout(timeoutId);
+		};
+	}, [load]);
+
 	if (!settings) {
+		if (loadError) {
+			return (
+				<div className="rounded-[10px] border border-destructive/25 bg-destructive/5 p-5">
+					<p className="text-[13px] text-destructive">{loadError}</p>
+					<button
+						type="button"
+						onClick={() => {
+							void load();
+						}}
+						className="mt-3 cursor-pointer rounded-[7px] border border-input bg-card px-3 py-1.5 text-[12px] font-semibold text-foreground"
+					>
+						Retry
+					</button>
+				</div>
+			);
+		}
 		return (
 			<div className="h-64 animate-pulse rounded-[10px] border border-border bg-card" />
 		);

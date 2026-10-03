@@ -13,6 +13,7 @@ interface McpServersState {
 	fetchMcpServers: () => Promise<void>;
 	createMcpServer: (payload: MCPServerCreate) => Promise<MCPServer>;
 	updateMcpServer: (id: string, payload: MCPServerUpdate) => Promise<MCPServer>;
+	applyMcpServer: (server: MCPServer) => void;
 	deleteMcpServer: (id: string, options?: { detachAgents?: boolean }) => Promise<void>;
 	resetMcpServerConnections: (id: string) => Promise<void>;
 }
@@ -52,6 +53,13 @@ export const useMcpServersStore = create<McpServersState>((set, get) => {
 				),
 			}));
 			return updated;
+		},
+		applyMcpServer: (updated) => {
+			set((state) => ({
+				mcpServers: state.mcpServers.map((server) =>
+					server.id === updated.id ? updated : server,
+				),
+			}));
 		},
 		deleteMcpServer: async (id, options) => {
 			await mcpServersApi.deleteMcpServer(id, options);

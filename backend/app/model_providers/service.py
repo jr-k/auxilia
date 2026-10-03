@@ -419,6 +419,11 @@ class ModelService(BaseService[ModelDB, ModelRepository]):
         api_key = api_key.strip()
         if not api_key:
             raise DomainValidationError("API key cannot be empty")
+        if (
+            provider_type is ModelProviderType.google
+            and api_key == GOOGLE_ADC_SENTINEL
+        ):
+            raise DomainValidationError("'adc' is reserved for Google ADC discovery")
         await self.credential_repository.set_api_key(provider_type.value, api_key)
         return ModelProviderConfigResponse(
             name=provider_type,

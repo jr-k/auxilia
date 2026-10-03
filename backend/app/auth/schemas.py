@@ -18,11 +18,9 @@ class SigninRequest(BaseModel):
 
 class TwoFactorSigninResponse(BaseModel):
     two_factor_required: bool = True
-    challenge_token: str
 
 
 class TwoFactorSigninVerifyRequest(BaseModel):
-    challenge_token: str
     code: str
 
 

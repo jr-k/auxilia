@@ -29,6 +29,11 @@ class UserRepository(BaseRepository[UserDB]):
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
+    async def get_for_update(self, user_id: UUID) -> UserDB | None:
+        stmt = select(UserDB).where(UserDB.id == user_id).with_for_update()
+        result = await self.db.execute(stmt)
+        return result.scalar_one_or_none()
+
     async def get_image(self, user_id: UUID) -> UserImageDB | None:
         stmt = select(UserImageDB).where(UserImageDB.user_id == user_id)
         result = await self.db.execute(stmt)
@@ -43,6 +48,7 @@ class UserRepository(BaseRepository[UserDB]):
         sha256: str,
         revision: UUID,
     ) -> None:
+        await self.get_for_update(user_id)
         image = await self.get_image(user_id)
         if image is None:
             image = UserImageDB(
@@ -63,6 +69,7 @@ class UserRepository(BaseRepository[UserDB]):
         await self.db.flush()
 
     async def delete_image(self, user_id: UUID) -> None:
+        await self.get_for_update(user_id)
         stmt = delete(UserImageDB).where(UserImageDB.user_id == user_id)
         await self.db.execute(stmt)
         stmt = update(UserDB).where(UserDB.id == user_id).values(image_revision=None)
@@ -84,6 +91,7 @@ class UserRepository(BaseRepository[UserDB]):
         *,
         secret_encrypted: str,
         backup_code_hashes: list[str],
+        last_used_totp_counter: int,
     ) -> None:
         existing = await self.get_two_factor(user_id)
         if existing is None:
@@ -91,10 +99,12 @@ class UserRepository(BaseRepository[UserDB]):
                 user_id=user_id,
                 secret_encrypted=secret_encrypted,
                 backup_code_hashes=backup_code_hashes,
+                last_used_totp_counter=last_used_totp_counter,
             )
         else:
             existing.secret_encrypted = secret_encrypted
             existing.backup_code_hashes = backup_code_hashes
+            existing.last_used_totp_counter = last_used_totp_counter
         self.db.add(existing)
         stmt = (
             update(UserDB).where(UserDB.id == user_id).values(two_factor_enabled=True)

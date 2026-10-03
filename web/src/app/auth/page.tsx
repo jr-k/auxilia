@@ -49,8 +49,8 @@ function AuthPageContent() {
 
 	const [email, setEmail] = useState("");
 	const [password, setPassword] = useState("");
-	const [challengeToken, setChallengeToken] = useState<string | null>(() =>
-		searchParams.get("two_factor_challenge"),
+	const [twoFactorRequired, setTwoFactorRequired] = useState(
+		() => searchParams.get("two_factor") === "required",
 	);
 	const [twoFactorCode, setTwoFactorCode] = useState("");
 
@@ -76,8 +76,8 @@ function AuthPageContent() {
 
 		try {
 			const result = await authApi.signIn(email, password);
-			if (result.twoFactorRequired && result.challengeToken) {
-				setChallengeToken(result.challengeToken);
+			if (result.twoFactorRequired) {
+				setTwoFactorRequired(true);
 				return;
 			}
 			router.push("/agents");
@@ -90,11 +90,11 @@ function AuthPageContent() {
 
 	const handleTwoFactorSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
-		if (!challengeToken) return;
+		if (!twoFactorRequired) return;
 		setError(null);
 		setIsLoading(true);
 		try {
-			await authApi.verifyTwoFactorSignIn(challengeToken, twoFactorCode);
+			await authApi.verifyTwoFactorSignIn(twoFactorCode);
 			router.push("/agents");
 		} catch (err: unknown) {
 			setError(getApiErrorMessage(err, "Invalid authentication code"));
@@ -113,14 +113,14 @@ function AuthPageContent() {
 
 	return (
 		<AuthShell
-			eyebrow={challengeToken ? "// One more step" : "// Welcome back"}
+			eyebrow={twoFactorRequired ? "// One more step" : "// Welcome back"}
 			title={
-				challengeToken
+				twoFactorRequired
 					? "Verify your identity"
 					: "Sign in to your workspace"
 			}
 			description={
-				challengeToken
+				twoFactorRequired
 					? "Enter a code from your authenticator app or use a backup code."
 					: "Your agents kept working while you were away."
 			}
@@ -135,7 +135,7 @@ function AuthPageContent() {
 		>
 			<AuthErrorAlert error={error} />
 
-			{challengeToken ? (
+			{twoFactorRequired ? (
 				<form
 					className="flex flex-col gap-4"
 					onSubmit={(event) => {
@@ -159,7 +159,7 @@ function AuthPageContent() {
 					<button
 						type="button"
 						onClick={() => {
-							setChallengeToken(null);
+							setTwoFactorRequired(false);
 							setTwoFactorCode("");
 							setError(null);
 							router.replace("/auth");
@@ -206,7 +206,7 @@ function AuthPageContent() {
 				</form>
 			)}
 
-			{!challengeToken && providers?.password && providers.google && (
+			{!twoFactorRequired && providers?.password && providers.google && (
 				<div className="my-1 flex items-center gap-3">
 					<span className="h-px flex-1 bg-rail" />
 					<span className="text-[10.5px] text-meta">or</span>
@@ -214,7 +214,7 @@ function AuthPageContent() {
 				</div>
 			)}
 
-			{!challengeToken && providers?.google && (
+			{!twoFactorRequired && providers?.google && (
 				<button
 					type="button"
 					onClick={signInWithGoogle}

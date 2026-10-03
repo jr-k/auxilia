@@ -6,6 +6,7 @@ import hmac
 import secrets
 import struct
 import time
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from io import BytesIO
 from urllib.parse import quote
@@ -53,14 +54,21 @@ def _totp_at(secret: str, counter: int) -> str:
 
 
 def verify_totp(secret: str, code: str, *, at: int | None = None) -> bool:
+    return matching_totp_counter(secret, code, at=at) is not None
+
+
+def matching_totp_counter(
+    secret: str, code: str, *, at: int | None = None
+) -> int | None:
     normalized = code.replace(" ", "")
     if len(normalized) != TOTP_DIGITS or not normalized.isdigit():
-        return False
+        return None
     counter = (at if at is not None else int(time.time())) // TOTP_PERIOD_SECONDS
-    return any(
-        hmac.compare_digest(_totp_at(secret, counter + offset), normalized)
-        for offset in (-1, 0, 1)
-    )
+    for offset in (-1, 0, 1):
+        candidate_counter = counter + offset
+        if hmac.compare_digest(_totp_at(secret, candidate_counter), normalized):
+            return candidate_counter
+    return None
 
 
 def generate_backup_codes() -> list[str]:
@@ -98,7 +106,9 @@ def create_scoped_token(
 ) -> str:
     payload: dict[str, object] = {
         "sub": str(user_id),
+        "token_type": "challenge",
         "scope": scope,
+        "jti": secrets.token_urlsafe(24),
         "iat": datetime.now(UTC),
         "exp": datetime.now(UTC) + timedelta(minutes=expires_minutes),
     }
@@ -111,15 +121,33 @@ def create_scoped_token(
     )
 
 
-def decode_scoped_token(token: str, scope: str) -> tuple[UUID, str | None] | None:
+@dataclass(frozen=True)
+class ScopedToken:
+    user_id: UUID
+    jti: str
+    secret: str | None = None
+
+
+def decode_scoped_token(token: str, scope: str) -> ScopedToken | None:
     try:
         payload = jwt.decode(
             token,
             auth_settings.JWT_SECRET_KEY,
             algorithms=[auth_settings.JWT_ALGORITHM],
         )
-        if payload.get("scope") != scope:
+        if (
+            payload.get("token_type") != "challenge"
+            or payload.get("scope") != scope
+            or not isinstance(payload.get("jti"), str)
+        ):
             return None
-        return UUID(payload["sub"]), payload.get("secret")
+        secret = payload.get("secret")
+        if secret is not None and not isinstance(secret, str):
+            return None
+        return ScopedToken(
+            user_id=UUID(payload["sub"]),
+            jti=payload["jti"],
+            secret=secret,
+        )
     except (JWTError, KeyError, TypeError, ValueError):
         return None

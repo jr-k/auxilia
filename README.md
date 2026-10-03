@@ -64,6 +64,11 @@ Google OAuth, Slack and Langfuse are configured by workspace admins from
 **Settings → Authentication**, **Notifications**, and **Observability**. Their
 credentials are encrypted in PostgreSQL.
 
+> Upgrading an existing deployment? Rename `SALT` or
+> `MCP_API_KEY_ENCRYPTION_SALT` to `BACKEND_ENCRYPTION_SALT` without changing
+> its value. Rotating it without re-encrypting stored secrets makes existing
+> credentials and TOTP secrets unreadable.
+
 Developing? `make dev` runs PostgreSQL, Redis, the FastAPI backend (migrations applied) and the Next.js frontend in parallel, all with hot reload. Full walkthrough in the [Get Started guide](https://auxilia-docs.vercel.app/get-started).
 
 ## ✨ Features

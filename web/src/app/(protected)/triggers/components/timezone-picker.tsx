@@ -70,7 +70,9 @@ export default function TimezonePicker({
 									setQuery(event.target.value);
 								}}
 								onKeyDown={(event) => {
-									event.stopPropagation();
+									if (event.key.length === 1) {
+										event.stopPropagation();
+									}
 								}}
 								placeholder="Search timezone…"
 								className="min-w-0 flex-1 bg-transparent text-[12.5px] text-foreground outline-none placeholder:text-faint"

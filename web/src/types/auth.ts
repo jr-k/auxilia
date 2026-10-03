@@ -41,7 +41,6 @@ export interface WorkspaceAuthenticationUpdate {
 
 export interface SignInResult {
 	twoFactorRequired: boolean;
-	challengeToken?: string;
 }
 
 /** `GET /auth/invite/{token}` — what an invitee sees before accepting. */

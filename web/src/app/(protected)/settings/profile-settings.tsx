@@ -212,6 +212,7 @@ function IdentityCard({ user }: { user: CurrentUser }) {
 				}}
 				label="Profile photo"
 				previewShape="circle"
+				removable={Boolean(user.imageRevision)}
 				disabled={saving}
 				className="mb-5"
 			/>

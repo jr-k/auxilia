@@ -301,6 +301,10 @@ class AgentRepository(BaseRepository[AgentDB]):
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
+    async def _lock_image_parent(self, agent_id: UUID) -> None:
+        stmt = select(AgentDB.id).where(AgentDB.id == agent_id).with_for_update()
+        await self.db.execute(stmt)
+
     async def set_image(
         self,
         agent_id: UUID,
@@ -310,6 +314,7 @@ class AgentRepository(BaseRepository[AgentDB]):
         sha256: str,
         revision: UUID,
     ) -> None:
+        await self._lock_image_parent(agent_id)
         image = await self.get_image(agent_id)
         if image is None:
             image = AgentImageDB(
@@ -332,6 +337,7 @@ class AgentRepository(BaseRepository[AgentDB]):
         await self.db.flush()
 
     async def delete_image(self, agent_id: UUID) -> None:
+        await self._lock_image_parent(agent_id)
         stmt = delete(AgentImageDB).where(AgentImageDB.agent_id == agent_id)
         await self.db.execute(stmt)
         stmt = update(AgentDB).where(AgentDB.id == agent_id).values(image_revision=None)

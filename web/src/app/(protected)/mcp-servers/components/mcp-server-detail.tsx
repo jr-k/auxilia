@@ -107,7 +107,12 @@ export default function MCPServerDetail({
 	const confirmDialog = useConfirmDialog();
 	const user = useUserStore((state) => state.user);
 	const isAdmin = user?.role === "admin";
-	const { mcpServers, updateMcpServer, resetMcpServerConnections } =
+	const {
+		mcpServers,
+		updateMcpServer,
+		applyMcpServer,
+		resetMcpServerConnections,
+	} =
 		useMcpServersStore();
 
 	const [server, setServer] = useState<MCPServer>(initialServer);
@@ -274,14 +279,21 @@ export default function MCPServerDetail({
 						: undefined,
 			};
 			let updated = await updateMcpServer(server.id, payload);
+			setServer(updated);
 			if (imageFile) {
-				await mcpServersApi.uploadMcpServerImage(server.id, imageFile);
-				updated = await updateMcpServer(server.id, {});
+				const revision = await mcpServersApi.uploadMcpServerImage(
+					server.id,
+					imageFile,
+				);
+				updated = { ...updated, imageRevision: revision };
+				applyMcpServer(updated);
+				setServer(updated);
 			} else if (removeImage && server.imageRevision) {
 				await mcpServersApi.deleteMcpServerImage(server.id);
-				updated = await updateMcpServer(server.id, {});
+				updated = { ...updated, imageRevision: null };
+				applyMcpServer(updated);
+				setServer(updated);
 			}
-			setServer(updated);
 			if (server.authType === "oauth2" && form.oauthClientSecret) {
 				setHasStoredSecret(true);
 				setSecretHint(null); // stale, the stored secret just changed

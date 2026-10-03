@@ -11,7 +11,6 @@ export interface User {
 	teamId: string | null;
 	pictureUrl: string | null;
 	imageRevision: string | null;
-	twoFactorEnabled: boolean;
 	createdAt: string;
 	updatedAt: string;
 }

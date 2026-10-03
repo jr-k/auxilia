@@ -38,9 +38,12 @@ class UserResponse(SQLModel):
     team_id: UUID | None = None
     picture_url: str | None = None
     image_revision: UUID | None = None
-    two_factor_enabled: bool = False
     created_at: datetime
     updated_at: datetime
+
+
+class CurrentUserResponse(UserResponse):
+    two_factor_enabled: bool = False
 
 
 class ProfilePatch(SQLModel):

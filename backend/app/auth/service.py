@@ -17,6 +17,7 @@ from app.auth.schemas import (
     TwoFactorSigninVerifyRequest,
 )
 from app.auth.two_factor import create_scoped_token, decode_scoped_token
+from app.auth.two_factor_challenges import consume_challenge, record_challenge_attempt
 from app.auth.utils import create_access_token, get_password_hash, verify_password
 from app.database import get_db
 from app.exceptions import (
@@ -68,15 +69,17 @@ class AuthService:
         return self.build_jwt_for_user(user)
 
     async def verify_two_factor_signin(
-        self, data: TwoFactorSigninVerifyRequest
+        self, challenge_token: str, data: TwoFactorSigninVerifyRequest
     ) -> tuple[UserDB, str]:
-        decoded = decode_scoped_token(data.challenge_token, "two_factor_signin")
+        decoded = decode_scoped_token(challenge_token, "two_factor_signin")
         if decoded is None:
             raise InvalidCredentialsError("Two-factor challenge has expired")
-        user = await self.db.get(UserDB, decoded[0])
+        await record_challenge_attempt(decoded.user_id, decoded.jti)
+        user = await self.db.get(UserDB, decoded.user_id)
         if user is None or not user.two_factor_enabled:
             raise InvalidCredentialsError("Invalid two-factor challenge")
         await UserService(self.db).verify_second_factor(user.id, data.code)
+        await consume_challenge(decoded.jti)
         return self.build_jwt_for_user(user)
 
     async def setup(self, data: SignupRequest) -> tuple[UserDB, str]:

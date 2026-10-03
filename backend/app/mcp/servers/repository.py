@@ -68,6 +68,10 @@ class MCPServerRepository(BaseRepository[MCPServerDB]):
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
+    async def _lock_image_parent(self, server_id: UUID) -> None:
+        stmt = select(MCPServerDB.id).where(MCPServerDB.id == server_id).with_for_update()
+        await self.db.execute(stmt)
+
     async def set_image(
         self,
         server_id: UUID,
@@ -77,6 +81,7 @@ class MCPServerRepository(BaseRepository[MCPServerDB]):
         sha256: str,
         revision: UUID,
     ) -> None:
+        await self._lock_image_parent(server_id)
         image = await self.get_image(server_id)
         if image is None:
             image = MCPServerImageDB(
@@ -99,6 +104,7 @@ class MCPServerRepository(BaseRepository[MCPServerDB]):
         await self.db.flush()
 
     async def delete_image(self, server_id: UUID) -> None:
+        await self._lock_image_parent(server_id)
         stmt = delete(MCPServerImageDB).where(
             MCPServerImageDB.mcp_server_id == server_id
         )

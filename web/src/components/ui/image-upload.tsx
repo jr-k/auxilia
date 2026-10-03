@@ -1,7 +1,7 @@
 "use client";
 
 import { ImagePlus, Trash2 } from "lucide-react";
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useMemo } from "react";
 import { cn } from "@/lib/utils";
 
 export function ImageFilePreview({
@@ -11,7 +11,7 @@ export function ImageFilePreview({
 	file: File;
 	className?: string;
 }) {
-	const [url] = useState(() => URL.createObjectURL(file));
+	const url = useMemo(() => URL.createObjectURL(file), [file]);
 	useEffect(
 		() => () => {
 			URL.revokeObjectURL(url);
@@ -31,6 +31,7 @@ interface ImageUploadProps {
 	onRemove: () => void;
 	label?: string;
 	disabled?: boolean;
+	removable?: boolean;
 	previewShape?: "circle" | "rounded";
 	className?: string;
 }
@@ -43,6 +44,7 @@ export function ImageUpload({
 	onRemove,
 	label = "Image",
 	disabled = false,
+	removable = true,
 	previewShape = "rounded",
 	className,
 }: ImageUploadProps) {
@@ -103,7 +105,7 @@ export function ImageUpload({
 							event.target.value = "";
 						}}
 					/>
-					{(file || source) && (
+					{(file || (source && removable)) && (
 						<button
 							type="button"
 							disabled={disabled}

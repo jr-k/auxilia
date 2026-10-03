@@ -539,7 +539,16 @@ class Agent:
         # One skill set per graph: every agent lists, reads and runs the union
         # of what the supervisor and its subagents have enabled.
         skills = await resolve_run_skills(db, spec.all_agent_ids)
-        observability = await WorkspaceObservabilityService(db).get_runtime_config()
+        try:
+            observability = (
+                await WorkspaceObservabilityService(db).get_runtime_config()
+            )
+        except Exception:  # noqa: BLE001 — optional tracing must never block a run
+            logger.warning(
+                "Could not load observability settings; continuing without tracing",
+                exc_info=True,
+            )
+            observability = None
 
         return cls(
             thread=thread,

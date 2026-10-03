@@ -1,7 +1,7 @@
 from datetime import UTC, datetime
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Body, Depends, Query
 
 from app.auth.dependencies import get_current_user, require_editor
 from app.triggers.schedule import compute_next_run_ats, ensure_valid_schedule
@@ -62,7 +62,7 @@ async def preview_schedule(
 )
 async def invoke_webhook_trigger(
     webhook_id: UUID,
-    data: WebhookTriggerInvoke,
+    data: WebhookTriggerInvoke = Body(default_factory=WebhookTriggerInvoke),
     service: TriggerService = Depends(get_trigger_service),
 ) -> TriggerRunResponse:
     """Start a webhook trigger with optional per-call execution overrides."""

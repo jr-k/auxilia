@@ -134,7 +134,7 @@ export default function CustomMCPServerPage() {
 	// The catalog has no ids — the `official` param carries the entry's url.
 	const officialUrl = searchParams.get("official");
 	const createMcpServer = useMcpServersStore((state) => state.createMcpServer);
-	const updateMcpServer = useMcpServersStore((state) => state.updateMcpServer);
+	const applyMcpServer = useMcpServersStore((state) => state.applyMcpServer);
 	const mcpServers = useMcpServersStore((state) => state.mcpServers);
 
 	const [form, setForm] = useState<MCPServerCreateFormValues>(emptyForm);
@@ -211,8 +211,17 @@ export default function CustomMCPServerPage() {
 		try {
 			const created = await createMcpServer(buildMCPServerCreatePayload(form));
 			if (imageFile) {
-				await mcpServersApi.uploadMcpServerImage(created.id, imageFile);
-				await updateMcpServer(created.id, {});
+				try {
+					const revision = await mcpServersApi.uploadMcpServerImage(
+						created.id,
+						imageFile,
+					);
+					applyMcpServer({ ...created, imageRevision: revision });
+				} catch {
+					toast.warning(
+						`${form.name.trim()} was created, but its image could not be uploaded.`,
+					);
+				}
 			}
 			toast.success(`${form.name.trim()} added to the workspace`);
 			router.push("/mcp-servers");

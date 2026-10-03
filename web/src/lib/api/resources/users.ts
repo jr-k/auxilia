@@ -4,6 +4,7 @@
  */
 import { api } from "@/lib/api/client";
 import type { Paginated } from "@/types/api";
+import type { CurrentUser } from "@/types/auth";
 import type { RoleCounts, User, WorkspaceRole } from "@/types/users";
 
 export interface UserListParams {
@@ -40,8 +41,8 @@ export async function deleteUser(userId: string): Promise<void> {
 export async function updateProfile(payload: {
 	firstName: string;
 	lastName: string;
-}): Promise<User> {
-	const response = await api.patch<User>("/users/me", payload);
+}): Promise<CurrentUser> {
+	const response = await api.patch<CurrentUser>("/users/me", payload);
 	return response.data;
 }
 

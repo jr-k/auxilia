@@ -10,6 +10,7 @@ link (success). This is the Slack half of the durable runtime — the web tier
 only enqueues the run (see `router.py`).
 """
 
+import asyncio
 import logging
 from typing import Any, Final, Literal, TypedDict, cast
 
@@ -141,16 +142,42 @@ class SlackProtocolAdapter:
 class SlackRunConsumer(DeliveryConsumer):
     """Relays one run's event log to its Slack thread."""
 
-    def __init__(self, record: RunDB, redis: Redis | None = None):
+    def __init__(
+        self,
+        record: RunDB,
+        redis: Redis | None = None,
+        client: AsyncWebClient | None = None,
+    ):
         self.record = record
         # The factory only builds this consumer for a record whose delivery
         # carries channel == "slack", so the JSONB dict is a SlackDelivery.
         self.delivery = cast(SlackDelivery, record.delivery or {})
         self.redis = redis
-        self.client = AsyncWebClient(token=None)
+        self.client = client
+
+    @property
+    def slack_client(self) -> AsyncWebClient:
+        if self.client is None:
+            raise RuntimeError("Slack client has not been initialized")
+        return self.client
+
+    async def _resolve_client(self) -> AsyncWebClient | None:
+        if self.client is not None:
+            return self.client
+        for attempt in range(3):
+            try:
+                return await get_slack_client()
+            except Exception:
+                if attempt == 2:
+                    logger.exception(
+                        "Slack client lookup failed for run %s", self.record.id
+                    )
+                    return None
+                await asyncio.sleep(0.25 * (2**attempt))
+        return None
 
     async def run(self) -> None:
-        client = await get_slack_client()
+        client = await self._resolve_client()
         if client is None:
             logger.warning(
                 "Slack delivery skipped for run %s: Slack is not configured",
@@ -205,7 +232,7 @@ class SlackRunConsumer(DeliveryConsumer):
         streaming message — a mid-stream error must not leave an in-progress
         Slack message open. Returns once the log's terminal entry is read.
         """
-        streamer = await self.client.chat_stream(
+        streamer = await self.slack_client.chat_stream(
             channel=channel_id,
             thread_ts=thread_ts,
             recipient_team_id=self.delivery.get("team_id"),
@@ -258,7 +285,7 @@ class SlackRunConsumer(DeliveryConsumer):
             if thread is None:
                 return False
             connect_url = f"{auth_settings.FRONTEND_URL}/agents/{thread.agent_id}/chat"
-            await self.client.chat_postMessage(
+            await self.slack_client.chat_postMessage(
                 channel=channel_id,
                 thread_ts=thread_ts,
                 blocks=build_connect_prompt_blocks(connect_url),
@@ -274,7 +301,7 @@ class SlackRunConsumer(DeliveryConsumer):
 
     async def _post_failure_notice(self, channel_id: str, thread_ts: str) -> None:
         """Tell the user the turn failed, so the thread is never left blank."""
-        await self.client.chat_postMessage(
+        await self.slack_client.chat_postMessage(
             channel=channel_id,
             thread_ts=thread_ts,
             text=(
@@ -304,7 +331,7 @@ class SlackRunConsumer(DeliveryConsumer):
             text = f"Approve {request['tool_name']}?"
             if subagent:
                 text = f"Approve {request['tool_name']} for {subagent}?"
-            await self.client.chat_postMessage(
+            await self.slack_client.chat_postMessage(
                 channel=channel_id,
                 thread_ts=thread_ts,
                 blocks=blocks,
@@ -318,7 +345,7 @@ class SlackRunConsumer(DeliveryConsumer):
         if thread is None:
             return
         url = f"{auth_settings.FRONTEND_URL}/agents/{thread.agent_id}/chat/{thread.id}"
-        await self.client.chat_postMessage(
+        await self.slack_client.chat_postMessage(
             channel=channel_id,
             thread_ts=thread_ts,
             blocks=[

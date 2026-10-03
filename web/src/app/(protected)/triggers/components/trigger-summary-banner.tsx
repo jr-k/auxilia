@@ -19,7 +19,10 @@ export default function TriggerSummaryBanner({
 					const scheduleText =
 						schedule.kind === "raw"
 							? `On the schedule ${schedule.cronExpression}`
-							: describeSchedule(schedule).replace(", ", " at ");
+							: describeSchedule(schedule).replace(
+									/, (?=[^,]*$)/,
+									" at ",
+								);
 					return `${scheduleText}, ${agentName} starts a fresh thread and runs these instructions on its own.`;
 				})()
 			: `When this webhook receives a POST, ${agentName} starts a fresh thread using these defaults and any supplied overrides.`;

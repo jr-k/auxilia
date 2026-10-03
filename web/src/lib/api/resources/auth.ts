@@ -46,19 +46,14 @@ export async function deleteWorkspaceAuthentication(): Promise<WorkspaceAuthenti
 export async function signIn(email: string, password: string): Promise<SignInResult> {
 	const response = await api.post<{
 		twoFactorRequired?: boolean;
-		challengeToken?: string;
 	}>("/auth/signin", { email, password });
 	return {
 		twoFactorRequired: response.data.twoFactorRequired === true,
-		challengeToken: response.data.challengeToken,
 	};
 }
 
-export async function verifyTwoFactorSignIn(
-	challengeToken: string,
-	code: string,
-): Promise<void> {
-	await api.post("/auth/signin/two-factor", { challengeToken, code });
+export async function verifyTwoFactorSignIn(code: string): Promise<void> {
+	await api.post("/auth/signin/two-factor", { code });
 }
 
 export async function signOut(): Promise<void> {

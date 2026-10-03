@@ -22,7 +22,7 @@ export const useAppearanceStore = create<AppearanceState>((set, get) => {
 			set({ appearance, isInitialized: true });
 		} catch (error) {
 			console.error("Error fetching workspace appearance:", error);
-			set({ isInitialized: true });
+			set({ isInitialized: false });
 		}
 	});
 
