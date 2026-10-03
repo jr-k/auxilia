@@ -88,7 +88,9 @@ export default function WorkspaceModels({
 	const [openProviders, setOpenProviders] = useState<ReadonlySet<string>>(
 		new Set(),
 	);
-	const [keyDrafts, setKeyDrafts] = useState<Record<string, string>>({});
+	const [keyDrafts, setKeyDrafts] = useState<
+		Partial<Record<string, string>>
+	>({});
 	const [pendingProviders, setPendingProviders] = useState<ReadonlySet<string>>(
 		new Set(),
 	);

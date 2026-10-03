@@ -142,8 +142,10 @@ class TriggerService(BaseService[TriggerDB, TriggerRepository]):
 
     async def create(self, data: TriggerCreate, owner: UserDB) -> TriggerResponse:
         if data.trigger_type == TriggerType.schedule:
-            assert data.cron_expression is not None
-            assert data.timezone is not None
+            if data.cron_expression is None or data.timezone is None:
+                raise DomainValidationError(
+                    "Scheduled triggers require a schedule and timezone"
+                )
             ensure_valid_schedule(data.cron_expression, data.timezone)
         # Fail at save time, not first fire — 409 model_unavailable on the form.
         await self.model_service.ensure_available(data.model_id)
@@ -232,8 +234,10 @@ class TriggerService(BaseService[TriggerDB, TriggerRepository]):
         if not trigger.is_active or trigger.trigger_type == TriggerType.webhook:
             next_run_at = None
         elif schedule_changed or trigger.next_run_at is None:
-            assert cron is not None
-            assert timezone is not None
+            if cron is None or timezone is None:
+                raise DomainValidationError(
+                    "Scheduled triggers require a schedule and timezone"
+                )
             next_run_at = compute_next_run_at(cron, timezone, after=datetime.now(UTC))
         else:
             next_run_at = trigger.next_run_at

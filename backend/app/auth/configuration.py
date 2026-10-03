@@ -75,7 +75,9 @@ class WorkspaceAuthenticationService:
             raise DomainValidationError(
                 "Google client ID and client secret must be updated together"
             )
-        if client_id == "" or client_secret == "":
+        if client_id is not None and not client_id:
+            raise DomainValidationError("Google credentials cannot be empty")
+        if client_secret is not None and not client_secret:
             raise DomainValidationError("Google credentials cannot be empty")
         if data.enabled and not has_existing_pair and client_id is None:
             raise DomainValidationError(

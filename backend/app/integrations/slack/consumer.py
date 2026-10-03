@@ -147,7 +147,7 @@ class SlackRunConsumer(DeliveryConsumer):
         # carries channel == "slack", so the JSONB dict is a SlackDelivery.
         self.delivery = cast(SlackDelivery, record.delivery or {})
         self.redis = redis
-        self.client = AsyncWebClient(token="")
+        self.client = AsyncWebClient(token=None)
 
     async def run(self) -> None:
         client = await get_slack_client()

@@ -146,32 +146,30 @@ export default function TriggerEditor({
 			modelId: selectedModelId,
 		};
 		try {
-			const saved = trigger
-				? await updateTrigger(
-						trigger.id,
-						type === "schedule"
-							? {
-									...commonPayload,
-									cronExpression: cronExpression!,
-									timezone: form.timezone,
-								}
-							: commonPayload,
-					)
-				: await createTrigger(
-						type === "schedule"
-							? {
-									...commonPayload,
-									triggerType: "schedule",
-									cronExpression: cronExpression!,
-									timezone: form.timezone,
-									isActive: true,
-								}
-							: {
-									...commonPayload,
-									triggerType: "webhook",
-									isActive: true,
-								},
-					);
+			let saved: Trigger;
+			if (type === "schedule") {
+				if (!cronExpression) return;
+				const schedulePayload = {
+					...commonPayload,
+					cronExpression,
+					timezone: form.timezone,
+				};
+				saved = trigger
+					? await updateTrigger(trigger.id, schedulePayload)
+					: await createTrigger({
+							...schedulePayload,
+							triggerType: "schedule",
+							isActive: true,
+						});
+			} else {
+				saved = trigger
+					? await updateTrigger(trigger.id, commonPayload)
+					: await createTrigger({
+							...commonPayload,
+							triggerType: "webhook",
+							isActive: true,
+						});
+			}
 			onSaved(saved);
 		} catch (err) {
 			setError(getApiErrorMessage(err, "Failed to save the trigger."));

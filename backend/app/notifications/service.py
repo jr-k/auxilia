@@ -65,7 +65,9 @@ class SlackNotificationSettingsService:
             raise DomainValidationError(
                 "Slack bot token and signing secret must be updated together"
             )
-        if bot_token == "" or signing_secret == "":
+        if bot_token is not None and not bot_token:
+            raise DomainValidationError("Slack credentials cannot be empty")
+        if signing_secret is not None and not signing_secret:
             raise DomainValidationError("Slack credentials cannot be empty")
         if data.enabled and not has_existing_pair and bot_token is None:
             raise DomainValidationError("Slack credentials are required")

@@ -74,7 +74,9 @@ class WorkspaceObservabilityService:
             raise DomainValidationError(
                 "Langfuse public key and secret key must be updated together"
             )
-        if public_key == "" or secret_key == "":
+        if public_key is not None and not public_key:
+            raise DomainValidationError("Langfuse credentials cannot be empty")
+        if secret_key is not None and not secret_key:
             raise DomainValidationError("Langfuse credentials cannot be empty")
         if data.enabled and not has_existing_pair and public_key is None:
             raise DomainValidationError("Langfuse credentials are required")
