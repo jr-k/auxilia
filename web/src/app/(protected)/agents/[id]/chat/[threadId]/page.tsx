@@ -16,6 +16,7 @@ import { useAgentReadiness } from "@/hooks/use-agent-readiness";
 import { useChatHeaderStore } from "@/stores/chat-header-store";
 import { chatHeaderFromThread, useThreadSession } from "@/lib/thread-session";
 import { getApiErrorMessage } from "@/lib/api/errors";
+import { isResponseSoundEnabled } from "@/lib/user-preferences";
 import { ConversationBody } from "./conversation-body";
 
 /**
@@ -35,6 +36,7 @@ const ChatPage = () => {
       window.location.reload();
     },
     onCompleted: () => {
+      if (!isResponseSoundEnabled()) return;
       const audio = new Audio("/success.mp3");
       audio.play().catch(() => {});
     },

@@ -7,11 +7,17 @@ import {
 	KeyRound,
 	ShieldCheck,
 	UserRound,
+	Volume2,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { ImageUpload } from "@/components/ui/image-upload";
+import { Switch } from "@/components/ui/switch";
 import { getApiErrorMessage } from "@/lib/api/errors";
 import * as usersApi from "@/lib/api/resources/users";
+import {
+	setResponseSoundEnabled,
+	useResponseSoundEnabled,
+} from "@/lib/user-preferences";
 import { useUserStore } from "@/stores/user-store";
 import type { CurrentUser } from "@/types/auth";
 
@@ -621,20 +627,83 @@ function TwoFactorCard({ user }: { user: CurrentUser }) {
 	);
 }
 
-export default function ProfileSettings({ user }: { user: CurrentUser }) {
+function PreferencesCard() {
+	const responseSoundEnabled = useResponseSoundEnabled();
+
+	return (
+		<section className="rounded-[12px] border border-border bg-card p-5">
+			<SectionHeading
+				icon={<Volume2 className="size-4" />}
+				title="Response sound"
+				description="Choose whether auxilia plays a sound when an agent finishes responding."
+			/>
+			<div className="flex items-center justify-between gap-6 rounded-[9px] border border-input px-4 py-3.5">
+				<div>
+					<p className="text-[13px] font-semibold text-foreground">
+						Play a sound when a response is ready
+					</p>
+					<p className="mt-0.5 text-[12px] leading-5 text-subtle dark:text-panel-body">
+						This preference is saved on this browser.
+					</p>
+				</div>
+				<Switch
+					checked={responseSoundEnabled}
+					onCheckedChange={setResponseSoundEnabled}
+					aria-label="Play a sound when a response is ready"
+					className="cursor-pointer"
+				/>
+			</div>
+		</section>
+	);
+}
+
+export type ProfileSection = "information" | "security" | "preferences";
+
+const sectionCopy: Record<
+	ProfileSection,
+	{ title: string; description: string }
+> = {
+	information: {
+		title: "Information",
+		description: "Manage your name, email, and profile photo.",
+	},
+	security: {
+		title: "Security",
+		description: "Manage your password and two-factor authentication.",
+	},
+	preferences: {
+		title: "Preferences",
+		description: "Choose how auxilia behaves for you on this browser.",
+	},
+};
+
+export default function ProfileSettings({
+	user,
+	section,
+}: {
+	user: CurrentUser;
+	section: ProfileSection;
+}) {
+	const copy = sectionCopy[section];
+
 	return (
 		<div className="flex flex-col gap-4">
 			<div className="mb-1">
 				<span className="text-[10.5px] font-semibold text-subtle dark:text-panel-dim">
-					Profile
+					{copy.title}
 				</span>
 				<p className="mt-1.5 max-w-[620px] text-[13px] leading-[1.55] text-subtle dark:text-panel-body">
-					Manage your identity, password, and sign-in security.
+					{copy.description}
 				</p>
 			</div>
-			<IdentityCard user={user} />
-			<PasswordCard />
-			<TwoFactorCard user={user} />
+			{section === "information" && <IdentityCard user={user} />}
+			{section === "security" && (
+				<>
+					<PasswordCard />
+					<TwoFactorCard user={user} />
+				</>
+			)}
+			{section === "preferences" && <PreferencesCard />}
 		</div>
 	);
 }

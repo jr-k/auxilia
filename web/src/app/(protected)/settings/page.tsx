@@ -11,7 +11,7 @@ import WorkspaceAppearanceSettings from "./workspace-appearance";
 import WorkspaceAuthentication from "./workspace-authentication";
 import WorkspaceNotifications from "./workspace-notifications";
 import WorkspaceObservability from "./workspace-observability";
-import ProfileSettings from "./profile-settings";
+import ProfileSettings, { type ProfileSection } from "./profile-settings";
 import { SubpageHeader } from "@/components/layout/subpage-header";
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import * as authApi from "@/lib/api/resources/auth";
@@ -113,6 +113,14 @@ function isAdminSettingsTab(
 	);
 }
 
+function isProfileSection(value: string): value is ProfileSection {
+	return (
+		value === "information" ||
+		value === "security" ||
+		value === "preferences"
+	);
+}
+
 export default function SettingsPage() {
 	const confirmDialog = useConfirmDialog();
 	const [tokens, setTokens] = useState<PersonalAccessToken[]>([]);
@@ -130,6 +138,13 @@ export default function SettingsPage() {
 	}, []);
 
 	const [tabParam, setTab] = useQueryParamState("tab", "appearance");
+	const [profileSectionParam, setProfileSection] = useQueryParamState(
+		"section",
+		"information",
+	);
+	const profileSection: ProfileSection = isProfileSection(profileSectionParam)
+		? profileSectionParam
+		: "information";
 	const tab: SettingsTab =
 		tabParam === "profile"
 			? "profile"
@@ -251,10 +266,15 @@ export default function SettingsPage() {
 	return (
 		<div className="flex h-svh min-w-0 flex-1 flex-col bg-background animate-in fade-in duration-300">
 			<SubpageHeader
-				trail={[
-					{ label: "workspace" },
-					{ label: tab === "profile" ? "profile" : "settings" },
-				]}
+				trail={
+					tab === "profile"
+						? [
+								{ label: "workspace" },
+								{ label: "profile" },
+								{ label: profileSection },
+							]
+						: [{ label: "workspace" }, { label: "settings" }]
+				}
 			/>
 
 			<ForbiddenErrorDialog
@@ -274,15 +294,42 @@ export default function SettingsPage() {
 
 			<div className="flex min-h-0 flex-1">
 				{/* Left rail: title + vertical section tabs */}
-				<div
-					className={
-						tab === "profile" ? "hidden" : "w-[200px] flex-none pl-7 pt-8"
-					}
-				>
+				<div className="w-[200px] flex-none pl-7 pt-8">
 					<h1 className="mb-[18px] pl-3.5 font-display text-[22px] font-bold tracking-[-0.03em] text-foreground">
-						Settings
+						{tab === "profile" ? "Profile" : "Settings"}
 					</h1>
-					<div className="flex flex-col">
+					{tab === "profile" ? (
+						<div className="flex flex-col gap-0.5">
+							<button
+								type="button"
+								className={railTabClass(profileSection === "information")}
+								onClick={() => {
+									setProfileSection("information");
+								}}
+							>
+								Information
+							</button>
+							<button
+								type="button"
+								className={railTabClass(profileSection === "security")}
+								onClick={() => {
+									setProfileSection("security");
+								}}
+							>
+								Security
+							</button>
+							<button
+								type="button"
+								className={railTabClass(profileSection === "preferences")}
+								onClick={() => {
+									setProfileSection("preferences");
+								}}
+							>
+								Preferences
+							</button>
+						</div>
+					) : (
+						<div className="flex flex-col">
 						{isAdmin && (
 							<div className="mb-5">
 								<p className="mb-1.5 px-3.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-meta dark:text-panel-dim">
@@ -380,7 +427,8 @@ export default function SettingsPage() {
 								)}
 							</button>
 						</div>
-					</div>
+						</div>
+					)}
 				</div>
 
 				{/* Content */}
@@ -388,7 +436,7 @@ export default function SettingsPage() {
 					<div className="mx-auto max-w-[800px]">
 						<section className={tab === "profile" ? "" : "hidden"}>
 							{user ? (
-								<ProfileSettings user={user} />
+								<ProfileSettings user={user} section={profileSection} />
 							) : (
 								<div className="h-40 animate-pulse rounded-[12px] border border-border bg-card" />
 							)}
