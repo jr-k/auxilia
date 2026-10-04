@@ -46,9 +46,7 @@ class RedisTokenStorage(TokenStorage):
         self._prefix = prefix
 
     def _base(self) -> str:
-        return (
-            f"{self._prefix}:{self.workspace_id}:{self.user_id}:{self.mcp_server_id}"
-        )
+        return f"{self._prefix}:{self.workspace_id}:{self.user_id}:{self.mcp_server_id}"
 
     def _tokens_key(self) -> str:
         return f"{self._base()}:tokens"
@@ -193,9 +191,7 @@ class TokenStorageFactory:
     def get_storage(
         self, workspace_id: str, user_id: str, mcp_server_id: str
     ) -> RedisTokenStorage:
-        return RedisTokenStorage(
-            user_id, mcp_server_id, workspace_id, redis=self.redis
-        )
+        return RedisTokenStorage(user_id, mcp_server_id, workspace_id, redis=self.redis)
 
     async def get_state_data(self, state: str) -> OAuthStateData | None:
         """Retrieve OAuth state data by state parameter."""

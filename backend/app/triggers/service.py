@@ -149,9 +149,9 @@ class TriggerService(BaseService[TriggerDB, TriggerRepository]):
         trigger = await self.get_or_404(trigger_id)
         self._ensure_can_manage(trigger, user)
         since = datetime.now(UTC) - timedelta(days=30)
-        threads = await ThreadService(
-            self.db, trigger.workspace_id
-        ).list_for_trigger(trigger_id, since=since)
+        threads = await ThreadService(self.db, trigger.workspace_id).list_for_trigger(
+            trigger_id, since=since
+        )
         return [TriggerThreadResponse.model_validate(t) for t in threads]
 
     async def create(self, data: TriggerCreate, owner: UserDB) -> TriggerResponse:
@@ -287,9 +287,9 @@ class TriggerService(BaseService[TriggerDB, TriggerRepository]):
         """
         trigger = await self.get_or_404(trigger_id)
         self._ensure_can_manage(trigger, user)
-        agent = await AgentService(
-            self.db, trigger.workspace_id
-        ).repository.get_scoped(trigger.agent_id)
+        agent = await AgentService(self.db, trigger.workspace_id).repository.get_scoped(
+            trigger.agent_id
+        )
         if agent is None or agent.is_archived:
             raise DomainValidationError("Trigger agent is archived or deleted")
         # Before creating the fire thread — RunService.create would reject the
@@ -340,9 +340,9 @@ class TriggerService(BaseService[TriggerDB, TriggerRepository]):
             raise DomainValidationError("Webhook instructions cannot be empty")
 
         await self._ensure_agent_usable(agent_id, owner, trigger.workspace_id)
-        agent = await AgentService(
-            self.db, trigger.workspace_id
-        ).repository.get_scoped(agent_id)
+        agent = await AgentService(self.db, trigger.workspace_id).repository.get_scoped(
+            agent_id
+        )
         if agent is None or agent.is_archived:
             raise DomainValidationError("Webhook agent is archived or deleted")
         await ModelService(self.db, trigger.workspace_id).ensure_available(model_id)
@@ -448,9 +448,9 @@ class TriggerService(BaseService[TriggerDB, TriggerRepository]):
                 trigger.next_run_at = None
                 self.db.add(trigger)
                 continue
-            if not await ModelService(
-                self.db, trigger.workspace_id
-            ).is_available(trigger.model_id):
+            if not await ModelService(self.db, trigger.workspace_id).is_available(
+                trigger.model_id
+            ):
                 # Skip the firing but keep the schedule advancing (mirrors the
                 # missed-run policy); the trigger recovers by itself when an
                 # admin re-enables the model. `last_run_at` tracks actual

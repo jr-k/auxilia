@@ -9,12 +9,18 @@ import { cn } from "@/lib/utils";
 
 type WorkspaceAvatarSize = "xs" | "sm" | "md" | "lg";
 
-const SIZE_CLASSES: Record<WorkspaceAvatarSize, string> = {
-	xs: "size-6 rounded-[6px] text-[11px]",
-	sm: "size-8 rounded-[8px] text-[14px]",
-	md: "size-12 rounded-[11px] text-[21px]",
-	lg: "size-16 rounded-[14px] text-[28px]",
-};
+function sizeClass(size: WorkspaceAvatarSize): string {
+	switch (size) {
+		case "xs":
+			return "size-6 rounded-[6px] text-[11px]";
+		case "sm":
+			return "size-8 rounded-[8px] text-[14px]";
+		case "md":
+			return "size-12 rounded-[11px] text-[21px]";
+		case "lg":
+			return "size-16 rounded-[14px] text-[28px]";
+	}
+}
 
 interface WorkspaceAvatarProps {
 	workspaceId?: string | null;
@@ -57,7 +63,7 @@ export function WorkspaceAvatar({
 			}
 			className={cn(
 				"flex shrink-0 items-center justify-center overflow-hidden font-bold uppercase text-label",
-				SIZE_CLASSES[size],
+				sizeClass(size),
 				className,
 			)}
 		>

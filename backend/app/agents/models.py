@@ -5,7 +5,6 @@ from sqlalchemy import LargeBinary, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Boolean, Column, Field, SQLModel, String, Text
 
-from app.colors import ALLOWED_COLORS as ALLOWED_COLORS
 from app.models import BaseDBModel
 
 

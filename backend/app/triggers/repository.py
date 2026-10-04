@@ -18,8 +18,8 @@ class TriggerRepository(BaseRepository[TriggerDB]):
             stmt = stmt.where(TriggerDB.workspace_id == self.workspace_id)
         return stmt
 
-    async def get(self, id: UUID) -> TriggerDB | None:
-        stmt = self._scope(select(TriggerDB).where(TriggerDB.id == id))
+    async def get(self, trigger_id: UUID) -> TriggerDB | None:
+        stmt = self._scope(select(TriggerDB).where(TriggerDB.id == trigger_id))
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 

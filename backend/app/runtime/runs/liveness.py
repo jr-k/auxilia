@@ -16,7 +16,10 @@ class RunLiveness:
     """The liveness key for a single run."""
 
     def __init__(
-        self, run_id: str, redis: Redis | None = None, workspace_id: object | None = None
+        self,
+        run_id: str,
+        redis: Redis | None = None,
+        workspace_id: object | None = None,
     ):
         self.run_id = run_id
         self.redis: Redis = redis or get_redis()

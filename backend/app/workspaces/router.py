@@ -135,8 +135,7 @@ async def delete_workspace(
             await redis.delete(key)
     except Exception:
         logger.exception(
-            "Workspace %s was deleted but its ephemeral Redis data could not "
-            "be purged",
+            "Workspace %s was deleted but its ephemeral Redis data could not be purged",
             workspace_id,
         )
 

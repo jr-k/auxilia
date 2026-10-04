@@ -760,9 +760,7 @@ class AgentService(BaseService[AgentDB, AgentRepository]):
 
         if self.workspace_id is None:
             raise RuntimeError("workspace_id is required for MCP authorization")
-        authorized = await probe_authorization(
-            servers, user_id, self.workspace_id
-        )
+        authorized = await probe_authorization(servers, user_id, self.workspace_id)
         disconnected = [
             str(server.id) for server in servers if not authorized.get(server.id, True)
         ]

@@ -81,7 +81,9 @@ class MCPServerRepository(BaseRepository[MCPServerDB]):
         return result.scalar_one_or_none()
 
     async def _lock_image_parent(self, server_id: UUID) -> None:
-        stmt = select(MCPServerDB.id).where(MCPServerDB.id == server_id).with_for_update()
+        stmt = (
+            select(MCPServerDB.id).where(MCPServerDB.id == server_id).with_for_update()
+        )
         await self.db.execute(stmt)
 
     async def set_image(

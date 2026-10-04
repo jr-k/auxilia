@@ -1,6 +1,12 @@
 "use client";
 
-import { useState, type DragEvent, type KeyboardEvent } from "react";
+import {
+	useEffect,
+	useRef,
+	useState,
+	type DragEvent,
+	type KeyboardEvent,
+} from "react";
 import {
 	ChevronDownIcon,
 	GripVerticalIcon,
@@ -41,6 +47,20 @@ export function PromptQueue({
 		message: "",
 		revision: 0,
 	});
+	const listRef = useRef<HTMLDivElement | null>(null);
+	// Ids rendered on the previous commit. A new id means a prompt was
+	// appended: scroll the list so the newest items stay in view. Removals
+	// and reorders (same ids) leave the scroll position alone.
+	const knownIds = useRef<Set<string>>(new Set());
+
+	useEffect(() => {
+		const appended = items.some((item) => !knownIds.current.has(item.id));
+		knownIds.current = new Set(items.map((item) => item.id));
+		if (!appended || !open) return;
+		const list = listRef.current;
+		if (!list) return;
+		list.scrollTo({ top: list.scrollHeight, behavior: "smooth" });
+	}, [items, open]);
 
 	if (items.length === 0) return null;
 
@@ -49,12 +69,19 @@ export function PromptQueue({
 		const to = from + direction;
 		if (from < 0 || to < 0 || to >= items.length) return;
 		const ids = items.map((item) => item.id);
-		[ids[from], ids[to]] = [ids[to], ids[from]];
+		const fromId = ids.at(from);
+		const toId = ids.at(to);
+		if (!fromId || !toId) return;
+		const reordered = ids.map((id, index) => {
+			if (index === from) return toId;
+			if (index === to) return fromId;
+			return id;
+		});
 		setAnnouncement((current) => ({
 			message: `Moved prompt to position ${to + 1} of ${items.length}.`,
 			revision: current.revision + 1,
 		}));
-		void onReorder(ids);
+		void onReorder(reordered);
 	};
 
 	const drop = (event: DragEvent, targetId: string) => {
@@ -123,7 +150,10 @@ export function PromptQueue({
 				</button>
 			</CollapsibleTrigger>
 			<CollapsibleContent className="border-t border-petrol/10">
-				<div className="max-h-48 space-y-1 overflow-y-auto p-2">
+				<div
+					ref={listRef}
+					className="max-h-48 space-y-1 overflow-y-auto p-2"
+				>
 					{items.map((item, index) => {
 						const isEditing = editingId === item.id;
 						const isBusy = busyId === item.id;

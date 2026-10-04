@@ -213,9 +213,7 @@ class ProtocolService:
         codec doesn't own (a legacy-format log from a run in flight during
         the deploy) are skipped — the `_END` marker still terminates them.
         """
-        events = RunEventStream(
-            run.id, self.redis, workspace_id=run.workspace_id
-        )
+        events = RunEventStream(run.id, self.redis, workspace_id=run.workspace_id)
 
         def relay(
             event: dict, entry_id: str, *, bypass_since: bool = False

@@ -363,17 +363,21 @@ class SkillRepository(BaseRepository[SkillDB]):
         self.db.add(image)
         stmt = (
             update(SkillDB)
-            .where(SkillDB.id == skill_id)
+            .where(col(SkillDB.id) == skill_id)
             .values(image_revision=revision)
         )
         await self.db.execute(stmt)
         await self.db.flush()
 
     async def delete_image(self, skill_id: UUID) -> None:
-        stmt = delete(SkillImageDB).where(SkillImageDB.skill_id == skill_id)
-        await self.db.execute(stmt)
-        stmt = update(SkillDB).where(SkillDB.id == skill_id).values(image_revision=None)
-        await self.db.execute(stmt)
+        delete_stmt = delete(SkillImageDB).where(col(SkillImageDB.skill_id) == skill_id)
+        await self.db.execute(delete_stmt)
+        update_stmt = (
+            update(SkillDB)
+            .where(col(SkillDB.id) == skill_id)
+            .values(image_revision=None)
+        )
+        await self.db.execute(update_stmt)
         await self.db.flush()
 
     async def list_existing_ids(self, skill_ids: Iterable[UUID]) -> set[UUID]:
@@ -403,17 +407,17 @@ class SkillRepository(BaseRepository[SkillDB]):
     async def list_attached(self, agent_id: UUID):
         """`(id, name, description, script_count)` of the agent's skills, by name."""
         stmt = (
-            select(
-                SkillDB.id,
-                SkillDB.name,
-                SkillDB.description,
-                SkillDB.emoji,
-                SkillDB.color,
-                SkillDB.image_revision,
+            sa_select(
+                col(SkillDB.id),
+                col(SkillDB.name),
+                col(SkillDB.description),
+                col(SkillDB.emoji),
+                col(SkillDB.color),
+                col(SkillDB.image_revision),
                 json_script_count(SkillDB.files).label("script_count"),
             )
             .join(AgentSkillDB, col(AgentSkillDB.skill_id) == col(SkillDB.id))
-            .where(AgentSkillDB.agent_id == agent_id)
+            .where(col(AgentSkillDB.agent_id) == agent_id)
             .order_by(col(SkillDB.name))
         )
         return (await self.db.execute(stmt)).all()

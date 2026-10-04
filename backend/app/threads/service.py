@@ -84,9 +84,7 @@ class ThreadService(BaseService[ThreadDB, ThreadRepository]):
         response = _thread_with_agent(*row)
         response.model_available = await ModelService(
             self.db, self.workspace_id
-        ).is_available(
-            response.model_id
-        )
+        ).is_available(response.model_id)
         return response
 
     async def list(self, user_id: UUID, page: PageParams) -> Page[ThreadResponse]:
@@ -111,9 +109,10 @@ class ThreadService(BaseService[ThreadDB, ThreadRepository]):
         source: ThreadSource,
         trigger_id: UUID | None = None,
     ) -> ThreadResponse:
-        if await AgentRepository(self.db, self.workspace_id).get_scoped(
-            data.agent_id
-        ) is None:
+        if (
+            await AgentRepository(self.db, self.workspace_id).get_scoped(data.agent_id)
+            is None
+        ):
             raise NotFoundError("Agent not found")
         # Strict at selection time (unlike model availability, which is only
         # flagged): an undeclared effort level is a client bug, and letting it
@@ -146,9 +145,7 @@ class ThreadService(BaseService[ThreadDB, ThreadRepository]):
             update={
                 "model_available": await ModelService(
                     self.db, self.workspace_id
-                ).is_available(
-                    thread.model_id
-                )
+                ).is_available(thread.model_id)
             },
         )
 
@@ -212,9 +209,12 @@ class ThreadService(BaseService[ThreadDB, ThreadRepository]):
         """
         thread = await self.repository.get(ts)
         if thread is None:
-            if await AgentRepository(self.db, self.workspace_id).get_scoped(
-                UUID(agent_id)
-            ) is None:
+            if (
+                await AgentRepository(self.db, self.workspace_id).get_scoped(
+                    UUID(agent_id)
+                )
+                is None
+            ):
                 raise NotFoundError("Agent not found")
             # Slack has no model picker — new threads start on the workspace
             # default (admin-flagged model, else the first available one).

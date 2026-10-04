@@ -304,6 +304,26 @@ async def update_prompt_queue_item(
     return response
 
 
+@router.post("/queue/{run_id}/edit", status_code=204)
+async def begin_prompt_queue_edit(
+    thread_id: str,
+    run_id: str,
+    thread: ThreadResponse = Depends(authorize_thread_for_run_service),
+    runs: RunService = Depends(get_run_service),
+) -> None:
+    await runs.begin_queue_edit(thread_id, run_id, thread.workspace_id)
+
+
+@router.delete("/queue/{run_id}/edit", status_code=204)
+async def end_prompt_queue_edit(
+    thread_id: str,
+    run_id: str,
+    thread: ThreadResponse = Depends(authorize_thread_for_run_service),
+    runs: RunService = Depends(get_run_service),
+) -> None:
+    await runs.end_queue_edit(thread_id, run_id, thread.workspace_id)
+
+
 @router.put("/queue/order")
 async def reorder_prompt_queue(
     thread_id: str,

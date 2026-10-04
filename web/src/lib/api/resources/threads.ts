@@ -90,6 +90,20 @@ export async function updateQueuedPrompt(
 	return response.data;
 }
 
+export async function beginQueuedPromptEdit(
+	threadId: string,
+	runId: string,
+): Promise<void> {
+	await api.post(`/threads/${threadId}/runs/queue/${runId}/edit`);
+}
+
+export async function endQueuedPromptEdit(
+	threadId: string,
+	runId: string,
+): Promise<void> {
+	await api.delete(`/threads/${threadId}/runs/queue/${runId}/edit`);
+}
+
 export async function removeQueuedPrompt(
 	threadId: string,
 	runId: string,

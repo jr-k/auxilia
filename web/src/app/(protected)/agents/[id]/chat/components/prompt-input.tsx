@@ -71,6 +71,8 @@ interface ChatPromptInputProps {
 	queuedPrompts?: QueuedPrompt[];
 	onEnqueue?: (text: string) => Promise<void>;
 	onUpdateQueued?: (id: string, text: string) => Promise<void>;
+	onBeginQueuedEdit?: (id: string) => Promise<void>;
+	onEndQueuedEdit?: (id: string) => Promise<void>;
 	onRemoveQueued?: (id: string) => Promise<void>;
 	onReorderQueued?: (orderedIds: string[]) => Promise<void>;
 	queueLoading?: boolean;
@@ -120,6 +122,8 @@ const ChatPromptInput = ({
 	queuedPrompts = [],
 	onEnqueue,
 	onUpdateQueued,
+	onBeginQueuedEdit,
+	onEndQueuedEdit,
 	onRemoveQueued,
 	onReorderQueued,
 	queueLoading = false,
@@ -136,8 +140,15 @@ const ChatPromptInput = ({
 	const controller = usePromptInputController();
 	const [editingId, setEditingId] = useState<string | null>(null);
 	const [busyId, setBusyId] = useState<string | null>(null);
-	const [isSubmitting, setIsSubmitting] = useState(false);
-	const submittingRef = useRef(false);
+	// A direct `onSubmit` (the protocol stream's `submit`) must only happen
+	// while the server has no run on the thread: it shows the message
+	// optimistically, and if a run is active the server parks it in the
+	// queue instead — the prompt then appears in the conversation *and* in
+	// the queue. The `queueMode` prop lags a render or two behind the first
+	// send, so this lock is held for the whole run (the stream resolves only
+	// once the run ends). The stream must still carry the first prompt of
+	// an idle thread: that is what attaches it to the thread's events.
+	const directRunLockRef = useRef(false);
 	const draftRef = useRef<string | null>(null);
 	const restoreFrameRef = useRef<number | null>(null);
 	const effectiveEditingId =
@@ -227,99 +238,108 @@ const ChatPromptInput = ({
 		[],
 	);
 
-	const handleSubmit = async (message: PromptInputMessage) => {
-		if (!message || queueLoading || submittingRef.current) return;
-
+	const submitMessage = async (message: PromptInputMessage) => {
 		const hasText = Boolean("text" in message && message.text);
 		const hasAttachments = Boolean("files" in message && message.files?.length);
-		if (!(hasText || hasAttachments)) {
+
+		if (effectiveEditingId) {
+			if (!hasText || hasAttachments || !onUpdateQueued) return;
+			setBusyId(effectiveEditingId);
+			try {
+				await onUpdateQueued(effectiveEditingId, message.text?.trim() ?? "");
+				setEditingId(null);
+				const draft = draftRef.current;
+				draftRef.current = null;
+				restoreFrameRef.current = requestAnimationFrame(() => {
+					controller.textInput.setInput(draft ?? "");
+					restoreFrameRef.current = null;
+				});
+			} catch (error) {
+				toast.error(
+					getApiErrorMessage(
+						error,
+						"The queued prompt could not be updated.",
+					),
+				);
+				throw error;
+			} finally {
+				setBusyId(null);
+			}
 			return;
 		}
-		submittingRef.current = true;
-		setIsSubmitting(true);
-		try {
-			if (effectiveEditingId) {
-				if (!hasText || hasAttachments || !onUpdateQueued) return;
-				setBusyId(effectiveEditingId);
-				try {
-					await onUpdateQueued(
-						effectiveEditingId,
-						message.text?.trim() ?? "",
-					);
-					setEditingId(null);
-					const draft = draftRef.current;
-					draftRef.current = null;
-					restoreFrameRef.current = requestAnimationFrame(() => {
-						controller.textInput.setInput(draft ?? "");
-						restoreFrameRef.current = null;
-					});
-				} catch (error) {
-					toast.error(
-						getApiErrorMessage(
-							error,
-							"The queued prompt could not be updated.",
-						),
-					);
-					throw error;
-				} finally {
-					setBusyId(null);
-				}
-				return;
+		if (queueMode || directRunLockRef.current) {
+			if (hasAttachments) {
+				toast.error(
+					"Attachments cannot be queued while a response is running.",
+				);
+				throw new Error("Queued prompts are text-only");
 			}
-			if (queueMode) {
-				if (hasAttachments) {
-					toast.error(
-						"Attachments cannot be queued while a response is running.",
-					);
-					throw new Error("Queued prompts are text-only");
-				}
-				if (!hasText || !onEnqueue) return;
-				try {
-					await onEnqueue(message.text?.trim() ?? "");
-				} catch (error) {
-					const apiError = toApiError(error);
-					if (apiError.status === 401) {
-						onQueueAuthorizationRequired?.();
-						const body =
-							apiError.body && typeof apiError.body === "object"
-								? (apiError.body as Record<string, unknown>)
-								: null;
-						const authUrl = safeHttpUrl(body?.auth_url);
-						if (authUrl) {
-							toast.error(
-								"Reconnect the agent's MCP server before queueing this prompt.",
-								{
-									action: {
-										label: "Connect",
-										onClick: () => {
-											window.open(
-												authUrl,
-												"_blank",
-												"width=600,height=700",
-											);
-										},
+			if (!hasText || !onEnqueue) return;
+			try {
+				await onEnqueue(message.text?.trim() ?? "");
+			} catch (error) {
+				const apiError = toApiError(error);
+				if (apiError.status === 401) {
+					onQueueAuthorizationRequired?.();
+					const body =
+						apiError.body && typeof apiError.body === "object"
+							? (apiError.body as Record<string, unknown>)
+							: null;
+					const authUrl = safeHttpUrl(body?.auth_url);
+					if (authUrl) {
+						toast.error(
+							"Reconnect the agent's MCP server before queueing this prompt.",
+							{
+								action: {
+									label: "Connect",
+									onClick: () => {
+										window.open(
+											authUrl,
+											"_blank",
+											"width=600,height=700",
+										);
 									},
 								},
-							);
-							throw error;
-						}
-						setConnectDialogOpen(true);
+							},
+						);
+						throw error;
 					}
-					toast.error(
-						getApiErrorMessage(
-							error,
-							"The prompt could not be added to the queue.",
-						),
-					);
-					throw error;
+					setConnectDialogOpen(true);
 				}
-				return;
+				toast.error(
+					getApiErrorMessage(
+						error,
+						"The prompt could not be added to the queue.",
+					),
+				);
+				throw error;
 			}
+			return;
+		}
+		directRunLockRef.current = true;
+		try {
 			await onSubmit(message);
 		} finally {
-			submittingRef.current = false;
-			setIsSubmitting(false);
+			directRunLockRef.current = false;
 		}
+	};
+
+	const handleSubmit = (message: PromptInputMessage) => {
+		if (!message || queueLoading) return;
+		const hasText = Boolean("text" in message && message.text);
+		const hasAttachments = Boolean("files" in message && message.files?.length);
+		if (!(hasText || hasAttachments)) return;
+
+		void submitMessage(message).catch(() => {});
+		requestAnimationFrame(() => {
+			textareaRef.current?.focus({ preventScroll: true });
+		});
+	};
+
+	const finishEditingLocally = () => {
+		setEditingId(null);
+		controller.textInput.setInput(draftRef.current ?? "");
+		draftRef.current = null;
 	};
 
 	const beginEdit = (item: QueuedPrompt) => {
@@ -327,21 +347,55 @@ const ChatPromptInput = ({
 			toast.error("Send or remove the current attachments before editing.");
 			return;
 		}
-		if (editingId === null) {
-			draftRef.current = controller.textInput.value;
-		}
-		controller.textInput.setInput(item.text);
-		setEditingId(item.id);
-		requestAnimationFrame(() => {
-			textareaRef.current?.focus();
-		});
+		setBusyId(item.id);
+		void (async () => {
+			try {
+				await onBeginQueuedEdit?.(item.id);
+				if (editingId === null) {
+					draftRef.current = controller.textInput.value;
+				}
+				controller.textInput.setInput(item.text);
+				setEditingId(item.id);
+				requestAnimationFrame(() => {
+					textareaRef.current?.focus();
+				});
+			} catch (error) {
+				toast.error(
+					getApiErrorMessage(error, "This queued prompt can no longer be edited."),
+				);
+			} finally {
+				setBusyId(null);
+			}
+		})();
 	};
 
 	const cancelEdit = () => {
-		setEditingId(null);
-		controller.textInput.setInput(draftRef.current ?? "");
-		draftRef.current = null;
+		if (!effectiveEditingId) return;
+		const id = effectiveEditingId;
+		setBusyId(id);
+		void (async () => {
+			try {
+				await onEndQueuedEdit?.(id);
+				finishEditingLocally();
+			} catch (error) {
+				toast.error(
+					getApiErrorMessage(error, "The queued prompt edit could not be closed."),
+				);
+			} finally {
+				setBusyId(null);
+			}
+		})();
 	};
+
+	useEffect(() => {
+		if (!effectiveEditingId || !onBeginQueuedEdit) return;
+		const timer = window.setInterval(() => {
+			void onBeginQueuedEdit(effectiveEditingId).catch(() => {});
+		}, 10_000);
+		return () => {
+			window.clearInterval(timer);
+		};
+	}, [effectiveEditingId, onBeginQueuedEdit]);
 
 	useEffect(() => {
 		if (
@@ -352,7 +406,6 @@ const ChatPromptInput = ({
 		}
 		// The queue is an external server subscription; losing its item ends
 		// the local editing session.
-		// eslint-disable-next-line react-hooks/set-state-in-effect
 		setEditingId(null);
 		controller.textInput.setInput(draftRef.current ?? "");
 		draftRef.current = null;
@@ -363,7 +416,7 @@ const ChatPromptInput = ({
 		setBusyId(id);
 		try {
 			await onRemoveQueued?.(id);
-			if (editingId === id) cancelEdit();
+			if (editingId === id) finishEditingLocally();
 		} catch (error) {
 			toast.error(
 				getApiErrorMessage(error, "The queued prompt could not be removed."),
@@ -453,9 +506,14 @@ const ChatPromptInput = ({
 				<PromptInputBody>
 					<PromptInputTextarea
 						ref={textareaRef}
-						disabled={
-							agentReady === false || queueLoading || isSubmitting
-						}
+						disabled={agentReady === false || queueLoading}
+						onKeyDown={(event) => {
+							// Escape leaves edit mode without saving: the lease is
+							// released and the pre-edit draft comes back.
+							if (event.key !== "Escape" || !effectiveEditingId) return;
+							event.preventDefault();
+							cancelEdit();
+						}}
 						placeholder={agentName ? `Reply to ${agentName}…` : "Ask anything…"}
 						className={cn(
 							"text-[15px] font-medium leading-relaxed",
@@ -650,7 +708,7 @@ const ChatPromptInput = ({
 					) : (
 						<div className="flex items-center gap-1.5">
 							{status === "streaming" && stop && <StopButton stop={stop} />}
-							<SubmitButton disabled={queueLoading || isSubmitting} />
+							<SubmitButton disabled={queueLoading} />
 						</div>
 					)}
 				</PromptInputFooter>

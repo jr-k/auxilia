@@ -63,9 +63,9 @@ async def verify_slack_signature(
     if not team_id:
         raise HTTPException(status_code=403, detail="Unknown Slack workspace")
     async with AsyncSessionLocal() as db:
-        config = await SlackNotificationSettingsService(
-            db
-        ).get_runtime_config_for_team(team_id)
+        config = await SlackNotificationSettingsService(db).get_runtime_config_for_team(
+            team_id
+        )
     if config is None:
         raise HTTPException(status_code=503, detail="Slack is not configured")
 
@@ -137,9 +137,7 @@ async def resolve_user(slack_user_id: str, workspace_id: UUID) -> UserDB | None:
         user = await UserRepository(db).get_by_email(user_info.profile.email)
         if user is None:
             return None
-        membership = await WorkspaceRepository(db).get_membership(
-            workspace_id, user.id
-        )
+        membership = await WorkspaceRepository(db).get_membership(workspace_id, user.id)
         if membership is None:
             return None
         user.set_workspace_membership(membership)

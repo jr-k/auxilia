@@ -42,9 +42,7 @@ class SlackNotificationSettingsRepository(BaseRepository[SlackNotificationSettin
             decrypt_value(row.signing_secret_encrypted),
         )
 
-    async def get_by_team_id(
-        self, team_id: str
-    ) -> SlackNotificationSettingsDB | None:
+    async def get_by_team_id(self, team_id: str) -> SlackNotificationSettingsDB | None:
         stmt = select(SlackNotificationSettingsDB).where(
             SlackNotificationSettingsDB.slack_team_id == team_id,
             SlackNotificationSettingsDB.enabled,
