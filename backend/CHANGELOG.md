@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.4](https://github.com/jr-k/auxilia/compare/backend-v0.10.3...backend-v0.10.4) (2026-10-04)
+
+
+### Bug Fixes
+
+* **workspaces:** survive deleting the last workspace ([58aa9b6](https://github.com/jr-k/auxilia/commit/58aa9b62665152a4d3de8d1b7137308a0bc3fd1a))
+
 ## [0.10.3](https://github.com/jr-k/auxilia/compare/backend-v0.10.2...backend-v0.10.3) (2026-10-04)
 
 
