@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.1](https://github.com/jr-k/auxilia/compare/backend-v0.10.0...backend-v0.10.1) (2026-10-04)
+
+
+### Bug Fixes
+
+* **workspaces:** recover after deleting active workspace ([6f7641e](https://github.com/jr-k/auxilia/commit/6f7641e5bb5913ba68a1356541e3beef1e6ac18a))
+
 ## [0.10.0](https://github.com/jr-k/auxilia/compare/backend-v0.9.6...backend-v0.10.0) (2026-10-04)
 
 
