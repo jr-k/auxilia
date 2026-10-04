@@ -1,11 +1,12 @@
 from datetime import datetime
 from uuid import UUID
 
+from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
 from app.repository import BaseRepository
-from app.triggers.models import TriggerDB, TriggerType
+from app.triggers.models import TriggerDB, TriggerTeamDB, TriggerType
 
 
 class TriggerRepository(BaseRepository[TriggerDB]):
@@ -37,6 +38,43 @@ class TriggerRepository(BaseRepository[TriggerDB]):
         stmt = self._scope(stmt)
         result = await self.db.execute(stmt)
         return list(result.scalars().all())
+
+    async def list_for_agent(self, agent_id: UUID) -> list[TriggerDB]:
+        stmt = self._scope(
+            select(TriggerDB).where(TriggerDB.agent_id == agent_id)
+        )
+        result = await self.db.execute(stmt)
+        return list(result.scalars().all())
+
+    async def list_team_ids(self, trigger_id: UUID) -> list[UUID]:
+        stmt = select(TriggerTeamDB.team_id).where(
+            TriggerTeamDB.trigger_id == trigger_id
+        )
+        return list((await self.db.execute(stmt)).scalars().all())
+
+    async def list_team_ids_for_triggers(
+        self, trigger_ids: list[UUID]
+    ) -> dict[UUID, list[UUID]]:
+        if not trigger_ids:
+            return {}
+        stmt = select(TriggerTeamDB.trigger_id, TriggerTeamDB.team_id).where(
+            TriggerTeamDB.trigger_id.in_(trigger_ids)
+        )
+        grouped: dict[UUID, list[UUID]] = {}
+        for trigger_id, team_id in (await self.db.execute(stmt)).all():
+            grouped.setdefault(trigger_id, []).append(team_id)
+        return grouped
+
+    async def set_team_ids(self, trigger_id: UUID, team_ids: list[UUID]) -> None:
+        stmt = delete(TriggerTeamDB).where(TriggerTeamDB.trigger_id == trigger_id)
+        await self.db.execute(stmt)
+        self.db.add_all(
+            [
+                TriggerTeamDB(trigger_id=trigger_id, team_id=team_id)
+                for team_id in dict.fromkeys(team_ids)
+            ]
+        )
+        await self.db.flush()
 
     async def get_by_webhook_id(self, webhook_id: UUID) -> TriggerDB | None:
         stmt = select(TriggerDB).where(

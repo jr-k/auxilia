@@ -8,6 +8,7 @@ from fastapi import Depends
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.agents.core.repository import AgentRepository
 from app.database import get_db
 from app.exceptions import (
     AlreadyExistsError,
@@ -38,10 +39,20 @@ from app.mcp.servers.schemas import (
     ToolsListed,
 )
 from app.service import BaseService
+from app.teams.repository import TeamRepository
+from app.users.models import UserDB
 from app.users.repository import UserRepository
 from app.utils.encryption import decrypt_value
 from app.utils.images import ProcessedImage
+from app.visibility import (
+    ResourceVisibility,
+    audience_contains,
+    is_resource_visible,
+    is_resource_visible_to_identity,
+    validate_visibility,
+)
 from app.workspaces.dependencies import get_active_workspace_id
+from app.workspaces.models import WorkspaceRole
 from app.workspaces.repository import WorkspaceRepository
 
 
@@ -55,9 +66,16 @@ class MCPServerService(BaseService[MCPServerDB, MCPServerRepository]):
         super().__init__(db, MCPServerRepository(db, workspace_id))
         self.workspace_id = workspace_id
         self.workspaces = WorkspaceRepository(db)
+        self.teams = TeamRepository(db)
 
     async def get_scoped(self, server_id: UUID) -> MCPServerDB:
         server = await self.repository.get_scoped(server_id)
+        if server is None:
+            raise NotFoundError(self.not_found_message)
+        return server
+
+    async def get_scoped_for_update(self, server_id: UUID) -> MCPServerDB:
+        server = await self.repository.get_scoped_for_update(server_id)
         if server is None:
             raise NotFoundError(self.not_found_message)
         return server
@@ -85,7 +103,7 @@ class MCPServerService(BaseService[MCPServerDB, MCPServerRepository]):
         await self.get_scoped(server_id)
         await self.repository.delete_image(server_id)
 
-    async def create(self, data: MCPServerCreate) -> MCPServerDB:
+    async def create(self, data: MCPServerCreate, owner_id: UUID) -> MCPServerDB:
         if await self.repository.get_by_url(data.url):
             raise AlreadyExistsError("An MCP server with this URL already exists")
 
@@ -94,7 +112,11 @@ class MCPServerService(BaseService[MCPServerDB, MCPServerRepository]):
                 "API key is required when auth_type is 'api_key'"
             )
 
-        db_server = await self.repository.create(data)
+        await self._validate_team_ids(data.team_ids)
+        validate_visibility(data.visibility, data.team_ids)
+        db_server = await self.repository.create(data, owner_id)
+        if data.team_ids:
+            await self.repository.set_team_ids(db_server.id, data.team_ids)
 
         if data.auth_type == MCPAuthType.api_key and data.api_key:
             await self.repository.create_or_update_api_key(db_server.id, data.api_key)
@@ -116,6 +138,34 @@ class MCPServerService(BaseService[MCPServerDB, MCPServerRepository]):
     async def get(self, server_id: UUID) -> MCPServerDB:
         return await self.get_scoped(server_id)
 
+    async def get_visible(self, server_id: UUID, user: UserDB) -> MCPServerDB:
+        server = await self.get_scoped(server_id)
+        team_ids = (
+            set(await self.repository.list_team_ids(server.id))
+            if server.visibility == ResourceVisibility.teams
+            else set()
+        )
+        if not is_resource_visible(
+            visibility=server.visibility,
+            owner_id=server.owner_id,
+            team_ids=team_ids,
+            user=user,
+        ):
+            raise NotFoundError(self.not_found_message)
+        return server
+
+    async def _validate_team_ids(self, team_ids: list[UUID]) -> None:
+        if self.workspace_id is None:
+            raise RuntimeError("workspace_id is required")
+        for team_id in set(team_ids):
+            if (
+                await self.teams.get_in_workspace_for_key_share(
+                    team_id, self.workspace_id
+                )
+                is None
+            ):
+                raise DomainValidationError("Team not found in workspace")
+
     async def to_response(self, server: MCPServerDB) -> MCPServerResponse:
         """Project a server to its API response, enriching OAuth2 servers with
         their static client_id (the client secret is never exposed)."""
@@ -123,7 +173,16 @@ class MCPServerService(BaseService[MCPServerDB, MCPServerRepository]):
         if server.auth_type == MCPAuthType.oauth2:
             creds = await self.repository.get_oauth_credentials(server.id)
             oauth_client_id = creds.client_id if creds else None
-        return MCPServerResponse(**server.model_dump(), oauth_client_id=oauth_client_id)
+        team_ids = (
+            await self.repository.list_team_ids(server.id)
+            if server.visibility == ResourceVisibility.teams
+            else []
+        )
+        return MCPServerResponse(
+            **server.model_dump(),
+            oauth_client_id=oauth_client_id,
+            team_ids=team_ids,
+        )
 
     async def get_oauth_secret_hint(self, server_id: UUID) -> OAuthSecretHint:
         """Return a non-reversible hint (last 4 chars + length) about the stored
@@ -139,33 +198,99 @@ class MCPServerService(BaseService[MCPServerDB, MCPServerRepository]):
         last4 = secret[-4:] if len(secret) >= 10 else None
         return OAuthSecretHint(is_set=True, last4=last4, length=len(secret))
 
-    async def list_responses(self) -> list[MCPServerResponse]:
+    async def list_responses(self, user: UserDB) -> list[MCPServerResponse]:
         rows = await self.repository.list_with_oauth_client_id()
+        team_ids = await self.repository.list_team_ids_for_servers(
+            [
+                server.id
+                for server, _ in rows
+                if server.visibility == ResourceVisibility.teams
+            ]
+        )
         # Gate client_id on the current auth type (as to_response does): a server
         # switched away from OAuth2 may still have a stale credentials row.
         return [
             MCPServerResponse(
                 **server.model_dump(),
+                team_ids=team_ids.get(server.id, []),
                 oauth_client_id=(
                     client_id if server.auth_type == MCPAuthType.oauth2 else None
                 ),
             )
             for server, client_id in rows
+            if is_resource_visible(
+                visibility=server.visibility,
+                owner_id=server.owner_id,
+                team_ids=set(team_ids.get(server.id, [])),
+                user=user,
+            )
         ]
 
     async def update(self, server_id: UUID, data: MCPServerPatch) -> MCPServerDB:
-        server = await self.get_scoped(server_id)
-        # Read before the patch is applied: both are needed to decide what
-        # stored state the edit has invalidated (see `_purge_invalidated_state`).
+        server = await self.repository.get_scoped_for_update(server_id)
+        if server is None:
+            raise NotFoundError(self.not_found_message)
+        next_visibility = data.visibility or server.visibility
+        next_team_ids = (
+            data.team_ids
+            if data.team_ids is not None
+            else (
+                await self.repository.list_team_ids(server_id)
+                if server.visibility == ResourceVisibility.teams
+                else []
+            )
+        )
+        await self._validate_team_ids(next_team_ids)
+        validate_visibility(next_visibility, next_team_ids)
+        if data.visibility is not None or data.team_ids is not None:
+            agents = AgentRepository(self.db, self.workspace_id)
+            for agent in await self.repository.list_bound_agents(server_id):
+                if not audience_contains(
+                    parent_visibility=agent.visibility,
+                    parent_owner_id=agent.owner_id,
+                    parent_team_ids=(
+                        set(await agents.get_team_ids(agent.id))
+                        if agent.visibility == ResourceVisibility.teams
+                        else set()
+                    ),
+                    child_visibility=next_visibility,
+                    child_owner_id=server.owner_id,
+                    child_team_ids=set(next_team_ids),
+                ):
+                    raise DomainValidationError(
+                        f"MCP server scope is incompatible with agent '{agent.name}'"
+                    )
+                if self.workspace_id is not None:
+                    for grant in await agents.get_permissions(agent.id):
+                        membership = await self.workspaces.get_membership(
+                            self.workspace_id, grant.user_id
+                        )
+                        if (
+                            membership is not None
+                            and not is_resource_visible_to_identity(
+                                visibility=next_visibility,
+                                owner_id=server.owner_id,
+                                team_ids=set(next_team_ids),
+                                user_id=grant.user_id,
+                                is_admin=membership.role == WorkspaceRole.admin,
+                                team_id=membership.team_id,
+                            )
+                        ):
+                            raise DomainValidationError(
+                                "MCP server scope excludes an explicitly granted "
+                                f"user of agent '{agent.name}'"
+                            )
         previous_auth_type = server.auth_type
-        previous_url = server.url
         # Credential fields are excluded from serialization, so repository.update
         # only touches the mcp_servers row; secrets are persisted separately.
         updated = await self.repository.update(server, data)
-
-        await self._purge_invalidated_state(
-            server_id, updated, previous_auth_type, previous_url
-        )
+        if data.team_ids is not None:
+            await self.repository.set_team_ids(server_id, data.team_ids)
+        if updated.auth_type != previous_auth_type:
+            if previous_auth_type == MCPAuthType.api_key:
+                await self.repository.delete_credentials(server_id, api_key=True)
+            elif previous_auth_type == MCPAuthType.oauth2:
+                await self.repository.delete_credentials(server_id, api_key=False)
 
         if data.api_key:
             await self.repository.create_or_update_api_key(server_id, data.api_key)
@@ -187,7 +312,7 @@ class MCPServerService(BaseService[MCPServerDB, MCPServerRepository]):
 
         return updated
 
-    async def _purge_invalidated_state(
+    async def purge_invalidated_state(
         self,
         server_id: UUID,
         updated: MCPServerDB,
@@ -208,10 +333,9 @@ class MCPServerService(BaseService[MCPServerDB, MCPServerRepository]):
           Admin-entered credential rows are **kept**: a static client id/secret
           is configuration the admin typed, and an admin re-pointing a server at
           a new path of the same provider must not silently lose it.
-        * **Auth type changed** — the same Redis purge, plus the credential row
-          for the scheme being left. That row is dead config; `list_responses`
-          already has to gate `oauth_client_id` on the current auth type
-          precisely because it could linger.
+        * **Auth type changed** — the same Redis purge. The credential row for
+          the scheme being left is deleted inside the database transaction by
+          :meth:`update`, before this post-commit cleanup runs.
 
         Redis purging is best-effort: a cache that is down must not fail the
         edit. The cost of a miss is a stale token, which the next authorization
@@ -220,12 +344,6 @@ class MCPServerService(BaseService[MCPServerDB, MCPServerRepository]):
         auth_type_changed = updated.auth_type != previous_auth_type
         if not auth_type_changed and updated.url == previous_url:
             return
-
-        if auth_type_changed:
-            if previous_auth_type == MCPAuthType.api_key:
-                await self.repository.delete_credentials(server_id, api_key=True)
-            elif previous_auth_type == MCPAuthType.oauth2:
-                await self.repository.delete_credentials(server_id, api_key=False)
 
         try:
             if self.workspace_id is None:
@@ -249,13 +367,28 @@ class MCPServerService(BaseService[MCPServerDB, MCPServerRepository]):
                 server_id,
             )
 
+    async def purge_server_data(self, server_id: UUID) -> None:
+        """Best-effort removal of Redis authorization state after DB deletion."""
+        try:
+            if self.workspace_id is None:
+                raise RuntimeError("workspace_id is required")
+            await TokenStorageFactory().clear_server_data(
+                str(self.workspace_id), str(server_id)
+            )
+        except Exception:  # noqa: BLE001 — the committed delete must stay successful
+            logger.warning(
+                "Could not purge stored authorization state for deleted MCP server %s",
+                server_id,
+                exc_info=True,
+            )
+
     async def delete(self, server_id: UUID) -> None:
         """Delete the server row. Refused while agents are bound: the binding
         FK has no cascade, so the flush fails and surfaces as a clean 400.
         Detaching first is the agents module's job — the router composes
         `AgentMCPServerService.detach_server` before this when the dialog's
         explicit confirm asks for it (#369)."""
-        server = await self.get_scoped(server_id)
+        server = await self.get_scoped_for_update(server_id)
         try:
             await self.repository.delete(server)
         except IntegrityError as exc:

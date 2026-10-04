@@ -14,6 +14,8 @@ from contextlib import suppress
 
 from sqlalchemy.exc import IntegrityError
 
+from app.agents.core.service import AgentService
+from app.agents.models import EffectivePermission
 from app.background import LoopHealth, register_loop
 from app.database import AsyncSessionLocal, get_checkpointer
 from app.exceptions import root_cause
@@ -31,6 +33,8 @@ from app.runtime.runs.service import RunService
 from app.runtime.runs.settings import run_settings
 from app.runtime.runs.state import MCP_REAUTH_ERROR, RunStatus
 from app.threads.models import ThreadDB
+from app.users.models import UserDB
+from app.workspaces.repository import WorkspaceRepository
 
 
 logger = logging.getLogger(__name__)
@@ -188,6 +192,26 @@ class RunWorker:
                 raise RuntimeError(f"Thread {record.thread_id} not found")
             if thread.workspace_id != record.workspace_id:
                 raise RuntimeError("Run and thread belong to different workspaces")
+            if thread.user_id != record.user_id:
+                raise RuntimeError("Run and thread belong to different users")
+            user = await db.get(UserDB, record.user_id)
+            membership = await WorkspaceRepository(db).get_membership(
+                thread.workspace_id, record.user_id
+            )
+            if user is None or membership is None:
+                raise RuntimeError("Run user no longer belongs to the workspace")
+            user.set_workspace_membership(membership)
+            agents = AgentService(db, thread.workspace_id)
+            await agents.require_permission(
+                thread.agent_id,
+                at_least=EffectivePermission.member,
+                action="use this agent",
+                user_id=user.id,
+                user_role=user.role,
+                user_team_id=user.team_id,
+                include_archived=True,
+            )
+            await agents.ensure_subagent_scopes(thread.agent_id)
             if await _mcp_unauthorized(db, thread, str(record.user_id)):
                 raise RuntimeError(MCP_REAUTH_ERROR)
             agent = await Agent.build(thread=thread, db=db)

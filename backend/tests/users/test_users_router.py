@@ -392,7 +392,14 @@ def test_update_user_team(client: TestClient, mock_db, admin_user):
     user_result.one_or_none.return_value = (user, membership(user))
     team_result = MagicMock()
     team_result.scalar_one_or_none.return_value = team
-    mock_db.execute.side_effect = [user_result, team_result]
+    empty_result = MagicMock()
+    empty_result.scalars.return_value.all.return_value = []
+    mock_db.execute.side_effect = [
+        user_result,
+        team_result,
+        empty_result,
+        empty_result,
+    ]
 
     response = client.patch(f"/users/{user_id}/team", json={"team_id": str(team_id)})
 

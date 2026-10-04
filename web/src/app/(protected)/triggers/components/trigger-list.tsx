@@ -1,26 +1,66 @@
 "use client";
 
 import { useEffect } from "react";
-import { AlarmClock, Plus } from "lucide-react";
+import { useRouter } from "next/navigation";
+import {
+	AlarmClock,
+	Clock,
+	Pause,
+	Pencil,
+	Play,
+	Plus,
+	Trash2,
+	TriangleAlert,
+	Webhook,
+} from "lucide-react";
 import { toast } from "sonner";
 import TriggerCard from "@/app/(protected)/triggers/components/trigger-card";
 import { useConfirmDialog } from "@/components/providers/dialog-provider";
+import { AgentAvatar } from "@/components/ui/agent-avatar";
+import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
+import { DropdownMenu } from "@/components/ui/dropdown-menu";
+import { GroupedCardTree } from "@/components/ui/grouped-card-tree";
+import type { ViewMode } from "@/components/ui/view-toggle";
+import { useRunTrigger } from "@/hooks/use-run-trigger";
+import {
+	describeSchedule,
+	formatRunAt,
+	parseCronExpression,
+} from "@/lib/triggers/schedule";
+import { buildGroupTree } from "@/lib/groups";
 import { useTriggersStore } from "@/stores/triggers-store";
 import { useAgentsStore } from "@/stores/agents-store";
+import type { Trigger } from "@/types/triggers";
 
 interface TriggerListProps {
 	view: "active" | "paused";
+	mode: ViewMode;
 	onCreate: () => void;
 	canCreate: boolean;
 }
 
-export default function TriggerList({ view, onCreate, canCreate }: TriggerListProps) {
+function triggerFrequency(trigger: Trigger): string {
+	return trigger.triggerType === "schedule"
+		? describeSchedule(parseCronExpression(trigger.cronExpression))
+		: "Webhook";
+}
+
+export default function TriggerList({
+	view,
+	mode,
+	onCreate,
+	canCreate,
+}: TriggerListProps) {
+	const router = useRouter();
 	const triggers = useTriggersStore((state) => state.triggers);
 	const isInitialized = useTriggersStore((state) => state.isInitialized);
 	const fetchTriggers = useTriggersStore((state) => state.fetchTriggers);
+	const updateTrigger = useTriggersStore((state) => state.updateTrigger);
 	const deleteTrigger = useTriggersStore((state) => state.deleteTrigger);
+	const agents = useAgentsStore((state) => state.agents);
 	const fetchAgents = useAgentsStore((state) => state.fetchAgents);
 	const confirmDialog = useConfirmDialog();
+	const runTrigger = useRunTrigger();
 
 	useEffect(() => {
 		fetchTriggers().catch(() => {});
@@ -30,6 +70,7 @@ export default function TriggerList({ view, onCreate, canCreate }: TriggerListPr
 	const visibleTriggers = triggers.filter((trigger) =>
 		view === "active" ? trigger.isActive : !trigger.isActive,
 	);
+	const groupTree = buildGroupTree(visibleTriggers);
 
 	const handleDelete = async (id: string) => {
 		if (
@@ -49,7 +90,176 @@ export default function TriggerList({ view, onCreate, canCreate }: TriggerListPr
 		});
 	};
 
-	if (isInitialized && triggers.length === 0) {
+	const handleRunNow = (trigger: Trigger) => {
+		runTrigger(trigger).catch((error: unknown) => {
+			console.error("Error running trigger:", error);
+			toast.error("Failed to run the trigger. Please try again.");
+		});
+	};
+
+	const handleToggleActive = (trigger: Trigger) => {
+		updateTrigger(trigger.id, { isActive: !trigger.isActive }).catch(
+			(error: unknown) => {
+				console.error("Error updating trigger:", error);
+				toast.error("Failed to update trigger. Please try again.");
+			},
+		);
+	};
+
+	const columns: DataTableColumn<Trigger>[] = [
+		{
+			key: "name",
+			header: "Trigger",
+			width: "minmax(240px, 1.5fr)",
+			mobileWidth: "minmax(0, 1fr)",
+			cell: (trigger) => (
+				<div className="flex min-w-0 items-center gap-2.5">
+					<span
+						className={`size-2 shrink-0 rounded-full ${
+							trigger.isActive ? "bg-success" : "bg-faint"
+						}`}
+					/>
+					<div className="min-w-0">
+						<div className="flex min-w-0 items-center gap-2">
+							<span className="truncate text-[12.5px] font-semibold text-foreground">
+								{trigger.name}
+							</span>
+							{!trigger.modelAvailable && (
+								<TriangleAlert
+									className="size-3.5 shrink-0 text-warning"
+									aria-label="Model unavailable"
+								/>
+							)}
+						</div>
+						<p className="mt-px truncate text-[11.5px] text-meta dark:text-panel-dim">
+							{trigger.instructions}
+						</p>
+					</div>
+				</div>
+			),
+		},
+		{
+			key: "agent",
+			header: "Agent",
+			width: "200px",
+			hideBelowMd: true,
+			cell: (trigger) => {
+				const agent = agents.find((candidate) => candidate.id === trigger.agentId);
+				return (
+					<div className="flex min-w-0 items-center gap-2">
+						<AgentAvatar
+							agentId={agent?.id}
+							name={agent?.name}
+							imageRevision={agent?.imageRevision}
+							color={agent?.color}
+							emoji={agent?.emoji}
+							size="xs"
+						/>
+						<span className="truncate text-[12px] font-medium text-subtle dark:text-muted-foreground">
+							{agent?.name ?? "Unknown agent"}
+						</span>
+					</div>
+				);
+			},
+		},
+		{
+			key: "frequency",
+			header: "Frequency",
+			width: "210px",
+			hideBelowMd: true,
+			cell: (trigger) => (
+				<div className="flex min-w-0 items-center gap-2 text-[11.5px] text-subtle dark:text-muted-foreground">
+					{trigger.triggerType === "schedule" ? (
+						<Clock className="size-3.5 shrink-0 text-meta" />
+					) : (
+						<Webhook className="size-3.5 shrink-0 text-meta" />
+					)}
+					<span className="truncate">{triggerFrequency(trigger)}</span>
+				</div>
+			),
+		},
+		{
+			key: "nextRun",
+			header: "Next run",
+			width: "180px",
+			hideBelowMd: true,
+			cell: (trigger) => (
+				<span className="font-mono text-[11px] text-meta dark:text-panel-dim">
+					{trigger.triggerType === "webhook"
+						? trigger.isActive
+							? "On request"
+							: "Paused"
+						: trigger.nextRunAt
+							? formatRunAt(trigger.nextRunAt, trigger.timezone)
+							: "Paused"}
+				</span>
+			),
+		},
+		{
+			key: "actions",
+			header: "",
+			width: "44px",
+			mobileWidth: "44px",
+			cell: (trigger) =>
+				trigger.canManage ? (
+					<div
+						className="flex justify-end"
+						onClick={(event) => {
+							event.stopPropagation();
+						}}
+					>
+						<DropdownMenu
+							items={[
+								{
+									label: "Run now",
+									icon: <Play />,
+									onClick: () => {
+										handleRunNow(trigger);
+									},
+								},
+								{
+									label: trigger.isActive ? "Pause" : "Resume",
+									icon: trigger.isActive ? <Pause /> : <Play />,
+									onClick: () => {
+										handleToggleActive(trigger);
+									},
+								},
+								{
+									label: "Edit",
+									icon: <Pencil />,
+									onClick: () => {
+										router.push(`/triggers/${trigger.id}`);
+									},
+								},
+								{ separator: true as const },
+								{
+									label: "Delete",
+									icon: <Trash2 />,
+									destructive: true,
+									onClick: () => {
+										void handleDelete(trigger.id);
+									},
+								},
+							]}
+						/>
+					</div>
+				) : null,
+		},
+	];
+
+	if (!isInitialized) {
+		return mode === "table" ? (
+			<DataTable
+				columns={columns}
+				rows={[]}
+				rowKey={(trigger) => trigger.id}
+				isLoading
+				scrollBody
+			/>
+		) : null;
+	}
+
+	if (triggers.length === 0) {
 		return (
 			<div className="flex flex-col items-center justify-center gap-4 rounded-2xl border border-dashed border-[#D7E0DB] dark:border-white/10 py-20">
 				<div className="flex items-center justify-center size-12 rounded-2xl bg-[#EDF4F0] dark:bg-emerald-950/40">
@@ -87,9 +297,29 @@ export default function TriggerList({ view, onCreate, canCreate }: TriggerListPr
 		);
 	}
 
+	if (mode === "table") {
+		return (
+			<DataTable
+				columns={columns}
+				rows={visibleTriggers}
+				rowKey={(trigger) => trigger.id}
+				scrollBody
+				groupTree={{
+					...groupTree,
+					storageKey: `triggers:${view}:table-group`,
+				}}
+				onRowClick={(trigger) => {
+					router.push(`/triggers/${trigger.id}`);
+				}}
+			/>
+		);
+	}
+
 	return (
-		<div className="grid gap-4 md:grid-cols-2">
-			{visibleTriggers.map((trigger) => (
+		<GroupedCardTree
+			tree={groupTree}
+			storageKey={`triggers:${view}:card-group`}
+			renderItem={(trigger) => (
 				<TriggerCard
 					key={trigger.id}
 					trigger={trigger}
@@ -97,7 +327,7 @@ export default function TriggerList({ view, onCreate, canCreate }: TriggerListPr
 						void handleDelete(id);
 					}}
 				/>
-			))}
-		</div>
+			)}
+		/>
 	);
 }

@@ -24,6 +24,7 @@ from app.agents.schemas import AgentPermissionCreate, AgentSandboxConfig
 from app.repository import BaseRepository
 from app.sandbox.models import SandboxDB
 from app.users.models import WorkspaceRole
+from app.visibility import ResourceVisibility
 
 
 class AgentAccess(NamedTuple):
@@ -32,6 +33,7 @@ class AgentAccess(NamedTuple):
     owner_id: UUID
     granted: PermissionLevel | None
     team_member: bool
+    visibility: ResourceVisibility = ResourceVisibility.personal
 
 
 class AgentRepository(BaseRepository[AgentDB]):
@@ -46,6 +48,12 @@ class AgentRepository(BaseRepository[AgentDB]):
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
+    async def get_scoped_for_update(self, agent_id: UUID) -> AgentDB | None:
+        stmt = select(AgentDB).where(AgentDB.id == agent_id).with_for_update()
+        if self.workspace_id is not None:
+            stmt = stmt.where(AgentDB.workspace_id == self.workspace_id)
+        return (await self.db.execute(stmt)).scalar_one_or_none()
+
     #: The columns the list projection renders (`AgentListResponse`).
     #: Everything else — `instructions` above all, which runs to tens of KB per agent and is
     #: repeated once per MCP binding by the join — stays in the database
@@ -59,6 +67,7 @@ class AgentRepository(BaseRepository[AgentDB]):
         AgentDB.image_revision,
         AgentDB.description,
         AgentDB.group,
+        AgentDB.visibility,
         AgentDB.is_archived,
         AgentDB.created_at,
         AgentDB.updated_at,
@@ -168,7 +177,11 @@ class AgentRepository(BaseRepository[AgentDB]):
         """
         include_team = user_id is not None and user_team_id is not None
 
-        columns = [AgentDB.owner_id, AgentUserPermissionDB.permission]
+        columns = [
+            AgentDB.owner_id,
+            AgentDB.visibility,
+            AgentUserPermissionDB.permission,
+        ]
         if include_team:
             columns.append(AgentTeamDB.team_id)
 
@@ -195,10 +208,29 @@ class AgentRepository(BaseRepository[AgentDB]):
         row = (await self.db.execute(stmt)).first()
         if row is None:
             return None
+        if len(row) == 2:
+            return AgentAccess(
+                owner_id=row[0],
+                visibility=ResourceVisibility.personal,
+                granted=row[1],
+                team_member=False,
+            )
+        if not isinstance(row[1], ResourceVisibility):
+            return AgentAccess(
+                owner_id=row[0],
+                visibility=(
+                    ResourceVisibility.teams
+                    if include_team and row[2] is not None
+                    else ResourceVisibility.personal
+                ),
+                granted=row[1],
+                team_member=include_team and row[2] is not None,
+            )
         return AgentAccess(
             owner_id=row[0],
-            granted=row[1],
-            team_member=include_team and row[2] is not None,
+            visibility=row[1],
+            granted=row[2],
+            team_member=include_team and row[3] is not None,
         )
 
     async def get_run_spec(self, agent_id: UUID) -> RunSpec | None:
@@ -405,6 +437,26 @@ class AgentRepository(BaseRepository[AgentDB]):
         result = await self.db.execute(stmt)
         return list(result.scalars().all())
 
+    async def list_granted_agent_ids(self, user_id: UUID) -> list[UUID]:
+        stmt = (
+            select(AgentUserPermissionDB.agent_id)
+            .join(AgentDB, AgentDB.id == AgentUserPermissionDB.agent_id)
+            .where(AgentUserPermissionDB.user_id == user_id)
+        )
+        if self.workspace_id is not None:
+            stmt = stmt.where(AgentDB.workspace_id == self.workspace_id)
+        return list((await self.db.execute(stmt)).scalars().all())
+
+    async def delete_permissions_for_user(self, user_id: UUID) -> None:
+        agent_ids = select(AgentDB.id)
+        if self.workspace_id is not None:
+            agent_ids = agent_ids.where(AgentDB.workspace_id == self.workspace_id)
+        stmt = delete(AgentUserPermissionDB).where(
+            AgentUserPermissionDB.user_id == user_id,
+            AgentUserPermissionDB.agent_id.in_(agent_ids),
+        )
+        await self.db.execute(stmt)
+
     async def set_permissions(
         self, agent_id: UUID, permissions: list[AgentPermissionCreate]
     ) -> list[AgentUserPermissionDB]:
@@ -435,6 +487,20 @@ class AgentRepository(BaseRepository[AgentDB]):
         stmt = select(AgentTeamDB.team_id).where(AgentTeamDB.agent_id == agent_id)
         result = await self.db.execute(stmt)
         return list(result.scalars().all())
+
+    async def list_team_ids(
+        self, agent_ids: list[UUID]
+    ) -> dict[UUID, list[UUID]]:
+        if not agent_ids:
+            return {}
+        stmt = select(AgentTeamDB.agent_id, AgentTeamDB.team_id).where(
+            AgentTeamDB.agent_id.in_(agent_ids)
+        )
+        result = await self.db.execute(stmt)
+        grouped: dict[UUID, list[UUID]] = {}
+        for agent_id, team_id in result.all():
+            grouped.setdefault(agent_id, []).append(team_id)
+        return grouped
 
     async def delete_all_teams(self, agent_id: UUID) -> None:
         stmt = delete(AgentTeamDB).where(AgentTeamDB.agent_id == agent_id)

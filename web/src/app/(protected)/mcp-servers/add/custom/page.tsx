@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import ForbiddenErrorDialog from "@/components/forbidden-error-dialog";
 import { Alert } from "@/components/ui/alert";
 import { GroupPicker } from "@/components/ui/group-picker";
+import { VisibilityPicker } from "@/components/ui/visibility-picker";
 import { ImageUpload } from "@/components/ui/image-upload";
 import * as mcpServersApi from "@/lib/api/resources/mcp-servers";
 import { getApiErrorMessage } from "@/lib/api/errors";
@@ -34,6 +35,8 @@ const emptyForm: MCPServerCreateFormValues = {
 	url: "",
 	description: "",
 	group: "",
+	visibility: "workspace",
+	teamIds: [],
 	authType: "none",
 	apiKey: "",
 	oauthClientId: "",
@@ -168,6 +171,8 @@ export default function CustomMCPServerPage() {
 					url: official.url,
 					description: official.description ?? "",
 					group: "",
+					visibility: "workspace",
+					teamIds: [],
 					authType: official.authType,
 					apiKey: "",
 					oauthClientId: "",
@@ -384,6 +389,17 @@ export default function CustomMCPServerPage() {
 							groups={groupOptions(mcpServers)}
 							onChange={(group) => {
 								handleFormChange("group", group);
+							}}
+						/>
+						<VisibilityPicker
+							visibility={form.visibility ?? "workspace"}
+							teamIds={form.teamIds ?? []}
+							onChange={(visibility, teamIds) => {
+								setForm((current) => ({
+									...current,
+									visibility,
+									teamIds,
+								}));
 							}}
 						/>
 

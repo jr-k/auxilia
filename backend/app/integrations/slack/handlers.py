@@ -12,11 +12,14 @@ from slack_sdk.web.async_client import AsyncWebClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.core.service import AgentService
+from app.agents.models import EffectivePermission
 from app.auth.settings import auth_settings
 from app.database import AsyncSessionLocal, get_checkpointer
 from app.exceptions import (
     DomainValidationError,
     ModelUnavailableError,
+    NotFoundError,
+    PermissionDeniedError,
     SandboxUnavailableError,
     StaleApprovalError,
 )
@@ -37,9 +40,27 @@ from app.runtime.hitl import (
 )
 from app.runtime.runs.service import RunService
 from app.threads.repository import ThreadRepository
+from app.users.models import UserDB
 
 
 logger = logging.getLogger(__name__)
+
+
+async def _can_use_agent(
+    db: AsyncSession, workspace_id: UUID, agent_id: UUID, user: UserDB
+) -> bool:
+    try:
+        await AgentService(db, workspace_id).require_permission(
+            agent_id,
+            at_least=EffectivePermission.member,
+            action="use this agent",
+            user_id=user.id,
+            user_role=user.role,
+            user_team_id=user.team_id,
+        )
+    except (NotFoundError, PermissionDeniedError):
+        return False
+    return True
 
 
 async def _enqueue_slack_run(
@@ -485,6 +506,12 @@ async def handle_message(
             )
             return
 
+        if thread.user_id != user.id:
+            return
+
+        if not await _can_use_agent(db, workspace_id, thread.agent_id, user):
+            return
+
         if not await _is_agent_ready(
             str(thread.agent_id), str(user.id), workspace_id, db
         ):
@@ -563,6 +590,20 @@ async def handle_interaction(
     channel_id, thread_ts, message_ts = _extract_interaction_context(payload)
     if not channel_id or not thread_ts:
         return
+
+    actor = await resolve_user(payload.user.id, workspace_id)
+    if actor is None:
+        return
+    async with AsyncSessionLocal() as db:
+        thread = await ThreadRepository(db, workspace_id).get(thread_ts)
+        if (
+            thread is None
+            or thread.user_id != actor.id
+            or not await _can_use_agent(
+                db, workspace_id, thread.agent_id, actor
+            )
+        ):
+            return
 
     client = await get_slack_client(workspace_id)
     if client is None:
@@ -681,6 +722,8 @@ async def _resume_agent(
     async with AsyncSessionLocal() as db:
         thread = await ThreadRepository(db, workspace_id).get(thread_ts)
         if not thread:
+            return
+        if not await _can_use_agent(db, workspace_id, thread.agent_id, user):
             return
         # Same gate as handle_message: an approval clicked after the user's
         # OAuth expired must prompt a reconnect, not enqueue a doomed run.

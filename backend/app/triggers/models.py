@@ -2,10 +2,18 @@ from datetime import datetime
 from enum import StrEnum
 from uuid import UUID
 
-from sqlalchemy import CheckConstraint, DateTime, Enum as SAEnum, Index, text
+from sqlalchemy import (
+    CheckConstraint,
+    DateTime,
+    Enum as SAEnum,
+    Index,
+    UniqueConstraint,
+    text,
+)
 from sqlmodel import Column, Field, SQLModel, Text
 
 from app.models import BaseDBModel
+from app.visibility import ResourceVisibility
 
 
 class TriggerType(StrEnum):
@@ -15,6 +23,7 @@ class TriggerType(StrEnum):
 
 class TriggerBase(SQLModel):
     name: str = Field(max_length=255, nullable=False)
+    group: str | None = Field(default=None, max_length=255, nullable=True, index=True)
     instructions: str = Field(sa_column=Column(Text, nullable=False))
     agent_id: UUID = Field(
         foreign_key="agents.id", ondelete="CASCADE", index=True, nullable=False
@@ -55,6 +64,14 @@ class TriggerDB(TriggerBase, BaseDBModel, table=True):
     owner_id: UUID = Field(
         foreign_key="users.id", ondelete="CASCADE", index=True, nullable=False
     )
+    visibility: ResourceVisibility = Field(
+        default=ResourceVisibility.personal,
+        sa_column=Column(
+            SAEnum(ResourceVisibility, native_enum=False, create_constraint=False),
+            nullable=False,
+            server_default=ResourceVisibility.personal.value,
+        ),
+    )
     trigger_type: TriggerType = Field(
         default=TriggerType.schedule,
         sa_column=Column(
@@ -72,4 +89,20 @@ class TriggerDB(TriggerBase, BaseDBModel, table=True):
     )
     last_run_at: datetime | None = Field(
         default=None, sa_column=Column(DateTime(timezone=True), nullable=True)
+    )
+
+
+class TriggerTeamDB(BaseDBModel, table=True):
+    __tablename__ = "trigger_teams"
+    __table_args__ = (
+        UniqueConstraint(
+            "trigger_id", "team_id", name="uq_trigger_visibility_team"
+        ),
+    )
+
+    trigger_id: UUID = Field(
+        foreign_key="triggers.id", ondelete="CASCADE", nullable=False, index=True
+    )
+    team_id: UUID = Field(
+        foreign_key="teams.id", ondelete="CASCADE", nullable=False, index=True
     )

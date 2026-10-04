@@ -1,6 +1,7 @@
 """Tests for the thin Slack web tier — turns enqueue durable runs."""
 
 from types import SimpleNamespace
+from uuid import uuid4
 
 import pytest
 
@@ -18,7 +19,29 @@ def slack_client(monkeypatch):
     async def get_client(_workspace_id):
         return client
 
+    async def resolve_actor(_slack_user_id, _workspace_id):
+        return SimpleNamespace(
+            id="u1", role=SimpleNamespace(value="member"), team_id=None
+        )
+
+    async def allow_agent(*_args):
+        return True
+
+    class _Session:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *exc):
+            return False
+
+        async def execute(self, stmt):
+            thread = SimpleNamespace(agent_id=uuid4(), user_id="u1")
+            return SimpleNamespace(scalar_one_or_none=lambda: thread)
+
     monkeypatch.setattr(handlers_mod, "get_slack_client", get_client)
+    monkeypatch.setattr(handlers_mod, "resolve_user", resolve_actor)
+    monkeypatch.setattr(handlers_mod, "_can_use_agent", allow_agent)
+    monkeypatch.setattr(handlers_mod, "AsyncSessionLocal", lambda: _Session())
     return client
 
 

@@ -12,6 +12,8 @@ from uuid import UUID
 from pydantic import BaseModel, Field, field_validator, model_validator
 from sqlmodel import SQLModel
 
+from app.visibility import ResourceVisibility
+
 
 MAX_BUNDLE_BYTES = 10 * 1024 * 1024
 MAX_FILES = 100
@@ -129,6 +131,8 @@ class SkillSave(BaseModel):
     emoji: str | None = Field(default=None, max_length=10)
     color: str | None = Field(default=None, max_length=7)
     revision: int | None = None
+    visibility: ResourceVisibility | None = None
+    team_ids: list[UUID] | None = None
 
     @field_validator("group")
     @classmethod
@@ -147,6 +151,7 @@ class SkillCreateDB(SQLModel):
 
     workspace_id: UUID
     owner_id: UUID
+    visibility: ResourceVisibility = ResourceVisibility.workspace
     name: str
     description: str
     group: str | None = None
@@ -193,6 +198,8 @@ class SkillSummary(BaseModel):
 
     id: UUID
     owner_id: UUID
+    visibility: ResourceVisibility = ResourceVisibility.workspace
+    team_ids: list[UUID] = []
     name: str
     description: str
     group: str | None = None

@@ -287,6 +287,13 @@ class UserService(BaseService[UserDB, UserRepository]):
         self, user_id: UUID, workspace_id: UUID, data: UserRolePatch
     ) -> UserDB:
         user, membership = await self._get_in_workspace(user_id, workspace_id)
+        if data.role != membership.role:
+            await self._ensure_agent_access_survives_identity_change(
+                user_id,
+                workspace_id,
+                role=data.role,
+                team_id=membership.team_id,
+            )
         membership.role = data.role
         self.db.add(membership)
         await self.db.flush()
@@ -297,10 +304,20 @@ class UserService(BaseService[UserDB, UserRepository]):
         self, user_id: UUID, workspace_id: UUID, data: UserTeamPatch
     ) -> UserDB:
         user, membership = await self._get_in_workspace(user_id, workspace_id)
-        if data.team_id is not None and not await self.team_repository.get_in_workspace(
-            data.team_id, workspace_id
+        if (
+            data.team_id is not None
+            and not await self.team_repository.get_in_workspace_for_key_share(
+                data.team_id, workspace_id
+            )
         ):
             raise NotFoundError("Team not found")
+        if data.team_id != membership.team_id:
+            await self._ensure_agent_access_survives_identity_change(
+                user_id,
+                workspace_id,
+                role=membership.role,
+                team_id=data.team_id,
+            )
         membership.team_id = data.team_id
         self.db.add(membership)
         await self.db.flush()
@@ -309,7 +326,58 @@ class UserService(BaseService[UserDB, UserRepository]):
 
     async def delete(self, user_id: UUID, workspace_id: UUID) -> None:
         _, membership = await self._get_in_workspace(user_id, workspace_id)
+        from app.agents.core.repository import AgentRepository
+
+        await AgentRepository(
+            self.db, workspace_id
+        ).delete_permissions_for_user(user_id)
         await self.workspace_repository.delete_membership(membership)
+
+    async def _ensure_agent_access_survives_identity_change(
+        self,
+        user_id: UUID,
+        workspace_id: UUID,
+        *,
+        role: WorkspaceRole,
+        team_id: UUID | None,
+    ) -> None:
+        from app.agents.core.repository import AgentRepository
+        from app.agents.core.service import AgentService
+        from app.agents.models import EffectivePermission
+        from app.exceptions import PermissionDeniedError
+        from app.triggers.repository import TriggerRepository
+
+        repository = AgentRepository(self.db, workspace_id)
+        service = AgentService(self.db, workspace_id)
+        granted_agent_ids = set(await repository.list_granted_agent_ids(user_id))
+        trigger_agent_ids = {
+            trigger.agent_id
+            for trigger in await TriggerRepository(
+                self.db, workspace_id
+            ).list_for_owner(user_id)
+            if trigger.is_active
+        }
+        for agent_id in granted_agent_ids | trigger_agent_ids:
+            try:
+                await service.require_permission(
+                    agent_id,
+                    at_least=EffectivePermission.member,
+                    action="use this agent",
+                    user_id=user_id,
+                    user_role=role,
+                    user_team_id=team_id,
+                    include_archived=True,
+                )
+            except (NotFoundError, PermissionDeniedError) as exc:
+                raise DomainValidationError(
+                    "This role or team change would disable an active trigger"
+                ) from exc
+            await service.ensure_dependencies_visible_to_identity(
+                agent_id,
+                user_id=user_id,
+                user_role=role,
+                user_team_id=team_id,
+            )
 
 
 def get_user_service(db: AsyncSession = Depends(get_db)) -> UserService:

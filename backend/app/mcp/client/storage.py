@@ -242,6 +242,15 @@ class TokenStorageFactory:
             deleted += 1
         return deleted
 
+    async def clear_user_data(self, workspace_id: str, user_id: str) -> int:
+        """Delete every MCP authorization key for one workspace member."""
+        pattern = f"mcp:{workspace_id}:{user_id}:*"
+        deleted = 0
+        async for key in self.redis.scan_iter(match=pattern):
+            await self.redis.delete(key)
+            deleted += 1
+        return deleted
+
     async def clear_user_server_data(
         self, workspace_id: str, user_id: str, mcp_server_id: str
     ) -> int:

@@ -1,11 +1,12 @@
 from enum import Enum
 from uuid import UUID
 
-from sqlalchemy import LargeBinary, UniqueConstraint
+from sqlalchemy import Enum as SAEnum, LargeBinary, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Boolean, Column, Field, SQLModel, String, Text
 
 from app.models import BaseDBModel
+from app.visibility import ResourceVisibility
 
 
 class PermissionLevel(str, Enum):
@@ -107,6 +108,14 @@ class AgentDB(AgentBase, BaseDBModel, table=True):
         sa_column=Column(Boolean, nullable=False, server_default="false"),
     )
     image_revision: UUID | None = Field(default=None, nullable=True)
+    visibility: ResourceVisibility = Field(
+        default=ResourceVisibility.personal,
+        sa_column=Column(
+            SAEnum(ResourceVisibility, native_enum=False, create_constraint=False),
+            nullable=False,
+            server_default=ResourceVisibility.personal.value,
+        ),
+    )
 
 
 class AgentImageDB(BaseDBModel, table=True):

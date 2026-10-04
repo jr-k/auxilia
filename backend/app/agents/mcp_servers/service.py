@@ -6,20 +6,27 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.core.repository import AgentRepository
 from app.agents.mcp_servers.repository import AgentMCPServerRepository
-from app.agents.models import AgentMCPServerBase, AgentMCPServerDB
+from app.agents.models import AgentDB, AgentMCPServerBase, AgentMCPServerDB
 from app.agents.schemas import (
     AgentMCPServerConfig,
     AgentMCPServerCreate,
     AgentMCPServerPatch,
 )
 from app.database import get_db
-from app.exceptions import NotFoundError
+from app.exceptions import DomainValidationError, NotFoundError
 from app.mcp.client.connectivity import connect_to_server, is_authorized
 from app.mcp.servers.models import MCPAuthType, MCPServerDB
 from app.mcp.servers.repository import MCPServerRepository
 from app.mcp.servers.schemas import MCPServerAgentResponse
 from app.service import BaseService
+from app.visibility import (
+    ResourceVisibility,
+    audience_contains,
+    is_resource_visible_to_identity,
+)
 from app.workspaces.dependencies import get_active_workspace_id
+from app.workspaces.models import WorkspaceRole
+from app.workspaces.repository import WorkspaceRepository
 
 
 logger = logging.getLogger(__name__)
@@ -33,9 +40,14 @@ class AgentMCPServerService(BaseService[AgentMCPServerDB, AgentMCPServerReposito
         self.workspace_id = workspace_id
         self._servers = MCPServerRepository(db, workspace_id)
         self._agents = AgentRepository(db, workspace_id)
+        self._workspaces = WorkspaceRepository(db)
 
     async def _ensure_agent(self, agent_id: UUID) -> None:
         if await self._agents.get_scoped(agent_id) is None:
+            raise NotFoundError("Agent not found")
+
+    async def _ensure_agent_for_update(self, agent_id: UUID) -> None:
+        if await self._agents.get_scoped_for_update(agent_id) is None:
             raise NotFoundError("Agent not found")
 
     async def _ensure_server(self, server_id: UUID) -> MCPServerDB:
@@ -43,6 +55,70 @@ class AgentMCPServerService(BaseService[AgentMCPServerDB, AgentMCPServerReposito
         if not server:
             raise NotFoundError("MCP server not found")
         return server
+
+    async def _ensure_server_for_update(self, server_id: UUID) -> MCPServerDB:
+        server = await self._servers.get_scoped_for_update(server_id)
+        if server is None:
+            raise NotFoundError("MCP server not found")
+        return server
+
+    async def _ensure_scope_compatible(
+        self, agent_id: UUID, server: MCPServerDB
+    ) -> None:
+        agent = await self._agents.get_scoped(agent_id)
+        if agent is None:
+            raise NotFoundError("Agent not found")
+        agent_visibility = (
+            agent.visibility
+            if isinstance(agent.visibility, ResourceVisibility)
+            else ResourceVisibility.personal
+        )
+        server_visibility = (
+            server.visibility
+            if isinstance(server.visibility, ResourceVisibility)
+            else ResourceVisibility.workspace
+        )
+        if not audience_contains(
+            parent_visibility=agent_visibility,
+            parent_owner_id=agent.owner_id,
+            parent_team_ids=(
+                set(await self._agents.get_team_ids(agent.id))
+                if agent_visibility == ResourceVisibility.teams
+                else set()
+            ),
+            child_visibility=server_visibility,
+            child_owner_id=server.owner_id,
+            child_team_ids=(
+                set(await self._servers.list_team_ids(server.id))
+                if server_visibility == ResourceVisibility.teams
+                else set()
+            ),
+        ):
+            raise DomainValidationError(
+                f"MCP server '{server.name}' is more private than this agent"
+            )
+        child_team_ids = (
+            set(await self._servers.list_team_ids(server.id))
+            if server_visibility == ResourceVisibility.teams
+            else set()
+        )
+        if self.workspace_id is None or not isinstance(agent, AgentDB):
+            return
+        for grant in await self._agents.get_permissions(agent.id):
+            membership = await self._workspaces.get_membership(
+                self.workspace_id, grant.user_id
+            )
+            if membership is not None and not is_resource_visible_to_identity(
+                visibility=server_visibility,
+                owner_id=server.owner_id,
+                team_ids=child_team_ids,
+                user_id=grant.user_id,
+                is_admin=membership.role == WorkspaceRole.admin,
+                team_id=membership.team_id,
+            ):
+                raise DomainValidationError(
+                    f"MCP server '{server.name}' is not visible to every agent grantee"
+                )
 
     async def _sync_tools(
         self,
@@ -79,8 +155,9 @@ class AgentMCPServerService(BaseService[AgentMCPServerDB, AgentMCPServerReposito
         data: AgentMCPServerCreate,
         user_id: str,
     ) -> AgentMCPServerDB:
-        await self._ensure_agent(agent_id)
-        mcp_server = await self._ensure_server(server_id)
+        await self._ensure_agent_for_update(agent_id)
+        mcp_server = await self._ensure_server_for_update(server_id)
+        await self._ensure_scope_compatible(agent_id, mcp_server)
 
         existing = await self.repository.get(agent_id, server_id)
         if existing:
@@ -116,8 +193,8 @@ class AgentMCPServerService(BaseService[AgentMCPServerDB, AgentMCPServerReposito
     async def update(
         self, agent_id: UUID, server_id: UUID, data: AgentMCPServerPatch
     ) -> AgentMCPServerDB:
-        await self._ensure_agent(agent_id)
-        await self._ensure_server(server_id)
+        await self._ensure_agent_for_update(agent_id)
+        await self._ensure_server_for_update(server_id)
         link = await self.repository.get(agent_id, server_id)
         if not link:
             raise NotFoundError(self.not_found_message)
@@ -134,13 +211,14 @@ class AgentMCPServerService(BaseService[AgentMCPServerDB, AgentMCPServerReposito
         """Whole-set replace of an agent's MCP bindings: upsert the wanted
         links and delete the rest. `tools` is written exactly as provided —
         the caller owns the complete map, so no discovery and no merge."""
-        await self._ensure_agent(agent_id)
+        await self._ensure_agent_for_update(agent_id)
         existing = await self.repository.list_for_agent(agent_id)
         by_server = {link.mcp_server_id: link for link in existing}
         wanted = {config.mcp_server_id for config in configs}
 
-        for config in configs:
-            await self._ensure_server(config.mcp_server_id)
+        for config in sorted(configs, key=lambda item: str(item.mcp_server_id)):
+            server = await self._ensure_server_for_update(config.mcp_server_id)
+            await self._ensure_scope_compatible(agent_id, server)
             link = by_server.get(config.mcp_server_id)
             if link:
                 if link.tools != config.tools:
@@ -160,8 +238,8 @@ class AgentMCPServerService(BaseService[AgentMCPServerDB, AgentMCPServerReposito
         await self.db.flush()
 
     async def delete(self, agent_id: UUID, server_id: UUID) -> None:
-        await self._ensure_agent(agent_id)
-        await self._ensure_server(server_id)
+        await self._ensure_agent_for_update(agent_id)
+        await self._ensure_server_for_update(server_id)
         link = await self.repository.get(agent_id, server_id)
         if not link:
             raise NotFoundError(self.not_found_message)
@@ -205,7 +283,7 @@ class AgentMCPServerService(BaseService[AgentMCPServerDB, AgentMCPServerReposito
     async def detach_server(self, server_id: UUID) -> None:
         """Drop the server's binding from every agent — the dialog's explicit
         confirm before the server itself is deleted."""
-        await self._ensure_server(server_id)
+        await self._ensure_server_for_update(server_id)
         await self.repository.delete_all_for_server(server_id)
 
 

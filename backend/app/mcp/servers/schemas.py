@@ -6,6 +6,7 @@ from pydantic import field_validator
 from sqlmodel import Field, SQLModel
 
 from app.mcp.servers.models import MCPAuthType
+from app.visibility import ResourceVisibility
 
 
 def _normalize_group(value: str | None) -> str | None:
@@ -24,6 +25,8 @@ class MCPServerCreate(SQLModel):
     icon_url: str | None = None
     description: str | None = None
     group: str | None = None
+    visibility: ResourceVisibility = ResourceVisibility.workspace
+    team_ids: list[UUID] = Field(default_factory=list, exclude=True)
     api_key: str | None = Field(default=None, exclude=True)
     oauth_client_id: str | None = Field(default=None, exclude=True)
     oauth_client_secret: str | None = Field(default=None, exclude=True)
@@ -42,6 +45,8 @@ class MCPServerPatch(SQLModel):
     icon_url: str | None = None
     description: str | None = None
     group: str | None = None
+    visibility: ResourceVisibility | None = None
+    team_ids: list[UUID] | None = Field(default=None, exclude=True)
     # Credentials are excluded from serialization so they never touch the
     # mcp_servers row (they live in separate tables); the service persists them
     # via the repository's create_or_update_* methods.
@@ -66,6 +71,9 @@ class MCPServerResponse(SQLModel):
     image_revision: UUID | None = None
     description: str | None = None
     group: str | None = None
+    owner_id: UUID | None = None
+    visibility: ResourceVisibility = ResourceVisibility.workspace
+    team_ids: list[UUID] = Field(default_factory=list)
     disabled_tools: list[str] = Field(default_factory=list)
     created_at: datetime
     updated_at: datetime

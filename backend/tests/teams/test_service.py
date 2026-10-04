@@ -35,6 +35,8 @@ def mock_repo():
     repo.update = AsyncMock()
     repo.delete = AsyncMock()
     repo.get_in_workspace = AsyncMock()
+    repo.get_in_workspace_for_update = repo.get_in_workspace
+    repo.is_used_for_resource_visibility = AsyncMock(return_value=False)
     repo.list_with_member_counts = AsyncMock(return_value=[])
     repo.get_by_name = AsyncMock(return_value=None)
     return repo

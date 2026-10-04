@@ -11,6 +11,8 @@ from uuid import UUID
 from fastapi import APIRouter, Body, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.agents.core.service import AgentService, get_agent_service
+from app.agents.models import EffectivePermission
 from app.auth.dependencies import get_current_user
 from app.database import get_db
 from app.exceptions import (
@@ -70,11 +72,21 @@ async def authorize_thread(
     thread_id: str,
     current_user: UserDB = Depends(get_current_user),
     service: ThreadService = Depends(get_thread_service),
+    agents: AgentService = Depends(get_agent_service),
 ) -> ThreadResponse:
     """Load the thread and require the caller to own it (404 if missing, 403 if not)."""
     thread = await service.get(thread_id)
     if thread.user_id != current_user.id:
         raise PermissionDeniedError("Not authorized to access this thread")
+    await agents.require_permission(
+        thread.agent_id,
+        at_least=EffectivePermission.member,
+        action="use this agent",
+        user_id=current_user.id,
+        user_role=current_user.role,
+        user_team_id=current_user.team_id,
+        include_archived=True,
+    )
     return thread
 
 

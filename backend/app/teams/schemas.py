@@ -22,6 +22,10 @@ class TeamCreate(SQLModel):
         return _validate_color(v)
 
 
+class TeamCreateDB(TeamCreate):
+    workspace_id: UUID
+
+
 class TeamPatch(SQLModel):
     name: str | None = None
     color: str | None = None

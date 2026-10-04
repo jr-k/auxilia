@@ -25,6 +25,7 @@ from app.agents.schemas import (
 )
 from app.exceptions import DomainValidationError, NotFoundError, PermissionDeniedError
 from app.users.models import WorkspaceRole
+from app.visibility import ResourceVisibility
 from tests.conftest import TEST_WORKSPACE_ID
 
 
@@ -79,7 +80,17 @@ def mock_repo():
 
     repo.get_access = AsyncMock(side_effect=_access_from_rows)
     repo.get = AsyncMock()
-    repo.get_scoped = AsyncMock()
+    repo.get_scoped = AsyncMock(return_value=None)
+
+    async def _get_scoped_for_update(agent_id):
+        if (agent := await repo.get_scoped(agent_id)) is not None:
+            return agent
+        for row in repo.list_with_permissions.return_value:
+            if row[0].id == agent_id:
+                return row[0]
+        return None
+
+    repo.get_scoped_for_update = AsyncMock(side_effect=_get_scoped_for_update)
     repo.create = AsyncMock()
     repo.update = AsyncMock()
     # The mutation paths take the id, not a loaded row: `require_permission`
@@ -170,6 +181,7 @@ def service(
     svc.skill_service = mock_skill_service
     svc.teams = MagicMock()
     svc.teams.get_in_workspace = AsyncMock(return_value=MagicMock())
+    svc.teams.get_in_workspace_for_key_share = svc.teams.get_in_workspace
     return svc
 
 
@@ -1171,9 +1183,29 @@ async def test_get_team_ids_delegates(service, mock_repo):
 async def test_set_teams_delegates(service, mock_repo):
     agent_id = uuid4()
     team_ids = [uuid4()]
+    mock_repo.get_scoped.return_value = make_agent(
+        id=agent_id, visibility=ResourceVisibility.teams
+    )
     mock_repo.set_teams = AsyncMock(return_value=team_ids)
 
-    result = await service.set_teams(agent_id, team_ids)
+    with (
+        patch.object(
+            service,
+            "_validate_trigger_dependencies_for_scope",
+            new=AsyncMock(),
+        ),
+        patch.object(
+            service,
+            "_validate_subagent_dependencies_for_scope",
+            new=AsyncMock(),
+        ),
+        patch.object(
+            service,
+            "_validate_bound_dependencies_for_scope",
+            new=AsyncMock(),
+        ),
+    ):
+        result = await service.set_teams(agent_id, team_ids)
 
     mock_repo.set_teams.assert_awaited_once_with(agent_id, team_ids)
     assert result == team_ids
@@ -1272,7 +1304,9 @@ async def test_set_subagents_deduplicates_input(service, mock_repo):
 
 
 async def test_create_subagent_links_two_live_agents(service, mock_repo):
-    supervisor, sub = make_agent(), make_agent(name="Sub")
+    owner_id = uuid4()
+    supervisor = make_agent(owner_id=owner_id)
+    sub = make_agent(name="Sub", owner_id=owner_id)
     mock_repo.get_scoped.side_effect = lambda agent_id: {
         supervisor.id: supervisor,
         sub.id: sub,
@@ -1287,7 +1321,9 @@ async def test_create_subagent_links_two_live_agents(service, mock_repo):
 
 
 async def test_create_subagent_is_idempotent(service, mock_repo):
-    supervisor, sub = make_agent(), make_agent(name="Sub")
+    owner_id = uuid4()
+    supervisor = make_agent(owner_id=owner_id)
+    sub = make_agent(name="Sub", owner_id=owner_id)
     mock_repo.get_scoped.side_effect = lambda agent_id: {
         supervisor.id: supervisor,
         sub.id: sub,
@@ -1316,7 +1352,9 @@ async def test_create_subagent_rejects_archived_and_missing_agents(service, mock
 
 
 async def test_create_subagent_keeps_the_graph_one_level_deep(service, mock_repo):
-    supervisor, sub = make_agent(), make_agent(name="Sub")
+    owner_id = uuid4()
+    supervisor = make_agent(owner_id=owner_id)
+    sub = make_agent(name="Sub", owner_id=owner_id)
     mock_repo.get_scoped.side_effect = lambda agent_id: {
         supervisor.id: supervisor,
         sub.id: sub,

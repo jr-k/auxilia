@@ -69,12 +69,13 @@ async def get_agents(
     current_user: UserDB = Depends(get_current_user),
     service: AgentService = Depends(get_agent_service),
 ) -> list[AgentResponse]:
-    return await service.list(
+    agents = await service.list(
         user_id=current_user.id,
         user_role=current_user.role,
         user_team_id=current_user.team_id,
         archived=archived,
     )
+    return [agent for agent in agents if agent.current_user_permission is not None]
 
 
 @router.get("/{agent_id}", response_model=AgentResponse, response_model_by_alias=True)
@@ -94,13 +95,19 @@ async def get_agent(
 _require_image_editor = require_agent_permission(
     EffectivePermission.editor, action="edit this agent's image"
 )
+_require_image_viewer = require_agent_permission(
+    EffectivePermission.member, action="view this agent's image"
+)
 
 
-@router.get("/{agent_id}/image", response_class=Response)
+@router.get(
+    "/{agent_id}/image",
+    response_class=Response,
+    dependencies=[Depends(_require_image_viewer)],
+)
 async def get_agent_image(
     agent_id: UUID,
     if_none_match: str | None = Header(default=None),
-    _current_user: UserDB = Depends(get_current_user),
     service: AgentService = Depends(get_agent_service),
 ) -> Response:
     image = await service.get_image(agent_id)

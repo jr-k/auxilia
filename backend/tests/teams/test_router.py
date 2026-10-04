@@ -12,7 +12,8 @@ from tests.conftest import TEST_WORKSPACE_ID
 
 @pytest.fixture(autouse=True)
 def mock_team_create(monkeypatch):
-    async def create(_self, team):
+    async def create(_self, data):
+        team = TeamDB.model_validate(data)
         team.id = uuid4()
         team.created_at = datetime.now()
         team.updated_at = datetime.now()
@@ -111,7 +112,9 @@ def test_delete_team_as_admin(client: TestClient, mock_db, admin_user):
     )
     result = MagicMock()
     result.scalar_one_or_none.return_value = team
-    mock_db.execute.return_value = result
+    usage_result = MagicMock()
+    usage_result.scalar_one.return_value = False
+    mock_db.execute.side_effect = [result, usage_result]
 
     response = client.delete(f"/teams/{team.id}")
 
