@@ -20,7 +20,6 @@ from slack_sdk.web.async_client import AsyncWebClient
 
 from app.auth.settings import auth_settings
 from app.database import AsyncSessionLocal, get_checkpointer
-from app.integrations.channels.protocol import ChannelProtocolAdapter
 from app.integrations.slack.blocks import (
     build_connect_prompt_blocks,
     build_tool_approval_blocks,
@@ -90,9 +89,66 @@ def build_slack_delivery(
     }
 
 
-class SlackProtocolAdapter(ChannelProtocolAdapter):
+class SlackProtocolAdapter:
+    """Turns stored protocol events into what the Slack streamer appends.
+
+    Only the **root** namespace is surfaced — subagent tokens stream under
+    `tools:<task-id>` namespaces and are intentionally skipped, as before.
+    `messages` text deltas are relayed only while the open message is
+    AI-authored (a `message-start` with role `ai`): the tool-role message
+    triple carries the raw tool result, and reasoning deltas are excluded.
+    `tool-started` yields the tool label. Approval requests are *not* derived
+    from `input.requested`: the HITL payload names tools without their
+    tool-call ids, so the consumer reads them off the checkpoint
+    (`pending_approval_requests`) once the run is terminal.
+    """
+
     def __init__(self) -> None:
-        super().__init__(format_tool_streamer_label)
+        self._tools_started: set[str] = set()
+        # The role of the message currently open on the root namespace, per
+        # node — deltas from a tool-role message must not reach the chat.
+        self._open_role: dict[str, str] = {}
+
+    def texts(self, event: dict[str, Any]) -> list[str]:
+        """Markdown chunks to append for one protocol event (usually 0 or 1)."""
+        params = event.get("params") or {}
+        if params.get("namespace"):
+            return []
+        data = params.get("data")
+        if not isinstance(data, dict):
+            return []
+        method = event.get("method")
+        if method == "messages":
+            return self._on_message(str(params.get("node") or ""), data)
+        if method == "tools" and data.get("event") == "tool-started":
+            tool_call_id = data.get("tool_call_id")
+            tool_name = data.get("tool_name")
+            if tool_call_id and tool_name and tool_call_id not in self._tools_started:
+                self._tools_started.add(tool_call_id)
+                return [format_tool_streamer_label(str(tool_name))]
+        return []
+
+    def _on_message(self, node: str, data: dict[str, Any]) -> list[str]:
+        kind = data.get("event")
+        if kind == "message-start":
+            self._open_role[node] = str(data.get("role") or "ai")
+            return []
+        if kind == "message-finish":
+            self._open_role.pop(node, None)
+            return []
+        if self._open_role.get(node, "ai") != "ai":
+            return []
+        if kind == "content-block-start":
+            content = data.get("content")
+            if isinstance(content, dict) and content.get("type") == "text":
+                text = content.get("text")
+                return [text] if isinstance(text, str) and text else []
+        elif kind == "content-block-delta":
+            delta = data.get("delta")
+            if isinstance(delta, dict) and delta.get("type") == "text-delta":
+                text = delta.get("text")
+                return [text] if isinstance(text, str) and text else []
+        return []
 
 
 class SlackRunConsumer(DeliveryConsumer):

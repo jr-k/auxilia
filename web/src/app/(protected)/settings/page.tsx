@@ -119,7 +119,6 @@ function isProfileSection(value: string): value is ProfilePageSection {
 		value === "information" ||
 		value === "security" ||
 		value === "preferences" ||
-		value === "connections" ||
 		value === "tokens"
 	);
 }
@@ -335,15 +334,6 @@ export default function SettingsPage() {
 								>
 									Preferences
 								</button>
-								<button
-									type="button"
-									className={railTabClass(profileSection === "connections")}
-									onClick={() => {
-										setProfileSection("connections");
-									}}
-								>
-									Connected accounts
-								</button>
 							</div>
 							<div>
 								<p className="mb-1.5 px-3.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-meta dark:text-panel-dim">
@@ -409,7 +399,7 @@ export default function SettingsPage() {
 										setTab("notifications");
 									}}
 								>
-									Notifications
+									Messaging
 								</button>
 								<button
 									type="button"
