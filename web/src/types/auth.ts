@@ -10,6 +10,7 @@ export interface CurrentUser {
 	role: WorkspaceRole;
 	workspaceId: string | null;
 	canCreateWorkspace: boolean;
+	isInstanceOwner: boolean;
 	teamId: string | null;
 	pictureUrl: string | null;
 	imageRevision: string | null;

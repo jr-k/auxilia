@@ -170,6 +170,7 @@ class AuthService:
             name=data.name,
             password_hash=await get_password_hash(data.password),
             can_create_workspace=True,
+            is_instance_owner=True,
         )
         self.db.add(user)
         await self.db.flush()

@@ -125,7 +125,8 @@ export function WorkspaceSwitcher() {
 								Retry loading workspaces
 							</DropdownMenuPrimitive.Item>
 						)}
-						{(user?.canCreateWorkspace ||
+						{(user?.isInstanceOwner ||
+							user?.canCreateWorkspace ||
 							(isInitialized && workspaces.length === 0)) && (
 							<DropdownMenuPrimitive.Item
 								onSelect={() => { setCreateOpen(true); }}

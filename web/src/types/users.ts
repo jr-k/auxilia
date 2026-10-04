@@ -9,6 +9,7 @@ export interface User {
 	email: string | null;
 	role: WorkspaceRole;
 	canCreateWorkspace: boolean;
+	isInstanceOwner: boolean;
 	teamId: string | null;
 	pictureUrl: string | null;
 	imageRevision: string | null;
