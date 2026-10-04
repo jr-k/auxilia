@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.3](https://github.com/jr-k/auxilia/compare/web-v0.11.2...web-v0.11.3) (2026-10-04)
+
+
+### Bug Fixes
+
+* **workspaces:** preserve owner creation access ([288f5cc](https://github.com/jr-k/auxilia/commit/288f5cc11b965e3f8d7cb3dc9eb977618e8c98c6))
+
 ## [0.11.2](https://github.com/jr-k/auxilia/compare/web-v0.11.1...web-v0.11.2) (2026-10-04)
 
 
