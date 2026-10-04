@@ -96,9 +96,7 @@ class AuthService:
             except ValueError:
                 pass
             else:
-                membership = await self.workspaces.get_membership(
-                    workspace_id, user.id
-                )
+                membership = await self.workspaces.get_membership(workspace_id, user.id)
                 if membership is not None:
                     user.set_workspace_membership(membership)
                     return workspace_id
