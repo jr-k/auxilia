@@ -8,7 +8,13 @@ import {
 } from "@/components/ai-elements/conversation";
 import { Button } from "@/components/ui/button";
 import ChatPromptInput from "../components/prompt-input";
-import { AlertTriangle, ArchiveIcon, CircleSlash, ServerCrash, ShieldCheck } from "lucide-react";
+import {
+  AlertTriangle,
+  ArchiveIcon,
+  CircleSlash,
+  ServerCrash,
+  ShieldCheck,
+} from "lucide-react";
 import { useParams } from "next/navigation";
 import { useAgentsStore } from "@/stores/agents-store";
 import { canConfigureAgent } from "@/types/agents";
@@ -63,7 +69,8 @@ const ChatPage = () => {
   const sandboxDown =
     meta.sandboxUnavailable ??
     (agentStatus === "sandbox_unavailable"
-      ? (agentStatusDetail ?? "This agent's sandbox is not available right now.")
+      ? (agentStatusDetail ??
+        "This agent's sandbox is not available right now.")
       : null);
 
   const { setCurrentChat, clearCurrentChat } = useChatHeaderStore();
@@ -106,7 +113,10 @@ const ChatPage = () => {
             <div className="flex items-center gap-3 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3">
               <AlertTriangle className="size-5 shrink-0 text-destructive" />
               <p className="flex-1 text-sm text-destructive">
-                {getApiErrorMessage(openError, "This conversation could not be loaded.")}
+                {getApiErrorMessage(
+                  openError,
+                  "This conversation could not be loaded.",
+                )}
               </p>
               <Button
                 variant="outline"
@@ -164,7 +174,10 @@ const ChatPage = () => {
         ) : meta.status !== "ready" ? (
           // Metadata still loading (first open, or a Retry in flight): no
           // composer yet, so nothing can be sent alongside a parked message.
-          <div className="w-full max-w-4xl mx-auto lg:px-10 sm:px-6 px-3 py-4" aria-busy="true" />
+          <div
+            className="w-full max-w-4xl mx-auto lg:px-10 sm:px-6 px-3 py-4"
+            aria-busy="true"
+          />
         ) : sandboxDown ? (
           <div className="w-full max-w-4xl mx-auto lg:px-10 sm:px-6 px-3 py-6">
             <div className="flex items-center gap-3 rounded-lg border border-border bg-muted/50 px-4 py-3">
@@ -200,7 +213,11 @@ const ChatPage = () => {
             key={threadId}
             onSubmit={actions.send}
             status={run.isLoading ? "streaming" : "ready"}
-            queueMode={run.status !== "idle" || promptQueue.items.length > 0}
+            queueMode={
+              run.status !== "idle" ||
+              promptQueue.items.length > 0 ||
+              promptQueue.runStarting
+            }
             className="w-full max-w-4xl mx-auto lg:px-10 sm:px-6 px-3 py-4"
             stop={actions.stop}
             selectedModel={thread?.modelId ?? undefined}
