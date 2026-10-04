@@ -19,6 +19,7 @@ import { useAgentsStore } from "@/stores/agents-store";
 import { useTriggersStore } from "@/stores/triggers-store";
 import { useRunTrigger } from "@/hooks/use-run-trigger";
 import { AgentAvatar } from "@/components/ui/agent-avatar";
+import { VisibilityBadge } from "@/components/ui/visibility-badge";
 import { DropdownMenu } from "@/components/ui/dropdown-menu";
 
 interface TriggerCardProps {
@@ -74,6 +75,8 @@ export default function TriggerCard({ trigger, onDelete }: TriggerCardProps) {
 				<div className="min-w-0 flex-1 truncate font-[family-name:var(--font-jakarta-sans)] text-[17px] font-bold tracking-[-0.012em] text-[#1A2620] dark:text-foreground">
 					{trigger.name}
 				</div>
+				<VisibilityBadge visibility={trigger.visibility} />
+				{trigger.canManage && (
 				<div
 					onClick={(e) => {
 						e.stopPropagation();
@@ -119,6 +122,7 @@ export default function TriggerCard({ trigger, onDelete }: TriggerCardProps) {
 						]}
 					/>
 				</div>
+				)}
 			</div>
 
 			{/* Instructions excerpt */}

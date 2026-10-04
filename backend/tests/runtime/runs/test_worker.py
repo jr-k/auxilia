@@ -1,11 +1,13 @@
 import asyncio
 from contextlib import suppress
 from types import SimpleNamespace
+from unittest.mock import AsyncMock
 from uuid import UUID, uuid4
 
 import pytest
 
 import app.runtime.runs.worker as worker_mod
+from app.agents.core.service import AgentService
 from app.runtime.runs import keys
 from app.runtime.runs.events import RunEventStream
 from app.runtime.runs.liveness import DispatcherLiveness, RunLiveness
@@ -14,10 +16,14 @@ from app.runtime.runs.service import RunService
 from app.runtime.runs.settings import run_settings
 from app.runtime.runs.state import RunStatus
 from app.runtime.runs.worker import RunDispatcher, RunWorker
+from app.threads.models import ThreadDB
+from app.users.models import UserDB, WorkspaceRole
+from app.workspaces.repository import WorkspaceRepository
 
 
 pytestmark = pytest.mark.usefixtures("run_db")
 WORKSPACE_ID = UUID("00000000-0000-4000-8000-000000000001")
+USER_ID = UUID("00000000-0000-4000-8000-000000000002")
 
 
 def _event(n: int) -> dict:
@@ -45,9 +51,18 @@ class _FakeSession:
         return False
 
     async def get(self, model, pk):
+        if model is UserDB:
+            return SimpleNamespace(
+                id=pk,
+                role=WorkspaceRole.member,
+                team_id=None,
+                set_workspace_membership=lambda membership: None,
+            )
+        assert model is ThreadDB
         return SimpleNamespace(
             workspace_id=WORKSPACE_ID,
             agent_id=uuid4(),
+            user_id=USER_ID,
         )
 
     async def commit(self):
@@ -67,11 +82,18 @@ def patch_agent(monkeypatch):
 
     monkeypatch.setattr(RunWorker, "_is_interrupted", _no_interrupt)
     monkeypatch.setattr(worker_mod, "_mcp_unauthorized", _authorized)
+    monkeypatch.setattr(
+        WorkspaceRepository,
+        "get_membership",
+        AsyncMock(return_value=SimpleNamespace()),
+    )
+    monkeypatch.setattr(AgentService, "require_permission", AsyncMock())
+    monkeypatch.setattr(AgentService, "ensure_subagent_scopes", AsyncMock())
 
 
 async def _create_and_claim(service: RunService, **kwargs) -> RunDB:
     """Create a run and claim it, as the dispatcher would before `worker.run`."""
-    kwargs.setdefault("user_id", str(uuid4()))
+    kwargs.setdefault("user_id", str(USER_ID))
     record = await service.create(**kwargs)
     claimed = await service.claim_next()
     assert claimed is not None and claimed.id == record.id

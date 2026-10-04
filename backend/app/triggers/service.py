@@ -7,6 +7,7 @@ from uuid import UUID, uuid4
 from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.agents.core.repository import AgentRepository
 from app.agents.core.service import AgentService
 from app.agents.models import EffectivePermission
 from app.auth.settings import auth_settings
@@ -19,6 +20,7 @@ from app.exceptions import (
 from app.model_providers.service import ModelService
 from app.runtime.runs.service import RunService
 from app.service import BaseService
+from app.teams.repository import TeamRepository
 from app.threads.models import ThreadSource
 from app.threads.schemas import ThreadCreate
 from app.threads.service import ThreadService
@@ -36,6 +38,12 @@ from app.triggers.schemas import (
 )
 from app.triggers.settings import trigger_settings
 from app.users.models import UserDB, WorkspaceRole
+from app.visibility import (
+    ResourceVisibility,
+    audience_contains,
+    is_resource_visible,
+    validate_visibility,
+)
 from app.workspaces.dependencies import get_active_workspace_id
 from app.workspaces.repository import WorkspaceRepository
 
@@ -51,6 +59,7 @@ class TriggerService(BaseService[TriggerDB, TriggerRepository]):
         self.workspace_id = workspace_id
         self.agent_service = AgentService(db, workspace_id)
         self.model_service = ModelService(db, workspace_id)
+        self.teams = TeamRepository(db)
 
     # ------------------------------------------------------------------
     # Guards
@@ -84,6 +93,39 @@ class TriggerService(BaseService[TriggerDB, TriggerRepository]):
                 "Trigger owner is not allowed to use this agent"
             ) from exc
 
+    async def _ensure_agent_scope(
+        self,
+        agent_id: UUID,
+        *,
+        visibility,
+        owner_id: UUID,
+        team_ids: list[UUID],
+    ) -> None:
+        agents = AgentRepository(self.db, self.workspace_id)
+        agent = await agents.get_scoped_for_update(agent_id)
+        if agent is None:
+            raise NotFoundError("Agent not found")
+        # The trigger owner was checked through AgentService immediately before
+        # this call; for a personal trigger, that explicit grant is its entire
+        # non-admin audience.
+        if visibility == ResourceVisibility.personal:
+            return
+        if not audience_contains(
+            parent_visibility=visibility,
+            parent_owner_id=owner_id,
+            parent_team_ids=set(team_ids),
+            child_visibility=agent.visibility,
+            child_owner_id=agent.owner_id,
+            child_team_ids=(
+                set(await agents.get_team_ids(agent.id))
+                if agent.visibility == ResourceVisibility.teams
+                else set()
+            ),
+        ):
+            raise DomainValidationError(
+                f"Agent '{agent.name}' is more private than this trigger"
+            )
+
     async def _get_owner(self, trigger: TriggerDB) -> UserDB:
         owner = await self.db.get(UserDB, trigger.owner_id)
         if owner is None:  # FK guarantees this in practice
@@ -100,7 +142,9 @@ class TriggerService(BaseService[TriggerDB, TriggerRepository]):
     # Responses
     # ------------------------------------------------------------------
 
-    async def _to_responses(self, triggers: list[TriggerDB]) -> list[TriggerResponse]:
+    async def _to_responses(
+        self, triggers: list[TriggerDB], user: UserDB
+    ) -> list[TriggerResponse]:
         """Project to responses with `model_available` and the whitelist
         display name stamped — one availability lookup for the whole batch,
         not one per trigger."""
@@ -109,16 +153,31 @@ class TriggerService(BaseService[TriggerDB, TriggerRepository]):
             m.model_id: m.display_name
             for m in await self.model_service.list_whitelisted()
         }
+        team_ids = await self.repository.list_team_ids_for_triggers(
+            [
+                trigger.id
+                for trigger in triggers
+                if trigger.visibility == ResourceVisibility.teams
+            ]
+        )
         return [
             TriggerResponse.model_validate(
                 t,
                 update={
+                    "team_ids": team_ids.get(t.id, []),
+                    "can_manage": (
+                        user.id == t.owner_id or user.role == WorkspaceRole.admin
+                    ),
                     "model_available": t.model_id in available,
                     "model_display_name": names.get(t.model_id),
                     "webhook_url": (
                         f"{auth_settings.FRONTEND_URL.rstrip('/')}"
                         f"/api/backend/triggers/webhooks/{t.webhook_id}"
                         if t.webhook_id is not None
+                        and (
+                            user.id == t.owner_id
+                            or user.role == WorkspaceRole.admin
+                        )
                         else None
                     ),
                 },
@@ -131,23 +190,37 @@ class TriggerService(BaseService[TriggerDB, TriggerRepository]):
     # ------------------------------------------------------------------
 
     async def list(self, user: UserDB) -> list[TriggerResponse]:
-        if user.role == WorkspaceRole.admin:
-            triggers = await self.repository.list_all()
-        else:
-            triggers = await self.repository.list_for_owner(user.id)
-        return await self._to_responses(triggers)
+        triggers = await self.repository.list_all()
+        team_ids = await self.repository.list_team_ids_for_triggers(
+            [
+                trigger.id
+                for trigger in triggers
+                if trigger.visibility == ResourceVisibility.teams
+            ]
+        )
+        triggers = [
+            trigger
+            for trigger in triggers
+            if is_resource_visible(
+                visibility=trigger.visibility,
+                owner_id=trigger.owner_id,
+                team_ids=set(team_ids.get(trigger.id, [])),
+                user=user,
+            )
+        ]
+        return await self._to_responses(triggers, user)
 
     async def get(self, trigger_id: UUID, user: UserDB) -> TriggerResponse:
         trigger = await self.get_or_404(trigger_id)
-        self._ensure_can_manage(trigger, user)
-        return (await self._to_responses([trigger]))[0]
+        await self._ensure_visible(trigger, user)
+        return (await self._to_responses([trigger], user))[0]
 
     async def list_threads(
         self, trigger_id: UUID, user: UserDB
     ) -> list[TriggerThreadResponse]:
         """Past firings (one thread per firing), last 30 days, newest first."""
         trigger = await self.get_or_404(trigger_id)
-        self._ensure_can_manage(trigger, user)
+        await self._ensure_visible(trigger, user)
         since = datetime.now(UTC) - timedelta(days=30)
         threads = await ThreadService(self.db, trigger.workspace_id).list_for_trigger(
             trigger_id, since=since
@@ -157,6 +230,8 @@ class TriggerService(BaseService[TriggerDB, TriggerRepository]):
     async def create(self, data: TriggerCreate, owner: UserDB) -> TriggerResponse:
         if self.workspace_id is None:
             raise RuntimeError("workspace_id is required to create a trigger")
+        await self._validate_team_ids(data.team_ids)
+        validate_visibility(data.visibility, data.team_ids)
         if data.trigger_type == TriggerType.schedule:
             if data.cron_expression is None or data.timezone is None:
                 raise DomainValidationError(
@@ -169,6 +244,12 @@ class TriggerService(BaseService[TriggerDB, TriggerRepository]):
             data.model_id, data.reasoning_effort
         )
         await self._ensure_agent_usable(data.agent_id, owner, self.workspace_id)
+        await self._ensure_agent_scope(
+            data.agent_id,
+            visibility=data.visibility,
+            owner_id=owner.id,
+            team_ids=data.team_ids,
+        )
         next_run_at = (
             compute_next_run_at(
                 data.cron_expression, data.timezone, after=datetime.now(UTC)
@@ -187,13 +268,33 @@ class TriggerService(BaseService[TriggerDB, TriggerRepository]):
                 next_run_at=next_run_at,
             )
         )
-        return (await self._to_responses([trigger]))[0]
+        if data.team_ids:
+            await self.repository.set_team_ids(trigger.id, data.team_ids)
+        return (await self._to_responses([trigger], owner))[0]
 
     async def update(
         self, trigger_id: UUID, data: TriggerPatch, user: UserDB
     ) -> TriggerResponse:
         trigger = await self.get_or_404(trigger_id)
         self._ensure_can_manage(trigger, user)
+        next_visibility = data.visibility or trigger.visibility
+        next_team_ids = (
+            data.team_ids
+            if data.team_ids is not None
+            else (
+                await self.repository.list_team_ids(trigger.id)
+                if trigger.visibility == ResourceVisibility.teams
+                else []
+            )
+        )
+        await self._validate_team_ids(next_team_ids)
+        validate_visibility(next_visibility, next_team_ids)
+        await self._ensure_agent_scope(
+            data.agent_id or trigger.agent_id,
+            visibility=next_visibility,
+            owner_id=trigger.owner_id,
+            team_ids=next_team_ids,
+        )
 
         update_data = data.model_dump(exclude_unset=True)
         if trigger.trigger_type == TriggerType.webhook and (
@@ -230,17 +331,25 @@ class TriggerService(BaseService[TriggerDB, TriggerRepository]):
             clear_stale_effort = not await ModelService.is_reasoning_effort_declared(
                 update_data["model_id"], trigger.reasoning_effort
             )
-        if "agent_id" in update_data and update_data["agent_id"] != trigger.agent_id:
+        agent_changed = (
+            "agent_id" in update_data and update_data["agent_id"] != trigger.agent_id
+        )
+        reactivating = data.is_active is True and not trigger.is_active
+        if agent_changed or reactivating:
             # Check against the owner, not the caller — an admin may edit
             # someone else's trigger, but the run still executes as the owner.
             owner = (
                 user if user.id == trigger.owner_id else await self._get_owner(trigger)
             )
             await self._ensure_agent_usable(
-                update_data["agent_id"], owner, trigger.workspace_id
+                update_data.get("agent_id", trigger.agent_id),
+                owner,
+                trigger.workspace_id,
             )
 
         trigger = await self.repository.update(trigger, data)
+        if data.team_ids is not None:
+            await self.repository.set_team_ids(trigger.id, data.team_ids)
 
         if clear_stale_effort:
             trigger.reasoning_effort = None
@@ -267,7 +376,33 @@ class TriggerService(BaseService[TriggerDB, TriggerRepository]):
             await self.db.refresh(trigger)
         # Recompute availability: a patch that doesn't touch model_id (e.g.
         # pause/resume) must not reset the flag to its default on the client.
-        return (await self._to_responses([trigger]))[0]
+        return (await self._to_responses([trigger], user))[0]
+
+    async def _ensure_visible(self, trigger: TriggerDB, user: UserDB) -> None:
+        team_ids = (
+            set(await self.repository.list_team_ids(trigger.id))
+            if trigger.visibility == ResourceVisibility.teams
+            else set()
+        )
+        if not is_resource_visible(
+            visibility=trigger.visibility,
+            owner_id=trigger.owner_id,
+            team_ids=team_ids,
+            user=user,
+        ):
+            raise NotFoundError("Trigger not found")
+
+    async def _validate_team_ids(self, team_ids: list[UUID]) -> None:
+        if self.workspace_id is None:
+            raise RuntimeError("workspace_id is required")
+        for team_id in set(team_ids):
+            if (
+                await self.teams.get_in_workspace_for_key_share(
+                    team_id, self.workspace_id
+                )
+                is None
+            ):
+                raise NotFoundError("Team not found")
 
     async def delete(self, trigger_id: UUID, user: UserDB) -> None:
         trigger = await self.get_or_404(trigger_id)
@@ -287,6 +422,10 @@ class TriggerService(BaseService[TriggerDB, TriggerRepository]):
         """
         trigger = await self.get_or_404(trigger_id)
         self._ensure_can_manage(trigger, user)
+        owner = await self._get_owner(trigger)
+        await self._ensure_agent_usable(
+            trigger.agent_id, owner, trigger.workspace_id
+        )
         agent = await AgentService(self.db, trigger.workspace_id).repository.get_scoped(
             trigger.agent_id
         )
@@ -340,6 +479,16 @@ class TriggerService(BaseService[TriggerDB, TriggerRepository]):
             raise DomainValidationError("Webhook instructions cannot be empty")
 
         await self._ensure_agent_usable(agent_id, owner, trigger.workspace_id)
+        await self._ensure_agent_scope(
+            agent_id,
+            visibility=trigger.visibility,
+            owner_id=trigger.owner_id,
+            team_ids=(
+                await self.repository.list_team_ids(trigger.id)
+                if trigger.visibility == ResourceVisibility.teams
+                else []
+            ),
+        )
         agent = await AgentService(self.db, trigger.workspace_id).repository.get_scoped(
             agent_id
         )
@@ -421,6 +570,21 @@ class TriggerService(BaseService[TriggerDB, TriggerRepository]):
         )
         launches: list[tuple[str, str, str]] = []  # (thread_id, owner_id, message)
         for trigger in claimed:
+            try:
+                owner = await self._get_owner(trigger)
+                await self._ensure_agent_usable(
+                    trigger.agent_id, owner, trigger.workspace_id
+                )
+            except (DomainValidationError, NotFoundError, PermissionDeniedError):
+                logger.warning(
+                    "Pausing trigger %s: its owner can no longer use agent %s",
+                    trigger.id,
+                    trigger.agent_id,
+                )
+                trigger.is_active = False
+                trigger.next_run_at = None
+                self.db.add(trigger)
+                continue
             agent = await AgentService(
                 self.db, trigger.workspace_id
             ).repository.get_scoped(trigger.agent_id)

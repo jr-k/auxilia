@@ -13,6 +13,7 @@ from app.agents.models import (
 )
 from app.sandbox.models import SandboxProviderType
 from app.skills.schemas import AgentSkillResponse
+from app.visibility import ResourceVisibility
 
 
 def _normalize_group(value: str | None) -> str | None:
@@ -44,6 +45,7 @@ class AgentCreateDB(SQLModel):
     color: str | None = None
     description: str | None = None
     group: str | None = None
+    visibility: ResourceVisibility = ResourceVisibility.personal
 
     @field_validator("color")
     @classmethod
@@ -58,6 +60,7 @@ class AgentPatch(SQLModel):
     color: str | None = None
     description: str | None = None
     group: str | None = None
+    visibility: ResourceVisibility | None = None
 
     @field_validator("color")
     @classmethod
@@ -91,6 +94,8 @@ class AgentConfig(SQLModel):
     emoji: str | None = None
     color: str | None = None
     group: str | None = None
+    visibility: ResourceVisibility = ResourceVisibility.personal
+    team_ids: list[UUID] = []
     mcp_servers: list[AgentMCPServerConfig] = []
     sandboxes: list[AgentSandboxConfig] = []
     subagent_ids: list[UUID] = []
@@ -230,6 +235,8 @@ class AgentListResponse(SQLModel):
     mcp_servers: list[AgentMCPServerListResponse] | None = None
     subagents: list[SubagentResponse] | None = None
     group: str | None = None
+    visibility: ResourceVisibility = ResourceVisibility.personal
+    team_ids: list[UUID] = []
     owner: AgentOwnerInfo | None = None
     is_subagent: bool = False
     current_user_permission: EffectivePermission | None = None

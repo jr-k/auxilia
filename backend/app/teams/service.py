@@ -9,7 +9,7 @@ from app.exceptions import AlreadyExistsError, DomainValidationError, NotFoundEr
 from app.service import BaseService
 from app.teams.models import TeamDB
 from app.teams.repository import TeamRepository
-from app.teams.schemas import TeamCreate, TeamPatch, TeamResponse
+from app.teams.schemas import TeamCreate, TeamCreateDB, TeamPatch, TeamResponse
 
 
 class TeamService(BaseService[TeamDB, TeamRepository]):
@@ -41,7 +41,7 @@ class TeamService(BaseService[TeamDB, TeamRepository]):
         await self._ensure_name_available(workspace_id, data.name)
         try:
             return await self.repository.create(
-                TeamDB(
+                TeamCreateDB(
                     workspace_id=workspace_id,
                     name=data.name,
                     color=data.color,
@@ -68,7 +68,16 @@ class TeamService(BaseService[TeamDB, TeamRepository]):
             raise AlreadyExistsError("Team name already exists") from exc
 
     async def delete(self, team_id: UUID, workspace_id: UUID) -> None:
-        team = await self.get(team_id, workspace_id)
+        team = await self.repository.get_in_workspace_for_update(
+            team_id, workspace_id
+        )
+        if team is None:
+            raise NotFoundError(self.not_found_message)
+        in_use = await self.repository.is_used_for_resource_visibility(team_id)
+        if in_use is True:
+            raise DomainValidationError(
+                "Team cannot be deleted while it is used by resource visibility"
+            )
         await self.repository.delete(team)
 
 

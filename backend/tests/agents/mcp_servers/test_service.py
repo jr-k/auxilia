@@ -51,8 +51,10 @@ def service(mock_db, mock_repo):
     svc.repository = mock_repo
     svc._agents = MagicMock()
     svc._agents.get_scoped = AsyncMock(return_value=MagicMock())
+    svc._agents.get_scoped_for_update = svc._agents.get_scoped
     svc._servers = MagicMock()
     svc._servers.get_scoped = AsyncMock(return_value=make_mcp_server())
+    svc._servers.get_scoped_for_update = svc._servers.get_scoped
     return svc
 
 

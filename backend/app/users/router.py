@@ -1,9 +1,13 @@
+import logging
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, Header, UploadFile
 from fastapi.responses import Response
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import get_current_user, require_admin
+from app.database import get_db
+from app.mcp.client.storage import TokenStorageFactory
 from app.pagination import Page, PageParams
 from app.users.models import UserDB, WorkspaceRole
 from app.users.schemas import (
@@ -27,6 +31,9 @@ from app.users.schemas import (
 from app.users.service import UserService, get_user_service
 from app.utils.images import image_response, process_uploaded_image
 from app.workspaces.dependencies import get_active_workspace_id
+
+
+logger = logging.getLogger(__name__)
 
 
 router = APIRouter(prefix="/users", tags=["users"])
@@ -226,5 +233,18 @@ async def delete_user(
     _: UserDB = Depends(require_admin),
     workspace_id: UUID = Depends(get_active_workspace_id),
     service: UserService = Depends(get_user_service),
+    db: AsyncSession = Depends(get_db),
 ) -> None:
     await service.delete(user_id, workspace_id)
+    # Membership/grant removal must commit before the irreversible Redis purge.
+    await db.commit()
+    try:
+        await TokenStorageFactory().clear_user_data(
+            str(workspace_id), str(user_id)
+        )
+    except Exception:  # noqa: BLE001 — membership removal already succeeded
+        logger.warning(
+            "Could not purge MCP authorization state for removed workspace user %s",
+            user_id,
+            exc_info=True,
+        )

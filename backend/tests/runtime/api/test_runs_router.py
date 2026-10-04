@@ -5,11 +5,20 @@ from uuid import uuid4
 import pytest
 from fastapi.testclient import TestClient
 
+from app.agents.core.service import get_agent_service
 from app.main import app
 from app.runtime.api.runs_router import get_run_service
 from app.runtime.runs.models import RunDB
 from app.runtime.runs.state import RunStatus
 from app.threads.models import ThreadDB
+
+
+@pytest.fixture(autouse=True)
+def allow_agent_access():
+    agents = MagicMock(require_permission=AsyncMock())
+    app.dependency_overrides[get_agent_service] = lambda: agents
+    yield
+    app.dependency_overrides.pop(get_agent_service, None)
 
 
 def _owned_thread(current_user) -> ThreadDB:

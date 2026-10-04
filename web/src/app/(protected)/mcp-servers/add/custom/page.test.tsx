@@ -64,6 +64,8 @@ describe("CustomMCPServerPage", () => {
 				description: undefined,
 				group: null,
 				iconUrl: undefined,
+				visibility: "workspace",
+				teamIds: [],
 				apiKey: "secret-token",
 				oauthClientId: undefined,
 				oauthClientSecret: undefined,

@@ -1,3 +1,5 @@
+import type { ResourceVisibility } from "./visibility";
+
 export type MCPAuthType = "none" | "api_key" | "oauth2";
 
 export interface MCPServer {
@@ -9,6 +11,9 @@ export interface MCPServer {
 	imageRevision?: string | null;
 	description?: string;
 	group?: string | null;
+	ownerId?: string;
+	visibility?: ResourceVisibility;
+	teamIds?: string[];
 	disabledTools?: string[];
 	createdAt: string;
 	updatedAt: string;
@@ -23,6 +28,8 @@ export interface MCPServerCreate {
 	iconUrl?: string;
 	description?: string;
 	group?: string | null;
+	visibility?: ResourceVisibility;
+	teamIds?: string[];
 	apiKey?: string;
 	// OAuth credentials for pre-registered OAuth clients
 	oauthClientId?: string;
@@ -37,6 +44,8 @@ export interface MCPServerUpdate {
 	iconUrl?: string | null;
 	description?: string | null;
 	group?: string | null;
+	visibility?: ResourceVisibility;
+	teamIds?: string[];
 	// Credentials — send only when changing them; blank keeps the stored value.
 	apiKey?: string;
 	oauthClientId?: string;

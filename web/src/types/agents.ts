@@ -1,6 +1,7 @@
 import { MCPServer } from "./mcp-servers";
 import { SandboxProviderType } from "./sandboxes";
 import { AgentSkill } from "./skills";
+import type { ResourceVisibility } from "./visibility";
 
 export type ToolStatus = "always_allow" | "needs_approval" | "disabled";
 
@@ -72,6 +73,8 @@ export interface Agent {
 	skills?: AgentSkill[];
 	subagents: SubagentInfo[];
 	group?: string | null;
+	visibility: ResourceVisibility;
+	teamIds: string[];
 	owner?: AgentOwner | null;
 	isSubagent: boolean;
 	currentUserPermission?: AgentPermission | null;

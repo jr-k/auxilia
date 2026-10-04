@@ -8,6 +8,7 @@
 import { api } from "@/lib/api/client";
 import type { Paginated } from "@/types/api";
 import type { Agent, AgentPermission } from "@/types/agents";
+import type { ResourceVisibility } from "@/types/visibility";
 
 /** `POST /agents` and `PUT /agents/{id}/config` share this body (see
  * `agent-form.ts::toPayload`). */
@@ -18,9 +19,12 @@ export interface AgentWrite {
 	group: string | null;
 	emoji: string | null;
 	color: string | null;
+	visibility: ResourceVisibility;
+	teamIds: string[];
 	mcpServers: { mcpServerId: string; tools: Record<string, string> | null }[];
 	sandboxes: { sandboxId: string; tools: Record<string, string> | null }[];
 	subagentIds: string[];
+	skillIds: string[];
 }
 
 /** Fields `PATCH /agents/{id}` accepts outside the config draft. */

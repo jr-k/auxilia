@@ -11,6 +11,7 @@ import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import { UserAvatar } from "@/components/ui/user-avatar";
 import { cn } from "@/lib/utils";
 import { AgentAvatar } from "@/components/ui/agent-avatar";
+import { VisibilityBadge } from "@/components/ui/visibility-badge";
 import { mcpServerImageUrl } from "@/lib/api/resources/mcp-servers";
 import { buildGroupTree } from "@/lib/groups";
 
@@ -188,6 +189,13 @@ export default function AgentTable({
 					</span>
 				);
 			},
+		},
+		{
+			key: "visibility",
+			header: "Visibility",
+			width: "120px",
+			hideBelowMd: true,
+			cell: (agent) => <VisibilityBadge visibility={agent.visibility} />,
 		},
 		{
 			key: "owner",

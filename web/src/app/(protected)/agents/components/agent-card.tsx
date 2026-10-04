@@ -8,6 +8,7 @@ import { useMcpServersStore } from "@/stores/mcp-servers-store";
 import ArchivedAgentDialog from "@/app/(protected)/agents/components/archived-agent-dialog";
 import ForbiddenErrorDialog from "@/components/forbidden-error-dialog";
 import { AgentAvatar } from "@/components/ui/agent-avatar";
+import { VisibilityBadge } from "@/components/ui/visibility-badge";
 import { mcpServerImageUrl } from "@/lib/api/resources/mcp-servers";
 
 interface AgentCardProps {
@@ -123,6 +124,7 @@ export default function AgentCard({
 							</div>
 						)}
 					</div>
+					<VisibilityBadge visibility={agent.visibility} />
 					{(() => {
 						const badge = agent.currentUserPermission
 							? ROLE_BADGE_CONFIG[agent.currentUserPermission]

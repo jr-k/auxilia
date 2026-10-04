@@ -37,27 +37,28 @@ router = APIRouter(prefix="/mcp-servers", tags=["mcp-servers"])
 
 async def get_mcp_server_dependency(
     server_id: UUID,
+    current_user: UserDB = Depends(get_current_user),
     service: MCPServerService = Depends(get_mcp_server_service),
 ) -> MCPServerDB:
-    return await service.get(server_id)
+    return await service.get_visible(server_id, current_user)
 
 
 @router.post("/", response_model=MCPServerResponse, status_code=201)
 async def create_mcp_server(
     server: MCPServerCreate,
-    _current_user: UserDB = Depends(require_admin),
+    current_user: UserDB = Depends(require_admin),
     service: MCPServerService = Depends(get_mcp_server_service),
 ) -> MCPServerResponse:
-    created = await service.create(server)
+    created = await service.create(server, current_user.id)
     return await service.to_response(created)
 
 
 @router.get("/", response_model=list[MCPServerResponse])
 async def get_mcp_servers(
-    _current_user: UserDB = Depends(get_current_user),
+    current_user: UserDB = Depends(get_current_user),
     service: MCPServerService = Depends(get_mcp_server_service),
 ) -> list[MCPServerResponse]:
-    return await service.list_responses()
+    return await service.list_responses(current_user)
 
 
 @router.get("/official", response_model=list[OfficialMCPServerResponse])
@@ -82,10 +83,10 @@ async def sync_official_catalog(
 @router.get("/{server_id}", response_model=MCPServerResponse)
 async def get_mcp_server(
     server_id: UUID,
-    _current_user: UserDB = Depends(get_current_user),
+    current_user: UserDB = Depends(get_current_user),
     service: MCPServerService = Depends(get_mcp_server_service),
 ) -> MCPServerResponse:
-    server = await service.get(server_id)
+    server = await service.get_visible(server_id, current_user)
     return await service.to_response(server)
 
 
@@ -93,9 +94,10 @@ async def get_mcp_server(
 async def get_mcp_server_image(
     server_id: UUID,
     if_none_match: str | None = Header(default=None),
-    _current_user: UserDB = Depends(get_current_user),
+    current_user: UserDB = Depends(get_current_user),
     service: MCPServerService = Depends(get_mcp_server_service),
 ) -> Response:
+    await service.get_visible(server_id, current_user)
     image = await service.get_image(server_id)
     return image_response(
         data=image.data,
@@ -131,8 +133,17 @@ async def update_mcp_server(
     server_update: MCPServerPatch,
     _current_user: UserDB = Depends(require_admin),
     service: MCPServerService = Depends(get_mcp_server_service),
+    db: AsyncSession = Depends(get_db),
 ) -> MCPServerResponse:
+    before = await service.get_scoped_for_update(server_id)
+    previous_auth_type = before.auth_type
+    previous_url = before.url
     updated = await service.update(server_id, server_update)
+    # Commit before purging Redis: that side effect cannot be rolled back.
+    await db.commit()
+    await service.purge_invalidated_state(
+        server_id, updated, previous_auth_type, previous_url
+    )
     return await service.to_response(updated)
 
 
@@ -169,6 +180,7 @@ async def delete_mcp_server(
     _current_user: UserDB = Depends(require_admin),
     service: MCPServerService = Depends(get_mcp_server_service),
     bindings: AgentMCPServerService = Depends(get_agent_mcp_server_service),
+    db: AsyncSession = Depends(get_db),
 ) -> None:
     """Composes the two modules in the right direction: bindings belong to
     agents, so they are detached there; the server row is deleted here. Both
@@ -177,6 +189,9 @@ async def delete_mcp_server(
     if detach_agents:
         await bindings.detach_server(server_id)
     await service.delete(server_id)
+    # Commit before purging Redis: the server deletion is the source of truth.
+    await db.commit()
+    await service.purge_server_data(server_id)
 
 
 @router.post("/{server_id}/reset", status_code=200)

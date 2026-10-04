@@ -64,7 +64,7 @@ def test_list_trigger_threads_as_owner(client: TestClient, mock_db, current_user
     assert data[0]["first_message_content"] == trigger.name
 
 
-def test_list_trigger_threads_forbidden_for_non_owner(
+def test_list_trigger_threads_hidden_from_non_owner(
     client: TestClient, mock_db, current_user
 ):
     trigger = _trigger(owner_id=uuid4())
@@ -72,7 +72,7 @@ def test_list_trigger_threads_forbidden_for_non_owner(
 
     response = client.get(f"/triggers/{trigger.id}/threads")
 
-    assert response.status_code == 403
+    assert response.status_code == 404
 
 
 def test_list_trigger_threads_as_admin(client: TestClient, mock_db, admin_user):

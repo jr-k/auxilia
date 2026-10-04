@@ -13,6 +13,8 @@ import AgentToolList from "../[id]/components/agent-tool-list";
 import AgentSubagentList from "../[id]/components/agent-subagent-list";
 import AgentSkillList from "../[id]/components/agent-skill-list";
 import { GroupPicker } from "@/components/ui/group-picker";
+import { VisibilityPicker } from "@/components/ui/visibility-picker";
+import { VisibilityBadge } from "@/components/ui/visibility-badge";
 import AgentPermissionsPanel from "./agent-permissions-panel";
 import { MessageResponse } from "@/components/ai-elements/message";
 import { getApiErrorMessage } from "@/lib/api/errors";
@@ -144,7 +146,11 @@ export default function AgentEditor({
 	useEffect(() => {
 		isDirtyRef.current = isDirty;
 	}, [isDirty]);
-	const canSave = Boolean(form.name.trim() && form.instructions.trim());
+	const canSave = Boolean(
+		form.name.trim() &&
+			form.instructions.trim() &&
+			(form.visibility !== "teams" || form.teamIds.length > 0),
+	);
 
 	const tabs: { key: EditorTab; label: string }[] = [
 		{ key: "instructions", label: "Instructions" },
@@ -501,6 +507,11 @@ export default function AgentEditor({
 								<p className="w-full truncate py-[2px] text-[13.5px] font-medium text-label dark:text-muted-foreground">
 									{form.description || "\u00A0"}
 								</p>
+								<VisibilityBadge
+									visibility={form.visibility}
+									teamIds={form.teamIds}
+									showTeams
+								/>
 							</div>
 						) : (
 							<div className="flex min-w-0 flex-1 flex-col gap-4">
@@ -546,6 +557,17 @@ export default function AgentEditor({
 									groups={availableGroups}
 									onChange={(group) => {
 										setField("group", group);
+									}}
+								/>
+								<VisibilityPicker
+									visibility={form.visibility}
+									teamIds={form.teamIds}
+									onChange={(visibility, teamIds) => {
+										setForm((current) => ({
+											...current,
+											visibility,
+											teamIds,
+										}));
 									}}
 								/>
 							</div>
