@@ -1,5 +1,5 @@
 import Image from "next/image";
-import { AlarmClock, Globe, Plug } from "lucide-react";
+import { AlarmClock, Gamepad2, Globe, Plug, Send } from "lucide-react";
 import type { ThreadSource } from "@/types/threads";
 
 const SLACK_ICON_SRC =
@@ -11,6 +11,10 @@ function getLabel(source: ThreadSource): string {
 			return "In-app";
 		case "slack":
 			return "Slack";
+		case "telegram":
+			return "Telegram";
+		case "discord":
+			return "Discord";
 		case "api":
 			return "External";
 		case "trigger":
@@ -39,6 +43,10 @@ export function ThreadSourceBadge({
 				width={14}
 				className="h-3.5 w-3.5 shrink-0"
 			/>
+		) : source === "telegram" ? (
+			<Send className="h-3.5 w-3.5 shrink-0 text-[#229ED9]" />
+		) : source === "discord" ? (
+			<Gamepad2 className="h-3.5 w-3.5 shrink-0 text-[#5865F2]" />
 		) : source === "web" ? (
 			<Globe className="h-3.5 w-3.5 shrink-0 text-[#A3B5AD] dark:text-muted-foreground" />
 		) : source === "trigger" ? (

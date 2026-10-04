@@ -7,8 +7,8 @@ worker-side consumer that subscribes to the run's event log and relays each
 event to the channel.
 
 This module stays channel-agnostic: it defines the consumer shape and the factory
-type only. The composition root (`main.py`) injects a concrete factory (the Slack
-one), so `app/runtime/runs` never imports `app/integrations`.
+type only. The composition root (`main.py`) injects the integrations registry,
+so `app/runtime/runs` never imports `app/integrations`.
 """
 
 from collections.abc import Callable

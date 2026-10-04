@@ -16,8 +16,11 @@ from app.auth.tokens.router import router as tokens_router
 from app.background import registry as background_loops
 from app.database import close_checkpointer_pool
 from app.exceptions import DomainError, root_cause, status_for
-from app.integrations.slack.consumer import build_slack_run_consumer
+from app.integrations.channels.delivery import build_channel_run_consumer
+from app.integrations.channels.router import router as channels_router
+from app.integrations.discord.router import router as discord_router
 from app.integrations.slack.router import router as slack_router
+from app.integrations.telegram.router import router as telegram_router
 from app.integrations.tracing import flush_tracing
 from app.invites.router import router as invites_router
 from app.logging_config import configure_logging
@@ -75,7 +78,7 @@ async def lifespan(app: FastAPI):
     reaper: RunReaper | None = None
     scanner: TriggerScanner | None = None
     if run_settings.dispatcher_enabled:
-        dispatcher = RunDispatcher(delivery_factory=build_slack_run_consumer)
+        dispatcher = RunDispatcher(delivery_factory=build_channel_run_consumer)
         reaper = RunReaper()
         background = [
             asyncio.create_task(dispatcher.run(), name="run-dispatcher"),
@@ -255,6 +258,9 @@ app.include_router(model_providers_router)
 app.include_router(notifications_router)
 app.include_router(observability_router)
 app.include_router(sandboxes_router)
+app.include_router(channels_router)
 app.include_router(slack_router)
+app.include_router(telegram_router)
+app.include_router(discord_router)
 
 app.mount("/", auxilia_mcp.streamable_http_app(stateless_http=True, json_response=True))
