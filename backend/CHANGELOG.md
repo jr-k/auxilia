@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.6](https://github.com/jr-k/auxilia/compare/backend-v0.10.5...backend-v0.10.6) (2026-10-04)
+
+
+### Reverts
+
+* **integrations:** remove Telegram and Discord channels ([7db7a70](https://github.com/jr-k/auxilia/commit/7db7a70513bc13563b7a09ecd7bbbb96a8674c79))
+
 ## [0.10.5](https://github.com/jr-k/auxilia/compare/backend-v0.10.4...backend-v0.10.5) (2026-10-04)
 
 
