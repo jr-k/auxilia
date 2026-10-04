@@ -53,7 +53,9 @@ class ToolStatus(str, Enum):
 
 
 class AgentMCPServerBase(SQLModel):
-    agent_id: UUID = Field(foreign_key="agents.id", nullable=False)
+    agent_id: UUID = Field(foreign_key="agents.id", ondelete="CASCADE", nullable=False)
+    # No cascade on the server side: deleting a bound MCP server is refused
+    # until the admin detaches it from its agents.
     mcp_server_id: UUID = Field(foreign_key="mcp_servers.id", nullable=False)
     tools: dict[str, ToolStatus] | None = Field(
         default=None, sa_column=Column(JSONB, nullable=True)
@@ -125,7 +127,7 @@ class AgentUserPermissionDB(BaseDBModel, table=True):
         UniqueConstraint("agent_id", "user_id", name="uq_agent_user_permission"),
     )
 
-    agent_id: UUID = Field(foreign_key="agents.id", nullable=False)
+    agent_id: UUID = Field(foreign_key="agents.id", ondelete="CASCADE", nullable=False)
     user_id: UUID = Field(foreign_key="users.id", nullable=False)
     permission: PermissionLevel = Field(nullable=False)
 
@@ -150,5 +152,9 @@ class AgentSubagentDB(BaseDBModel, table=True):
         ),
     )
 
-    supervisor_id: UUID = Field(foreign_key="agents.id", nullable=False)
-    subagent_id: UUID = Field(foreign_key="agents.id", nullable=False)
+    supervisor_id: UUID = Field(
+        foreign_key="agents.id", ondelete="CASCADE", nullable=False
+    )
+    subagent_id: UUID = Field(
+        foreign_key="agents.id", ondelete="CASCADE", nullable=False
+    )

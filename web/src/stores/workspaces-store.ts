@@ -33,23 +33,29 @@ export const useWorkspacesStore = create<WorkspacesState>((set, get) => ({
 		if (get().isInitialized) return;
 		if (hydration) return hydration;
 		set({ isLoading: true, error: null });
-		hydration = Promise.all([
+		// The two requests are independent: a failing workspace list must not
+		// hide the user (and with it the "Add workspace" entry), and vice versa.
+		hydration = Promise.allSettled([
 			workspacesApi.listWorkspaces(),
 			authApi.getCurrentUser(),
 		])
-			.then(([workspaces, user]) => {
-				useUserStore.getState().setUser(user);
+			.then(([workspacesResult, userResult]) => {
+				if (userResult.status === "fulfilled") {
+					useUserStore.getState().setUser(userResult.value);
+					set({ activeWorkspaceId: userResult.value.workspaceId });
+				} else {
+					console.error("Failed to load current user:", userResult.reason);
+				}
+				if (workspacesResult.status === "fulfilled") {
+					set({ workspaces: workspacesResult.value });
+				} else {
+					console.error("Failed to load workspaces:", workspacesResult.reason);
+				}
+				const failed =
+					workspacesResult.status === "rejected" || userResult.status === "rejected";
 				set({
-					workspaces,
-					activeWorkspaceId: user.workspaceId,
-					isInitialized: true,
-				});
-			})
-			.catch((cause: unknown) => {
-				console.error("Failed to load workspaces:", cause);
-				set({
-					error: "Could not load workspaces.",
-					isInitialized: false,
+					error: failed ? "Could not load workspaces." : null,
+					isInitialized: !failed,
 				});
 			})
 			.finally(() => {
