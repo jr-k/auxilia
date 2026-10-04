@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.5](https://github.com/jr-k/auxilia/compare/web-v0.11.4...web-v0.11.5) (2026-10-04)
+
+
+### Bug Fixes
+
+* **workspaces:** survive deleting the last workspace ([58aa9b6](https://github.com/jr-k/auxilia/commit/58aa9b62665152a4d3de8d1b7137308a0bc3fd1a))
+
 ## [0.11.4](https://github.com/jr-k/auxilia/compare/web-v0.11.3...web-v0.11.4) (2026-10-04)
 
 
