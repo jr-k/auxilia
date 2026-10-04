@@ -58,7 +58,6 @@ export default function SetupPage() {
 
 	return (
 		<AuthShell
-			eyebrow="// FIRST RUN"
 			title="Set up your workspace"
 			description="Create the admin account for this workspace to get started."
 			footer={

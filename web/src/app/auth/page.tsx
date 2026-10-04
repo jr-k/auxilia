@@ -113,7 +113,6 @@ function AuthPageContent() {
 
 	return (
 		<AuthShell
-			eyebrow={twoFactorRequired ? "// One more step" : "// Welcome back"}
 			title={
 				twoFactorRequired
 					? "Verify your identity"

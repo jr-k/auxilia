@@ -6,14 +6,12 @@ import { ProductShowcase } from "./showcase";
  * left, dark product-showcase panel on the right. Used by /auth and /setup.
  */
 export function AuthShell({
-	eyebrow,
 	title,
 	description,
 	footer,
 	wide = false,
 	children,
 }: {
-	eyebrow: string;
 	title: string;
 	description: string;
 	footer?: React.ReactNode;
@@ -43,10 +41,7 @@ export function AuthShell({
 						wide ? "max-w-[760px]" : "max-w-[420px]"
 					} ${wide ? "justify-start py-10" : "justify-center"}`}
 				>
-					<div className="text-xs font-medium text-petrol">
-						{eyebrow}
-					</div>
-					<h1 className="mt-4 font-display text-[40px] font-bold leading-[1.05] tracking-[-0.035em]">
+					<h1 className="font-display text-[40px] font-bold leading-[1.05] tracking-[-0.035em]">
 						{title}
 					</h1>
 					<p className="mt-3.5 text-[15px] leading-[1.6] text-body">
