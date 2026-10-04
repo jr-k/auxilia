@@ -42,7 +42,10 @@ class WorkspaceService(BaseService[WorkspaceDB, WorkspaceRepository]):
         name = data.name.strip()
         if not name:
             raise DomainValidationError("Workspace name cannot be empty")
-        if not user.can_create_workspace:
+        if (
+            not user.can_create_workspace
+            and await self.repository.get_first_membership(user.id) is not None
+        ):
             raise PermissionDeniedError("Workspace creation is not allowed")
         workspace = await self.repository.create(
             WorkspaceCreate(name=name, emoji=data.emoji, color=data.color)
