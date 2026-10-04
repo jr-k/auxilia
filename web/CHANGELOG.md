@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.4](https://github.com/jr-k/auxilia/compare/web-v0.11.3...web-v0.11.4) (2026-10-04)
+
+
+### Bug Fixes
+
+* **onboarding:** skip model loading immediately ([0499dbf](https://github.com/jr-k/auxilia/commit/0499dbf72c501bd21481eaf55ab18aa6480ba259))
+
 ## [0.11.3](https://github.com/jr-k/auxilia/compare/web-v0.11.2...web-v0.11.3) (2026-10-04)
 
 
