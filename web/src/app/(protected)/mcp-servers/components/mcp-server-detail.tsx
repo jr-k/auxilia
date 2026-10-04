@@ -24,6 +24,7 @@ import {
 import { AuthTypeBadge } from "./auth-type-badge";
 import { ConnectedUsersPanel } from "./connected-users-panel";
 import { ConnectionTestBanner } from "./connection-test-banner";
+import { MCPServerToolsPanel } from "./mcp-server-tools-panel";
 import { ServerIconTile } from "./server-icon-tile";
 import {
 	HeaderButton,
@@ -117,6 +118,10 @@ export default function MCPServerDetail({
 
 	const [server, setServer] = useState<MCPServer>(initialServer);
 	const [isEditing, setIsEditing] = useState(initialEdit);
+	const [disabledTools, setDisabledTools] = useState(
+		initialServer.disabledTools ?? [],
+	);
+	const [rightPanel, setRightPanel] = useState<"tools" | "connections">("tools");
 	// ?edit=1 must not expose the editor to non-admins — the backend would
 	// 403 the save, but the destructive controls shouldn't render at all.
 	const editing = isEditing && isAdmin;
@@ -185,6 +190,7 @@ export default function MCPServerDetail({
 		setShowSecret(false);
 		setImageFile(null);
 		setRemoveImage(false);
+		setDisabledTools(server.disabledTools ?? []);
 		clientIdDirtyRef.current = false;
 		resetTest();
 		setMode(true);
@@ -277,6 +283,7 @@ export default function MCPServerDetail({
 					server.authType === "oauth2" && form.oauthClientSecret
 						? form.oauthClientSecret
 						: undefined,
+				disabledTools,
 			};
 			let updated = await updateMcpServer(server.id, payload);
 			setServer(updated);
@@ -765,14 +772,51 @@ export default function MCPServerDetail({
 					)}
 				</div>
 
-				{/* Right panel — connections */}
+				{/* Right panel — tools while editing, connections otherwise */}
 				<div className="flex min-w-0 flex-1 flex-col overflow-hidden bg-sidebar p-7 dark:bg-white/[0.02]">
-					<ConnectedUsersPanel
-						serverId={server.id}
-						authType={server.authType}
-						isAdmin={isAdmin}
-						onResetAll={handleReset}
-					/>
+					{editing ? (
+						<MCPServerToolsPanel
+							serverId={server.id}
+							disabledTools={disabledTools}
+							onDisabledToolsChange={setDisabledTools}
+							disabled={busy}
+						/>
+					) : (
+						<div className="flex min-h-0 flex-1 flex-col">
+							<div className="mb-5 flex w-fit shrink-0 rounded-[8px] bg-hover p-1 dark:bg-white/5">
+								{(["tools", "connections"] as const).map((panel) => (
+									<button
+										key={panel}
+										type="button"
+										onClick={() => {
+											setRightPanel(panel);
+										}}
+										className={`cursor-pointer rounded-[6px] px-3 py-1.5 text-[11.5px] font-semibold capitalize transition-colors ${
+											rightPanel === panel
+												? "bg-card text-foreground shadow-sm"
+												: "text-meta hover:text-foreground dark:text-panel-dim"
+										}`}
+									>
+										{panel}
+									</button>
+								))}
+							</div>
+							{rightPanel === "tools" ? (
+								<MCPServerToolsPanel
+									serverId={server.id}
+									disabledTools={server.disabledTools ?? []}
+									readOnly
+								/>
+							) : (
+								<ConnectedUsersPanel
+									serverId={server.id}
+									authType={server.authType}
+									isAdmin={isAdmin}
+									onResetAll={handleReset}
+								/>
+							)}
+						</div>
+					)}
 				</div>
 			</div>
 

@@ -2,6 +2,7 @@ import enum
 from uuid import UUID
 
 import sqlalchemy as sa
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Column, Enum, Field, SQLModel
 
 from app.models import BaseDBModel
@@ -34,6 +35,14 @@ class MCPServerDB(MCPServerBase, BaseDBModel, table=True):
         default=MCPAuthType.none, sa_column=Column(Enum(MCPAuthType), nullable=False)
     )
     image_revision: UUID | None = Field(default=None, nullable=True)
+    disabled_tools: list[str] = Field(
+        default_factory=list,
+        sa_column=Column(
+            JSONB,
+            nullable=False,
+            server_default=sa.text("'[]'::jsonb"),
+        ),
+    )
 
 
 class MCPServerImageDB(BaseDBModel, table=True):

@@ -49,6 +49,7 @@ class MCPServerPatch(SQLModel):
     oauth_client_id: str | None = Field(default=None, exclude=True)
     oauth_client_secret: str | None = Field(default=None, exclude=True)
     oauth_token_endpoint_auth_method: str | None = Field(default=None, exclude=True)
+    disabled_tools: list[str] = Field(default_factory=list)
 
     @field_validator("group")
     @classmethod
@@ -65,6 +66,7 @@ class MCPServerResponse(SQLModel):
     image_revision: UUID | None = None
     description: str | None = None
     group: str | None = None
+    disabled_tools: list[str] = Field(default_factory=list)
     created_at: datetime
     updated_at: datetime
     # Static OAuth client_id when configured (public identifier, not a secret);
