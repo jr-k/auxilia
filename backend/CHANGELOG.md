@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.5](https://github.com/jr-k/auxilia/compare/backend-v0.10.4...backend-v0.10.5) (2026-10-04)
+
+
+### Features
+
+* **integrations:** add Telegram and Discord channels ([6d33fee](https://github.com/jr-k/auxilia/commit/6d33feec6ca68484039b04860441a84cc93437be))
+
 ## [0.10.4](https://github.com/jr-k/auxilia/compare/backend-v0.10.3...backend-v0.10.4) (2026-10-04)
 
 

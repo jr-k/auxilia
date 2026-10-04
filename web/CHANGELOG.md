@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.11.6](https://github.com/jr-k/auxilia/compare/web-v0.11.5...web-v0.11.6) (2026-10-04)
+
+
+### Features
+
+* **integrations:** add Telegram and Discord channels ([6d33fee](https://github.com/jr-k/auxilia/commit/6d33feec6ca68484039b04860441a84cc93437be))
+
+
+### Bug Fixes
+
+* **ui:** show object avatars in agent dialogs ([da9a6f8](https://github.com/jr-k/auxilia/commit/da9a6f84aee0165e7b11f684e91bcd39134f0bba))
+
 ## [0.11.5](https://github.com/jr-k/auxilia/compare/web-v0.11.4...web-v0.11.5) (2026-10-04)
 
 
