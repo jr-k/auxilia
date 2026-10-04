@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.2](https://github.com/jr-k/auxilia/compare/web-v0.11.1...web-v0.11.2) (2026-10-04)
+
+
+### Bug Fixes
+
+* **workspaces:** allow recovery after deleting all workspaces ([9ba2949](https://github.com/jr-k/auxilia/commit/9ba2949cce2409241cd76a4dc8bd40014cfbf209))
+
 ## [0.11.1](https://github.com/jr-k/auxilia/compare/web-v0.11.0...web-v0.11.1) (2026-10-04)
 
 
