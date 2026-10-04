@@ -1,12 +1,6 @@
 import { RunTerminalStatus } from "@/types/runs";
 
-export type ThreadSource =
-	| "web"
-	| "slack"
-	| "telegram"
-	| "discord"
-	| "api"
-	| "trigger";
+export type ThreadSource = "web" | "slack" | "api" | "trigger";
 
 export interface Thread {
 	id: string;
