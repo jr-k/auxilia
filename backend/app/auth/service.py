@@ -81,6 +81,29 @@ class AuthService:
         user.set_workspace_membership(membership)
         return membership.workspace_id
 
+    async def hydrate_signin_workspace(
+        self, user: UserDB, workspace_value: str | None
+    ) -> UUID | None:
+        """Hydrate the workspace selected by the browser, with a safe fallback.
+
+        The active-workspace cookie is a navigation hint, not a credential. It
+        can outlive a deleted workspace or revoked membership, so an unusable
+        value must not prevent an otherwise valid sign-in.
+        """
+        if workspace_value is not None:
+            try:
+                workspace_id = UUID(workspace_value)
+            except ValueError:
+                pass
+            else:
+                membership = await self.workspaces.get_membership(
+                    workspace_id, user.id
+                )
+                if membership is not None:
+                    user.set_workspace_membership(membership)
+                    return workspace_id
+        return await self.hydrate_default_workspace(user)
+
     async def hydrate_workspace(self, user: UserDB, workspace_id: UUID) -> None:
         membership = await self.workspaces.get_membership(workspace_id, user.id)
         if membership is None:
@@ -117,11 +140,7 @@ class AuthService:
             raise InvalidCredentialsError("Invalid email or password")
         if not await verify_password(data.password, user.password_hash):
             raise InvalidCredentialsError("Invalid email or password")
-        workspace_id = self._parse_workspace_id(workspace_value)
-        if workspace_id is None:
-            workspace_id = await self.hydrate_default_workspace(user)
-        else:
-            await self.hydrate_workspace(user, workspace_id)
+        workspace_id = await self.hydrate_signin_workspace(user, workspace_value)
         await self._ensure_password_auth(workspace_id)
         if user.two_factor_enabled:
             return user, create_scoped_token(user.id, "two_factor_signin")
@@ -142,11 +161,7 @@ class AuthService:
             raise InvalidCredentialsError("Invalid two-factor challenge")
         await UserService(self.db).verify_second_factor(user.id, data.code)
         await consume_challenge(decoded.jti)
-        workspace_id = self._parse_workspace_id(workspace_value)
-        if workspace_id is None:
-            await self.hydrate_default_workspace(user)
-        else:
-            await self.hydrate_workspace(user, workspace_id)
+        await self.hydrate_signin_workspace(user, workspace_value)
         return self.build_jwt_for_user(user)
 
     async def setup(self, data: SignupRequest) -> tuple[UserDB, str]:
