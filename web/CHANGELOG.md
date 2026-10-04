@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.7](https://github.com/jr-k/auxilia/compare/web-v0.11.6...web-v0.11.7) (2026-10-04)
+
+
+### Reverts
+
+* **integrations:** remove Telegram and Discord channels ([7db7a70](https://github.com/jr-k/auxilia/commit/7db7a70513bc13563b7a09ecd7bbbb96a8674c79))
+
 ## [0.11.6](https://github.com/jr-k/auxilia/compare/web-v0.11.5...web-v0.11.6) (2026-10-04)
 
 
