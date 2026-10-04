@@ -44,8 +44,15 @@ export async function proxy(request: NextRequest) {
 				}
 				return NextResponse.next();
 			}
+			if (verifyRes.status !== 401) {
+				console.error(
+					`Session validation failed with status ${verifyRes.status}`,
+				);
+				return NextResponse.next();
+			}
 		} catch (err) {
 			console.error("Backend unreachable or validation failed", err);
+			return NextResponse.next();
 		}
 
 		const response = isInvitePath

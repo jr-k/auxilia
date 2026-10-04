@@ -65,11 +65,15 @@ async def _hydrate_workspace_context(
     # non-browser credentials and must state their workspace explicitly. JWT
     # bearer remains supported: it accepts the explicit header when present,
     # then falls back to the active-workspace cookie for existing API clients.
+    header_workspace = request.headers.get(WORKSPACE_HEADER)
+    has_explicit_workspace = auth_method == "pat" or (
+        auth_method == "jwt_bearer" and header_workspace is not None
+    )
     workspace_value = (
-        request.headers.get(WORKSPACE_HEADER)
+        header_workspace
         if auth_method == "pat"
-        else request.headers.get(WORKSPACE_HEADER)
-        if auth_method == "jwt_bearer" and request.headers.get(WORKSPACE_HEADER)
+        else header_workspace
+        if auth_method == "jwt_bearer" and header_workspace is not None
         else request.cookies.get(ACTIVE_WORKSPACE_COOKIE)
     )
     if auth_method == "pat" and workspace_value is None:
@@ -79,10 +83,17 @@ async def _hydrate_workspace_context(
     try:
         workspace_id = UUID(workspace_value)
     except ValueError as exc:
-        raise DomainValidationError("Invalid active workspace") from exc
+        if has_explicit_workspace:
+            raise DomainValidationError("Invalid active workspace") from exc
+        return user
     membership = await WorkspaceRepository(db).get_membership(workspace_id, user.id)
     if membership is None:
-        raise PermissionDeniedError("Workspace access denied")
+        if has_explicit_workspace:
+            raise PermissionDeniedError("Workspace access denied")
+        # A browser cookie can outlive a deleted workspace or revoked
+        # membership. Keep the user authenticated without workspace context so
+        # they can select or create another workspace.
+        return user
     user.set_workspace_membership(membership)
     return user
 

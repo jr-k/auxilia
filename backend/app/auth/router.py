@@ -30,7 +30,10 @@ from app.users.models import UserDB
 from app.users.schemas import CurrentUserResponse
 from app.workspaces.constants import ACTIVE_WORKSPACE_COOKIE
 from app.workspaces.dependencies import get_active_workspace_id
-from app.workspaces.router import set_active_workspace_cookie
+from app.workspaces.router import (
+    clear_active_workspace_cookie,
+    set_active_workspace_cookie,
+)
 from app.workspaces.service import WorkspaceService, get_workspace_service
 
 
@@ -83,6 +86,8 @@ def _auth_response(user: UserDB, token: str, status_code: int = 200) -> JSONResp
     _attach_auth_cookie(response, token)
     if user.active_workspace_id is not None:
         set_active_workspace_cookie(response, user.active_workspace_id)
+    else:
+        clear_active_workspace_cookie(response)
     return response
 
 
@@ -180,6 +185,8 @@ async def signin(
         _attach_two_factor_cookie(response, token)
         if user.active_workspace_id is not None:
             set_active_workspace_cookie(response, user.active_workspace_id)
+        else:
+            clear_active_workspace_cookie(response)
         return response
     return _auth_response(user, token)
 
