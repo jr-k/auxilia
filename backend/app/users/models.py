@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, TypeVar, cast
 from uuid import UUID
 
 from pydantic import PrivateAttr
@@ -11,6 +11,8 @@ from app.workspaces.models import WorkspaceRole
 
 if TYPE_CHECKING:
     from app.workspaces.models import WorkspaceMembershipDB
+
+T = TypeVar("T")
 
 
 class UserBase(SQLModel):
@@ -36,17 +38,26 @@ class UserDB(UserBase, BaseDBModel, table=True):
 
     oauth_accounts: list["OAuthAccountDB"] = Relationship(back_populates="user")
 
+    def _private(self, name: str, default: T) -> T:
+        # Rows loaded by SQLAlchemy bypass pydantic's ``__init__``, so
+        # ``__pydantic_private__`` stays ``None`` until the first private
+        # assignment; reading a PrivateAttr before that raises TypeError.
+        private = self.__pydantic_private__
+        if private is None:
+            return default
+        return cast(T, private.get(name, default))
+
     @property
     def role(self) -> WorkspaceRole:
-        return self._workspace_role
+        return self._private("_workspace_role", WorkspaceRole.member)
 
     @property
     def team_id(self) -> UUID | None:
-        return self._workspace_team_id
+        return self._private("_workspace_team_id", None)
 
     @property
     def active_workspace_id(self) -> UUID | None:
-        return self._active_workspace_id
+        return self._private("_active_workspace_id", None)
 
     def set_workspace_membership(self, membership: "WorkspaceMembershipDB") -> None:
         self._workspace_role = membership.role
