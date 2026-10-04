@@ -10,7 +10,6 @@ export default function ModelOnboardingPage() {
 	return (
 		<AuthShell
 			wide
-			eyebrow="// NEXT STEP"
 			title="Connect an LLM"
 			description="Add a provider API key, then choose which models your workspace can use. Keys are encrypted before they are stored."
 			footer={
