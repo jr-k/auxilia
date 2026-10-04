@@ -456,15 +456,21 @@ export default function UsersPage() {
 			cell: (user) => (
 				<div className="flex items-center gap-2">
 					<Switch
-						checked={user.canCreateWorkspace}
-						disabled={currentUser?.role !== "admin"}
+						checked={user.isInstanceOwner || user.canCreateWorkspace}
+						disabled={
+							user.isInstanceOwner || currentUser?.role !== "admin"
+						}
 						onCheckedChange={(checked) => {
 							void handleWorkspaceCreationChange(user.id, checked);
 						}}
 						aria-label={`Allow ${user.name ?? user.email ?? "user"} to create workspaces`}
 					/>
 					<span className="text-[11px] text-meta">
-						{user.canCreateWorkspace ? "Allowed" : "No"}
+						{user.isInstanceOwner
+							? "Owner"
+							: user.canCreateWorkspace
+								? "Allowed"
+								: "No"}
 					</span>
 				</div>
 			),

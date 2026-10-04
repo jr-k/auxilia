@@ -28,6 +28,8 @@ class UserBase(SQLModel):
 class UserDB(UserBase, BaseDBModel, table=True):
     __tablename__ = "users"
 
+    is_instance_owner: bool = Field(default=False, nullable=False)
+
     _workspace_role: WorkspaceRole = PrivateAttr(default=WorkspaceRole.member)
     _workspace_team_id: UUID | None = PrivateAttr(default=None)
     _active_workspace_id: UUID | None = PrivateAttr(default=None)

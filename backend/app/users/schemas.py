@@ -41,6 +41,7 @@ class UserResponse(SQLModel):
     first_name: str | None = None
     last_name: str | None = None
     email: str | None
+    is_instance_owner: bool = False
     role: WorkspaceRole
     team_id: UUID | None = None
     can_create_workspace: bool = False

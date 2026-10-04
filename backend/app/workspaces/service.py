@@ -43,7 +43,8 @@ class WorkspaceService(BaseService[WorkspaceDB, WorkspaceRepository]):
         if not name:
             raise DomainValidationError("Workspace name cannot be empty")
         if (
-            not user.can_create_workspace
+            not user.is_instance_owner
+            and not user.can_create_workspace
             and await self.repository.get_first_membership(user.id) is not None
         ):
             raise PermissionDeniedError("Workspace creation is not allowed")

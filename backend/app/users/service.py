@@ -275,6 +275,10 @@ class UserService(BaseService[UserDB, UserRepository]):
         new_email = update_data.get("email")
         if "email" in update_data and new_email is not None and new_email != user.email:
             await self._ensure_email_available(new_email)
+        if user.is_instance_owner and update_data.get("can_create_workspace") is False:
+            raise DomainValidationError(
+                "The instance owner must be allowed to create workspaces"
+            )
         updated = await self.repository.update(user, data)
         updated.set_workspace_membership(membership)
         return updated
