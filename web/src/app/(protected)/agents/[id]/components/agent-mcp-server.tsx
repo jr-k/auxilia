@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import Image from "next/image";
 import {
 	MCPServer,
 	MCPServerTool,
@@ -12,6 +11,7 @@ import AgentMCPTool from "./agent-mcp-tool";
 import MCPToolsDialog from "./mcp-tools-dialog";
 import { AgentMCPServerForm } from "../../lib/agent-form";
 import * as mcpServersApi from "@/lib/api/resources/mcp-servers";
+import { ServerIconTile } from "@/app/(protected)/mcp-servers/components/server-icon-tile";
 
 interface AgentMCPServerProps {
 	/** Saved agent id — undefined in create mode. */
@@ -286,19 +286,13 @@ export default function AgentMCPServer({
 	return (
 		<div className="overflow-hidden rounded-[10px] border border-border bg-card">
 			<div className="flex items-center gap-2.5 bg-card px-4 py-3">
-				<span className="flex size-[26px] shrink-0 items-center justify-center rounded-[6px] border border-border bg-card">
-					<Image
-						unoptimized
-						width={14}
-						height={14}
-						src={
-							server.iconUrl ??
-							"https://pub-7a6e8912b3c448b8a8bfa47a0363f7bc.r2.dev/assets/icons/mcp.png"
-						}
-						alt={server.name}
-						className="rounded-[2px] object-contain"
-					/>
-				</span>
+				<ServerIconTile
+					iconUrl={server.iconUrl}
+					serverId={server.id}
+					imageRevision={server.imageRevision}
+					name={server.name}
+					size={26}
+				/>
 				<span className="truncate text-[13.5px] font-semibold text-foreground">
 					{server.name}
 				</span>

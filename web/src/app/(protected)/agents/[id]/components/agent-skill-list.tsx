@@ -211,6 +211,14 @@ export default function AgentSkillList({
 											key={candidate.id}
 											className="flex items-center gap-3 rounded-[10px] border border-hairline bg-canvas px-4 py-3 transition-colors hover:bg-sidebar dark:bg-white/5 dark:hover:bg-white/10"
 										>
+											<SkillAvatar
+												skillId={candidate.id}
+												name={candidate.name}
+												emoji={candidate.emoji}
+												color={candidate.color}
+												imageRevision={candidate.imageRevision}
+												size="sm"
+											/>
 											<div className="min-w-0 flex-1">
 												<div className="flex min-w-0 items-center gap-2">
 													<p className="truncate text-[13px] font-semibold text-ink dark:text-panel-button">

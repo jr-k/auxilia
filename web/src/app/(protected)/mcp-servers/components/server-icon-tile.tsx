@@ -11,14 +11,16 @@ interface ServerIconTileProps {
 	imageRevision?: string | null;
 	name: string;
 	/** Outer tile size in px (icon scales to ~55%). */
-	size?: 32 | 38 | 52;
+	size?: 26 | 32 | 38 | 52;
 	className?: string;
 }
 
 // Exhaustive switch (not a keyed lookup) so static analysis can verify the
 // access — the size union guarantees every case is covered.
-function tileFor(size: 32 | 38 | 52): { tileClass: string; iconPx: number } {
+function tileFor(size: 26 | 32 | 38 | 52): { tileClass: string; iconPx: number } {
 	switch (size) {
+		case 26:
+			return { tileClass: "size-[26px] rounded-[6px]", iconPx: 14 };
 		case 32:
 			return { tileClass: "size-8 rounded-[9px]", iconPx: 17 };
 		case 38:

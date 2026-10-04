@@ -57,6 +57,7 @@ import { formatRunAt } from "@/lib/triggers/schedule";
 import { useActiveRunThreadIds } from "@/hooks/use-active-runs";
 import { AgentAvatar } from "@/components/ui/agent-avatar";
 import { UserAvatar } from "@/components/ui/user-avatar";
+import { ThreadSourceBadge } from "@/components/ui/thread-source-badge";
 import { RenameThreadDialog } from "@/components/layout/app-sidebar/rename-thread-dialog";
 import { AboutDialog } from "@/components/layout/app-sidebar/about-dialog";
 import { Thread } from "@/types/threads";
@@ -358,14 +359,15 @@ export function AppSidebar() {
 																	</AlertCircle>
 																)
 															)}
-															{thread.source === "slack" && (
-																<Image
-																	src="https://pub-7a6e8912b3c448b8a8bfa47a0363f7bc.r2.dev/assets/icons/slack.png"
-																	alt="Slack"
-																	height={12}
-																	width={12}
-																	className={`size-3 shrink-0 ${activeRunThreadIds.has(thread.id) ? "" : "ml-auto"}`}
-																	title="Thread initiated in Slack"
+															{(["slack", "telegram", "discord"] as const).includes(
+																thread.source as "slack" | "telegram" | "discord",
+															) && (
+																<ThreadSourceBadge
+																	source={thread.source}
+																	withLabel={false}
+																	className={
+																		activeRunThreadIds.has(thread.id) ? "" : "ml-auto"
+																	}
 																/>
 															)}
 														</div>
