@@ -125,7 +125,8 @@ export function WorkspaceSwitcher() {
 								Retry loading workspaces
 							</DropdownMenuPrimitive.Item>
 						)}
-						{user?.canCreateWorkspace && (
+						{(user?.canCreateWorkspace ||
+							(isInitialized && workspaces.length === 0)) && (
 							<DropdownMenuPrimitive.Item
 								onSelect={() => { setCreateOpen(true); }}
 								className="mx-1 flex cursor-pointer select-none items-center gap-2 rounded-[7px] px-2.5 py-2 text-[12.5px] font-semibold text-petrol outline-none focus:bg-hover dark:text-panel-terminal dark:focus:bg-white/5"
