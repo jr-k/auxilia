@@ -24,6 +24,9 @@ from app.mcp.servers.service import MCPServerService
 from tests.conftest import TEST_WORKSPACE_ID
 
 
+TEST_OWNER_ID = uuid4()
+
+
 def _repo_with_credentials(**overrides):
     fields = {
         "client_id": "cid",
@@ -128,6 +131,7 @@ def mock_repo():
     repo = MagicMock()
     repo.get_by_url = AsyncMock()
     repo.get_scoped = AsyncMock()
+    repo.get_scoped_for_update = repo.get_scoped
     repo.create = AsyncMock()
     repo.update = AsyncMock()
     repo.create_or_update_api_key = AsyncMock()
@@ -164,7 +168,7 @@ async def test_create_raises_already_exists_when_url_taken(service, mock_repo):
 
     data = MCPServerCreate(name="Duplicate", url="https://mcp.example.com/mcp")
     with pytest.raises(AlreadyExistsError) as exc_info:
-        await service.create(data)
+        await service.create(data, TEST_OWNER_ID)
 
     assert exc_info.value.detail == "An MCP server with this URL already exists"
     mock_repo.create.assert_not_called()
@@ -176,7 +180,7 @@ async def test_create_succeeds_when_url_is_new(service, mock_repo):
     mock_repo.create.return_value = created
 
     data = MCPServerCreate(name="Fresh", url="https://fresh.example.com/mcp")
-    result = await service.create(data)
+    result = await service.create(data, TEST_OWNER_ID)
 
     assert result is created
     mock_repo.create.assert_awaited_once()
@@ -194,7 +198,7 @@ async def test_create_checks_duplicate_before_validating_auth(service, mock_repo
         auth_type=MCPAuthType.api_key,
     )
     with pytest.raises(AlreadyExistsError):
-        await service.create(data)
+        await service.create(data, TEST_OWNER_ID)
 
 
 async def test_create_still_validates_api_key_for_new_url(service, mock_repo):
@@ -206,7 +210,7 @@ async def test_create_still_validates_api_key_for_new_url(service, mock_repo):
         auth_type=MCPAuthType.api_key,
     )
     with pytest.raises(DomainValidationError):
-        await service.create(data)
+        await service.create(data, TEST_OWNER_ID)
 
     mock_repo.create.assert_not_called()
 
@@ -601,7 +605,12 @@ async def test_changing_the_url_purges_tokens_minted_for_the_old_resource(
         "https://new.example.com/mcp", MCPAuthType.oauth2, server_id=before.id
     )
 
-    await service.update(before.id, MCPServerPatch(url="https://new.example.com/mcp"))
+    updated = await service.update(
+        before.id, MCPServerPatch(url="https://new.example.com/mcp")
+    )
+    await service.purge_invalidated_state(
+        before.id, updated, before.auth_type, before.url
+    )
 
     token_storage.clear_server_data.assert_awaited_once_with(
         str(TEST_WORKSPACE_ID), str(before.id)
@@ -620,7 +629,12 @@ async def test_leaving_oauth_deletes_the_now_dead_oauth_credentials(
         "https://mcp.example.com/mcp", MCPAuthType.api_key, server_id=before.id
     )
 
-    await service.update(before.id, MCPServerPatch(auth_type=MCPAuthType.api_key))
+    updated = await service.update(
+        before.id, MCPServerPatch(auth_type=MCPAuthType.api_key)
+    )
+    await service.purge_invalidated_state(
+        before.id, updated, before.auth_type, before.url
+    )
 
     mock_repo.delete_credentials.assert_awaited_once_with(before.id, api_key=False)
     token_storage.clear_server_data.assert_awaited_once()
@@ -635,7 +649,12 @@ async def test_leaving_api_key_deletes_the_now_dead_api_key_and_purges_redis(
         "https://mcp.example.com/mcp", MCPAuthType.oauth2, server_id=before.id
     )
 
-    await service.update(before.id, MCPServerPatch(auth_type=MCPAuthType.oauth2))
+    updated = await service.update(
+        before.id, MCPServerPatch(auth_type=MCPAuthType.oauth2)
+    )
+    await service.purge_invalidated_state(
+        before.id, updated, before.auth_type, before.url
+    )
 
     mock_repo.delete_credentials.assert_awaited_once_with(before.id, api_key=True)
     # Both directions must purge: stale per-user OAuth state left behind here
@@ -651,7 +670,10 @@ async def test_an_unrelated_edit_purges_nothing(service, mock_repo, token_storag
     mock_repo.get_scoped.return_value = before
     mock_repo.update.return_value = before
 
-    await service.update(before.id, MCPServerPatch(name="Renamed"))
+    updated = await service.update(before.id, MCPServerPatch(name="Renamed"))
+    await service.purge_invalidated_state(
+        before.id, updated, before.auth_type, before.url
+    )
 
     token_storage.clear_server_data.assert_not_awaited()
     mock_repo.delete_credentials.assert_not_awaited()
@@ -678,6 +700,9 @@ async def test_a_redis_outage_does_not_fail_the_edit(service, mock_repo, monkeyp
 
     result = await service.update(
         before.id, MCPServerPatch(url="https://new.example.com/mcp")
+    )
+    await service.purge_invalidated_state(
+        before.id, result, before.auth_type, before.url
     )
 
     assert result is after

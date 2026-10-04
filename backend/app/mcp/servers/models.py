@@ -6,6 +6,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Column, Enum, Field, SQLModel
 
 from app.models import BaseDBModel
+from app.visibility import ResourceVisibility
 
 
 class MCPAuthType(str, enum.Enum):
@@ -35,6 +36,17 @@ class MCPServerDB(MCPServerBase, BaseDBModel, table=True):
         default=MCPAuthType.none, sa_column=Column(Enum(MCPAuthType), nullable=False)
     )
     image_revision: UUID | None = Field(default=None, nullable=True)
+    owner_id: UUID = Field(
+        foreign_key="users.id", ondelete="CASCADE", nullable=False, index=True
+    )
+    visibility: ResourceVisibility = Field(
+        default=ResourceVisibility.workspace,
+        sa_column=Column(
+            Enum(ResourceVisibility, native_enum=False, create_constraint=False),
+            nullable=False,
+            server_default=ResourceVisibility.workspace.value,
+        ),
+    )
     disabled_tools: list[str] = Field(
         default_factory=list,
         sa_column=Column(
@@ -42,6 +54,22 @@ class MCPServerDB(MCPServerBase, BaseDBModel, table=True):
             nullable=False,
             server_default=sa.text("'[]'"),
         ),
+    )
+
+
+class MCPServerTeamDB(BaseDBModel, table=True):
+    __tablename__ = "mcp_server_teams"
+    __table_args__ = (
+        sa.UniqueConstraint(
+            "mcp_server_id", "team_id", name="uq_mcp_server_visibility_team"
+        ),
+    )
+
+    mcp_server_id: UUID = Field(
+        foreign_key="mcp_servers.id", ondelete="CASCADE", nullable=False, index=True
+    )
+    team_id: UUID = Field(
+        foreign_key="teams.id", ondelete="CASCADE", nullable=False, index=True
     )
 
 

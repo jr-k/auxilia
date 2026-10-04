@@ -7,12 +7,14 @@ import { Check, X } from "lucide-react";
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import { DropdownMenu } from "@/components/ui/dropdown-menu";
 import { GroupedCardTree } from "@/components/ui/grouped-card-tree";
+import { VisibilityBadge } from "@/components/ui/visibility-badge";
 import type { ViewMode } from "@/components/ui/view-toggle";
 import ForbiddenErrorDialog from "@/components/forbidden-error-dialog";
 import ResourceInUseDialog from "@/components/resource-in-use-dialog";
 import { useConfirmDialog } from "@/components/providers/dialog-provider";
 import { useDeleteMcpServer } from "@/hooks/use-delete-mcp-server";
 import { useMcpServersStore } from "@/stores/mcp-servers-store";
+import { useUserStore } from "@/stores/user-store";
 import { MCPServer } from "@/types/mcp-servers";
 import { getApiErrorMessage } from "@/lib/api/errors";
 import { buildGroupTree } from "@/lib/groups";
@@ -57,6 +59,7 @@ export default function MCPServerTable({
 }: MCPServerTableProps) {
 	const confirmDialog = useConfirmDialog();
 	const router = useRouter();
+	const isAdmin = useUserStore((state) => state.user?.role === "admin");
 	const {
 		mcpServers,
 		fetchMcpServers,
@@ -191,6 +194,15 @@ export default function MCPServerTable({
 			cell: (server) => <AuthTypeBadge authType={server.authType} />,
 		},
 		{
+			key: "visibility",
+			header: "Visibility",
+			width: "120px",
+			hideBelowMd: true,
+			cell: (server) => (
+				<VisibilityBadge visibility={server.visibility ?? "workspace"} />
+			),
+		},
+		{
 			key: "actions",
 			header: "",
 			width: "170px",
@@ -204,36 +216,40 @@ export default function MCPServerTable({
 					}}
 				>
 					<RowTestButton server={server} />
-					<button
-						type="button"
-						onClick={() => {
-							router.push(`/mcp-servers/${server.id}?edit=1`);
-						}}
-						className="hidden cursor-pointer rounded-[7px] border border-border px-[11px] py-[5px] text-[12px] font-medium text-body transition-colors hover:bg-sidebar md:block dark:text-panel-body dark:hover:bg-white/5"
-					>
-						Edit
-					</button>
-					<DropdownMenu
-						items={[
-							...(server.authType === "oauth2"
-								? [
-										{
-											label: "Reset connections",
-											onClick: () => {
-												void handleReset(server);
-											},
+					{isAdmin && (
+						<>
+							<button
+								type="button"
+								onClick={() => {
+									router.push(`/mcp-servers/${server.id}?edit=1`);
+								}}
+								className="hidden cursor-pointer rounded-[7px] border border-border px-[11px] py-[5px] text-[12px] font-medium text-body transition-colors hover:bg-sidebar md:block dark:text-panel-body dark:hover:bg-white/5"
+							>
+								Edit
+							</button>
+							<DropdownMenu
+								items={[
+									...(server.authType === "oauth2"
+										? [
+												{
+													label: "Reset connections",
+													onClick: () => {
+														void handleReset(server);
+													},
+												},
+											]
+										: []),
+									{
+										label: "Delete server",
+										destructive: true,
+										onClick: () => {
+											void handleDelete(server);
 										},
-									]
-								: []),
-							{
-								label: "Delete server",
-								destructive: true,
-								onClick: () => {
-									void handleDelete(server);
-								},
-							},
-						]}
-					/>
+									},
+								]}
+							/>
+						</>
+					)}
 				</div>
 			),
 		},
@@ -320,8 +336,9 @@ export default function MCPServerTable({
 										<h2 className="truncate text-[14.5px] font-bold tracking-[-0.01em] text-foreground">
 											{server.name}
 										</h2>
-										<div className="mt-1">
+										<div className="mt-1 flex items-center gap-1.5">
 											<AuthTypeBadge authType={server.authType} />
+											<VisibilityBadge visibility={server.visibility ?? "workspace"} />
 										</div>
 									</div>
 								</div>
@@ -333,36 +350,40 @@ export default function MCPServerTable({
 								</p>
 								<div className="relative z-10 mt-3 flex items-center justify-end gap-1.5">
 									<RowTestButton server={server} />
-									<button
-										type="button"
-										onClick={() => {
-											router.push(`/mcp-servers/${server.id}?edit=1`);
-										}}
-										className="cursor-pointer rounded-[7px] border border-border px-[11px] py-[5px] text-[12px] font-medium text-body transition-colors hover:bg-sidebar dark:text-panel-body dark:hover:bg-white/5"
-									>
-										Edit
-									</button>
-									<DropdownMenu
-										items={[
-											...(server.authType === "oauth2"
-												? [
-														{
-															label: "Reset connections",
-															onClick: () => {
-																void handleReset(server);
-															},
+									{isAdmin && (
+										<>
+											<button
+												type="button"
+												onClick={() => {
+													router.push(`/mcp-servers/${server.id}?edit=1`);
+												}}
+												className="cursor-pointer rounded-[7px] border border-border px-[11px] py-[5px] text-[12px] font-medium text-body transition-colors hover:bg-sidebar dark:text-panel-body dark:hover:bg-white/5"
+											>
+												Edit
+											</button>
+											<DropdownMenu
+												items={[
+													...(server.authType === "oauth2"
+														? [
+																{
+																	label: "Reset connections",
+																	onClick: () => {
+																		void handleReset(server);
+																	},
+																},
+															]
+														: []),
+													{
+														label: "Delete server",
+														destructive: true,
+														onClick: () => {
+															void handleDelete(server);
 														},
-													]
-												: []),
-											{
-												label: "Delete server",
-												destructive: true,
-												onClick: () => {
-													void handleDelete(server);
-												},
-											},
-										]}
-									/>
+													},
+												]}
+											/>
+										</>
+									)}
 								</div>
 							</article>
 						)}

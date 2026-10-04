@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { GitCompareArrows, Pencil, PencilLine, Trash2, Unplug } from "lucide-react";
 import { AgentAvatar } from "@/components/ui/agent-avatar";
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
+import { VisibilityBadge } from "@/components/ui/visibility-badge";
 import { DropdownMenu } from "@/components/ui/dropdown-menu";
 import { GroupedCardTree } from "@/components/ui/grouped-card-tree";
 import { SkillAvatar } from "@/components/ui/skill-avatar";
@@ -196,6 +197,13 @@ export default function SkillTable({
 			width: "200px",
 			mobileWidth: "auto",
 			cell: (skill) => <SourceCell skill={skill} />,
+		},
+		{
+			key: "visibility",
+			header: "Visibility",
+			width: "120px",
+			hideBelowMd: true,
+			cell: (skill) => <VisibilityBadge visibility={skill.visibility} />,
 		},
 		{
 			key: "requires",

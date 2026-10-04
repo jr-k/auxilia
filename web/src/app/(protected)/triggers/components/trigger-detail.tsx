@@ -34,6 +34,7 @@ import { DropdownMenu } from "@/components/ui/dropdown-menu";
 import { Switch } from "@/components/ui/switch";
 import TriggerEditor from "@/app/(protected)/triggers/components/trigger-editor";
 import TriggerSummaryBanner from "@/app/(protected)/triggers/components/trigger-summary-banner";
+import { VisibilityBadge } from "@/components/ui/visibility-badge";
 import RunHistoryCard from "@/app/(protected)/triggers/components/run-history-card";
 
 const slugify = (name: string) =>
@@ -118,7 +119,7 @@ export default function TriggerDetail({ trigger }: TriggerDetailProps) {
 			: null;
 
 	const handleCopyWebhook = async () => {
-		if (liveTrigger.triggerType !== "webhook") return;
+		if (liveTrigger.triggerType !== "webhook" || !liveTrigger.webhookUrl) return;
 		try {
 			await navigator.clipboard.writeText(liveTrigger.webhookUrl);
 			setCopied(true);
@@ -153,7 +154,7 @@ export default function TriggerDetail({ trigger }: TriggerDetailProps) {
 					{ label: slugify(liveTrigger.name) },
 				]}
 			>
-				<HeaderButton
+				{liveTrigger.canManage && <HeaderButton
 					accent
 					disabled={isRunning}
 					onClick={() => {
@@ -162,25 +163,27 @@ export default function TriggerDetail({ trigger }: TriggerDetailProps) {
 				>
 					<Play className="size-3" fill="currentColor" />
 					{isRunning ? "Starting…" : "Run now"}
-				</HeaderButton>
-				<HeaderPrimaryButton
+				</HeaderButton>}
+				{liveTrigger.canManage && <HeaderPrimaryButton
 					onClick={() => {
 						setMode("edit");
 					}}
 				>
 					Edit
-				</HeaderPrimaryButton>
-				<DropdownMenu
-					items={[
-						{
-							label: "Delete trigger",
-							destructive: true,
-							onClick: () => {
-								void handleDelete();
+				</HeaderPrimaryButton>}
+				{liveTrigger.canManage && (
+					<DropdownMenu
+						items={[
+							{
+								label: "Delete trigger",
+								destructive: true,
+								onClick: () => {
+									void handleDelete();
+								},
 							},
-						},
-					]}
-				/>
+						]}
+					/>
+				)}
 			</SubpageHeader>
 
 			<div className="min-h-0 flex-1 overflow-y-auto px-4 py-7 sm:px-7 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -200,7 +203,8 @@ export default function TriggerDetail({ trigger }: TriggerDetailProps) {
 								<Switch
 									checked={liveTrigger.isActive}
 									onCheckedChange={handleToggleActive}
-									className="cursor-pointer data-[state=checked]:bg-success"
+									disabled={!liveTrigger.canManage}
+									className="data-[state=checked]:bg-success enabled:cursor-pointer"
 								/>
 								<span
 									className={`text-[13px] font-semibold ${
@@ -265,6 +269,11 @@ export default function TriggerDetail({ trigger }: TriggerDetailProps) {
 								trigger={liveTrigger}
 								agentName={agent?.name ?? "the agent"}
 							/>
+							<VisibilityBadge
+								visibility={liveTrigger.visibility}
+								teamIds={liveTrigger.teamIds}
+								showTeams
+							/>
 
 							<EditorSection label="Agent">
 								<AgentPicker
@@ -302,7 +311,8 @@ export default function TriggerDetail({ trigger }: TriggerDetailProps) {
 										</span>
 									</div>
 								</EditorSection>
-							) : liveTrigger.triggerType === "webhook" ? (
+							) : liveTrigger.triggerType === "webhook" &&
+							  liveTrigger.canManage ? (
 								<EditorSection
 									label="Webhook endpoint"
 									hint="Keep this URL private"

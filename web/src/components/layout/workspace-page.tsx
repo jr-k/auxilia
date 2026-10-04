@@ -24,6 +24,9 @@ interface WorkspacePageProps {
 	/** Pin the page (no page scroll) and give children the remaining height —
 	 * for content that scrolls internally (e.g. a capped table body). */
 	fillHeight?: boolean;
+	/** Let dense list pages use the full workspace width instead of the
+	 * standard reading-width cap. */
+	fullWidth?: boolean;
 	children: React.ReactNode;
 }
 
@@ -40,6 +43,7 @@ export function WorkspacePage({
 	actions,
 	headerRight,
 	fillHeight = false,
+	fullWidth = false,
 	children,
 }: WorkspacePageProps) {
 	const workspaceName = useWorkspacesStore((state) =>
@@ -78,6 +82,7 @@ export function WorkspacePage({
 					className={cn(
 						"px-4 pt-8 pb-10 sm:px-6 lg:px-8",
 						fillHeight && "flex min-h-0 flex-1 flex-col",
+						fullWidth && "@min-screen-xl/layout:max-w-none",
 					)}
 				>
 					<div className="flex shrink-0 flex-wrap items-end justify-between gap-x-6 gap-y-4">

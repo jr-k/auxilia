@@ -14,9 +14,12 @@ const payload: agentsApi.AgentWrite = {
 	group: null,
 	emoji: null,
 	color: null,
+	visibility: "personal",
+	teamIds: [],
 	mcpServers: [],
 	sandboxes: [],
 	subagentIds: [],
+	skillIds: [],
 };
 
 beforeEach(() => {

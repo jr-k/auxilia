@@ -500,7 +500,7 @@ const ChatPromptInput = ({
 					"[&>[data-slot=input-group]]:has-[[data-slot=input-group-control]:focus-visible]:ring-0",
 				)}
 				>
-				<PromptInputAttachments className="px-[18px] pt-4">
+				<PromptInputAttachments className="w-full justify-start px-[18px] pt-4">
 					{(attachment) => <PromptInputAttachment data={attachment} />}
 				</PromptInputAttachments>
 				<PromptInputBody>

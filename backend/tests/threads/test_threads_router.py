@@ -5,6 +5,8 @@ from uuid import uuid4
 import pytest
 from fastapi.testclient import TestClient
 
+from app.agents.core.service import get_agent_service
+from app.main import app
 from app.threads.models import ThreadDB as _ThreadDB, ThreadSource
 from tests.conftest import TEST_WORKSPACE_ID
 
@@ -21,6 +23,17 @@ def _model_available():
     with patch("app.threads.service.ModelService") as model_service_cls:
         model_service_cls.return_value.is_available = AsyncMock(return_value=True)
         yield
+
+
+@pytest.fixture(autouse=True)
+def _allow_agent_access(request):
+    if not request.node.name.startswith("test_create_thread"):
+        yield
+        return
+    agents = MagicMock(require_permission=AsyncMock())
+    app.dependency_overrides[get_agent_service] = lambda: agents
+    yield
+    app.dependency_overrides.pop(get_agent_service, None)
 
 
 def test_create_thread(client: TestClient, mock_db, current_user):

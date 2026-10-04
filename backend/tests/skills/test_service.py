@@ -110,8 +110,8 @@ async def test_counts_scripts_and_agents_everywhere(agent_session, member):
     ]
     skill = await seed_skill(agent_session, owner_id=member.id, files=files)
     await seed_skill(agent_session, owner_id=member.id, name="plain")
-    first = await seed_agent(agent_session)
-    second = await seed_agent(agent_session)
+    first = await seed_agent(agent_session, owner_id=member.id)
+    second = await seed_agent(agent_session, owner_id=member.id)
     await attach(agent_session, first.id, skill.id)
     await attach(agent_session, second.id, skill.id)
 

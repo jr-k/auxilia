@@ -7,11 +7,13 @@ from sqlalchemy import delete, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
+from app.agents.models import AgentDB, AgentMCPServerDB
 from app.mcp.servers.models import (
     MCPServerAPIKeyDB,
     MCPServerDB,
     MCPServerImageDB,
     MCPServerOAuthCredentialsDB,
+    MCPServerTeamDB,
 )
 from app.mcp.servers.schemas import MCPServerCreate
 from app.repository import BaseRepository
@@ -32,6 +34,14 @@ class MCPServerRepository(BaseRepository[MCPServerDB]):
         stmt = self._scope(select(MCPServerDB).where(MCPServerDB.id == server_id))
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
+
+    async def get_scoped_for_update(self, server_id: UUID) -> MCPServerDB | None:
+        stmt = self._scope(
+            select(MCPServerDB)
+            .where(MCPServerDB.id == server_id)
+            .with_for_update()
+        )
+        return (await self.db.execute(stmt)).scalar_one_or_none()
 
     async def list(self) -> list[MCPServerDB]:
         stmt = self._scope(select(MCPServerDB)).order_by(MCPServerDB.created_at.asc())
@@ -131,15 +141,49 @@ class MCPServerRepository(BaseRepository[MCPServerDB]):
         await self.db.execute(stmt)
         await self.db.flush()
 
-    async def create(self, data: MCPServerCreate) -> MCPServerDB:
+    async def create(self, data: MCPServerCreate, owner_id: UUID) -> MCPServerDB:
         if self.workspace_id is None:
             raise RuntimeError("workspace_id is required to create an MCP server")
         db_server = MCPServerDB.model_validate(
-            data, update={"workspace_id": self.workspace_id}
+            data, update={"workspace_id": self.workspace_id, "owner_id": owner_id}
         )
         self.db.add(db_server)
         await self.db.flush()
         return db_server
+
+    async def list_team_ids(self, server_id: UUID) -> list[UUID]:
+        stmt = select(MCPServerTeamDB.team_id).where(
+            MCPServerTeamDB.mcp_server_id == server_id
+        )
+        result = await self.db.execute(stmt)
+        return list(result.scalars().all())
+
+    async def list_team_ids_for_servers(
+        self, server_ids: Collection[UUID]
+    ) -> dict[UUID, list[UUID]]:
+        if not server_ids:
+            return {}
+        stmt = select(
+            MCPServerTeamDB.mcp_server_id, MCPServerTeamDB.team_id
+        ).where(MCPServerTeamDB.mcp_server_id.in_(server_ids))
+        result = await self.db.execute(stmt)
+        grouped: dict[UUID, list[UUID]] = {}
+        for server_id, team_id in result.all():
+            grouped.setdefault(server_id, []).append(team_id)
+        return grouped
+
+    async def set_team_ids(self, server_id: UUID, team_ids: Collection[UUID]) -> None:
+        stmt = delete(MCPServerTeamDB).where(
+            MCPServerTeamDB.mcp_server_id == server_id
+        )
+        await self.db.execute(stmt)
+        self.db.add_all(
+            [
+                MCPServerTeamDB(mcp_server_id=server_id, team_id=team_id)
+                for team_id in dict.fromkeys(team_ids)
+            ]
+        )
+        await self.db.flush()
 
     async def get_api_key(self, server_id: UUID) -> str | None:
         stmt = select(MCPServerAPIKeyDB).where(
@@ -255,3 +299,15 @@ class MCPServerRepository(BaseRepository[MCPServerDB]):
             stmt = stmt.where(MCPServerDB.workspace_id == self.workspace_id)
         result = await self.db.execute(stmt)
         return set(result.scalars().all())
+
+    async def list_bound_agents(self, server_id: UUID) -> list[AgentDB]:
+        stmt = (
+            select(AgentDB)
+            .join(
+                AgentMCPServerDB,
+                AgentMCPServerDB.agent_id == AgentDB.id,
+            )
+            .where(AgentMCPServerDB.mcp_server_id == server_id)
+        )
+        result = await self.db.execute(stmt)
+        return list(result.scalars().all())

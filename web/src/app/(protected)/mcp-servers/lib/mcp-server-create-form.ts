@@ -3,12 +3,15 @@ import {
 	MCPServerCreate,
 	OfficialMCPServer,
 } from "@/types/mcp-servers";
+import type { ResourceVisibility } from "@/types/visibility";
 
 export interface MCPServerCreateFormValues {
 	name: string;
 	url: string;
 	description: string;
 	group: string;
+	visibility?: ResourceVisibility;
+	teamIds?: string[];
 	authType: MCPAuthType;
 	apiKey: string;
 	oauthClientId: string;
@@ -39,6 +42,9 @@ export function validateMCPServerCreateForm(
 
 	if (!form.name.trim()) errors.name = "Name is required.";
 	if (!form.url.trim()) errors.url = "Server address is required.";
+	if (form.visibility === "teams" && (form.teamIds?.length ?? 0) === 0) {
+		errors.teamIds = "Select at least one team.";
+	}
 
 	// The backend rejects api_key servers without a key — catch it inline.
 	if (form.authType === "api_key" && !form.apiKey.trim()) {
@@ -86,6 +92,8 @@ export function buildMCPServerCreatePayload(
 		authType: form.authType,
 		description: form.description || undefined,
 		group: form.group || null,
+		visibility: form.visibility ?? "workspace",
+		teamIds: form.teamIds ?? [],
 		iconUrl: form.iconUrl || undefined,
 		apiKey,
 		oauthClientId,

@@ -1,12 +1,16 @@
 import { RunTerminalStatus } from "@/types/runs";
+import type { ResourceVisibility } from "@/types/visibility";
 
 export type TriggerType = "schedule" | "webhook";
 
 interface TriggerBase {
 	id: string;
 	name: string;
+	group: string | null;
 	instructions: string;
 	ownerId: string;
+	visibility: ResourceVisibility;
+	teamIds: string[];
 	agentId: string;
 	modelId: string;
 	reasoningEffort: string | null;
@@ -21,6 +25,7 @@ interface TriggerBase {
 	/** Whitelist display name for modelId, set even when the model is
 	 * unavailable. Null = the model left the whitelist; fall back to modelId. */
 	modelDisplayName: string | null;
+	canManage: boolean;
 }
 
 export interface ScheduleTrigger extends TriggerBase {
@@ -35,7 +40,7 @@ export interface WebhookTrigger extends TriggerBase {
 	triggerType: "webhook";
 	cronExpression: null;
 	timezone: null;
-	webhookUrl: string;
+	webhookUrl: string | null;
 	nextRunAt: null;
 }
 
@@ -43,10 +48,13 @@ export type Trigger = ScheduleTrigger | WebhookTrigger;
 
 interface TriggerCreateBase {
 	name: string;
+	group?: string | null;
 	instructions: string;
 	agentId: string;
 	modelId: string;
 	isActive?: boolean;
+	visibility?: ResourceVisibility;
+	teamIds?: string[];
 }
 
 export interface ScheduleTriggerCreate extends TriggerCreateBase {
@@ -63,12 +71,15 @@ export type TriggerCreate = ScheduleTriggerCreate | WebhookTriggerCreate;
 
 export interface TriggerUpdate {
 	name?: string;
+	group?: string | null;
 	instructions?: string;
 	agentId?: string;
 	modelId?: string;
 	cronExpression?: string;
 	timezone?: string;
 	isActive?: boolean;
+	visibility?: ResourceVisibility;
+	teamIds?: string[];
 }
 
 export interface TriggerRun {

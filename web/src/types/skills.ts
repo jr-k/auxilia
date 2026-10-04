@@ -1,4 +1,5 @@
 import type { BoundAgent } from "./agents";
+import type { ResourceVisibility } from "./visibility";
 
 export type SkillFileEncoding = "utf-8" | "base64";
 
@@ -22,6 +23,8 @@ export type SkillSourceKind = "github" | "gitlab";
 export interface SkillSummary {
 	id: string;
 	ownerId: string;
+	visibility: ResourceVisibility;
+	teamIds: string[];
 	name: string;
 	description: string;
 	group?: string | null;
@@ -256,6 +259,8 @@ export interface SkillSave {
 	group?: string | null;
 	emoji?: string | null;
 	color?: string | null;
+	visibility: ResourceVisibility;
+	teamIds: string[];
 	/** The revision the editor loaded; required on update, refused when stale. */
 	revision?: number;
 }

@@ -10,6 +10,8 @@ import { useDeleteMcpServer } from "@/hooks/use-delete-mcp-server";
 import { Alert } from "@/components/ui/alert";
 import { DropdownMenu } from "@/components/ui/dropdown-menu";
 import { GroupPicker } from "@/components/ui/group-picker";
+import { VisibilityBadge } from "@/components/ui/visibility-badge";
+import { VisibilityPicker } from "@/components/ui/visibility-picker";
 import { ImageUpload } from "@/components/ui/image-upload";
 import * as mcpServersApi from "@/lib/api/resources/mcp-servers";
 import { getApiErrorMessage } from "@/lib/api/errors";
@@ -22,6 +24,7 @@ import {
 	OAuthSecretHint,
 } from "@/types/mcp-servers";
 import { AuthTypeBadge } from "./auth-type-badge";
+import type { ResourceVisibility } from "@/types/visibility";
 import { ConnectedUsersPanel } from "./connected-users-panel";
 import { ConnectionTestBanner } from "./connection-test-banner";
 import { MCPServerToolsPanel } from "./mcp-server-tools-panel";
@@ -51,6 +54,8 @@ interface EditFormValues {
 	iconUrl: string;
 	description: string;
 	group: string;
+	visibility: ResourceVisibility;
+	teamIds: string[];
 	apiKey: string;
 	oauthClientId: string;
 	oauthClientSecret: string;
@@ -63,6 +68,8 @@ function formFromServer(server: MCPServer): EditFormValues {
 		iconUrl: server.iconUrl ?? "",
 		description: server.description ?? "",
 		group: server.group ?? "",
+		visibility: server.visibility ?? "workspace",
+		teamIds: server.teamIds ?? [],
 		apiKey: "",
 		// client_id is a public identifier — prefill it so it's editable; the
 		// secret is write-only and stays blank ("leave blank to keep").
@@ -244,6 +251,9 @@ export default function MCPServerDetail({
 		const errors: typeof fieldErrors = {};
 		if (!form.name.trim()) errors.name = "Name is required.";
 		if (!form.url.trim()) errors.url = "Server address is required.";
+		if (form.visibility === "teams" && form.teamIds.length === 0) {
+			errors.teamIds = "Select at least one team.";
+		}
 		// Setting static OAuth credentials on a server without them requires
 		// both fields — one alone would be silently dropped by the backend.
 		if (server.authType === "oauth2" && !hasStoredSecret) {
@@ -270,6 +280,8 @@ export default function MCPServerDetail({
 				// dropped from the PATCH and silently keep the old one.
 				description: form.description.trim() ? form.description : null,
 				group: form.group || null,
+				visibility: form.visibility,
+				teamIds: form.teamIds,
 				iconUrl: form.iconUrl.trim() ? form.iconUrl : null,
 				// Credentials are sent only when the field was filled in; a blank
 				// field keeps the stored secret untouched.
@@ -414,7 +426,10 @@ export default function MCPServerDetail({
 							Cancel
 						</HeaderButton>
 						<HeaderPrimaryButton
-							disabled={busy}
+							disabled={
+								busy ||
+								(form.visibility === "teams" && form.teamIds.length === 0)
+							}
 							onClick={() => {
 								void handleSave();
 							}}
@@ -514,6 +529,13 @@ export default function MCPServerDetail({
 								) : (
 									<span className="text-[13.5px] text-meta dark:text-panel-dim">Not available</span>
 								)}
+							</ConfigRow>
+							<ConfigRow label="Visibility">
+								<VisibilityBadge
+									visibility={server.visibility ?? "workspace"}
+									teamIds={server.teamIds}
+									showTeams
+								/>
 							</ConfigRow>
 							<ConfigRow
 								label="Authentication method"
@@ -648,6 +670,17 @@ export default function MCPServerDetail({
 								groups={groupOptions(mcpServers)}
 								onChange={(group) => {
 									handleFormChange("group", group);
+								}}
+							/>
+							<VisibilityPicker
+								visibility={form.visibility}
+								teamIds={form.teamIds}
+								onChange={(visibility, teamIds) => {
+									setForm((current) => ({
+										...current,
+										visibility,
+										teamIds,
+									}));
 								}}
 							/>
 							<div className="flex flex-col gap-1">

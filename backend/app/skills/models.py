@@ -17,6 +17,7 @@ from sqlmodel import Field, SQLModel
 
 from app.models import BaseDBModel, TimestampMixin
 from app.skills.schemas import SkillBundle, SkillFile, SkillSourceKind
+from app.visibility import ResourceVisibility
 
 
 def _json():
@@ -118,6 +119,14 @@ class SkillDB(BaseDBModel, table=True):
 
     workspace_id: UUID = Field(foreign_key="workspaces.id", index=True)
     owner_id: UUID = Field(foreign_key="users.id", ondelete="CASCADE", index=True)
+    visibility: ResourceVisibility = Field(
+        default=ResourceVisibility.workspace,
+        sa_column=Column(
+            SAEnum(ResourceVisibility, native_enum=False, create_constraint=False),
+            nullable=False,
+            server_default=ResourceVisibility.workspace.value,
+        ),
+    )
     name: str = Field(max_length=64, index=True)
     description: str = Field(max_length=1024)
     emoji: str | None = Field(default=None, max_length=10, nullable=True)
@@ -187,6 +196,20 @@ class SkillDB(BaseDBModel, table=True):
             content=self.content,
             files=[SkillFile.model_validate(file) for file in self.files],
         )
+
+
+class SkillTeamDB(BaseDBModel, table=True):
+    __tablename__ = "skill_teams"
+    __table_args__ = (
+        UniqueConstraint("skill_id", "team_id", name="uq_skill_visibility_team"),
+    )
+
+    skill_id: UUID = Field(
+        foreign_key="skills.id", ondelete="CASCADE", nullable=False, index=True
+    )
+    team_id: UUID = Field(
+        foreign_key="teams.id", ondelete="CASCADE", nullable=False, index=True
+    )
 
 
 class SkillImageDB(BaseDBModel, table=True):

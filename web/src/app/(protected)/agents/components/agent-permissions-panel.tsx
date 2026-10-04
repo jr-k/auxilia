@@ -1,16 +1,13 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { Trash2, ChevronDown, Check, Plus } from "lucide-react";
+import { Trash2, ChevronDown } from "lucide-react";
 import * as agentsApi from "@/lib/api/resources/agents";
-import * as teamsApi from "@/lib/api/resources/teams";
 import * as usersApi from "@/lib/api/resources/users";
-import { cn } from "@/lib/utils";
 import { SearchBar } from "@/components/ui/search-bar";
 import { DropdownMenu } from "@/components/ui/dropdown-menu";
-import { UnderlineTabs } from "@/components/ui/underline-tabs";
 import { UserAvatar } from "@/components/ui/user-avatar";
-import type { Team as WorkspaceTeam, User as WorkspaceUser } from "@/types/users";
+import type { User as WorkspaceUser } from "@/types/users";
 
 type PermissionLevel = agentsApi.GrantLevel;
 type PermissionRow = agentsApi.AgentPermissionRow;
@@ -19,7 +16,6 @@ type User = Pick<
 	WorkspaceUser,
 	"id" | "name" | "email" | "pictureUrl" | "imageRevision"
 >;
-type Team = Pick<WorkspaceTeam, "id" | "name" | "color">;
 
 interface AgentPermissionsPanelProps {
 	agentId: string;
@@ -33,8 +29,9 @@ const PERMISSION_LABELS: Record<PermissionLevel, string> = {
 };
 
 /**
- * The Permissions editor tab: who can use/edit this agent, plus team grants.
- * Saves through its own PUTs (permissions are not part of the config draft),
+ * The Permissions editor tab: explicit user grants for this agent. Team access
+ * is the agent's visibility scope and is edited with the main config.
+ * Saves through its own PUT (permissions are not part of the config draft),
  * so the panel keeps an explicit save button with its own dirty state.
  */
 export default function AgentPermissionsPanel({
@@ -43,19 +40,13 @@ export default function AgentPermissionsPanel({
 }: AgentPermissionsPanelProps) {
 	const [allUsers, setAllUsers] = useState<User[]>([]);
 	const [permissions, setPermissions] = useState<PermissionRow[]>([]);
-	const [allTeams, setAllTeams] = useState<Team[]>([]);
-	const [selectedTeamIds, setSelectedTeamIds] = useState<string[]>([]);
 	const [savedSnapshot, setSavedSnapshot] = useState<string>("");
-	const [view, setView] = useState<"people" | "teams">("people");
 	const [search, setSearch] = useState("");
 	const [isSaving, setIsSaving] = useState(false);
 	const [isLoading, setIsLoading] = useState(false);
 
-	const snapshotOf = (perms: PermissionRow[], teamIds: string[]) =>
-		JSON.stringify({
-			perms: [...perms].sort((a, b) => a.userId.localeCompare(b.userId)),
-			teams: [...teamIds].sort(),
-		});
+	const snapshotOf = (perms: PermissionRow[]) =>
+		JSON.stringify([...perms].sort((a, b) => a.userId.localeCompare(b.userId)));
 
 	useEffect(() => {
 		setIsLoading(true);
@@ -64,19 +55,15 @@ export default function AgentPermissionsPanel({
 			// The picker needs the whole workspace; 200 is the API's max page size.
 			usersApi.listUsers({ limit: 200, offset: 0 }),
 			agentsApi.listAgentPermissions(agentId),
-			teamsApi.listTeams(),
-			agentsApi.listAgentTeamIds(agentId),
 		])
-			.then(([usersPage, permissionRows, teams, teamIds]) => {
+			.then(([usersPage, permissionRows]) => {
 				setAllUsers(usersPage.items);
 				const perms = permissionRows.map((p) => ({
 					userId: p.userId,
 					permission: p.permission,
 				}));
 				setPermissions(perms);
-				setAllTeams(teams);
-				setSelectedTeamIds(teamIds);
-				setSavedSnapshot(snapshotOf(perms, teamIds));
+				setSavedSnapshot(snapshotOf(perms));
 			})
 			.catch((err) => { console.error("Failed to load permissions:", err); })
 			.finally(() => { setIsLoading(false); });
@@ -84,7 +71,7 @@ export default function AgentPermissionsPanel({
 
 	const isDirty =
 		savedSnapshot !== "" &&
-		snapshotOf(permissions, selectedTeamIds) !== savedSnapshot;
+		snapshotOf(permissions) !== savedSnapshot;
 
 	const owner = useMemo(
 		() => allUsers.find((u) => u.id === ownerId) ?? null,
@@ -128,22 +115,11 @@ export default function AgentPermissionsPanel({
 		);
 	};
 
-	const toggleTeam = (teamId: string) => {
-		setSelectedTeamIds((prev) =>
-			prev.includes(teamId)
-				? prev.filter((id) => id !== teamId)
-				: [...prev, teamId],
-		);
-	};
-
 	const handleSave = async () => {
 		setIsSaving(true);
 		try {
-			await Promise.all([
-				agentsApi.setAgentPermissions(agentId, permissions),
-				agentsApi.setAgentTeamIds(agentId, selectedTeamIds),
-			]);
-			setSavedSnapshot(snapshotOf(permissions, selectedTeamIds));
+			await agentsApi.setAgentPermissions(agentId, permissions);
+			setSavedSnapshot(snapshotOf(permissions));
 		} catch (err) {
 			console.error("Failed to save permissions:", err);
 		} finally {
@@ -153,15 +129,7 @@ export default function AgentPermissionsPanel({
 
 	return (
 		<div className="flex flex-col gap-4">
-			<div className="flex items-center justify-between gap-4">
-				<UnderlineTabs
-					tabs={[
-						{ key: "people", label: "People" },
-						{ key: "teams", label: "Teams" },
-					]}
-					value={view}
-					onChange={setView}
-				/>
+			<div className="flex items-center justify-end gap-4">
 				{isDirty && (
 					<button
 						type="button"
@@ -176,8 +144,7 @@ export default function AgentPermissionsPanel({
 				)}
 			</div>
 
-			{view === "people" ? (
-				<>
+			<>
 					<div className="relative">
 						<SearchBar
 							placeholder="Search users by name or email…"
@@ -297,54 +264,7 @@ export default function AgentPermissionsPanel({
 							</div>
 						)}
 					</div>
-				</>
-			) : (
-				<div className="flex flex-col gap-3">
-					<p className="text-[13px] text-muted-foreground">
-						Select teams to grant their members{" "}
-						<span className="font-semibold text-foreground">Member</span>{" "}
-						access to this agent.
-					</p>
-
-					{allTeams.length === 0 ? (
-						<div className="rounded-[10px] border border-dashed border-input px-4 py-8 text-center text-[13px] text-meta dark:text-panel-dim">
-							No teams yet. Create one from the Users page.
-						</div>
-					) : (
-						<div className="flex flex-wrap gap-2">
-							{allTeams.map((team) => {
-								const selected = selectedTeamIds.includes(team.id);
-								return (
-									<button
-										key={team.id}
-										type="button"
-										onClick={() => {
-											toggleTeam(team.id);
-										}}
-										className={cn(
-											"inline-flex cursor-pointer items-center gap-2 rounded-full border px-3.5 py-2 text-[13px] font-semibold transition-colors",
-											selected
-												? "border-petrol bg-petrol-tint text-foreground"
-												: "border-dashed border-input text-muted-foreground hover:border-border-hover hover:bg-sidebar dark:hover:bg-white/5",
-										)}
-									>
-										<span
-											className="size-2 shrink-0 rounded-full"
-											style={{ background: team.color ?? "#9E9E9E" }}
-										/>
-										{team.name}
-										{selected ? (
-											<Check className="size-3.5 shrink-0 text-petrol" />
-										) : (
-											<Plus className="size-3.5 shrink-0 text-meta" />
-										)}
-									</button>
-								);
-							})}
-						</div>
-					)}
-				</div>
-			)}
+			</>
 		</div>
 	);
 }

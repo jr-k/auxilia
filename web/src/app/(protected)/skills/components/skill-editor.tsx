@@ -19,6 +19,8 @@ import { useConfirmDialog } from "@/components/providers/dialog-provider";
 import ConfirmDialog from "@/components/ui/confirm-dialog";
 import { DropdownMenu } from "@/components/ui/dropdown-menu";
 import { GroupPicker } from "@/components/ui/group-picker";
+import { VisibilityBadge } from "@/components/ui/visibility-badge";
+import { VisibilityPicker } from "@/components/ui/visibility-picker";
 import { ImageFilePreview, ImageUpload } from "@/components/ui/image-upload";
 import { SkillAvatar } from "@/components/ui/skill-avatar";
 import {
@@ -33,6 +35,7 @@ import * as skillsApi from "@/lib/api/resources/skills";
 import { AGENT_COLORS } from "@/lib/colors";
 import { groupOptions } from "@/lib/groups";
 import { SkillDeleteDescription } from "./skill-delete-description";
+import type { ResourceVisibility } from "@/types/visibility";
 import { cn } from "@/lib/utils";
 import { useSkillsStore } from "@/stores/skills-store";
 import {
@@ -144,6 +147,8 @@ interface Draft {
 	group: string;
 	emoji: string | null;
 	color: string | null;
+	visibility: ResourceVisibility;
+	teamIds: string[];
 }
 
 /**
@@ -189,6 +194,8 @@ export default function SkillEditor({
 						group: skill.group ?? "",
 						emoji: skill.emoji,
 						color: skill.color,
+						visibility: skill.visibility,
+						teamIds: skill.teamIds,
 					}
 				: {
 						content: NEW_SKILL,
@@ -196,6 +203,8 @@ export default function SkillEditor({
 						group: "",
 						emoji: null,
 						color: AGENT_COLORS[0],
+						visibility: "workspace",
+						teamIds: [],
 					},
 		[skill],
 	);
@@ -244,7 +253,8 @@ export default function SkillEditor({
 		draft.content.trim().length > 0 &&
 		!nameError &&
 		!descriptionError &&
-		!bodyError;
+		!bodyError &&
+		(draft.visibility !== "teams" || draft.teamIds.length > 0);
 
 	useEffect(() => {
 		if (!showIdentityPicker) return;
@@ -660,13 +670,33 @@ export default function SkillEditor({
 					</div>
 
 					{!readOnly && (
-						<div className="mt-4">
+						<div className="mt-4 flex flex-col gap-4">
 							<GroupPicker
 								value={draft.group}
 								groups={groupOptions(librarySkills)}
 								onChange={(group) => {
 									setDraft((current) => ({ ...current, group }));
 								}}
+							/>
+							<VisibilityPicker
+								visibility={draft.visibility}
+								teamIds={draft.teamIds}
+								onChange={(visibility, teamIds) => {
+									setDraft((current) => ({
+										...current,
+										visibility,
+										teamIds,
+									}));
+								}}
+							/>
+						</div>
+					)}
+					{readOnly && skill && (
+						<div className="mt-4">
+							<VisibilityBadge
+								visibility={skill.visibility}
+								teamIds={skill.teamIds}
+								showTeams
 							/>
 						</div>
 					)}

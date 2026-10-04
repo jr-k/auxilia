@@ -6,9 +6,10 @@ from slack_sdk.web.async_client import AsyncWebClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.core.service import AgentService
-from app.agents.models import AgentDB
+from app.agents.models import AgentDB, EffectivePermission
 from app.agents.schemas import AgentListResponse
 from app.database import AsyncSessionLocal
+from app.exceptions import NotFoundError
 from app.integrations.slack.models import SlackInteractionPayload
 from app.integrations.slack.utils import get_slack_client, get_user_info
 from app.threads.service import ThreadService
@@ -202,9 +203,20 @@ async def handle_agent_selection(
 
     # Fetch the agent
     async with AsyncSessionLocal() as db:
-        agent = await AgentService(db, workspace_id).repository.get_scoped(
-            UUID(agent_id)
-        )
+        service = AgentService(db, workspace_id)
+        parsed_agent_id = UUID(agent_id)
+        try:
+            await service.require_permission(
+                parsed_agent_id,
+                at_least=EffectivePermission.member,
+                action="use this agent",
+                user_id=user.id,
+                user_role=user.role,
+                user_team_id=user.team_id,
+            )
+        except NotFoundError:
+            return
+        agent = await service.repository.get_scoped(parsed_agent_id)
     if not agent:
         return
 

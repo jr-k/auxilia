@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Braces, Webhook } from "lucide-react";
 import { Trigger, TriggerType } from "@/types/triggers";
 import {
@@ -22,6 +22,10 @@ import { EditorSection } from "@/components/editor/editor-section";
 import { SaveActions } from "@/components/editor/save-actions";
 import { AgentPicker } from "@/components/editor/agent-picker";
 import { ModelPickerChip } from "@/components/editor/model-picker-chip";
+import { GroupPicker } from "@/components/ui/group-picker";
+import { VisibilityPicker } from "@/components/ui/visibility-picker";
+import type { ResourceVisibility } from "@/types/visibility";
+import { groupOptions } from "@/lib/groups";
 import ScheduleBuilder from "@/app/(protected)/triggers/components/schedule-builder";
 import NextRunsCard from "@/app/(protected)/triggers/components/next-runs-card";
 
@@ -30,11 +34,14 @@ const slugify = (name: string) =>
 
 interface TriggerFormState {
 	name: string;
+	group: string;
 	instructions: string;
 	agentId: string | null;
 	modelId: string | null;
 	schedule: Schedule;
 	timezone: string;
+	visibility: ResourceVisibility;
+	teamIds: string[];
 }
 
 function browserTimezone(): string {
@@ -44,17 +51,21 @@ function browserTimezone(): string {
 function defaultForm(): TriggerFormState {
 	return {
 		name: "",
+		group: "",
 		instructions: "",
 		agentId: null,
 		modelId: null,
 		schedule: DEFAULT_SCHEDULE,
 		timezone: browserTimezone(),
+		visibility: "personal",
+		teamIds: [],
 	};
 }
 
 function fromTrigger(trigger: Trigger): TriggerFormState {
 	return {
 		name: trigger.name,
+		group: trigger.group ?? "",
 		instructions: trigger.instructions,
 		agentId: trigger.agentId,
 		modelId: trigger.modelId,
@@ -66,15 +77,20 @@ function fromTrigger(trigger: Trigger): TriggerFormState {
 			trigger.triggerType === "schedule"
 				? trigger.timezone
 				: browserTimezone(),
+		visibility: trigger.visibility,
+		teamIds: trigger.teamIds,
 	};
 }
 
 function toComparablePayload(form: TriggerFormState, triggerType: TriggerType) {
 	return {
 		name: form.name.trim(),
+		group: form.group || null,
 		instructions: form.instructions.trim(),
 		agentId: form.agentId,
 		modelId: form.modelId,
+		visibility: form.visibility,
+		teamIds: [...form.teamIds].sort(),
 		...(triggerType === "schedule"
 			? {
 					cronExpression: buildCronExpression(form.schedule),
@@ -100,6 +116,8 @@ export default function TriggerEditor({
 }: TriggerEditorProps) {
 	const createTrigger = useTriggersStore((state) => state.createTrigger);
 	const updateTrigger = useTriggersStore((state) => state.updateTrigger);
+	const triggers = useTriggersStore((state) => state.triggers);
+	const fetchTriggers = useTriggersStore((state) => state.fetchTriggers);
 	const models = useModelsStore((state) => state.models);
 	const confirmDialog = useConfirmDialog();
 	const type = trigger?.triggerType ?? triggerType ?? "schedule";
@@ -111,6 +129,11 @@ export default function TriggerEditor({
 	const [form, setForm] = useState<TriggerFormState>(initialForm);
 	const [isSaving, setIsSaving] = useState(false);
 	const [error, setError] = useState<string | null>(null);
+	const availableGroups = useMemo(() => groupOptions(triggers), [triggers]);
+
+	useEffect(() => {
+		fetchTriggers().catch(() => {});
+	}, [fetchTriggers]);
 
 	const setField = <K extends keyof TriggerFormState>(
 		key: K,
@@ -131,7 +154,8 @@ export default function TriggerEditor({
 		form.instructions.trim() &&
 		form.agentId &&
 		selectedModelId &&
-		(type === "webhook" || cronExpression),
+		(type === "webhook" || cronExpression) &&
+		(form.visibility !== "teams" || form.teamIds.length > 0),
 	);
 
 	const handleSave = async () => {
@@ -141,9 +165,12 @@ export default function TriggerEditor({
 		setError(null);
 		const commonPayload = {
 			name: form.name.trim(),
+			group: form.group || null,
 			instructions: form.instructions.trim(),
 			agentId: form.agentId,
 			modelId: selectedModelId,
+			visibility: form.visibility,
+			teamIds: form.teamIds,
 		};
 		try {
 			let saved: Trigger;
@@ -244,6 +271,25 @@ export default function TriggerEditor({
 									className="w-full rounded-[10px] border border-input bg-card px-3.5 py-3 text-[15px] font-semibold leading-[1.5] text-foreground outline-none transition-[border-color,box-shadow] placeholder:font-medium placeholder:text-meta dark:placeholder:text-panel-dim focus:border-petrol focus:shadow-[0_0_0_3px_rgba(22,96,110,0.10)]"
 								/>
 							</EditorSection>
+
+							<GroupPicker
+								value={form.group}
+								groups={availableGroups}
+								onChange={(group) => {
+									setField("group", group);
+								}}
+							/>
+							<VisibilityPicker
+								visibility={form.visibility}
+								teamIds={form.teamIds}
+								onChange={(visibility, teamIds) => {
+									setForm((current) => ({
+										...current,
+										visibility,
+										teamIds,
+									}));
+								}}
+							/>
 
 							<EditorSection label="Agent">
 								<AgentPicker
