@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useCallback, useEffect, useRef } from "react";
-import Image from "next/image";
 import {
 	Dialog,
 	DialogButton,
@@ -14,6 +13,7 @@ import {
 import * as mcpServersApi from "@/lib/api/resources/mcp-servers";
 import { MCPServer } from "@/types/mcp-servers";
 import { CheckCircle2Icon, LoaderIcon } from "lucide-react";
+import { ServerIconTile } from "@/app/(protected)/mcp-servers/components/server-icon-tile";
 
 interface ConnectServersDialogProps {
 	open: boolean;
@@ -159,19 +159,13 @@ export function ConnectServersDialog({
 											: "border-hairline bg-sidebar dark:bg-white/5"
 								}`}
 							>
-								<div className="relative flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-md">
-									<Image
-										unoptimized
-										width={32}
-										height={32}
-										src={
-											server.iconUrl ??
-											"https://pub-7a6e8912b3c448b8a8bfa47a0363f7bc.r2.dev/assets/icons/mcp.png"
-										}
-										alt={server.name}
-										className="object-cover"
-									/>
-								</div>
+								<ServerIconTile
+									iconUrl={server.iconUrl}
+									serverId={server.id}
+									imageRevision={server.imageRevision}
+									name={server.name}
+									size={32}
+								/>
 								<span className="flex-1 text-[13.5px] font-semibold text-ink dark:text-panel-button">
 									{server.name}
 								</span>
