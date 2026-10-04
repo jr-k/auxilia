@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.8](https://github.com/jr-k/auxilia/compare/web-v0.11.7...web-v0.11.8) (2026-10-04)
+
+
+### Features
+
+* **mcp:** add server-level tool controls ([#10](https://github.com/jr-k/auxilia/issues/10)) ([883498b](https://github.com/jr-k/auxilia/commit/883498b9f738e0d49f1a2d6f9a6f3b2f3031f935))
+
 ## [0.11.7](https://github.com/jr-k/auxilia/compare/web-v0.11.6...web-v0.11.7) (2026-10-04)
 
 

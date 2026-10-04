@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.10.7](https://github.com/jr-k/auxilia/compare/backend-v0.10.6...backend-v0.10.7) (2026-10-04)
+
+
+### Features
+
+* **mcp:** add server-level tool controls ([#10](https://github.com/jr-k/auxilia/issues/10)) ([883498b](https://github.com/jr-k/auxilia/commit/883498b9f738e0d49f1a2d6f9a6f3b2f3031f935))
+
+
+### Bug Fixes
+
+* **mcp:** use portable disabled tools default ([#12](https://github.com/jr-k/auxilia/issues/12)) ([0387435](https://github.com/jr-k/auxilia/commit/038743589ebb2251d3cfb692933508c671461f9f))
+
 ## [0.10.6](https://github.com/jr-k/auxilia/compare/backend-v0.10.5...backend-v0.10.6) (2026-10-04)
 
 

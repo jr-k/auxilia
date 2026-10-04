@@ -9,6 +9,7 @@ export interface MCPServer {
 	imageRevision?: string | null;
 	description?: string;
 	group?: string | null;
+	disabledTools?: string[];
 	createdAt: string;
 	updatedAt: string;
 	// Static OAuth client_id when configured (not a secret); absent for DCR.
@@ -40,6 +41,7 @@ export interface MCPServerUpdate {
 	apiKey?: string;
 	oauthClientId?: string;
 	oauthClientSecret?: string;
+	disabledTools?: string[];
 }
 
 export interface OAuthSecretHint {
