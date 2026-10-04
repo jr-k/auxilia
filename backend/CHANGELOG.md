@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.10.8](https://github.com/jr-k/auxilia/compare/backend-v0.10.7...backend-v0.10.8) (2026-10-04)
+
+
+### Features
+
+* add resource visibility scopes ([4946e44](https://github.com/jr-k/auxilia/commit/4946e446386a43c7d18bd262a958ca94d6077941))
+* add resource visibility scopes ([ac2b468](https://github.com/jr-k/auxilia/commit/ac2b4683744aa9e1766a1a5f1c6c2bf2632de8b8))
+
 ## [0.10.7](https://github.com/jr-k/auxilia/compare/backend-v0.10.6...backend-v0.10.7) (2026-10-04)
 
 
