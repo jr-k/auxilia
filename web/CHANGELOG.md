@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.11.13](https://github.com/jr-k/auxilia/compare/web-v0.11.12...web-v0.11.13) (2026-10-05)
+
+
+### Bug Fixes
+
+* **web:** prevent stale resource state ([c09d799](https://github.com/jr-k/auxilia/commit/c09d799b94186b0c746e489cb3a1aab33a7223b9))
+* **workspaces:** guard switches with unsaved changes ([f9c167f](https://github.com/jr-k/auxilia/commit/f9c167f1a22b98b47c39e345b404948e7e44356a))
+
 ## [0.11.12](https://github.com/jr-k/auxilia/compare/web-v0.11.11...web-v0.11.12) (2026-10-05)
 
 
