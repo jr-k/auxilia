@@ -583,7 +583,7 @@ export default function WorkspaceModels({
 												{providerLabel(provider.name)}
 											</span>
 											<span
-												className={`size-1.5 rounded-full ${
+												className={`size-1.5 rounded-[1px] ${
 													provider.isConfigured
 														? "bg-emerald-500"
 														: "bg-faint"

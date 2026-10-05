@@ -486,7 +486,7 @@ export default function MCPServerDetail({
 								</h1>
 								<AuthTypeBadge authType={server.authType} />
 								{isOfficialIcon(server.iconUrl) && (
-									<span className="rounded-full bg-hover px-[9px] py-[3px] text-[11px] font-semibold text-subtle dark:bg-white/10 dark:text-panel-body">
+									<span className="rounded-[4px] bg-hover px-[9px] py-[3px] text-[11px] font-semibold text-subtle dark:bg-white/10 dark:text-panel-body">
 										Official
 									</span>
 								)}

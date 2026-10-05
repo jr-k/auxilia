@@ -24,7 +24,7 @@ function StatusBadge({ status }: { status: MCPServerConnection["status"] }) {
 			}`}
 		>
 			<span
-				className={`size-[5px] rounded-full ${active ? "bg-success" : "bg-warning"}`}
+				className={`size-[5px] rounded-[1px] ${active ? "bg-success" : "bg-warning"}`}
 			/>
 			{active ? "Active" : "Expired"}
 		</span>

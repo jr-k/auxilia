@@ -170,7 +170,7 @@ export default function AgentTable({
 										? { background: agentColorBackground(sub.color) }
 										: undefined
 								}
-								className="flex size-[22px] shrink-0 items-center justify-center rounded-full border border-[rgba(16,24,32,0.06)] bg-hover text-[11px]"
+								className="flex size-[22px] shrink-0 items-center justify-center rounded-[4px] border border-[rgba(16,24,32,0.06)] bg-hover text-[11px]"
 							>
 								{sub.emoji || "🤖"}
 							</span>
@@ -181,7 +181,7 @@ export default function AgentTable({
 									.slice(MAX_INLINE_AVATARS)
 									.map((s) => s.name)
 									.join(", ")}
-								className="flex size-[22px] shrink-0 items-center justify-center rounded-full border border-[rgba(16,24,32,0.06)] bg-hover font-mono text-[9px] font-semibold text-meta"
+								className="flex size-[22px] shrink-0 items-center justify-center rounded-[4px] border border-[rgba(16,24,32,0.06)] bg-hover font-mono text-[9px] font-semibold text-meta"
 							>
 								+{subagents.length - MAX_INLINE_AVATARS}
 							</span>

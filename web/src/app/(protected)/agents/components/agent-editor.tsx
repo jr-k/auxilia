@@ -405,10 +405,10 @@ export default function AgentEditor({
 								onClick={() => {
 									setShowEmojiPicker(!showEmojiPicker);
 								}}
-								className="relative flex size-12 cursor-pointer items-center justify-center rounded-full text-2xl transition-opacity hover:opacity-90 disabled:cursor-default disabled:hover:opacity-100"
+								className="relative flex size-12 cursor-pointer items-center justify-center rounded-[4px] text-2xl transition-opacity hover:opacity-90 disabled:cursor-default disabled:hover:opacity-100"
 							>
 								{imageFile ? (
-									<ImageFilePreview file={imageFile} className="rounded-full" />
+									<ImageFilePreview file={imageFile} className="rounded-[4px]" />
 								) : (
 									<AgentAvatar
 										agentId={agent?.id}
@@ -423,7 +423,7 @@ export default function AgentEditor({
 									/>
 								)}
 								{!readOnly && (
-									<span className="absolute -bottom-[5px] -right-[5px] flex size-[18px] items-center justify-center rounded-full border border-input bg-card shadow-raised">
+									<span className="absolute -bottom-[5px] -right-[5px] flex size-[18px] items-center justify-center rounded-[4px] border border-input bg-card shadow-raised">
 										<Pencil className="size-[9px] text-subtle dark:text-panel-body" />
 									</span>
 								)}
@@ -447,7 +447,7 @@ export default function AgentEditor({
 												setRemoveImage(Boolean(agent?.imageRevision));
 											}}
 											label="Agent image"
-											previewShape="circle"
+											previewShape="square"
 										/>
 									</div>
 									<EmojiPicker
@@ -465,7 +465,7 @@ export default function AgentEditor({
 													setField("color", c);
 												}}
 												style={{ backgroundColor: c }}
-												className={`size-7 cursor-pointer rounded-full transition-transform hover:scale-110 ${
+												className={`size-7 cursor-pointer rounded-[4px] transition-transform hover:scale-110 ${
 													form.color === c
 														? "ring-2 ring-meta ring-offset-2"
 														: ""
@@ -475,12 +475,12 @@ export default function AgentEditor({
 										<label
 											title="Custom color"
 											className={cn(
-												"relative size-7 cursor-pointer overflow-hidden rounded-full bg-[conic-gradient(#e84393,#e17055,#fdcb6e,#00b894,#0984e3,#6c5ce7,#e84393)] transition-transform hover:scale-110",
+												"relative size-7 cursor-pointer overflow-hidden rounded-[4px] bg-[conic-gradient(#e84393,#e17055,#fdcb6e,#00b894,#0984e3,#6c5ce7,#e84393)] transition-transform hover:scale-110",
 												!AGENT_COLORS.includes(form.color) &&
 													"ring-2 ring-meta ring-offset-2",
 											)}
 										>
-											<span className="absolute inset-[5px] rounded-full border border-white/80 bg-card" />
+											<span className="absolute inset-[5px] rounded-[4px] border border-white/80 bg-card" />
 											<input
 												type="color"
 												value={form.color}

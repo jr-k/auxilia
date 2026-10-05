@@ -34,8 +34,8 @@ function EmptyState({
 	return (
 		<div className="flex flex-col items-center justify-center py-16 px-8 animate-in fade-in slide-in-from-bottom-2 duration-400">
 			{/* Icon bubble */}
-			<div className="w-[72px] h-[72px] rounded-full bg-[#F5F8F6] dark:bg-white/5 flex items-center justify-center mb-5">
-				<div className="w-12 h-12 rounded-full bg-[#EDF4F0] dark:bg-white/10 flex items-center justify-center">
+			<div className="w-[72px] h-[72px] rounded-[4px] bg-[#F5F8F6] dark:bg-white/5 flex items-center justify-center mb-5">
+				<div className="w-12 h-12 rounded-[4px] bg-[#EDF4F0] dark:bg-white/10 flex items-center justify-center">
 					{icon}
 				</div>
 			</div>
@@ -51,7 +51,7 @@ function EmptyState({
 			{action && (
 				<button
 					onClick={action.onClick}
-					className="flex items-center gap-1.5 px-5.5 py-2.5 rounded-full border-[1.5px] border-[#E0E8E4] dark:border-white/10 bg-white dark:bg-transparent font-[family-name:var(--font-dm-sans)] text-[13.5px] font-semibold text-[#1E2D28] dark:text-foreground cursor-pointer transition-all hover:bg-[#F8FAF9] dark:hover:bg-white/5 hover:-translate-y-0.5"
+					className="flex items-center gap-1.5 px-5.5 py-2.5 rounded-[4px] border-[1.5px] border-[#E0E8E4] dark:border-white/10 bg-white dark:bg-transparent font-[family-name:var(--font-dm-sans)] text-[13.5px] font-semibold text-[#1E2D28] dark:text-foreground cursor-pointer transition-all hover:bg-[#F8FAF9] dark:hover:bg-white/5 hover:-translate-y-0.5"
 				>
 					{action.icon}
 					{action.label}

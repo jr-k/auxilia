@@ -68,7 +68,7 @@ export default function TriggerCard({ trigger, onDelete }: TriggerCardProps) {
 			{/* Head: status dot · name · menu (on hover) */}
 			<div className="flex min-h-[30px] min-w-0 items-center gap-2.5">
 				<span
-					className={`size-2 shrink-0 rounded-full ${
+					className={`size-2 shrink-0 rounded-[1px] ${
 						trigger.isActive ? "bg-[#3D8B63]" : "bg-[#C2CFC8]"
 					}`}
 				/>
@@ -132,7 +132,7 @@ export default function TriggerCard({ trigger, onDelete }: TriggerCardProps) {
 
 			{/* Chips: agent · frequency */}
 			<div className="flex flex-wrap gap-2 border-t border-[#F0F3F1] dark:border-white/5 pt-3.5">
-				<div className="flex h-[30px] items-center gap-1.75 rounded-full border border-[#ECF1EE] dark:border-white/10 bg-[#F4F7F5] dark:bg-white/5 pl-1.5 pr-3">
+				<div className="flex h-[30px] items-center gap-1.75 rounded-[4px] border border-[#ECF1EE] dark:border-white/10 bg-[#F4F7F5] dark:bg-white/5 pl-1.5 pr-3">
 					<AgentAvatar
 						agentId={agent?.id}
 						name={agent?.name}
@@ -146,7 +146,7 @@ export default function TriggerCard({ trigger, onDelete }: TriggerCardProps) {
 						{agent?.name ?? "Unknown agent"}
 					</span>
 				</div>
-				<div className="flex h-[30px] items-center gap-1.5 rounded-full border border-[#ECF1EE] dark:border-white/10 bg-[#F4F7F5] dark:bg-white/5 px-3">
+				<div className="flex h-[30px] items-center gap-1.5 rounded-[4px] border border-[#ECF1EE] dark:border-white/10 bg-[#F4F7F5] dark:bg-white/5 px-3">
 					{trigger.triggerType === "schedule" ? (
 						<Clock className="size-[13px] shrink-0 text-[#7C8C84] dark:text-muted-foreground" />
 					) : (
@@ -158,7 +158,7 @@ export default function TriggerCard({ trigger, onDelete }: TriggerCardProps) {
 				</div>
 				{!trigger.modelAvailable && (
 					<div
-						className="flex h-[30px] items-center gap-1.5 rounded-full border border-[#F0E4D3] dark:border-amber-400/20 bg-[#FDF6EC] dark:bg-amber-950/30 px-3"
+						className="flex h-[30px] items-center gap-1.5 rounded-[4px] border border-[#F0E4D3] dark:border-amber-400/20 bg-[#FDF6EC] dark:bg-amber-950/30 px-3"
 						title={`The model used by this trigger (${trigger.modelDisplayName ?? trigger.modelId}) is no longer available, so it cannot run.`}
 					>
 						<TriangleAlert className="size-[13px] shrink-0 text-[#B4643C] dark:text-amber-400" />
