@@ -245,9 +245,10 @@ class UserService(BaseService[UserDB, UserRepository]):
         page: PageParams,
         role: WorkspaceRole | None = None,
         search: str | None = None,
+        team_id: UUID | None = None,
     ) -> Page[UserResponse]:
         rows, total = await self.repository.list(
-            workspace_id, page, role=role, search=search
+            workspace_id, page, role=role, search=search, team_id=team_id
         )
         items = []
         for user, membership in rows:

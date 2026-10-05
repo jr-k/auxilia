@@ -14,6 +14,8 @@ export interface UserListParams {
 	role?: WorkspaceRole;
 	/** Name or email substring. */
 	search?: string;
+	/** Only members assigned to this team. */
+	teamId?: string;
 }
 
 export async function listUsers(params: UserListParams): Promise<Paginated<User>> {
