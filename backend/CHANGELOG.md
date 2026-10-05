@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.10.9](https://github.com/jr-k/auxilia/compare/backend-v0.10.8...backend-v0.10.9) (2026-10-05)
+
+
+### Features
+
+* **mcp:** expose OAuth callback URL ([efc1034](https://github.com/jr-k/auxilia/commit/efc1034d5313c306727e05f7c3daff62d0a27e10))
+* **users:** filter workspace members by team ([24e834c](https://github.com/jr-k/auxilia/commit/24e834cfc09adb4141956683a9a743c2cbb599a8))
+
 ## [0.10.8](https://github.com/jr-k/auxilia/compare/backend-v0.10.7...backend-v0.10.8) (2026-10-04)
 
 
