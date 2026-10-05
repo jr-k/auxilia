@@ -38,6 +38,7 @@ import { SkillDeleteDescription } from "./skill-delete-description";
 import type { ResourceVisibility } from "@/types/visibility";
 import { cn } from "@/lib/utils";
 import { useSkillsStore } from "@/stores/skills-store";
+import { useUnsavedChangesWarning } from "@/hooks/use-unsaved-changes-warning";
 import {
 	countScripts,
 	isDetached,
@@ -232,6 +233,7 @@ export default function SkillEditor({
 		(JSON.stringify(draft) !== JSON.stringify(initial) ||
 			imageFile !== null ||
 			removeImage);
+	useUnsavedChangesWarning(isDirty);
 	const name = fields?.name ?? skill?.name ?? "";
 	const description = fields?.description ?? skill?.description ?? "";
 	const agents = skill?.agents ?? [];
@@ -268,17 +270,6 @@ export default function SkillEditor({
 			document.removeEventListener("mousedown", close);
 		};
 	}, [showIdentityPicker]);
-
-	useEffect(() => {
-		if (!isDirty) return;
-		const warn = (event: BeforeUnloadEvent) => {
-			event.preventDefault();
-		};
-		window.addEventListener("beforeunload", warn);
-		return () => {
-			window.removeEventListener("beforeunload", warn);
-		};
-	}, [isDirty]);
 
 	const selectEmoji = (data: EmojiClickData) => {
 		setDraft((current) => ({ ...current, emoji: data.emoji }));
