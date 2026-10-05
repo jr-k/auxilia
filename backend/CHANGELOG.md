@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.11](https://github.com/jr-k/auxilia/compare/backend-v0.10.10...backend-v0.10.11) (2026-10-05)
+
+
+### Bug Fixes
+
+* **mcp:** accept Google Workspace success responses ([#19](https://github.com/jr-k/auxilia/issues/19)) ([1531a0e](https://github.com/jr-k/auxilia/commit/1531a0ed29eaab1fa84a5a686ef6cef5d1443f89))
+
 ## [0.10.10](https://github.com/jr-k/auxilia/compare/backend-v0.10.9...backend-v0.10.10) (2026-10-05)
 
 
