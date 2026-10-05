@@ -28,6 +28,7 @@ import type { ResourceVisibility } from "@/types/visibility";
 import { ConnectedUsersPanel } from "./connected-users-panel";
 import { ConnectionTestBanner } from "./connection-test-banner";
 import { MCPServerToolsPanel } from "./mcp-server-tools-panel";
+import { OAuthCallbackUrl } from "./oauth-callback-url";
 import { ServerIconTile } from "./server-icon-tile";
 import {
 	HeaderButton,
@@ -559,6 +560,9 @@ export default function MCPServerDetail({
 							)}
 							{isOauth && (
 								<>
+									<ConfigRow label="Callback URL">
+										<OAuthCallbackUrl showLabel={false} />
+									</ConfigRow>
 									<ConfigRow label="Client ID">
 										{server.oauthClientId ? (
 											<span className="break-all font-mono text-[12px] text-foreground">
@@ -716,6 +720,7 @@ export default function MCPServerDetail({
 											? "Client ID and secret are configured. Edit the Client ID as needed; leave the secret blank to keep it, or enter a new one to replace it."
 											: "This server uses Dynamic Client Registration. Fill both fields to switch it to static credentials."}
 									</div>
+									<OAuthCallbackUrl />
 									<div className="flex flex-col gap-[7px]">
 										<label htmlFor="mcp-edit-client-id" className={LABEL_CLASS}>
 											Client ID

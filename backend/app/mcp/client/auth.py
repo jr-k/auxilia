@@ -54,8 +54,8 @@ from mcp.shared.auth import (
 )
 from pydantic import AnyHttpUrl, AnyUrl
 
+from app.auth.settings import auth_settings
 from app.mcp.client.exceptions import OAuthAuthorizationRequired
-from app.settings import app_settings
 
 
 logger = logging.getLogger(__name__)
@@ -251,6 +251,12 @@ def strip_client_id_for_basic_auth(request: httpx2.Request) -> httpx2.Request:
     return httpx2.Request(request.method, request.url, data=data, headers=headers)
 
 
+def oauth_callback_url() -> str:
+    """Public redirect URI administrators must register with OAuth providers."""
+    frontend_url = auth_settings.FRONTEND_URL.rstrip("/")
+    return f"{frontend_url}/api/backend/mcp-servers/oauth/callback"
+
+
 def build_oauth_client_metadata() -> OAuthClientMetadata:
     """Static OAuth client-registration metadata for auxilia.
 
@@ -269,9 +275,7 @@ def build_oauth_client_metadata() -> OAuthClientMetadata:
     """
     return OAuthClientMetadata(
         client_name="auxilia",
-        redirect_uris=[
-            AnyUrl(f"{app_settings.backend_url}/mcp-servers/oauth/callback")
-        ],
+        redirect_uris=[AnyUrl(oauth_callback_url())],
         grant_types=["authorization_code", "refresh_token"],
         response_types=["code"],
         token_endpoint_auth_method=AUTH_METHOD_POST,

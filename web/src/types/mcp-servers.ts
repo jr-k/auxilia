@@ -59,6 +59,10 @@ export interface OAuthSecretHint {
 	length?: number | null;
 }
 
+export interface OAuthCallbackInfo {
+	callbackUrl: string;
+}
+
 export interface MCPServerTool {
 	name: string;
 	description?: string | null;
