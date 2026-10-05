@@ -355,7 +355,11 @@ class WebOAuthClientProvider(OAuthClientProvider):
             if self.context.client_info:
                 self.context.client_info.token_endpoint_auth_method = auth_method
 
-        if not self.context.client_info and self._client_id:
+        # Static credentials are authoritative. A server can be switched from
+        # DCR to a pre-registered client while Redis still contains the dynamic
+        # registration; reusing that stale client_id makes the provider compare
+        # our current redirect URI against the wrong OAuth application.
+        if self._client_id:
             self.context.client_info = OAuthClientInformationFull(
                 client_id=self._client_id,
                 client_secret=self._client_secret,

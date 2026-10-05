@@ -79,7 +79,7 @@ export function MCPServerToolsPanel({
 					</p>
 				</div>
 				{tools.length > 0 && (
-					<span className="shrink-0 rounded-full bg-hover px-2.5 py-1 text-[10.5px] font-semibold text-subtle dark:bg-white/10 dark:text-panel-body">
+					<span className="shrink-0 rounded-[4px] bg-hover px-2.5 py-1 text-[10.5px] font-semibold text-subtle dark:bg-white/10 dark:text-panel-body">
 						{enabledCount}/{tools.length} enabled
 					</span>
 				)}

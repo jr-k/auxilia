@@ -131,7 +131,7 @@ export default function AgentCard({
 							: NO_ACCESS_BADGE;
 						return (
 							<span
-								className={`ml-auto shrink-0 rounded-full px-[9px] py-[3px] text-[10.5px] font-semibold ${badge.bg} ${badge.text}`}
+								className={`ml-auto shrink-0 rounded-[4px] px-[9px] py-[3px] text-[10.5px] font-semibold ${badge.bg} ${badge.text}`}
 							>
 								{badge.label}
 							</span>

@@ -829,7 +829,7 @@ export default function UsersPage() {
 								</div>
 
 								{/* Status pill */}
-								<span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-warning-bg px-2.5 py-1 text-[11px] font-semibold text-warning dark:bg-amber-950 dark:text-amber-300">
+								<span className="inline-flex w-fit items-center gap-1.5 rounded-[4px] bg-warning-bg px-2.5 py-1 text-[11px] font-semibold text-warning dark:bg-amber-950 dark:text-amber-300">
 									<span className="size-[5px] rounded-full bg-warning" />
 									{invite.role in ROLE_LABELS
 										? ROLE_LABELS[invite.role as Role]
