@@ -35,7 +35,7 @@ export function ChatHeader() {
 	if (triggerName) {
 		return (
 			<div className="flex h-14 shrink-0 items-center justify-center gap-2 border-b border-border px-5 text-[14px]">
-				<div className="flex size-7 shrink-0 items-center justify-center rounded-[4px] bg-petrol-tint dark:bg-white/10">
+				<div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-petrol-tint dark:bg-white/10">
 					<AlarmClock className="size-3.5 text-petrol dark:text-panel-terminal" />
 				</div>
 				{triggerId ? (

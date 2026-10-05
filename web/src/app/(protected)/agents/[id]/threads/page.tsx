@@ -101,7 +101,7 @@ export default function AgentThreadsPage() {
 			hideBelowMd: true,
 			cell: (thread) => (
 				<div className="flex min-w-0 items-center gap-2.5">
-					<span className="flex size-[26px] shrink-0 items-center justify-center rounded-[4px] bg-[#e7f0eb] font-[family-name:var(--font-jakarta-sans)] text-[10px] font-bold text-[#3d8b63] dark:bg-emerald-950 dark:text-emerald-300">
+					<span className="flex size-[26px] shrink-0 items-center justify-center rounded-full bg-[#e7f0eb] font-[family-name:var(--font-jakarta-sans)] text-[10px] font-bold text-[#3d8b63] dark:bg-emerald-950 dark:text-emerald-300">
 						{initials(thread.userName, thread.userEmail)}
 					</span>
 					<span className="truncate font-[family-name:var(--font-dm-sans)] text-[13px] font-medium text-[#5f7068] dark:text-muted-foreground">
@@ -149,7 +149,7 @@ export default function AgentThreadsPage() {
 					onClick={() => {
 						router.push(`/agents/${agentId}`);
 					}}
-					className="shrink-0 w-10 h-10 rounded-[4px] bg-[#F5F8F6] dark:bg-white/10 flex items-center justify-center cursor-pointer transition-colors hover:bg-[#EDF4F0] dark:hover:bg-white/15"
+					className="shrink-0 w-10 h-10 rounded-full bg-[#F5F8F6] dark:bg-white/10 flex items-center justify-center cursor-pointer transition-colors hover:bg-[#EDF4F0] dark:hover:bg-white/15"
 					aria-label="Back to agent"
 				>
 					<ArrowLeft className="w-[18px] h-[18px] text-[#6B7F76]" />

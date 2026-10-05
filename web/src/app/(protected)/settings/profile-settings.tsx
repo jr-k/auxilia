@@ -211,7 +211,7 @@ function IdentityCard({ user }: { user: CurrentUser }) {
 					setImageRemoved(true);
 				}}
 				label="Profile photo"
-				previewShape="square"
+				previewShape="circle"
 				removable={Boolean(user.imageRevision)}
 				disabled={saving}
 				className="mb-5"
@@ -536,7 +536,7 @@ function TwoFactorCard({ user }: { user: CurrentUser }) {
 				<div>
 					<div className="mb-4 flex items-center justify-between rounded-[9px] border border-petrol/20 bg-[#F2F8F8] px-4 py-3 dark:bg-petrol/10">
 						<div className="flex items-center gap-2.5">
-							<span className="size-2 rounded-[1px] bg-emerald-500" />
+							<span className="size-2 rounded-full bg-emerald-500" />
 							<span className="text-[13px] font-semibold text-foreground">
 								Two-factor authentication is enabled
 							</span>

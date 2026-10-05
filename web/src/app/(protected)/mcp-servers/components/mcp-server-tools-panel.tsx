@@ -185,7 +185,7 @@ export function MCPServerToolsPanel({
 											}`}
 										>
 											<span
-												className={`size-[5px] rounded-[1px] ${
+												className={`size-[5px] rounded-full ${
 													enabled ? "bg-success" : "bg-meta"
 												}`}
 											/>

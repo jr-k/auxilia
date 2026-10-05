@@ -32,7 +32,7 @@ interface ImageUploadProps {
 	label?: string;
 	disabled?: boolean;
 	removable?: boolean;
-	previewShape?: "square" | "rounded";
+	previewShape?: "circle" | "rounded";
 	className?: string;
 }
 
@@ -56,13 +56,13 @@ export function ImageUpload({
 			<div
 				className={cn(
 					"flex size-16 shrink-0 items-center justify-center overflow-hidden border border-input bg-hover dark:bg-white/5",
-					previewShape === "square" ? "rounded-[4px]" : "rounded-[14px]",
+					previewShape === "circle" ? "rounded-full" : "rounded-[14px]",
 				)}
 			>
 				{file ? (
 					<ImageFilePreview
 						file={file}
-						className={previewShape === "square" ? "rounded-[4px]" : undefined}
+						className={previewShape === "circle" ? "rounded-full" : undefined}
 					/>
 				) : source ? (
 					// Browser-direct request keeps the session cookie; Next's optimizer does not.
@@ -72,7 +72,7 @@ export function ImageUpload({
 						alt=""
 						className={cn(
 							"size-full object-cover",
-							previewShape === "square" && "rounded-[4px]",
+							previewShape === "circle" && "rounded-full",
 						)}
 					/>
 				) : (

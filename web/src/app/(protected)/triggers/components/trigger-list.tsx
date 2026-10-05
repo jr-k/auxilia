@@ -115,7 +115,7 @@ export default function TriggerList({
 			cell: (trigger) => (
 				<div className="flex min-w-0 items-center gap-2.5">
 					<span
-						className={`size-2 shrink-0 rounded-[1px] ${
+						className={`size-2 shrink-0 rounded-full ${
 							trigger.isActive ? "bg-success" : "bg-faint"
 						}`}
 					/>

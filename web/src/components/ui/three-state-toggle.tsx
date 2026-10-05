@@ -68,7 +68,7 @@ function BlockIcon() {
 			strokeLinecap="round"
 			strokeLinejoin="round"
 		>
-			<rect x="2" y="2" width="20" height="20" rx="3" />
+			<circle cx="12" cy="12" r="10" />
 			<path d="m4.9 4.9 14.2 14.2" />
 		</svg>
 	);
@@ -96,12 +96,12 @@ export function ThreeStateToggle({
 	return (
 		<div
 			className={cn(
-				"relative inline-flex items-center rounded-[4px] bg-hover p-[3px] dark:bg-white/10",
+				"relative inline-flex items-center rounded-full bg-hover p-[3px] dark:bg-white/10",
 				className,
 			)}
 		>
 			<div
-				className="absolute h-6 w-8 rounded-[4px] bg-card shadow-raised transition-all duration-300 ease-out"
+				className="absolute h-6 w-8 rounded-full bg-card shadow-raised transition-all duration-300 ease-out"
 				style={{
 					left: `${3 + selectedIndex * 32}px`,
 				}}
@@ -120,7 +120,7 @@ export function ThreeStateToggle({
 								onChange(state.id);
 							}}
 							className={cn(
-								"relative z-10 flex h-6 w-8 items-center justify-center rounded-[4px]",
+								"relative z-10 flex h-6 w-8 items-center justify-center rounded-full",
 								"transition-colors duration-200 cursor-pointer",
 								isSelected
 									? "text-foreground"

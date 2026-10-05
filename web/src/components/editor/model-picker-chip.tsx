@@ -86,7 +86,7 @@ export function ModelPickerChip({
 	const chip = (
 		<div
 			className={cn(
-				"inline-flex items-center gap-2 h-9 rounded-[4px] px-3 bg-hover dark:bg-white/5 text-[13px] font-medium text-foreground transition-colors",
+				"inline-flex items-center gap-2 h-9 rounded-full px-3 bg-hover dark:bg-white/5 text-[13px] font-medium text-foreground transition-colors",
 				!disabled &&
 					"cursor-pointer hover:bg-petrol-tint dark:hover:bg-white/10",
 			)}

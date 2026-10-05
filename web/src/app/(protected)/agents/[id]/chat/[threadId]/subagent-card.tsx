@@ -220,7 +220,7 @@ export const SubAgentCard = memo(function SubAgentCard({
       node={
         // Same 22px square as the other rail nodes. The pastel is translucent
         // (~8% alpha), so an opaque card layer sits under it to hide the rail.
-        <span className="relative z-[1] flex size-[22px] shrink-0 rounded-[4px] bg-card">
+        <span className="relative z-[1] flex size-[22px] shrink-0 rounded-full bg-card">
           <AgentAvatar
             name={agent?.name}
             color={agent?.color}
@@ -286,9 +286,9 @@ export const SubAgentProgress = memo(function SubAgentProgress({
 
   return (
     <div className="flex items-center gap-2 text-[10.5px] text-meta dark:text-panel-dim">
-      <div className="h-1 flex-1 overflow-hidden rounded-[1px] bg-hover dark:bg-white/10">
+      <div className="h-1 flex-1 overflow-hidden rounded-full bg-hover dark:bg-white/10">
         <div
-          className="h-full rounded-[4px] bg-petrol transition-all duration-300"
+          className="h-full rounded-full bg-petrol transition-all duration-300"
           style={{ width: `${(completed / total) * 100}%` }}
         />
       </div>

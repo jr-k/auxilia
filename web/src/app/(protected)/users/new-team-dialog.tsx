@@ -118,7 +118,7 @@ export default function NewTeamDialog({
 										setColor(c);
 									}}
 									style={{ backgroundColor: c }}
-									className={`size-7 cursor-pointer rounded-[4px] transition-transform hover:scale-110 ${
+									className={`size-7 cursor-pointer rounded-full transition-transform hover:scale-110 ${
 										color === c
 											? "ring-2 ring-petrol ring-offset-2 dark:ring-offset-card"
 											: ""
@@ -127,13 +127,13 @@ export default function NewTeamDialog({
 							))}
 							<label
 								title="Custom color"
-								className={`relative size-7 cursor-pointer overflow-hidden rounded-[4px] bg-[conic-gradient(#e84393,#e17055,#fdcb6e,#00b894,#0984e3,#6c5ce7,#e84393)] transition-transform hover:scale-110 ${
+								className={`relative size-7 cursor-pointer overflow-hidden rounded-full bg-[conic-gradient(#e84393,#e17055,#fdcb6e,#00b894,#0984e3,#6c5ce7,#e84393)] transition-transform hover:scale-110 ${
 									!AGENT_COLORS.includes(color)
 										? "ring-2 ring-petrol ring-offset-2 dark:ring-offset-card"
 										: ""
 								}`}
 							>
-								<span className="absolute inset-[5px] rounded-[4px] border border-white/80 bg-card" />
+								<span className="absolute inset-[5px] rounded-full border border-white/80 bg-card" />
 								<input
 									type="color"
 									value={color}
