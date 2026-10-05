@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.11.10](https://github.com/jr-k/auxilia/compare/web-v0.11.9...web-v0.11.10) (2026-10-05)
+
+
+### Features
+
+* **mcp:** expose OAuth callback URL ([efc1034](https://github.com/jr-k/auxilia/commit/efc1034d5313c306727e05f7c3daff62d0a27e10))
+* **users:** filter workspace members by team ([24e834c](https://github.com/jr-k/auxilia/commit/24e834cfc09adb4141956683a9a743c2cbb599a8))
+
+
+### Bug Fixes
+
+* **mcp:** respect disabled tools in agent configuration ([7924297](https://github.com/jr-k/auxilia/commit/7924297ce8c5ac2421ab8f2a72d14b3e01947158))
+
 ## [0.11.9](https://github.com/jr-k/auxilia/compare/web-v0.11.8...web-v0.11.9) (2026-10-04)
 
 
