@@ -53,12 +53,15 @@ async def create_user(
 async def get_users(
     role: WorkspaceRole | None = None,
     search: str | None = None,
+    team_id: UUID | None = None,
     page: PageParams = Depends(),
     _: UserDB = Depends(get_current_user),
     workspace_id: UUID = Depends(get_active_workspace_id),
     service: UserService = Depends(get_user_service),
 ) -> Page[UserResponse]:
-    return await service.list(workspace_id, page, role=role, search=search)
+    return await service.list(
+        workspace_id, page, role=role, search=search, team_id=team_id
+    )
 
 
 # Declared before /{user_id} so "role-counts" is not captured as a user id.

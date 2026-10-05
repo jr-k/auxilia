@@ -11,6 +11,7 @@ import {
 	MoreVertical,
 	Pencil,
 	Trash2,
+	Users,
 } from "lucide-react";
 import ForbiddenErrorDialog from "@/components/forbidden-error-dialog";
 import { useConfirmDialog } from "@/components/providers/dialog-provider";
@@ -83,6 +84,7 @@ export default function UsersPage() {
 	const activeWorkspaceId = useWorkspacesStore((state) => state.activeWorkspaceId);
 	const isAdmin = currentUser?.role === "admin";
 	const fetchUsersTicket = useRef(0);
+	const membersTableRef = useRef<HTMLDivElement>(null);
 	const [users, setUsers] = useState<User[]>([]);
 	const [total, setTotal] = useState(0);
 	const [offset, setOffset] = useState(0);
@@ -94,6 +96,7 @@ export default function UsersPage() {
 	// doesn't flash an unfiltered page before the debounce settles.
 	const [debouncedSearch, setDebouncedSearch] = useState(search.trim());
 	const [roleFilterParam, setRoleFilter] = useQueryParamState("role", "all");
+	const [teamFilterId, setTeamFilterId] = useQueryParamState("team");
 	const roleFilter: "all" | Role =
 		roleFilterParam === "admin" ||
 		roleFilterParam === "editor" ||
@@ -127,6 +130,7 @@ export default function UsersPage() {
 				offset,
 				...(roleFilter !== "all" && { role: roleFilter }),
 				...(debouncedSearch && { search: debouncedSearch }),
+				...(teamFilterId && { teamId: teamFilterId }),
 			});
 			if (ticket !== fetchUsersTicket.current) return;
 			setUsers(page.items);
@@ -137,7 +141,7 @@ export default function UsersPage() {
 		} finally {
 			if (ticket === fetchUsersTicket.current) setIsLoading(false);
 		}
-	}, [offset, roleFilter, debouncedSearch]);
+	}, [offset, roleFilter, debouncedSearch, teamFilterId]);
 
 	const fetchRoleCounts = useCallback(async () => {
 		try {
@@ -176,6 +180,7 @@ export default function UsersPage() {
 		() => new Map(teams.map((t) => [t.id, t])),
 		[teams],
 	);
+	const filteredTeam = teamFilterId ? teamsById.get(teamFilterId) : undefined;
 
 	const handleRoleFilterChange = (key: "all" | Role) => {
 		setRoleFilter(key);
@@ -303,6 +308,19 @@ export default function UsersPage() {
 		setNewTeamDialogOpen(true);
 	};
 
+	const handleViewTeamMembers = (team: Team) => {
+		setSearch("");
+		setRoleFilter("all");
+		setTeamFilterId(team.id);
+		setOffset(0);
+		requestAnimationFrame(() => {
+			membersTableRef.current?.scrollIntoView({
+				behavior: "smooth",
+				block: "start",
+			});
+		});
+	};
+
 	const handleDeleteTeam = async (team: Team) => {
 		const memberCount = team.memberCount;
 		const confirmed = await confirmDialog({
@@ -319,6 +337,9 @@ export default function UsersPage() {
 		try {
 			await teamsApi.deleteTeam(team.id);
 			setTeams((prev) => prev.filter((t) => t.id !== team.id));
+			if (teamFilterId === team.id) {
+				setTeamFilterId("");
+			}
 			// Mirror the DB's ON DELETE SET NULL so the table reflects reality.
 			setUsers((prev) =>
 				prev.map((u) => (u.teamId === team.id ? { ...u, teamId: null } : u)),
@@ -651,27 +672,47 @@ export default function UsersPage() {
 						</button>
 					);
 				})}
+				{teamFilterId && (
+					<button
+						type="button"
+						aria-label={`Clear ${filteredTeam?.name ?? "team"} filter`}
+						onClick={() => {
+							setTeamFilterId("");
+							setOffset(0);
+						}}
+						className="inline-flex cursor-pointer items-center gap-[7px] rounded-full bg-petrol-tint px-[13px] py-1.5 text-[12.5px] font-semibold text-petrol dark:bg-white/10 dark:text-panel-terminal"
+					>
+						<span
+							className="size-1.5 rounded-full"
+							style={{ background: filteredTeam?.color ?? "#9E9E9E" }}
+						/>
+						{filteredTeam?.name ?? "Team"}
+						<X className="size-3.5 opacity-70" />
+					</button>
+				)}
 			</div>
 
 			{/* Member list */}
-			<DataTable
-				columns={columns}
-				rows={users}
-				rowKey={(user) => user.id}
-				isLoading={isLoading}
-				emptyMessage={
-					debouncedSearch || roleFilter !== "all"
-						? "No users match your filters."
-						: "No members in this workspace."
-				}
-				pagination={{
-					total,
-					limit: PAGE_SIZE,
-					offset,
-					onOffsetChange: setOffset,
-					itemLabel: total === 1 ? "user" : "users",
-				}}
-			/>
+			<div ref={membersTableRef} className="scroll-mt-4">
+				<DataTable
+					columns={columns}
+					rows={users}
+					rowKey={(user) => user.id}
+					isLoading={isLoading}
+					emptyMessage={
+						debouncedSearch || roleFilter !== "all" || teamFilterId
+							? "No users match your filters."
+							: "No members in this workspace."
+					}
+					pagination={{
+						total,
+						limit: PAGE_SIZE,
+						offset,
+						onOffsetChange: setOffset,
+						itemLabel: total === 1 ? "user" : "users",
+					}}
+				/>
+			</div>
 
 			{/* Teams */}
 			<div className="flex items-baseline gap-2.5 pt-[18px] pb-3">
@@ -723,6 +764,14 @@ export default function UsersPage() {
 										</button>
 									}
 									items={[
+										{
+											label: "View Members",
+											icon: <Users />,
+											onClick: () => {
+												handleViewTeamMembers(team);
+											},
+										},
+										{ separator: true },
 										{
 											label: "Rename",
 											icon: <Pencil />,

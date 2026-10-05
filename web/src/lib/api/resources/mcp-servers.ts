@@ -16,6 +16,7 @@ import type {
 	MCPServerConnection,
 	MCPServerCreate,
 	MCPServerUpdate,
+	OAuthCallbackInfo,
 	OAuthSecretHint,
 	OfficialMCPServer,
 } from "@/types/mcp-servers";
@@ -103,6 +104,17 @@ export async function isMcpServerConnected(serverId: string): Promise<boolean> {
 		`/mcp-servers/${serverId}/is-connected`,
 	);
 	return Boolean(response.data.connected);
+}
+
+/** Public redirect URI to register in an OAuth provider application. */
+export async function getOAuthCallbackInfo(
+	options: { signal?: AbortSignal } = {},
+): Promise<OAuthCallbackInfo> {
+	const response = await api.get<OAuthCallbackInfo>(
+		"/mcp-servers/oauth/callback-info",
+		{ signal: options.signal },
+	);
+	return response.data;
 }
 
 /** The stored OAuth client secret, masked (admin only). */

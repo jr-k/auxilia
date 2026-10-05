@@ -16,6 +16,7 @@ import { useMcpServersStore } from "@/stores/mcp-servers-store";
 import { MCPAuthType, OfficialMCPServer } from "@/types/mcp-servers";
 import { groupOptions } from "@/lib/groups";
 import { ConnectionTestBanner } from "../../components/connection-test-banner";
+import { OAuthCallbackUrl } from "../../components/oauth-callback-url";
 import {
 	HeaderButton,
 	HeaderPrimaryButton,
@@ -466,6 +467,7 @@ export default function CustomMCPServerPage() {
 										</>
 									)}
 								</div>
+								<OAuthCallbackUrl />
 								<div className="flex flex-col gap-[7px]">
 									<label htmlFor="mcp-oauth-client-id" className={LABEL_CLASS}>
 										Client ID{isNonDcrOAuth ? "" : OPTIONAL_HINT}

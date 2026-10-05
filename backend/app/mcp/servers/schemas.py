@@ -125,6 +125,12 @@ class OAuthSecretHint(SQLModel):
     length: int | None = None
 
 
+class OAuthCallbackInfo(SQLModel):
+    """Public redirect URI to register in a provider's OAuth application."""
+
+    callback_url: str
+
+
 class MCPServerConnectionResponse(SQLModel):
     """A user's stored OAuth connection to an MCP server (admin view).
 

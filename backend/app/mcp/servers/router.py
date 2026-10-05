@@ -10,6 +10,7 @@ from app.agents.mcp_servers.service import (
 )
 from app.auth.dependencies import get_current_user, require_admin
 from app.database import get_db
+from app.mcp.client.auth import oauth_callback_url
 from app.mcp.client.connectivity import is_authorized, probe_candidate, test_connection
 from app.mcp.servers.models import MCPServerDB
 from app.mcp.servers.schemas import (
@@ -23,6 +24,7 @@ from app.mcp.servers.schemas import (
     MCPServerCreate,
     MCPServerPatch,
     MCPServerResponse,
+    OAuthCallbackInfo,
     OAuthSecretHint,
     OfficialMCPServerResponse,
     ToolsListed,
@@ -78,6 +80,13 @@ async def sync_official_catalog(
     back) when the fetch or validation fails — the admin pressed the button and
     needs to know."""
     return await service.sync_catalog()
+
+
+@router.get("/oauth/callback-info", response_model=OAuthCallbackInfo)
+async def get_oauth_callback_info(
+    _current_user: UserDB = Depends(get_current_user),
+) -> OAuthCallbackInfo:
+    return OAuthCallbackInfo(callback_url=oauth_callback_url())
 
 
 @router.get("/{server_id}", response_model=MCPServerResponse)

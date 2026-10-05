@@ -152,6 +152,7 @@ class UserRepository(BaseRepository[UserDB]):
         page: PageParams,
         role: WorkspaceRole | None = None,
         search: str | None = None,
+        team_id: UUID | None = None,
     ) -> tuple[list[tuple[UserDB, WorkspaceMembershipDB]], int]:
         stmt = (
             select(UserDB, WorkspaceMembershipDB)
@@ -164,6 +165,8 @@ class UserRepository(BaseRepository[UserDB]):
         )
         if role is not None:
             stmt = stmt.where(WorkspaceMembershipDB.role == role)
+        if team_id is not None:
+            stmt = stmt.where(WorkspaceMembershipDB.team_id == team_id)
         if search:
             pattern = f"%{_escape_like(search)}%"
             stmt = stmt.where(
