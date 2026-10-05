@@ -858,7 +858,7 @@ export const PromptInput = ({
 							)}
 						>
 							{disableAttachments && (
-								<span className="rounded-full border border-destructive/30 bg-card px-3 py-1.5 text-[13px] font-medium text-destructive shadow-sm">
+								<span className="rounded-[4px] border border-destructive/30 bg-card px-3 py-1.5 text-[13px] font-medium text-destructive shadow-sm">
 									{attachmentsDisabledMessage}
 								</span>
 							)}

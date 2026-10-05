@@ -131,7 +131,7 @@ export default function AgentCard({
 							: NO_ACCESS_BADGE;
 						return (
 							<span
-								className={`ml-auto shrink-0 rounded-full px-[9px] py-[3px] text-[10.5px] font-semibold ${badge.bg} ${badge.text}`}
+								className={`ml-auto shrink-0 rounded-[4px] px-[9px] py-[3px] text-[10.5px] font-semibold ${badge.bg} ${badge.text}`}
 							>
 								{badge.label}
 							</span>
@@ -152,7 +152,7 @@ export default function AgentCard({
 								<span
 									key={server.id}
 									title={server.name}
-									className="-ml-1.5 flex size-5 items-center justify-center overflow-hidden rounded-full border border-[#e1ebe6] bg-surface first:ml-0 dark:border-white/10 dark:bg-white/5"
+									className="-ml-1.5 flex size-5 items-center justify-center overflow-hidden rounded-[4px] border border-[#e1ebe6] bg-surface first:ml-0 dark:border-white/10 dark:bg-white/5"
 								>
 									{/* eslint-disable-next-line @next/next/no-img-element */}
 									<img
@@ -184,7 +184,7 @@ export default function AgentCard({
 													}
 												: undefined
 										}
-										className="-ml-1.5 flex size-5 items-center justify-center rounded-full border border-[#e1ebe6] bg-surface text-[13px] leading-none first:ml-0 dark:border-white/10 dark:bg-white/5"
+										className="-ml-1.5 flex size-5 items-center justify-center rounded-[4px] border border-[#e1ebe6] bg-surface text-[13px] leading-none first:ml-0 dark:border-white/10 dark:bg-white/5"
 									>
 										{sub.emoji || "🤖"}
 									</span>
@@ -195,7 +195,7 @@ export default function AgentCard({
 											.slice(4)
 											.map((s) => s.name)
 											.join(", ")}
-										className="-ml-1.5 flex size-5 items-center justify-center rounded-full border border-[#e1ebe6] bg-surface text-[9px] font-semibold text-[#7d8077] first:ml-0 dark:border-white/10 dark:bg-white/5 dark:text-muted-foreground"
+										className="-ml-1.5 flex size-5 items-center justify-center rounded-[4px] border border-[#e1ebe6] bg-surface text-[9px] font-semibold text-[#7d8077] first:ml-0 dark:border-white/10 dark:bg-white/5 dark:text-muted-foreground"
 									>
 										+{agent.subagents.length - 4}
 									</span>

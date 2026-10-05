@@ -318,6 +318,7 @@ class MCPServerService(BaseService[MCPServerDB, MCPServerRepository]):
         updated: MCPServerDB,
         previous_auth_type: MCPAuthType,
         previous_url: str,
+        oauth_credentials_changed: bool = False,
     ) -> None:
         """Drop stored state the edit has just made meaningless.
 
@@ -336,13 +337,19 @@ class MCPServerService(BaseService[MCPServerDB, MCPServerRepository]):
         * **Auth type changed** — the same Redis purge. The credential row for
           the scheme being left is deleted inside the database transaction by
           :meth:`update`, before this post-commit cleanup runs.
+        * **Static OAuth credentials changed** — tokens and a previous dynamic
+          client registration belong to a different OAuth application.
 
         Redis purging is best-effort: a cache that is down must not fail the
         edit. The cost of a miss is a stale token, which the next authorization
         overwrites anyway.
         """
         auth_type_changed = updated.auth_type != previous_auth_type
-        if not auth_type_changed and updated.url == previous_url:
+        if (
+            not auth_type_changed
+            and updated.url == previous_url
+            and not oauth_credentials_changed
+        ):
             return
 
         try:

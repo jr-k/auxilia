@@ -103,7 +103,7 @@ export default function NewTriggerPage() {
 										</p>
 									</div>
 									<div className="flex self-center">
-										<span className="flex size-7 items-center justify-center rounded-full bg-sidebar text-meta transition-all group-hover:bg-petrol group-hover:text-white dark:bg-white/5">
+										<span className="flex size-7 items-center justify-center rounded-[4px] bg-sidebar text-meta transition-all group-hover:bg-petrol group-hover:text-white dark:bg-white/5">
 											<ArrowRight className="size-3.5" />
 										</span>
 									</div>

@@ -213,7 +213,7 @@ export function CreateWorkspaceDialog({
 											);
 										}}
 										className={cn(
-											"size-7 cursor-pointer rounded-full outline-none transition-transform hover:scale-110 focus-visible:ring-2 focus-visible:ring-ring/50 disabled:opacity-50",
+											"size-7 cursor-pointer rounded-[4px] outline-none transition-transform hover:scale-110 focus-visible:ring-2 focus-visible:ring-ring/50 disabled:opacity-50",
 											color === candidate && "ring-2 ring-meta ring-offset-2 ring-offset-canvas",
 										)}
 									/>
@@ -221,14 +221,14 @@ export function CreateWorkspaceDialog({
 								<label
 									title="Custom color"
 									className={cn(
-										"relative size-7 cursor-pointer overflow-hidden rounded-full bg-[conic-gradient(#e84393,#e17055,#fdcb6e,#00b894,#0984e3,#6c5ce7,#e84393)] outline-none transition-transform hover:scale-110",
+										"relative size-7 cursor-pointer overflow-hidden rounded-[4px] bg-[conic-gradient(#e84393,#e17055,#fdcb6e,#00b894,#0984e3,#6c5ce7,#e84393)] outline-none transition-transform hover:scale-110",
 										color !== null &&
 											!AGENT_COLORS.includes(color) &&
 											"ring-2 ring-meta ring-offset-2 ring-offset-canvas",
 										submitting && "pointer-events-none opacity-50",
 									)}
 								>
-									<span className="absolute inset-[5px] rounded-full border border-white/80 bg-card" />
+									<span className="absolute inset-[5px] rounded-[4px] border border-white/80 bg-card" />
 									<input
 										type="color"
 										value={color ?? AGENT_COLORS[0]}

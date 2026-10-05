@@ -58,7 +58,7 @@ export function VisibilityBadge({
 			? `${label}: ${teamNames.join(", ")}`
 			: label;
 	return (
-		<span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-hover px-2.5 py-1 text-[10.5px] font-semibold text-subtle dark:bg-white/10 dark:text-panel-body">
+		<span className="inline-flex shrink-0 items-center gap-1.5 rounded-[4px] bg-hover px-2.5 py-1 text-[10.5px] font-semibold text-subtle dark:bg-white/10 dark:text-panel-body">
 			<Icon className="size-3" />
 			{text}
 		</span>

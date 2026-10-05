@@ -101,8 +101,8 @@ function HostCards({ value, onChange, detected }: { value: SkillSourceKind; onCh
 						}`}
 					>
 						<span className="flex items-center gap-2">
-							<span className={`flex size-3.5 shrink-0 items-center justify-center rounded-full border-[1.5px] ${selected ? "border-petrol" : "border-faint"}`}>
-								{selected && <span className="size-[7px] rounded-full bg-petrol" />}
+							<span className={`flex size-3.5 shrink-0 items-center justify-center rounded-[4px] border-[1.5px] ${selected ? "border-petrol" : "border-faint"}`}>
+								{selected && <span className="size-[7px] rounded-[1px] bg-petrol" />}
 							</span>
 							<span className="text-[13px] font-semibold text-foreground">{option.label}</span>
 							{detected === option.value && (

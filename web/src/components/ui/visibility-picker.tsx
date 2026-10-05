@@ -127,7 +127,7 @@ export function VisibilityPicker({
 											className="flex w-full cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-left text-[12.5px] hover:bg-sidebar dark:hover:bg-white/5"
 										>
 											<span
-												className="size-2.5 rounded-full"
+												className="size-2.5 rounded-[1px]"
 												style={{ backgroundColor: team.color ?? "#78909C" }}
 											/>
 											<span className="min-w-0 flex-1 truncate">{team.name}</span>

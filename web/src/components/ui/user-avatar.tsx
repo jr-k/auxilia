@@ -53,7 +53,7 @@ export function UserAvatar({
 					src={source}
 					alt=""
 					referrerPolicy="no-referrer"
-					className="rounded-full"
+					className="rounded-[4px]"
 				/>
 			)}
 			<AvatarFallback

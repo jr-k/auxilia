@@ -53,7 +53,7 @@ export function AgentAvatar({
 					: undefined
 			}
 			className={cn(
-				"flex shrink-0 items-center justify-center overflow-hidden rounded-full font-bold uppercase",
+				"flex shrink-0 items-center justify-center overflow-hidden rounded-[4px] font-bold uppercase",
 				getSizeClass(size),
 				className,
 			)}
@@ -64,7 +64,7 @@ export function AgentAvatar({
 				<img
 					src={imageUrl}
 					alt=""
-					className="size-full rounded-full object-cover"
+					className="size-full rounded-[4px] object-cover"
 					onError={() => {
 						setFailedUrl(imageUrl);
 					}}
