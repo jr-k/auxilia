@@ -443,7 +443,7 @@ export default function UsersPage() {
 				return isCurrentUser || !isAdmin ? (
 					<span className="inline-flex items-center gap-[7px] px-2.5 py-[5px] text-[12.5px] font-medium text-subtle dark:text-muted-foreground">
 						<span
-							className="size-1.5 rounded-[1px]"
+							className="size-1.5 rounded-full"
 							style={{ background: ROLE_DOT[user.role] }}
 						/>
 						{ROLE_LABELS[user.role]}
@@ -453,7 +453,7 @@ export default function UsersPage() {
 						trigger={
 							<button className={CHIP_CLASS}>
 								<span
-									className="size-1.5 rounded-[1px]"
+									className="size-1.5 rounded-full"
 									style={{ background: ROLE_DOT[user.role] }}
 								/>
 								{ROLE_LABELS[user.role]}
@@ -517,7 +517,7 @@ export default function UsersPage() {
 							team ? (
 								<button className={`${CHIP_CLASS} max-w-full`}>
 									<span
-										className="size-1.5 shrink-0 rounded-[1px]"
+										className="size-1.5 shrink-0 rounded-full"
 										style={{ background: team.color ?? "#9E9E9E" }}
 									/>
 									<span className="truncate">{team.name}</span>
@@ -525,7 +525,7 @@ export default function UsersPage() {
 								</button>
 							) : (
 								<button className="inline-flex cursor-pointer items-center gap-[7px] rounded-[7px] border border-dashed border-input bg-transparent px-2.5 py-[5px] text-[12.5px] font-medium text-meta transition-colors hover:border-border-hover hover:text-subtle dark:border-white/15">
-									<span className="size-1.5 shrink-0 rounded-[1px] border border-faint dark:border-white/20" />
+									<span className="size-1.5 shrink-0 rounded-full border border-faint dark:border-white/20" />
 									No team
 									<ChevronDown className="size-3.5 shrink-0 text-meta" />
 								</button>
@@ -535,7 +535,7 @@ export default function UsersPage() {
 							{
 								label: "No team",
 								icon: (
-									<span className="block size-2 rounded-[1px] border border-[#c3d2cb] dark:border-white/25" />
+									<span className="block size-2 rounded-full border border-[#c3d2cb] dark:border-white/25" />
 								),
 								onClick: () => {
 									void handleTeamChange(user.id, null);
@@ -546,7 +546,7 @@ export default function UsersPage() {
 								label: t.name,
 								icon: (
 									<span
-										className="block size-2 rounded-[1px]"
+										className="block size-2 rounded-full"
 										style={{ background: t.color ?? "#9E9E9E" }}
 									/>
 								),
@@ -657,8 +657,8 @@ export default function UsersPage() {
 							}}
 							className={
 								active
-									? "inline-flex cursor-pointer items-center gap-[7px] rounded-[4px] bg-petrol-tint px-[13px] py-1.5 text-[12.5px] font-semibold text-petrol dark:bg-white/10 dark:text-panel-terminal"
-									: "inline-flex cursor-pointer items-center gap-[7px] rounded-[4px] border border-border px-[13px] py-1.5 text-[12.5px] font-medium text-subtle transition-colors hover:bg-sidebar dark:border-white/10 dark:text-panel-body dark:hover:bg-white/5"
+									? "inline-flex cursor-pointer items-center gap-[7px] rounded-full bg-petrol-tint px-[13px] py-1.5 text-[12.5px] font-semibold text-petrol dark:bg-white/10 dark:text-panel-terminal"
+									: "inline-flex cursor-pointer items-center gap-[7px] rounded-full border border-border px-[13px] py-1.5 text-[12.5px] font-medium text-subtle transition-colors hover:bg-sidebar dark:border-white/10 dark:text-panel-body dark:hover:bg-white/5"
 							}
 						>
 							{filter.label}
@@ -680,10 +680,10 @@ export default function UsersPage() {
 							setTeamFilterId("");
 							setOffset(0);
 						}}
-						className="inline-flex cursor-pointer items-center gap-[7px] rounded-[4px] bg-petrol-tint px-[13px] py-1.5 text-[12.5px] font-semibold text-petrol dark:bg-white/10 dark:text-panel-terminal"
+						className="inline-flex cursor-pointer items-center gap-[7px] rounded-full bg-petrol-tint px-[13px] py-1.5 text-[12.5px] font-semibold text-petrol dark:bg-white/10 dark:text-panel-terminal"
 					>
 						<span
-							className="size-1.5 rounded-[1px]"
+							className="size-1.5 rounded-full"
 							style={{ background: filteredTeam?.color ?? "#9E9E9E" }}
 						/>
 						{filteredTeam?.name ?? "Team"}
@@ -746,7 +746,7 @@ export default function UsersPage() {
 							className="group flex items-center gap-3 border-b border-hairline px-4 py-[11px] transition-colors duration-[110ms] last:border-b-0 hover:bg-sidebar dark:border-white/5 dark:hover:bg-white/5"
 						>
 							<span
-								className="block size-[9px] shrink-0 rounded-[1px]"
+								className="block size-[9px] shrink-0 rounded-full"
 								style={{ background: team.color ?? "#9E9E9E" }}
 							/>
 							<span className="flex-1 truncate text-[13.5px] font-semibold text-foreground">
@@ -814,7 +814,7 @@ export default function UsersPage() {
 							>
 								{/* Envelope + email + meta */}
 								<div className="flex min-w-0 items-center gap-3">
-									<span className="flex size-8 shrink-0 items-center justify-center rounded-[4px] border border-dashed border-input text-meta dark:border-white/15">
+									<span className="flex size-8 shrink-0 items-center justify-center rounded-full border border-dashed border-input text-meta dark:border-white/15">
 										<Mail className="size-[14px]" />
 									</span>
 									<div className="min-w-0">
@@ -830,7 +830,7 @@ export default function UsersPage() {
 
 								{/* Status pill */}
 								<span className="inline-flex w-fit items-center gap-1.5 rounded-[4px] bg-warning-bg px-2.5 py-1 text-[11px] font-semibold text-warning dark:bg-amber-950 dark:text-amber-300">
-									<span className="size-[5px] rounded-[1px] bg-warning" />
+									<span className="size-[5px] rounded-full bg-warning" />
 									{invite.role in ROLE_LABELS
 										? ROLE_LABELS[invite.role as Role]
 										: invite.role}{" "}

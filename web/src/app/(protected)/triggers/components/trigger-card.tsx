@@ -68,7 +68,7 @@ export default function TriggerCard({ trigger, onDelete }: TriggerCardProps) {
 			{/* Head: status dot · name · menu (on hover) */}
 			<div className="flex min-h-[30px] min-w-0 items-center gap-2.5">
 				<span
-					className={`size-2 shrink-0 rounded-[1px] ${
+					className={`size-2 shrink-0 rounded-full ${
 						trigger.isActive ? "bg-[#3D8B63]" : "bg-[#C2CFC8]"
 					}`}
 				/>

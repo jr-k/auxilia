@@ -43,7 +43,7 @@ import { PromptQueue } from "./prompt-queue";
 
 // Petrol Mono composer pills: 34px tall, 999px radius, on the hover tint.
 const composerPillClass = cn(
-	"h-[34px] px-3 gap-2 rounded-[4px]",
+	"h-[34px] px-3 gap-2 rounded-full",
 	"text-[13px] font-medium text-foreground",
 	"bg-hover dark:bg-white/5",
 	"hover:bg-petrol-tint dark:hover:bg-white/10",
@@ -456,7 +456,7 @@ const ChatPromptInput = ({
 				/>
 				{effectiveEditingId && (
 					<div className="mb-2 flex items-center gap-2 rounded-lg border border-sky-400/35 bg-sky-500/[0.07] px-3 py-2 text-[12px] font-medium text-sky-700 dark:text-sky-300">
-						<span className="size-1.5 rounded-[1px] bg-sky-500" />
+						<span className="size-1.5 rounded-full bg-sky-500" />
 						Editing queued prompt
 						<span className="flex-1 text-sky-700/65 dark:text-sky-300/65">
 							Submit to save
@@ -734,7 +734,7 @@ const SubmitButton = ({ disabled = false }: { disabled?: boolean }) => {
 			type="submit"
 			disabled={isDisabled}
 			className={cn(
-				"flex size-[38px] items-center justify-center rounded-[4px] transition-all",
+				"flex size-[38px] items-center justify-center rounded-full transition-all",
 				isDisabled
 					? "cursor-not-allowed bg-hover text-ghost dark:bg-white/5 dark:text-panel-dim"
 					: "cursor-pointer bg-petrol text-white shadow-submit hover:opacity-90",
@@ -758,7 +758,7 @@ const StopButton = ({ stop }: { stop: () => void }) => (
 		type="button"
 		onClick={stop}
 		aria-label="Stop current response"
-		className="flex size-[38px] cursor-pointer items-center justify-center rounded-[4px] border border-input bg-card text-subtle transition-colors hover:border-destructive/35 hover:bg-destructive/8 hover:text-destructive"
+		className="flex size-[38px] cursor-pointer items-center justify-center rounded-full border border-input bg-card text-subtle transition-colors hover:border-destructive/35 hover:bg-destructive/8 hover:text-destructive"
 	>
 		<svg width="18" height="18" viewBox="0 0 20 20" fill="currentColor">
 			<rect x="5" y="5" width="10" height="10" rx="2" />
@@ -772,7 +772,7 @@ const ConnectButton = ({ onClick }: { onClick: () => void }) => {
 			type="button"
 			onClick={onClick}
 			className={cn(
-				"flex h-[38px] cursor-pointer items-center gap-2 rounded-[4px] px-4 transition-all",
+				"flex h-[38px] cursor-pointer items-center gap-2 rounded-full px-4 transition-all",
 				"text-[14px] font-semibold",
 				"bg-petrol text-white hover:opacity-90",
 				"shadow-submit",

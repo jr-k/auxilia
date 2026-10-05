@@ -90,7 +90,7 @@ export default function NextRunsCard({
 					>
 						<span
 							className={cn(
-								"flex items-center justify-center size-[30px] shrink-0 rounded-[4px]",
+								"flex items-center justify-center size-[30px] shrink-0 rounded-full",
 								index === 0
 									? "bg-petrol-tint dark:bg-white/10"
 									: "bg-hover dark:bg-white/5",
@@ -98,7 +98,7 @@ export default function NextRunsCard({
 						>
 							<span
 								className={cn(
-									"size-[7px] rounded-[1px]",
+									"size-[7px] rounded-full",
 									index === 0 ? "bg-petrol" : "bg-faint",
 								)}
 							/>

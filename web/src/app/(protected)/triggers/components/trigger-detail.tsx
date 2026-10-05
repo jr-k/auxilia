@@ -215,7 +215,7 @@ export default function TriggerDetail({ trigger }: TriggerDetailProps) {
 								>
 									{liveTrigger.isActive ? "Active" : "Paused"}
 								</span>
-								<span className="size-[3px] rounded-[1px] bg-faint dark:bg-white/20" />
+								<span className="size-[3px] rounded-full bg-faint dark:bg-white/20" />
 								<span className="text-[11px] text-meta dark:text-panel-dim">
 									{liveTrigger.triggerType === "webhook" ? (
 										liveTrigger.isActive ? (
