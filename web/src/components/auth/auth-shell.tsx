@@ -1,4 +1,7 @@
-import { version } from "../../../package.json";
+"use client";
+
+import { appearanceLogoUrl } from "@/lib/api/resources/appearance";
+import { useAppearanceStore } from "@/stores/appearance-store";
 import { ProductShowcase } from "./showcase";
 
 /**
@@ -18,6 +21,8 @@ export function AuthShell({
 	wide?: boolean;
 	children: React.ReactNode;
 }) {
+	const appearance = useAppearanceStore((state) => state.appearance);
+
 	return (
 		<div className={`flex ${wide ? "h-svh overflow-hidden" : "min-h-full"}`}>
 			{/* Left: form */}
@@ -27,13 +32,32 @@ export function AuthShell({
 				}`}
 			>
 				<div className="flex items-center gap-2.5 px-8 lg:px-14">
-					{/* eslint-disable-next-line @next/next/no-img-element -- local SVG, next/image blocks SVG sources */}
-					<img src="/logo.svg" alt="auxilia" width={25} height={25} />
+					{appearance.logoRevision ? (
+						// Browser-direct request avoids routing the custom logo through Next's optimizer.
+						// eslint-disable-next-line @next/next/no-img-element
+						<img
+							src={appearanceLogoUrl(appearance.logoRevision)}
+							alt=""
+							className="size-[25px] rounded-[6px] object-cover"
+						/>
+					) : (
+						<span aria-hidden="true" className="relative size-[25px] shrink-0">
+							{/* eslint-disable-next-line @next/next/no-img-element -- local SVG */}
+							<img
+								src="/logo.svg"
+								alt=""
+								className="size-[25px] dark:hidden"
+							/>
+							{/* eslint-disable-next-line @next/next/no-img-element -- local SVG */}
+							<img
+								src="/logo-dark.svg"
+								alt=""
+								className="hidden size-[25px] dark:block"
+							/>
+						</span>
+					)}
 					<span className="font-display text-xl font-bold tracking-[-0.02em]">
-						auxilia
-					</span>
-					<span className="ml-1 rounded-sm bg-petrol-chip px-1.5 py-0.5 font-mono text-[11px] text-petrol">
-						v{version}
+						{appearance.appName}
 					</span>
 				</div>
 				<div
@@ -52,8 +76,7 @@ export function AuthShell({
 
 					{footer && <p className="mt-7 text-[13.5px] text-label">{footer}</p>}
 				</div>
-				<div className="flex items-center justify-between px-8 text-[11px] text-meta lg:px-14">
-					<span>self-hosted</span>
+				<div className="flex items-center justify-end px-8 text-[11px] text-meta lg:px-14">
 					<span>AGPL-3.0</span>
 				</div>
 			</div>
@@ -72,8 +95,8 @@ export function AuthShell({
 						backgroundSize: "40px 40px",
 					}}
 				/>
-				<div className="relative text-xs font-medium text-panel-terminal">
-					{"// AGENTS THAT WORK LIKE YOUR TEAM"}
+				<div className="relative text-xs font-medium tracking-normal text-panel-terminal">
+					Agents that work like your team
 				</div>
 				<ProductShowcase />
 			</div>

@@ -9,7 +9,7 @@ from app.appearance.service import (
     InstanceAppearanceService,
     get_instance_appearance_service,
 )
-from app.auth.dependencies import get_current_user, require_admin
+from app.auth.dependencies import require_admin
 from app.exceptions import NotFoundError
 from app.users.models import UserDB
 from app.utils.images import image_response, process_uploaded_image
@@ -20,7 +20,6 @@ router = APIRouter(prefix="/appearance", tags=["appearance"])
 
 @router.get("/", response_model=InstanceAppearanceResponse)
 async def get_instance_appearance(
-    _: UserDB = Depends(get_current_user),
     service: InstanceAppearanceService = Depends(get_instance_appearance_service),
 ) -> InstanceAppearanceResponse:
     return await service.get_settings()
@@ -38,7 +37,6 @@ async def update_instance_appearance(
 @router.get("/logo")
 async def get_instance_logo(
     if_none_match: str | None = Header(default=None),
-    _: UserDB = Depends(get_current_user),
     service: InstanceAppearanceService = Depends(get_instance_appearance_service),
 ) -> Response:
     row = await service.get_logo()
