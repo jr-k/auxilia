@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.12](https://github.com/jr-k/auxilia/compare/web-v0.11.11...web-v0.11.12) (2026-10-05)
+
+
+### Bug Fixes
+
+* **web:** restrict square corners to badges ([#17](https://github.com/jr-k/auxilia/issues/17)) ([172810d](https://github.com/jr-k/auxilia/commit/172810d31da3fb1291dfd14b863949b4678abb64))
+
 ## [0.11.11](https://github.com/jr-k/auxilia/compare/web-v0.11.10...web-v0.11.11) (2026-10-05)
 
 
