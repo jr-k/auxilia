@@ -5,11 +5,18 @@ import { Building2, LockKeyhole, Users } from "lucide-react";
 import { listTeams } from "@/lib/api/resources/teams";
 import type { ResourceVisibility } from "@/types/visibility";
 
-const META = {
-	personal: { label: "Personal", Icon: LockKeyhole },
-	workspace: { label: "Workspace", Icon: Building2 },
-	teams: { label: "Teams", Icon: Users },
-} as const;
+function metaFor(visibility: ResourceVisibility) {
+	switch (visibility) {
+		case "personal":
+			return { label: "Personal", Icon: LockKeyhole };
+		case "workspace":
+			return { label: "Workspace", Icon: Building2 };
+		case "teams":
+			return { label: "Teams", Icon: Users };
+	}
+	const unsupported: never = visibility;
+	throw new Error(`Unsupported resource visibility: ${unsupported}`);
+}
 
 export function VisibilityBadge({
 	visibility,
@@ -20,7 +27,7 @@ export function VisibilityBadge({
 	teamIds?: string[];
 	showTeams?: boolean;
 }) {
-	const { label, Icon } = META[visibility];
+	const { label, Icon } = metaFor(visibility);
 	const requestKey =
 		showTeams && visibility === "teams" ? [...teamIds].sort().join(",") : "";
 	const [resolved, setResolved] = useState<{
