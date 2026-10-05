@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.11](https://github.com/jr-k/auxilia/compare/web-v0.11.10...web-v0.11.11) (2026-10-05)
+
+
+### Features
+
+* polish interface branding and OAuth configuration ([#15](https://github.com/jr-k/auxilia/issues/15)) ([0a72edd](https://github.com/jr-k/auxilia/commit/0a72edd04b52aa9b0e20d185ff103cb906cdb9ab))
+
 ## [0.11.10](https://github.com/jr-k/auxilia/compare/web-v0.11.9...web-v0.11.10) (2026-10-05)
 
 
