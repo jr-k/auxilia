@@ -27,6 +27,7 @@ import { DropdownMenu } from "@/components/ui/dropdown-menu";
 import { UnderlineTabs } from "@/components/ui/underline-tabs";
 import { cn } from "@/lib/utils";
 import { groupOptions } from "@/lib/groups";
+import { useUnsavedChangesWarning } from "@/hooks/use-unsaved-changes-warning";
 import * as agentsApi from "@/lib/api/resources/agents";
 import { AgentAvatar } from "@/components/ui/agent-avatar";
 import {
@@ -140,6 +141,7 @@ export default function AgentEditor({
 	const isDirty =
 		!readOnly &&
 		(isFormDirty(form, initialForm) || imageFile !== null || removeImage);
+	useUnsavedChangesWarning(isDirty);
 	// Read by callbacks that fire after an await (the subagent gate waits for
 	// the agents store), so they see the draft as it is then, not at click.
 	const isDirtyRef = useRef(isDirty);
@@ -177,18 +179,6 @@ export default function AgentEditor({
 			document.removeEventListener("mousedown", handleClickOutside);
 		};
 	}, [showEmojiPicker]);
-
-	// Warn before leaving the page with unsaved changes.
-	useEffect(() => {
-		if (!isDirty) return;
-		const handleBeforeUnload = (event: BeforeUnloadEvent) => {
-			event.preventDefault();
-		};
-		window.addEventListener("beforeunload", handleBeforeUnload);
-		return () => {
-			window.removeEventListener("beforeunload", handleBeforeUnload);
-		};
-	}, [isDirty]);
 
 	const handleEmojiClick = (emojiData: EmojiClickData) => {
 		setField("emoji", emojiData.emoji);

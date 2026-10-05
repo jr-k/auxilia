@@ -9,6 +9,10 @@ import { CreateWorkspaceDialog } from "@/components/layout/app-sidebar/create-wo
 import { EditWorkspaceDialog } from "@/components/layout/app-sidebar/edit-workspace-dialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { WorkspaceAvatar } from "@/components/ui/workspace-avatar";
+import {
+	cancelPreparedNavigation,
+	prepareToDiscardUnsavedChanges,
+} from "@/hooks/use-unsaved-changes-warning";
 import { currentWorkspaceSwitchDestination } from "@/lib/workspace-navigation";
 import { useUserStore } from "@/stores/user-store";
 import { useWorkspacesStore } from "@/stores/workspaces-store";
@@ -47,11 +51,13 @@ export function WorkspaceSwitcher() {
 
 	const choose = async (workspaceId: string) => {
 		if (workspaceId === activeWorkspaceId) return;
+		if (!prepareToDiscardUnsavedChanges()) return;
 		const destination = currentWorkspaceSwitchDestination();
 		try {
 			await selectWorkspace(workspaceId);
 			window.location.assign(destination);
 		} catch {
+			cancelPreparedNavigation();
 			toast.error("Could not switch workspace. Please try again.");
 		}
 	};

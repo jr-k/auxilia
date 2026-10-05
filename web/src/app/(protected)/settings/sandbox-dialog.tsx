@@ -261,17 +261,26 @@ export default function SandboxDialog({
 
 	useEffect(() => {
 		if (!open) return;
+		let active = true;
+		// The dialog intentionally mirrors the newly selected sandbox into an
+		// editable local draft whenever it opens.
+		// eslint-disable-next-line react-hooks/set-state-in-effect
 		setForm(sandbox ? fromSandbox(sandbox) : defaultForm());
 		setError(null);
 		setSecretHint(null);
 		if (sandbox?.hasSecret) {
 			sandboxesApi
 				.getSandboxSecretHint(sandbox.id)
-				.then(setSecretHint)
+				.then((hint) => {
+					if (active) setSecretHint(hint);
+				})
 				.catch(() => {
 					// Hint is cosmetic — the placeholder falls back to a generic note.
 				});
 		}
+		return () => {
+			active = false;
+		};
 	}, [open, sandbox]);
 
 	const handleProviderChange = (provider: SandboxProviderType) => {

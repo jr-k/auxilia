@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import * as agentsApi from "@/lib/api/resources/agents";
@@ -51,19 +51,25 @@ export default function AgentThreadsPage() {
 	const [isLoading, setIsLoading] = useState(true);
 	const [forbiddenOpen, setForbiddenOpen] = useState(false);
 	const [hasError, setHasError] = useState(false);
+	const requestIdRef = useRef(0);
 
 	useEffect(() => {
+		const requestId = ++requestIdRef.current;
 		const fetch = async () => {
 			setIsLoading(true);
+			setHasError(false);
+			setForbiddenOpen(false);
 			try {
 				const [agentRes, threadsRes] = await Promise.all([
 					agentsApi.getAgent(agentId),
 					threadsApi.listAgentThreads(agentId, { limit: PAGE_SIZE, offset }),
 				]);
+				if (requestId !== requestIdRef.current) return;
 				setAgent(agentRes);
 				setThreads(threadsRes.items);
 				setTotal(threadsRes.total);
 			} catch (error: unknown) {
+				if (requestId !== requestIdRef.current) return;
 				if (
 					error instanceof Object &&
 					"status" in error &&
@@ -75,10 +81,13 @@ export default function AgentThreadsPage() {
 					setHasError(true);
 				}
 			} finally {
-				setIsLoading(false);
+				if (requestId === requestIdRef.current) setIsLoading(false);
 			}
 		};
 		void fetch();
+		return () => {
+			requestIdRef.current += 1;
+		};
 	}, [agentId, offset]);
 
 	const columns: DataTableColumn<AgentThread>[] = [
