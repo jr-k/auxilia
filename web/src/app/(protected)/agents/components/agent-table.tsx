@@ -120,12 +120,12 @@ export default function AgentTable({
 							<span
 								key={`${server.name}-${i}`}
 								title={server.name}
-								className="flex size-6 shrink-0 items-center justify-center rounded-[6px] border border-border bg-card"
+								className="flex size-6 shrink-0 items-center justify-center overflow-hidden rounded-[6px] border border-border bg-card"
 							>
 								{/* eslint-disable-next-line @next/next/no-img-element */}
 								<img
-									width={14}
-									height={14}
+									width={20}
+									height={20}
 									src={
 										(server.imageRevision
 											? mcpServerImageUrl(server.id, server.imageRevision)
@@ -133,7 +133,7 @@ export default function AgentTable({
 										"https://pub-7a6e8912b3c448b8a8bfa47a0363f7bc.r2.dev/assets/icons/mcp.png"
 									}
 									alt={server.name}
-									className="rounded-[2px] object-contain"
+									className="size-5 rounded-[4px] object-cover"
 								/>
 							</span>
 						))}

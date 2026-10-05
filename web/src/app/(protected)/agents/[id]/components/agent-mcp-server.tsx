@@ -280,8 +280,13 @@ export default function AgentMCPServer({
 		}
 	}, [toolsFetched, isConnected, fetchTools]);
 
+	const disabledTools = new Set(server.disabledTools ?? []);
+	const configurableTools = tools.filter((tool) => !disabledTools.has(tool.name));
 	const hasTools =
-		isConnected && !isLoading && !isCheckingConnection && tools.length > 0;
+		isConnected &&
+		!isLoading &&
+		!isCheckingConnection &&
+		configurableTools.length > 0;
 
 	return (
 		<div className="overflow-hidden rounded-[10px] border border-border bg-card">
@@ -342,10 +347,10 @@ export default function AgentMCPServer({
 						<div className="px-4 py-3 text-[13px] text-muted-foreground">
 							Loading tools…
 						</div>
-					) : tools && tools.length > 0 ? (
+					) : configurableTools.length > 0 ? (
 						// Show ~5-6 tool rows; longer lists scroll within the card.
 						<div className="max-h-80 overflow-y-auto [scrollbar-width:thin]">
-							{tools.map((tool) => (
+							{configurableTools.map((tool) => (
 								<AgentMCPTool
 									key={tool.name}
 									toolName={tool.name}
@@ -360,7 +365,7 @@ export default function AgentMCPServer({
 						</div>
 					) : (
 						<div className="px-4 py-3 text-[13px] text-muted-foreground">
-							No tools available
+							No enabled tools available
 						</div>
 					)}
 					{(hasTools || !readOnly) && (
@@ -399,7 +404,7 @@ export default function AgentMCPServer({
 					open={detailsOpen}
 					onOpenChange={setDetailsOpen}
 					server={server}
-					tools={tools}
+					tools={configurableTools}
 					statusFor={statusFor}
 				/>
 			)}

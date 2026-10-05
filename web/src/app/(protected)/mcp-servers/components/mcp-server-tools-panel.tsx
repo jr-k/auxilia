@@ -3,9 +3,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { ExternalLink, RefreshCw, Wrench } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
+import { humanizeToolName } from "@/components/ai-elements/chain-of-thought";
 import * as mcpServersApi from "@/lib/api/resources/mcp-servers";
 import { getApiErrorMessage } from "@/lib/api/errors";
 import type { MCPServerTool } from "@/types/mcp-servers";
+import { cn } from "@/lib/utils";
 
 interface MCPServerToolsPanelProps {
 	serverId: string;
@@ -142,34 +144,38 @@ export function MCPServerToolsPanel({
 						This server exposes no tools.
 					</div>
 				) : (
-					<div className="flex flex-col gap-2">
+					<div className="overflow-hidden rounded-[10px] border border-border bg-card">
 						{tools.map((tool) => {
 							const enabled = !disabledSet.has(tool.name);
 							return (
 								<div
 									key={tool.name}
-									className={`flex items-center gap-3 rounded-[10px] border px-3.5 py-3 transition-colors ${
-										enabled
-											? "border-border bg-card"
-											: "border-transparent bg-hover/70 dark:bg-white/[0.03]"
-									}`}
+									className="flex items-center gap-2.5 border-b border-hover px-4 py-2.5 last:border-b-0 dark:border-white/5"
 								>
-									<div className="min-w-0 flex-1">
-										<div
-											className={`truncate font-mono text-[12px] font-medium ${
+									<span className="min-w-0 flex-1">
+										<span
+											className={cn(
+												"block truncate text-[13.5px] font-semibold",
 												enabled
 													? "text-foreground"
-													: "text-meta line-through dark:text-panel-dim"
-											}`}
+													: "text-meta dark:text-panel-dim",
+											)}
 										>
-											{tool.name}
-										</div>
+											{humanizeToolName(tool.name)}
+										</span>
 										{tool.description && (
-											<p className="mt-1 line-clamp-2 text-[11.5px] leading-[1.45] text-meta dark:text-panel-dim">
+											<span
+												className={cn(
+													"mt-px line-clamp-2 text-xs",
+													enabled
+														? "text-muted-foreground"
+														: "text-faint dark:text-panel-dim",
+												)}
+											>
 												{tool.description}
-											</p>
+											</span>
 										)}
-									</div>
+									</span>
 									{readOnly ? (
 										<span
 											className={`inline-flex shrink-0 items-center gap-1.5 rounded-[4px] px-2 py-[3px] text-[9.5px] font-semibold ${
