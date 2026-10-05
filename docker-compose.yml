@@ -92,7 +92,7 @@ services:
     image: redis:7-alpine
     container_name: auxilia-redis
     ports:
-      - "6379:6379"
+      - "6389:6379"
     volumes:
       - redis-data:/data
     # AOF persistence for durability + a memory ceiling so a runaway run can't
