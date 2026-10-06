@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.15](https://github.com/jr-k/auxilia/compare/web-v0.11.14...web-v0.11.15) (2026-10-06)
+
+
+### Bug Fixes
+
+* **web:** improve branding and visibility controls ([#25](https://github.com/jr-k/auxilia/issues/25)) ([43e8254](https://github.com/jr-k/auxilia/commit/43e8254bd1401324d2299f4c94e11fc55556009a))
+
 ## [0.11.14](https://github.com/jr-k/auxilia/compare/web-v0.11.13...web-v0.11.14) (2026-10-06)
 
 
