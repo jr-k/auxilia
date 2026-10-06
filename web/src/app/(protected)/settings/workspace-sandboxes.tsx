@@ -166,7 +166,7 @@ export default function WorkspaceSandboxes({
 				onConfirm={handleDetachAndDelete}
 			/>
 
-			<div className="mb-1.5 flex items-baseline gap-2.5">
+			<div className="mb-1.5 flex flex-wrap items-center gap-2.5">
 				<span className="text-[10.5px] font-semibold text-subtle dark:text-panel-dim">
 					Sandboxes
 				</span>
@@ -180,7 +180,7 @@ export default function WorkspaceSandboxes({
 						setEditing(null);
 						setDialogOpen(true);
 					}}
-					className="flex cursor-pointer items-center gap-1.5 rounded-[7px] bg-primary px-4 py-2 text-[12.5px] font-semibold text-primary-foreground transition-opacity hover:opacity-90"
+					className="flex shrink-0 cursor-pointer items-center gap-1.5 rounded-[7px] bg-primary px-4 py-2 text-[12.5px] font-semibold text-primary-foreground transition-opacity hover:opacity-90"
 				>
 					<Plus className="size-3.5" />
 					Add sandbox
@@ -243,8 +243,8 @@ export default function WorkspaceSandboxes({
 								/>
 							</span>
 							<div className="min-w-0 flex-1">
-								<div className="flex flex-wrap items-center gap-2">
-									<span className="text-[13.5px] font-semibold text-foreground">
+								<div className="flex min-w-0 flex-wrap items-center gap-2">
+									<span className="max-w-full truncate text-[13.5px] font-semibold text-foreground">
 										{sandbox.name}
 									</span>
 									<span className="rounded-[4px] bg-hover px-2 py-0.5 text-[9.5px] font-semibold text-subtle dark:bg-white/10 dark:text-panel-dim">

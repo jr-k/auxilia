@@ -7,7 +7,6 @@ import {
 	Folder,
 	Plus,
 	Search,
-	Users,
 	Zap,
 } from "lucide-react";
 import { Agent } from "@/types/agents";
@@ -15,10 +14,13 @@ import AgentCard from "@/app/(protected)/agents/components/agent-card";
 import AgentTable from "@/app/(protected)/agents/components/agent-table";
 import { buildGroupTree, type GroupNode } from "@/lib/groups";
 import type { ViewMode } from "@/components/ui/view-toggle";
-import * as agentsApi from "@/lib/api/resources/agents";
 import { useAgentsStore } from "@/stores/agents-store";
+import {
+	matchesResourceScope,
+	type ResourceScopeFilter,
+} from "@/lib/resource-scope-filter";
 
-type View = "available" | "all" | "archived";
+type View = ResourceScopeFilter | "archived";
 
 function EmptyState({
 	icon,
@@ -71,7 +73,13 @@ function AgentCardGrid({
 	onRemoved?: (agentId: string) => void;
 }) {
 	return (
-		<div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+		<div
+			className="grid gap-4"
+			style={{
+				gridTemplateColumns:
+					"repeat(auto-fill, minmax(min(100%, max(260px, calc((100% - 2rem) / 3))), 1fr))",
+			}}
+		>
 			{agents.map((agent, index) => (
 				<div
 					key={agent.id}
@@ -175,6 +183,10 @@ interface AgentListProps {
 	/** Table or the group-tree card grid. */
 	mode: ViewMode;
 	search: string;
+	filterTeamIds: string[];
+	archivedAgents: Agent[];
+	archivedLoading: boolean;
+	onArchivedAgentsChange: (agents: Agent[]) => void;
 	onClearSearch?: () => void;
 	onCreateAgent?: () => void;
 }
@@ -183,6 +195,10 @@ export default function AgentList({
 	view,
 	mode,
 	search,
+	filterTeamIds,
+	archivedAgents,
+	archivedLoading,
+	onArchivedAgentsChange,
 	onClearSearch,
 	onCreateAgent,
 }: AgentListProps) {
@@ -194,26 +210,9 @@ export default function AgentList({
 	const storeReady = useAgentsStore((state) => state.isInitialized);
 	const fetchAgents = useAgentsStore((state) => state.fetchAgents);
 	const removeAgent = useAgentsStore((state) => state.removeAgent);
-	const [archivedAgents, setArchivedAgents] = useState<Agent[]>([]);
-	// The parent keys AgentList by active/archived, so entering the Archived
-	// view mounts a fresh instance: this starts true and flips false once the
-	// fetch resolves (the pre-store behavior, unchanged).
-	const [archivedLoading, setArchivedLoading] = useState(true);
 
 	useEffect(() => {
-		if (!archived) {
-			fetchAgents().catch(console.error);
-			return;
-		}
-		agentsApi
-			.listArchivedAgents()
-			.then((agents) => {
-				setArchivedAgents(agents);
-			})
-			.catch(console.error)
-			.finally(() => {
-				setArchivedLoading(false);
-			});
+		if (!archived) fetchAgents().catch(console.error);
 	}, [archived, fetchAgents]);
 
 	const agents = archived ? archivedAgents : storeAgents;
@@ -221,9 +220,9 @@ export default function AgentList({
 
 	const handleRemoved = (agentId: string) => {
 		if (archived) {
-			// The store action (restore / permanent delete) already reconciled the
-			// live list; only this page-local archived list needs the row gone.
-			setArchivedAgents((prev) => prev.filter((a) => a.id !== agentId));
+			onArchivedAgentsChange(
+				archivedAgents.filter((agent) => agent.id !== agentId),
+			);
 			return;
 		}
 		removeAgent(agentId);
@@ -240,14 +239,14 @@ export default function AgentList({
 		);
 	}, [agents, search]);
 
-	// "Available to you" narrows to agents the user can actually use; "All" and
-	// "Archived" show everything the fetch returned.
 	const visible = useMemo(
 		() =>
-			view === "available"
-				? matches.filter((a) => a.currentUserPermission)
-				: matches,
-		[matches, view],
+			view === "archived" || view === "all"
+				? matches
+				: matches.filter((agent) =>
+						matchesResourceScope(agent, view, filterTeamIds),
+					),
+		[filterTeamIds, matches, view],
 	);
 
 	const groupTree = useMemo(() => buildGroupTree(visible), [visible]);
@@ -305,13 +304,12 @@ export default function AgentList({
 		);
 	}
 
-	// "Available to you" is empty even though the workspace has agents.
-	if (view === "available" && visible.length === 0) {
+	if (visible.length === 0) {
 		return (
 			<EmptyState
-				icon={<Users className="size-[22px] text-[#4CA882]" />}
-				title="Nothing shared with you yet"
-				subtitle="Ask a workspace admin or an agent's owner to give you access, or switch to All to browse everything in your workspace."
+				icon={<Search className="size-[22px] text-[#4CA882]" />}
+				title="No agents match this filter"
+				subtitle="Choose another visibility filter."
 			/>
 		);
 	}
@@ -345,7 +343,7 @@ export default function AgentList({
 				(groupTree.groups.length > 0 ? (
 					<AgentSection
 						node={{
-							name: "Others",
+							name: "Default",
 							path: "__ungrouped__",
 							depth: 0,
 							items: groupTree.ungrouped,

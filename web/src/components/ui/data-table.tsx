@@ -54,6 +54,10 @@ interface DataTableProps<T> {
 	 * internally. Needs a bounded-height flex ancestry (e.g. WorkspacePage
 	 * with `fillHeight`); the container still hugs its content when short. */
 	scrollBody?: boolean;
+	/** Preserve the table's columns below this width and scroll horizontally. */
+	minTableWidth?: string;
+	/** Extend through WorkspacePage's mobile/tablet side padding. */
+	bleedOnNarrow?: boolean;
 	pagination?: DataTablePagination;
 	className?: string;
 }
@@ -270,6 +274,8 @@ export function DataTable<T>({
 	groupBy,
 	groupTree,
 	scrollBody = false,
+	minTableWidth,
+	bleedOnNarrow = false,
 	pagination,
 	className = "",
 }: DataTableProps<T>) {
@@ -282,6 +288,12 @@ export function DataTable<T>({
 	} as CSSProperties;
 	const gridClass =
 		"grid items-center gap-4 px-[18px] [grid-template-columns:var(--dt-cols)] md:[grid-template-columns:var(--dt-cols-md)]";
+	const tableWidthStyle = minTableWidth
+		? ({ minWidth: minTableWidth } satisfies CSSProperties)
+		: undefined;
+	const tableGutterClass = bleedOnNarrow
+		? "mx-4 sm:mx-6 lg:mx-8 xl:mx-0"
+		: "";
 
 	const renderCells = (row: T, depth = 0) =>
 		columns.map((column, index) => (
@@ -342,9 +354,18 @@ export function DataTable<T>({
 	return (
 		<div
 			style={gridTemplates}
-			className={`${scrollBody ? "flex min-h-0 flex-col " : ""}${className}`}
+			className={`${scrollBody ? "flex min-h-0 flex-col " : ""}${
+				minTableWidth ? "overflow-x-auto overflow-y-hidden " : ""
+			}${
+				bleedOnNarrow
+					? "-mx-4 w-[calc(100%+2rem)] sm:-mx-6 sm:w-[calc(100%+3rem)] lg:-mx-8 lg:w-[calc(100%+4rem)] xl:mx-0 xl:w-full "
+					: ""
+			}${className}`}
 		>
-			<div className={`${gridClass} shrink-0 pb-2 pt-1`}>
+			<div
+				className={`${gridClass} ${tableGutterClass} shrink-0 pb-2 pt-1`}
+				style={tableWidthStyle}
+			>
 				{columns.map((column) => (
 					<span key={column.key} className={`${HEADER_LABEL_CLASS} ${cellClass(column)}`}>
 						{column.header}
@@ -353,7 +374,8 @@ export function DataTable<T>({
 			</div>
 
 			<div
-				className={`rounded-[10px] border border-border bg-card dark:border-white/10 ${
+				style={tableWidthStyle}
+				className={`${tableGutterClass} rounded-[10px] border border-border bg-card dark:border-white/10 ${
 					scrollBody
 						? "min-h-0 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
 						: "overflow-hidden"
@@ -395,7 +417,7 @@ export function DataTable<T>({
 								{groupTree.ungrouped.length > 0 && (
 									<DataTableTreeGroup
 										node={{
-											name: "Others",
+											name: "Default",
 											path: "__ungrouped__",
 											depth: 0,
 											items: groupTree.ungrouped,

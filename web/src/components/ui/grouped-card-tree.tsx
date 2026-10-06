@@ -13,7 +13,13 @@ function CardGrid<T>({
 	renderItem: (item: T, index: number) => ReactNode;
 }) {
 	return (
-		<div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+		<div
+			className="grid gap-4"
+			style={{
+				gridTemplateColumns:
+					"repeat(auto-fill, minmax(min(100%, max(260px, calc((100% - 2rem) / 3))), 1fr))",
+			}}
+		>
 			{items.map(renderItem)}
 		</div>
 	);
@@ -119,7 +125,7 @@ export function GroupedCardTree<T>({
 			{tree.ungrouped.length > 0 && (
 				<GroupedCardNode
 					node={{
-						name: "Others",
+						name: "Default",
 						path: "__ungrouped__",
 						depth: 0,
 						items: tree.ungrouped,

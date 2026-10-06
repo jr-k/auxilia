@@ -390,7 +390,7 @@ export default function UsersPage() {
 		{
 			key: "name",
 			header: "Name",
-			width: "minmax(0, 1.4fr)",
+			width: "minmax(220px, 1.4fr)",
 			cell: (user) => {
 				const isCurrentUser = user.id === currentUser?.id;
 				return (
@@ -413,10 +413,6 @@ export default function UsersPage() {
 									</span>
 								)}
 							</div>
-							{/* Email folds under the name on mobile; own column on md+ */}
-							<span className="block truncate font-mono text-[11px] text-meta dark:text-panel-dim md:hidden">
-								{user.email}
-							</span>
 						</div>
 					</div>
 				);
@@ -426,7 +422,6 @@ export default function UsersPage() {
 			key: "email",
 			header: "Email",
 			width: "230px",
-			hideBelowMd: true,
 			cell: (user) => (
 				<span className="block truncate font-mono text-[11.5px] text-subtle dark:text-muted-foreground">
 					{user.email}
@@ -500,7 +495,6 @@ export default function UsersPage() {
 			key: "team",
 			header: "Team",
 			width: "160px",
-			hideBelowMd: true,
 			cell: (user) => {
 				const team = user.teamId ? teamsById.get(user.teamId) : undefined;
 				if (!isAdmin) {
@@ -601,12 +595,15 @@ export default function UsersPage() {
 			}}
 			actions={isAdmin ? (
 				<WorkspaceTopBarButton
+					aria-label="Invite user"
+					title="Invite user"
+					className="size-9 justify-center p-0 lg:h-auto lg:w-auto lg:px-[18px] lg:py-[9px]"
 					onClick={() => {
 						setInviteDialogOpen(true);
 					}}
 				>
 					<Plus className="size-3.5" />
-					Invite user
+					<span className="hidden lg:inline">Invite user</span>
 				</WorkspaceTopBarButton>
 			) : undefined}
 		>
@@ -699,6 +696,8 @@ export default function UsersPage() {
 					rows={users}
 					rowKey={(user) => user.id}
 					isLoading={isLoading}
+					minTableWidth="1050px"
+					bleedOnNarrow
 					emptyMessage={
 						debouncedSearch || roleFilter !== "all" || teamFilterId
 							? "No users match your filters."

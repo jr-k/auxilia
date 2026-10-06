@@ -94,7 +94,7 @@ export default function AgentThreadsPage() {
 		{
 			key: "firstMessage",
 			header: "First message",
-			width: "1fr",
+			width: "minmax(240px, 1fr)",
 			cell: (thread) => (
 				<span className="block truncate font-[family-name:var(--font-dm-sans)] text-[13.5px] font-medium text-[#3F524B] dark:text-foreground/80">
 					{thread.firstMessageContent || (
@@ -107,7 +107,6 @@ export default function AgentThreadsPage() {
 			key: "user",
 			header: "User",
 			width: "220px",
-			hideBelowMd: true,
 			cell: (thread) => (
 				<div className="flex min-w-0 items-center gap-2.5">
 					<span className="flex size-[26px] shrink-0 items-center justify-center rounded-full bg-[#e7f0eb] font-[family-name:var(--font-jakarta-sans)] text-[10px] font-bold text-[#3d8b63] dark:bg-emerald-950 dark:text-emerald-300">
@@ -194,6 +193,7 @@ export default function AgentThreadsPage() {
 							rows={threads}
 							rowKey={(thread) => thread.id}
 							isLoading={isLoading}
+							minTableWidth="770px"
 							emptyMessage="No threads yet for this agent."
 							getRowHref={(thread) => `/agents/${agentId}/chat/${thread.id}`}
 							pagination={{

@@ -104,8 +104,8 @@ export default function AgentCard({
 				className="group flex h-full cursor-pointer flex-col rounded-xl border border-[#e1ebe6] dark:border-white/10 bg-white dark:bg-card p-4 pb-0 transition-[border-color,box-shadow] duration-[130ms] ease-out hover:border-[#cfe0d8] dark:hover:border-white/20 hover:shadow-[0_3px_10px_rgba(30,45,40,0.06)]"
 				onClick={handleClick}
 			>
-				{/* Head: tile · name/handle · role */}
-				<div className="mb-2.5 flex min-w-0 items-center gap-[11px]">
+				{/* Head: narrow cards wrap both badges beneath the identity. */}
+				<div className="mb-2.5 flex min-w-0 flex-wrap items-center gap-x-[11px] gap-y-2">
 					<AgentAvatar
 						agentId={agent.id}
 						name={agent.name}
@@ -114,7 +114,7 @@ export default function AgentCard({
 						emoji={agent.emoji}
 						size="sm"
 					/>
-					<div className="min-w-0 flex-1">
+					<div className="min-w-[90px] flex-1">
 						<div className="truncate font-[family-name:var(--font-jakarta-sans)] text-[14.5px] font-bold tracking-[-0.01em] text-[#1e2d28] dark:text-foreground">
 							{agent.name}
 						</div>
@@ -124,19 +124,21 @@ export default function AgentCard({
 							</div>
 						)}
 					</div>
-					<VisibilityBadge visibility={agent.visibility} />
-					{(() => {
-						const badge = agent.currentUserPermission
-							? ROLE_BADGE_CONFIG[agent.currentUserPermission]
-							: NO_ACCESS_BADGE;
-						return (
-							<span
-								className={`ml-auto shrink-0 rounded-[4px] px-[9px] py-[3px] text-[10.5px] font-semibold ${badge.bg} ${badge.text}`}
-							>
-								{badge.label}
-							</span>
-						);
-					})()}
+					<div className="ml-auto flex max-w-full shrink-0 flex-wrap items-center justify-end gap-1.5">
+						<VisibilityBadge visibility={agent.visibility} />
+						{(() => {
+							const badge = agent.currentUserPermission
+								? ROLE_BADGE_CONFIG[agent.currentUserPermission]
+								: NO_ACCESS_BADGE;
+							return (
+								<span
+									className={`shrink-0 rounded-[4px] px-[9px] py-[3px] text-[10.5px] font-semibold ${badge.bg} ${badge.text}`}
+								>
+									{badge.label}
+								</span>
+							);
+						})()}
+					</div>
 				</div>
 
 				{/* Description — 2-line clamp, reserves height so rows align */}

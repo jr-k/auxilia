@@ -29,8 +29,10 @@ export function SearchBar({
 				event.key.toLowerCase() === "k"
 			) {
 				event.preventDefault();
-				inputRef.current?.focus();
-				inputRef.current?.select();
+				const input = inputRef.current;
+				if (!input || input.offsetParent === null) return;
+				input.focus();
+				input.select();
 			}
 		};
 
@@ -51,10 +53,10 @@ export function SearchBar({
 				onChange={(e) => {
 					onChange(e.target.value);
 				}}
-				className={`w-full rounded-[7px] border border-border bg-sidebar py-2 pl-9 ${hint ? "pr-12" : "pr-3"} text-[13px] font-medium text-foreground outline-none transition-[border-color,box-shadow] placeholder:text-meta dark:placeholder:text-panel-dim focus:border-petrol focus:shadow-[0_0_0_3px_rgba(22,96,110,0.10)]`}
+				className={`w-full rounded-[7px] border border-border bg-sidebar py-2 pl-9 ${hint ? "pr-3 lg:pr-12" : "pr-3"} text-[13px] font-medium text-foreground outline-none transition-[border-color,box-shadow] placeholder:text-meta dark:placeholder:text-panel-dim focus:border-petrol focus:shadow-[0_0_0_3px_rgba(22,96,110,0.10)]`}
 			/>
 			{hint && (
-				<kbd className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 rounded-[4px] border border-rail bg-background px-[5px] py-px font-mono text-[10px] text-meta dark:border-white/15 dark:bg-white/5 dark:text-panel-body">
+				<kbd className="pointer-events-none absolute right-2.5 top-1/2 hidden -translate-y-1/2 rounded-[4px] border border-rail bg-background px-[5px] py-px font-mono text-[10px] text-meta lg:block dark:border-white/15 dark:bg-white/5 dark:text-panel-body">
 					{hint}
 				</kbd>
 			)}

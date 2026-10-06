@@ -6,6 +6,7 @@ import type { BaseMessage } from "@langchain/core/messages";
 import { useStream } from "@langchain/react";
 import type { AnyStream, SubagentDiscoverySnapshot } from "@langchain/react";
 import type { Interrupt } from "@langchain/langgraph-sdk";
+import type { RunCompletedInfo } from "@langchain/langgraph-sdk/stream";
 
 import type { PromptInputMessage } from "@/components/ai-elements/prompt-input";
 import type { Todo } from "@/components/ai-elements/todo-list";
@@ -62,8 +63,8 @@ export type ThreadSessionOptions = {
 	/** The approval the user addressed was already handled elsewhere. The
 	 * page decides what to do (today: reload the page). */
 	onStaleInterrupt?: () => void;
-	/** A run finished (any outcome). */
-	onCompleted?: () => void;
+	/** A run's active streaming phase ended. */
+	onCompleted?: (info: RunCompletedInfo) => void;
 	/** Cap on waiting for hydration before a parked first message is sent. */
 	pendingMessageCapMs?: number;
 };
@@ -164,9 +165,9 @@ export function useThreadSession({
 		messagesKey: "messages",
 		fetch: protocolFetch,
 		callerOptions,
-		onCompleted: () => {
+		onCompleted: (info) => {
 			useActiveRunsStore.getState().requestPoll();
-			callbacks.current.onCompleted?.();
+			callbacks.current.onCompleted?.(info);
 		},
 	});
 

@@ -42,7 +42,8 @@ const ChatPage = () => {
     onStaleInterrupt: () => {
       window.location.reload();
     },
-    onCompleted: () => {
+    onCompleted: ({ reason }) => {
+      if (reason !== "success") return;
       if (!isResponseSoundEnabled()) return;
       const audio = new Audio("/success.mp3");
       audio.play().catch(() => {});

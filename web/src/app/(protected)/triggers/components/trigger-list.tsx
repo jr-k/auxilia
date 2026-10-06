@@ -28,6 +28,10 @@ import {
 	parseCronExpression,
 } from "@/lib/triggers/schedule";
 import { buildGroupTree } from "@/lib/groups";
+import {
+	matchesResourceScope,
+	type ResourceScopeFilter,
+} from "@/lib/resource-scope-filter";
 import { useTriggersStore } from "@/stores/triggers-store";
 import { useAgentsStore } from "@/stores/agents-store";
 import type { Trigger } from "@/types/triggers";
@@ -37,6 +41,10 @@ interface TriggerListProps {
 	mode: ViewMode;
 	onCreate: () => void;
 	canCreate: boolean;
+	search: string;
+	scope: ResourceScopeFilter;
+	filterTeamIds: string[];
+	onClearSearch: () => void;
 }
 
 function triggerFrequency(trigger: Trigger): string {
@@ -50,6 +58,10 @@ export default function TriggerList({
 	mode,
 	onCreate,
 	canCreate,
+	search,
+	scope,
+	filterTeamIds,
+	onClearSearch,
 }: TriggerListProps) {
 	const router = useRouter();
 	const triggers = useTriggersStore((state) => state.triggers);
@@ -67,9 +79,23 @@ export default function TriggerList({
 		fetchAgents().catch(() => {});
 	}, [fetchTriggers, fetchAgents]);
 
-	const visibleTriggers = triggers.filter((trigger) =>
-		view === "active" ? trigger.isActive : !trigger.isActive,
-	);
+	const query = search.trim().toLowerCase();
+	const visibleTriggers = triggers.filter((trigger) => {
+		if (view === "active" ? !trigger.isActive : trigger.isActive) return false;
+		if (!matchesResourceScope(trigger, scope, filterTeamIds)) return false;
+		if (!query) return true;
+		const agentName = agents.find(
+			(candidate) => candidate.id === trigger.agentId,
+		)?.name;
+		return [
+			trigger.name,
+			trigger.instructions,
+			trigger.group,
+			trigger.timezone,
+			triggerFrequency(trigger),
+			agentName,
+		].some((value) => value?.toLowerCase().includes(query));
+	});
 	const groupTree = buildGroupTree(visibleTriggers);
 
 	const handleDelete = async (id: string) => {
@@ -111,7 +137,6 @@ export default function TriggerList({
 			key: "name",
 			header: "Trigger",
 			width: "minmax(240px, 1.5fr)",
-			mobileWidth: "minmax(0, 1fr)",
 			cell: (trigger) => (
 				<div className="flex min-w-0 items-center gap-2.5">
 					<span
@@ -142,7 +167,6 @@ export default function TriggerList({
 			key: "agent",
 			header: "Agent",
 			width: "200px",
-			hideBelowMd: true,
 			cell: (trigger) => {
 				const agent = agents.find((candidate) => candidate.id === trigger.agentId);
 				return (
@@ -166,7 +190,6 @@ export default function TriggerList({
 			key: "frequency",
 			header: "Frequency",
 			width: "210px",
-			hideBelowMd: true,
 			cell: (trigger) => (
 				<div className="flex min-w-0 items-center gap-2 text-[11.5px] text-subtle dark:text-muted-foreground">
 					{trigger.triggerType === "schedule" ? (
@@ -182,7 +205,6 @@ export default function TriggerList({
 			key: "nextRun",
 			header: "Next run",
 			width: "180px",
-			hideBelowMd: true,
 			cell: (trigger) => (
 				<span className="font-mono text-[11px] text-meta dark:text-panel-dim">
 					{trigger.triggerType === "webhook"
@@ -255,6 +277,8 @@ export default function TriggerList({
 				rowKey={(trigger) => trigger.id}
 				isLoading
 				scrollBody
+				minTableWidth="980px"
+				bleedOnNarrow
 			/>
 		) : null;
 	}
@@ -292,7 +316,24 @@ export default function TriggerList({
 	if (visibleTriggers.length === 0) {
 		return (
 			<div className="py-16 text-center font-[family-name:var(--font-dm-sans)] text-[13.5px] text-[#A3B5AD] dark:text-muted-foreground">
-				{view === "active" ? "No active triggers." : "No paused triggers."}
+				{query ? (
+					<>
+						No trigger matches “{search}”.{" "}
+						<button
+							type="button"
+							onClick={onClearSearch}
+							className="cursor-pointer font-semibold text-petrol hover:underline dark:text-panel-terminal"
+						>
+							Clear search
+						</button>
+					</>
+				) : scope !== "all" ? (
+					"No trigger matches this visibility filter."
+				) : view === "active" ? (
+					"No active triggers."
+				) : (
+					"No paused triggers."
+				)}
 			</div>
 		);
 	}
@@ -304,6 +345,8 @@ export default function TriggerList({
 				rows={visibleTriggers}
 				rowKey={(trigger) => trigger.id}
 				scrollBody
+				minTableWidth="980px"
+				bleedOnNarrow
 				groupTree={{
 					...groupTree,
 					storageKey: `triggers:${view}:table-group`,

@@ -141,7 +141,7 @@ export function AppSidebar() {
 	const hasMoreThreads = threads.length < total;
 	const { user, logout } = useUserStore();
 	const { resolvedTheme, setTheme } = useTheme();
-	const { toggleSidebar } = useSidebar();
+	const { isMobile, setOpenMobile, toggleSidebar } = useSidebar();
 	const [renamingThread, setRenamingThread] = useState<Thread | null>(null);
 	const [aboutOpen, setAboutOpen] = useState(false);
 	const activeRunThreadIds = useActiveRunThreadIds(threads);
@@ -428,7 +428,7 @@ export function AppSidebar() {
 						</SidebarGroupContent>
 					</SidebarGroup>
 
-					<SidebarGroup className="mt-auto">
+					<SidebarGroup className="mt-auto hidden md:flex">
 						<SidebarGroupLabel className="h-auto overflow-hidden whitespace-nowrap px-2 pt-2 pb-1.5 font-sans text-[10px] font-semibold text-sidebar-muted-highlight group-data-[collapsible=icon]:mt-0">
 							Workspace
 						</SidebarGroupLabel>
@@ -522,13 +522,14 @@ export function AppSidebar() {
 								side="top"
 								align="end"
 								sideOffset={4}
-								className="w-(--radix-dropdown-menu-trigger-width) min-w-56"
+								className="max-h-[70dvh] w-(--radix-dropdown-menu-trigger-width) min-w-56 overflow-y-auto overscroll-contain"
 								items={[
 									{
 										label: "Profile",
 										icon: <UserRound />,
 										onClick: () => {
 											router.push("/settings?tab=profile");
+											if (isMobile) setOpenMobile(false);
 										},
 									},
 									{
@@ -536,6 +537,7 @@ export function AppSidebar() {
 										icon: <Settings />,
 										onClick: () => {
 											router.push("/settings");
+											if (isMobile) setOpenMobile(false);
 										},
 									},
 									{
@@ -559,6 +561,24 @@ export function AppSidebar() {
 											setAboutOpen(true);
 										},
 									},
+									...(isMobile
+										? [
+												{ separator: true as const },
+												{ sectionLabel: "Workspace" },
+												...navItems.map((item) => ({
+													label: item.title,
+													icon: <item.icon />,
+													active:
+														item.match === "prefix"
+															? pathname.startsWith(item.href)
+															: pathname === item.href,
+													onClick: () => {
+														router.push(item.href);
+														setOpenMobile(false);
+													},
+												})),
+											]
+										: []),
 									{ separator: true },
 									{
 										label: "Log out",

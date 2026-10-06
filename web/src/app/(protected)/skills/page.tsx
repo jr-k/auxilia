@@ -5,11 +5,16 @@ import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
 import ConfirmDialog from "@/components/ui/confirm-dialog";
 import { UnderlineTabs } from "@/components/ui/underline-tabs";
+import { ResourceScopeFilterDropdown } from "@/components/ui/resource-scope-filter";
 import { ViewToggle } from "@/components/ui/view-toggle";
 import { WorkspacePage, WorkspaceTopBarButton } from "@/components/layout/workspace-page";
 import { usePersistedViewMode } from "@/hooks/use-persisted-view-mode";
 import { useQueryParamState } from "@/hooks/use-query-param-state";
 import { getApiErrorMessage } from "@/lib/api/errors";
+import {
+	matchesResourceScope,
+	type ResourceScopeFilter,
+} from "@/lib/resource-scope-filter";
 import { useSkillsStore } from "@/stores/skills-store";
 import { useUserStore } from "@/stores/user-store";
 import { SkillDeleteDescription } from "./components/skill-delete-description";
@@ -34,8 +39,17 @@ export default function SkillsPage() {
 	const sourcesInitialized = useSkillsStore((state) => state.sourcesInitialized);
 	const fetchSources = useSkillsStore((state) => state.fetchSources);
 	const [search, setSearch] = useQueryParamState("q");
+	const [scopeParam, setScopeParam] = useQueryParamState("scope", "all");
+	const [teamParam, setTeamParam] = useQueryParamState("teams");
 	const [viewParam, setViewParam] = useQueryParamState("view", "library");
 	const view: View = viewParam === "sources" ? "sources" : "library";
+	const scope: ResourceScopeFilter =
+		scopeParam === "personal" ||
+		scopeParam === "workspace" ||
+		scopeParam === "teams"
+			? scopeParam
+			: "all";
+	const filterTeamIds = teamParam.split(",").filter(Boolean);
 	const [viewMode, setViewMode] = usePersistedViewMode("skills:view-mode");
 	const [error, setError] = useState<string | null>(null);
 
@@ -50,14 +64,15 @@ export default function SkillsPage() {
 
 	const visible = useMemo(() => {
 		const term = search.trim().toLowerCase();
-		if (!term) return skills;
 		return skills.filter(
 			(skill) =>
-				skill.name.includes(term) ||
-				skill.description.toLowerCase().includes(term) ||
-				(skill.group ?? "").toLowerCase().includes(term),
+				matchesResourceScope(skill, scope, filterTeamIds) &&
+				(!term ||
+					skill.name.toLowerCase().includes(term) ||
+					skill.description.toLowerCase().includes(term) ||
+					(skill.group ?? "").toLowerCase().includes(term)),
 		);
-	}, [skills, search]);
+	}, [filterTeamIds, scope, search, skills]);
 
 	const handleWrite = () => {
 		router.push("/skills/new");
@@ -88,7 +103,7 @@ export default function SkillsPage() {
 					: undefined
 			}
 			headerRight={
-				<div className="flex items-center gap-3">
+				<div className="flex w-full min-w-0 items-center gap-3">
 					<UnderlineTabs<View>
 						tabs={[
 							{ key: "library", label: "Library", count: isInitialized ? skills.length : undefined },
@@ -101,7 +116,21 @@ export default function SkillsPage() {
 						className="border-b border-border"
 					/>
 					{view === "library" && (
-						<ViewToggle value={viewMode} onChange={setViewMode} />
+						<>
+							<ResourceScopeFilterDropdown
+								value={scope}
+								teamIds={filterTeamIds}
+								onChange={(next, teamIds) => {
+									setScopeParam(next);
+									setTeamParam(teamIds.join(","));
+								}}
+							/>
+							<ViewToggle
+								value={viewMode}
+								onChange={setViewMode}
+								className="ml-auto"
+							/>
+						</>
 					)}
 				</div>
 			}
@@ -109,18 +138,26 @@ export default function SkillsPage() {
 				view === "sources" ? (
 					isAdmin ? (
 						<WorkspaceTopBarButton
+							aria-label="Connect repository"
+							title="Connect repository"
+							className="size-9 justify-center p-0 lg:h-auto lg:w-auto lg:px-[18px] lg:py-[9px]"
 							onClick={() => {
 								router.push("/skills/sources/new");
 							}}
 						>
 							<Plus className="size-3.5" />
-							Connect repository
+							<span className="hidden lg:inline">Connect repository</span>
 						</WorkspaceTopBarButton>
 					) : null
 				) : isEditor ? (
-					<WorkspaceTopBarButton onClick={handleWrite}>
+					<WorkspaceTopBarButton
+						aria-label="New skill"
+						title="New skill"
+						className="size-9 justify-center p-0 lg:h-auto lg:w-auto lg:px-[18px] lg:py-[9px]"
+						onClick={handleWrite}
+					>
 						<Plus className="size-3.5" />
-						New skill
+						<span className="hidden lg:inline">New skill</span>
 					</WorkspaceTopBarButton>
 				) : null
 			}
@@ -224,6 +261,10 @@ export default function SkillsPage() {
 							</button>
 						)}
 					</div>
+				</div>
+			) : !search && visible.length === 0 ? (
+				<div className="rounded-[12px] border border-dashed border-input p-8 text-center text-[13px] text-subtle dark:border-white/10">
+					No skill matches this visibility filter.
 				</div>
 			) : (
 				<>

@@ -81,7 +81,7 @@ export default function AgentTable({
 		{
 			key: "agent",
 			header: "Agent",
-			width: "minmax(0, 1.5fr)",
+			width: "minmax(220px, 1.5fr)",
 			cell: (agent) => {
 				return (
 					<span className="flex min-w-0 items-center gap-3">
@@ -109,7 +109,6 @@ export default function AgentTable({
 			key: "mcpServers",
 			header: "MCP servers",
 			width: "140px",
-			hideBelowMd: true,
 			cell: (agent) => {
 				const servers = (agent.mcpServers ?? []).map((s) =>
 					serverInfo(s.mcpServerId),
@@ -156,7 +155,6 @@ export default function AgentTable({
 			key: "subagents",
 			header: "Subagents",
 			width: "110px",
-			hideBelowMd: true,
 			cell: (agent) => {
 				const subagents = agent.subagents ?? [];
 				return (
@@ -194,14 +192,12 @@ export default function AgentTable({
 			key: "visibility",
 			header: "Visibility",
 			width: "120px",
-			hideBelowMd: true,
 			cell: (agent) => <VisibilityBadge visibility={agent.visibility} />,
 		},
 		{
 			key: "owner",
 			header: "Owner",
 			width: "170px",
-			hideBelowMd: true,
 			cell: (agent) => {
 				const ownerName = agent.owner?.name || agent.owner?.email || "Unknown";
 				return (
@@ -261,6 +257,8 @@ export default function AgentTable({
 				onRowClick={handleRowClick}
 				emptyMessage="No agents here."
 				scrollBody
+				minTableWidth="1020px"
+				bleedOnNarrow
 				groupTree={{
 					...groupTree,
 					storageKey: "agents:table-group",

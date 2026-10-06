@@ -18,6 +18,10 @@ import { useUserStore } from "@/stores/user-store";
 import { MCPServer } from "@/types/mcp-servers";
 import { getApiErrorMessage } from "@/lib/api/errors";
 import { buildGroupTree } from "@/lib/groups";
+import {
+	matchesResourceScope,
+	type ResourceScopeFilter,
+} from "@/lib/resource-scope-filter";
 import { AuthTypeBadge } from "./auth-type-badge";
 import { ServerIconTile } from "./server-icon-tile";
 import { useConnectionTest } from "../lib/use-connection-test";
@@ -25,6 +29,8 @@ import { useConnectionTest } from "../lib/use-connection-test";
 interface MCPServerTableProps {
 	mode: ViewMode;
 	search: string;
+	scope: ResourceScopeFilter;
+	filterTeamIds: string[];
 	onClearSearch: () => void;
 }
 
@@ -55,6 +61,8 @@ function RowTestButton({ server }: { server: MCPServer }) {
 export default function MCPServerTable({
 	mode,
 	search,
+	scope,
+	filterTeamIds,
 	onClearSearch,
 }: MCPServerTableProps) {
 	const confirmDialog = useConfirmDialog();
@@ -93,15 +101,16 @@ export default function MCPServerTable({
 
 	const filtered = useMemo(() => {
 		const query = search.trim().toLowerCase();
-		if (!query) return mcpServers;
 		return mcpServers.filter(
 			(server) =>
-				server.name.toLowerCase().includes(query) ||
-				server.url.toLowerCase().includes(query) ||
-				(server.description ?? "").toLowerCase().includes(query) ||
-				(server.group ?? "").toLowerCase().includes(query),
+				matchesResourceScope(server, scope, filterTeamIds) &&
+				(!query ||
+					server.name.toLowerCase().includes(query) ||
+					server.url.toLowerCase().includes(query) ||
+					(server.description ?? "").toLowerCase().includes(query) ||
+					(server.group ?? "").toLowerCase().includes(query)),
 		);
-	}, [mcpServers, search]);
+	}, [filterTeamIds, mcpServers, scope, search]);
 	const groupTree = useMemo(() => buildGroupTree(filtered), [filtered]);
 
 	const {
@@ -154,7 +163,7 @@ export default function MCPServerTable({
 		{
 			key: "server",
 			header: "Server",
-			width: "minmax(0, 1.35fr)",
+			width: "minmax(220px, 1.35fr)",
 			cell: (server) => (
 				<div className="flex min-w-0 items-center gap-3">
 					<ServerIconTile
@@ -179,7 +188,6 @@ export default function MCPServerTable({
 			key: "endpoint",
 			header: "Endpoint",
 			width: "220px",
-			hideBelowMd: true,
 			cell: (server) => (
 				<span className="block truncate font-mono text-[11px] text-subtle dark:text-muted-foreground">
 					{server.url}
@@ -197,7 +205,6 @@ export default function MCPServerTable({
 			key: "visibility",
 			header: "Visibility",
 			width: "120px",
-			hideBelowMd: true,
 			cell: (server) => (
 				<VisibilityBadge visibility={server.visibility ?? "workspace"} />
 			),
@@ -223,7 +230,7 @@ export default function MCPServerTable({
 								onClick={() => {
 									router.push(`/mcp-servers/${server.id}?edit=1`);
 								}}
-								className="hidden cursor-pointer rounded-[7px] border border-border px-[11px] py-[5px] text-[12px] font-medium text-body transition-colors hover:bg-sidebar md:block dark:text-panel-body dark:hover:bg-white/5"
+								className="cursor-pointer rounded-[7px] border border-border px-[11px] py-[5px] text-[12px] font-medium text-body transition-colors hover:bg-sidebar dark:text-panel-body dark:hover:bg-white/5"
 							>
 								Edit
 							</button>
@@ -301,6 +308,8 @@ export default function MCPServerTable({
 									Clear search
 								</button>
 							</span>
+						) : scope !== "all" && mcpServers.length > 0 ? (
+							"No MCP server matches this visibility filter."
 						) : (
 							"No MCP servers configured. Add one to get started."
 						)}
@@ -336,7 +345,7 @@ export default function MCPServerTable({
 										<h2 className="truncate text-[14.5px] font-bold tracking-[-0.01em] text-foreground">
 											{server.name}
 										</h2>
-										<div className="mt-1 flex items-center gap-1.5">
+										<div className="mt-1 flex flex-wrap items-center gap-1.5">
 											<AuthTypeBadge authType={server.authType} />
 											<VisibilityBadge visibility={server.visibility ?? "workspace"} />
 										</div>
@@ -348,7 +357,7 @@ export default function MCPServerTable({
 								<p className="pointer-events-none mt-3 truncate border-t border-[#edf2ef] pt-3 font-mono text-[10.5px] text-meta dark:border-white/5 dark:text-panel-dim">
 									{server.url}
 								</p>
-								<div className="relative z-10 mt-3 flex items-center justify-end gap-1.5">
+								<div className="relative z-10 mt-3 flex flex-wrap items-center justify-end gap-1.5">
 									<RowTestButton server={server} />
 									{isAdmin && (
 										<>
@@ -396,6 +405,8 @@ export default function MCPServerTable({
 					rowKey={(server) => server.id}
 					isLoading={isLoading}
 					scrollBody
+					minTableWidth="950px"
+					bleedOnNarrow
 					groupTree={{
 						...groupTree,
 						storageKey: "mcp-servers:table-group",
@@ -417,6 +428,8 @@ export default function MCPServerTable({
 									Clear search
 								</button>
 							</span>
+						) : scope !== "all" && mcpServers.length > 0 ? (
+							"No MCP server matches this visibility filter."
 						) : (
 							"No MCP servers configured. Add one to get started."
 						)

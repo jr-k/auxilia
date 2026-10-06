@@ -278,7 +278,7 @@ export default function SkillSourceTable({ sources, isLoading, canManage, onErro
 		{
 			key: "source",
 			header: "Repository",
-			width: "minmax(0, 1.5fr)",
+			width: "minmax(240px, 1.5fr)",
 			cell: (source) => (
 				<div className="flex min-w-0 items-center gap-3">
 					<SourceHostTile url={source.url} kind={source.kind} />
@@ -296,7 +296,6 @@ export default function SkillSourceTable({ sources, isLoading, canManage, onErro
 			key: "ref",
 			header: "Ref",
 			width: "150px",
-			hideBelowMd: true,
 			cell: (source) => (
 				<span className="block truncate font-mono text-[11px] text-subtle dark:text-muted-foreground">
 					{source.ref}
@@ -322,7 +321,6 @@ export default function SkillSourceTable({ sources, isLoading, canManage, onErro
 			key: "skills",
 			header: "Skills",
 			width: "80px",
-			hideBelowMd: true,
 			cell: (source) => (
 				<span className="font-mono text-[11px] text-subtle dark:text-muted-foreground">{source.skillCount}</span>
 			),
@@ -331,7 +329,6 @@ export default function SkillSourceTable({ sources, isLoading, canManage, onErro
 			key: "synced",
 			header: "Last sync",
 			width: "110px",
-			hideBelowMd: true,
 			cell: (source) => (
 				<span className="text-[11px] text-meta dark:text-panel-dim">
 					{source.lastSyncedAt ? (
@@ -404,6 +401,8 @@ export default function SkillSourceTable({ sources, isLoading, canManage, onErro
 				rowKey={(source) => source.id}
 				isLoading={isLoading}
 				scrollBody
+				minTableWidth="1000px"
+				bleedOnNarrow
 				emptyMessage="No repository connected yet."
 			/>
 		</>

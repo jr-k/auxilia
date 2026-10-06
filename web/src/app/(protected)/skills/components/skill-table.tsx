@@ -154,7 +154,7 @@ export default function SkillTable({
 		{
 			key: "name",
 			header: "Skill",
-			width: "minmax(0, 1.5fr)",
+			width: "minmax(220px, 1.5fr)",
 			cell: (skill) => (
 				<div className="flex min-w-0 items-center gap-2.5">
 					<SkillAvatar
@@ -202,14 +202,12 @@ export default function SkillTable({
 			key: "visibility",
 			header: "Visibility",
 			width: "120px",
-			hideBelowMd: true,
 			cell: (skill) => <VisibilityBadge visibility={skill.visibility} />,
 		},
 		{
 			key: "requires",
 			header: "Requires",
 			width: "128px",
-			hideBelowMd: true,
 			// The constraint, not a boolean. Almost every skill runs anywhere, so
 			// a `false` column would be a column of "no" with the answer hidden
 			// among it; marking only the exceptions means the eye lands on the
@@ -231,14 +229,12 @@ export default function SkillTable({
 			key: "used",
 			header: "Used by",
 			width: "110px",
-			hideBelowMd: true,
 			cell: (skill) => <UsedByAvatars agents={skill.agents} />,
 		},
 		{
 			key: "updated",
 			header: "Updated",
 			width: "100px",
-			hideBelowMd: true,
 			cell: (skill) => (
 				<span className="font-mono text-[11px] text-meta dark:text-panel-dim">
 					{relativeTime(skill.updatedAt)}
@@ -343,8 +339,8 @@ export default function SkillTable({
 						>
 							<span className="sr-only">Open {skill.name}</span>
 						</Link>
-						<div className="pointer-events-none flex min-w-0 items-start justify-between gap-2">
-							<div className="flex min-w-0 items-start gap-2.5">
+						<div className="pointer-events-none flex min-w-0 flex-wrap items-start justify-between gap-2">
+							<div className="flex min-w-[120px] flex-1 items-start gap-2.5">
 								<SkillAvatar
 									skillId={skill.id}
 									name={skill.name}
@@ -362,7 +358,7 @@ export default function SkillTable({
 									</div>
 								</div>
 							</div>
-							<div className="flex shrink-0 flex-wrap justify-end gap-1">
+							<div className="ml-auto flex max-w-full shrink-0 flex-wrap justify-end gap-1">
 								{skill.updateAvailable && (
 									<span className="rounded-[4px] bg-warning-bg px-1.5 py-px text-[9px] font-semibold text-warning">
 										Update
@@ -378,7 +374,7 @@ export default function SkillTable({
 						<p className="pointer-events-none mt-3 line-clamp-3 min-h-[57px] flex-1 text-[12.5px] leading-[1.5] text-subtle dark:text-muted-foreground">
 							{skill.description}
 						</p>
-						<div className="pointer-events-none mt-3 flex items-center justify-between border-t border-[#edf2ef] pt-3 dark:border-white/5">
+						<div className="pointer-events-none mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-[#edf2ef] pt-3 dark:border-white/5">
 							<div>
 								{skill.scriptCount > 0 ? (
 									<SkillRequirementChip scriptCount={skill.scriptCount} />
@@ -448,6 +444,8 @@ export default function SkillTable({
 			rowKey={(skill) => skill.id}
 			isLoading={isLoading}
 			scrollBody
+			minTableWidth="1060px"
+			bleedOnNarrow
 			groupTree={{
 				...groupTree,
 				storageKey: "skills:table-group",

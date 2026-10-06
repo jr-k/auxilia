@@ -9,7 +9,7 @@ import WorkspaceModels from "./workspace-models";
 import WorkspaceSandboxes from "./workspace-sandboxes";
 import InstanceAppearanceSettings from "./workspace-appearance";
 import WorkspaceAuthentication from "./workspace-authentication";
-import WorkspaceNotifications from "./workspace-notifications";
+import WorkspaceMessaging from "./workspace-notifications";
 import WorkspaceObservability from "./workspace-observability";
 import ProfileSettings, { type ProfileSection } from "./profile-settings";
 import { SubpageHeader } from "@/components/layout/subpage-header";
@@ -94,7 +94,7 @@ type SettingsTab =
 	| "profile"
 	| "appearance"
 	| "authentication"
-	| "notifications"
+	| "messaging"
 	| "observability"
 	| "models"
 	| "sandboxes";
@@ -105,7 +105,7 @@ function isAdminSettingsTab(
 	return (
 		tab === "appearance" ||
 		tab === "authentication" ||
-		tab === "notifications" ||
+		tab === "messaging" ||
 		tab === "observability" ||
 		tab === "models" ||
 		tab === "sandboxes"
@@ -295,15 +295,15 @@ export default function SettingsPage() {
 				}}
 			/>
 
-			<div className="flex min-h-0 flex-1">
+			<div className="flex min-h-0 flex-1 flex-col lg:flex-row">
 				{/* Left rail: title + vertical section tabs */}
-				<div className="w-[200px] flex-none pl-7 pt-8">
-					<h1 className="mb-[18px] pl-3.5 font-display text-[22px] font-bold tracking-[-0.03em] text-foreground">
+				<div className="w-full flex-none border-b border-border px-4 pt-5 lg:w-[200px] lg:border-b-0 lg:pl-7 lg:pr-0 lg:pt-8">
+					<h1 className="mb-3 pl-3.5 font-display text-[22px] font-bold tracking-[-0.03em] text-foreground lg:mb-[18px]">
 						{tab === "profile" ? "Profile" : "Settings"}
 					</h1>
 					{tab === "profile" ? (
-						<div className="flex flex-col">
-							<div className="mb-5">
+						<div className="flex gap-4 overflow-x-auto pb-3 lg:flex-col lg:gap-0 lg:overflow-visible lg:pb-0">
+							<div className="shrink-0 lg:mb-5">
 								<p className="mb-1.5 px-3.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-meta dark:text-panel-dim">
 									Account
 								</p>
@@ -335,7 +335,7 @@ export default function SettingsPage() {
 									Preferences
 								</button>
 							</div>
-							<div>
+							<div className="shrink-0">
 								<p className="mb-1.5 px-3.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-meta dark:text-panel-dim">
 									Developer
 								</p>
@@ -356,9 +356,9 @@ export default function SettingsPage() {
 							</div>
 						</div>
 					) : (
-						<div className="flex flex-col">
+						<div className="flex gap-4 overflow-x-auto pb-3 lg:flex-col lg:gap-0 lg:overflow-visible lg:pb-0">
 						{isAdmin && (
-							<div className="mb-5">
+							<div className="shrink-0 lg:mb-5">
 								<p className="mb-1.5 px-3.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-meta dark:text-panel-dim">
 									General
 								</p>
@@ -379,7 +379,7 @@ export default function SettingsPage() {
 							</div>
 						)}
 						{isAdmin && (
-							<div className="mb-5">
+							<div className="shrink-0 lg:mb-5">
 								<p className="mb-1.5 px-3.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-meta dark:text-panel-dim">
 									Integrations
 								</p>
@@ -394,9 +394,9 @@ export default function SettingsPage() {
 								</button>
 								<button
 									type="button"
-									className={railTabClass(tab === "notifications")}
+									className={railTabClass(tab === "messaging")}
 									onClick={() => {
-										setTab("notifications");
+										setTab("messaging");
 									}}
 								>
 									Messaging
@@ -427,7 +427,7 @@ export default function SettingsPage() {
 							</div>
 						)}
 						{isAdmin && (
-							<div className="mb-5">
+							<div className="shrink-0 lg:mb-5">
 								<p className="mb-1.5 px-3.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-meta dark:text-panel-dim">
 									Server
 								</p>
@@ -447,7 +447,7 @@ export default function SettingsPage() {
 				</div>
 
 				{/* Content */}
-				<div className="min-w-0 flex-1 overflow-y-auto px-9 py-8 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+				<div className="min-h-0 min-w-0 flex-1 overflow-y-auto px-4 py-6 [scrollbar-width:none] sm:px-6 lg:px-9 lg:py-8 [&::-webkit-scrollbar]:hidden">
 					<div className="mx-auto max-w-[800px]">
 						<section
 							className={
@@ -483,8 +483,8 @@ export default function SettingsPage() {
 						)}
 
 						{isAdmin && (
-							<section className={tab === "notifications" ? "" : "hidden"}>
-								<WorkspaceNotifications
+							<section className={tab === "messaging" ? "" : "hidden"}>
+								<WorkspaceMessaging
 									onForbidden={handleForbidden}
 								/>
 							</section>
