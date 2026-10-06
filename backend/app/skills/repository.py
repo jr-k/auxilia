@@ -79,7 +79,7 @@ def _visible_agent_clause(user_id: UUID, team_id: UUID | None):
                     col(AgentTeamDB.agent_id) == col(AgentDB.id),
                     col(AgentTeamDB.team_id) == team_id,
                 ),
-            )
+            ),
         )
     return clause
 

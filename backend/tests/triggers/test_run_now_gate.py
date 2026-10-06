@@ -58,7 +58,7 @@ async def test_run_now_rejects_when_owner_mcp_unauthorized(monkeypatch):
                 require_permission=AsyncMock(),
                 repository=MagicMock(
                     get_scoped=AsyncMock(return_value=MagicMock(is_archived=False))
-                )
+                ),
             )
         ),
     )
@@ -85,7 +85,7 @@ async def test_run_now_launches_when_owner_authorized(monkeypatch):
                 require_permission=AsyncMock(),
                 repository=MagicMock(
                     get_scoped=AsyncMock(return_value=MagicMock(is_archived=False))
-                )
+                ),
             )
         ),
     )

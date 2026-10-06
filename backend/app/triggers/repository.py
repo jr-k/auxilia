@@ -40,9 +40,7 @@ class TriggerRepository(BaseRepository[TriggerDB]):
         return list(result.scalars().all())
 
     async def list_for_agent(self, agent_id: UUID) -> list[TriggerDB]:
-        stmt = self._scope(
-            select(TriggerDB).where(TriggerDB.agent_id == agent_id)
-        )
+        stmt = self._scope(select(TriggerDB).where(TriggerDB.agent_id == agent_id))
         result = await self.db.execute(stmt)
         return list(result.scalars().all())
 

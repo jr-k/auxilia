@@ -242,9 +242,7 @@ async def delete_user(
     # Membership/grant removal must commit before the irreversible Redis purge.
     await db.commit()
     try:
-        await TokenStorageFactory().clear_user_data(
-            str(workspace_id), str(user_id)
-        )
+        await TokenStorageFactory().clear_user_data(str(workspace_id), str(user_id))
     except Exception:  # noqa: BLE001 — membership removal already succeeded
         logger.warning(
             "Could not purge MCP authorization state for removed workspace user %s",

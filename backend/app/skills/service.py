@@ -72,11 +72,7 @@ class SkillService(BaseService[SkillDB, SkillRepository]):
         # projection is also loaded once, never once per skill.
         rows = await self.repository.list_summaries()
         team_ids = await self.repository.list_team_ids_for_skills(
-            [
-                row.id
-                for row in rows
-                if row.visibility == ResourceVisibility.teams
-            ]
+            [row.id for row in rows if row.visibility == ResourceVisibility.teams]
         )
         by_skill: dict[UUID, list[SkillAgentRef]] = defaultdict(list)
         for binding in await self.repository.list_agents_by_skill(

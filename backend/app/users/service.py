@@ -329,9 +329,9 @@ class UserService(BaseService[UserDB, UserRepository]):
         _, membership = await self._get_in_workspace(user_id, workspace_id)
         from app.agents.core.repository import AgentRepository
 
-        await AgentRepository(
-            self.db, workspace_id
-        ).delete_permissions_for_user(user_id)
+        await AgentRepository(self.db, workspace_id).delete_permissions_for_user(
+            user_id
+        )
         await self.workspace_repository.delete_membership(membership)
 
     async def _ensure_agent_access_survives_identity_change(

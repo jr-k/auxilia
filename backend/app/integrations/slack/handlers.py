@@ -599,9 +599,7 @@ async def handle_interaction(
         if (
             thread is None
             or thread.user_id != actor.id
-            or not await _can_use_agent(
-                db, workspace_id, thread.agent_id, actor
-            )
+            or not await _can_use_agent(db, workspace_id, thread.agent_id, actor)
         ):
             return
 

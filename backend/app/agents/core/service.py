@@ -397,9 +397,9 @@ class AgentService(BaseService[AgentDB, AgentRepository]):
             user_role,
             team_agent_ids,
         )
-        if (
-            user_id is not None or user_role is not None
-        ) and responses[0].current_user_permission is None:
+        if (user_id is not None or user_role is not None) and responses[
+            0
+        ].current_user_permission is None:
             raise NotFoundError(self.not_found_message)
         return responses[0]
 
@@ -500,8 +500,7 @@ class AgentService(BaseService[AgentDB, AgentRepository]):
         validate_visibility(visibility, team_ids)
         current_team_ids = set(stored_team_ids)
         scope_changed = (
-            current_agent.visibility != visibility
-            or current_team_ids != set(team_ids)
+            current_agent.visibility != visibility or current_team_ids != set(team_ids)
         )
         if scope_changed:
             await self._validate_trigger_dependencies_for_scope(
@@ -676,9 +675,7 @@ class AgentService(BaseService[AgentDB, AgentRepository]):
     ) -> None:
         agent = await self._get_scoped(agent_id)
         for binding in await self.mcp_server_repository.list_for_agent(agent_id):
-            server = await self.mcp_servers.get_scoped_for_update(
-                binding.mcp_server_id
-            )
+            server = await self.mcp_servers.get_scoped_for_update(binding.mcp_server_id)
             if server is None:
                 continue
             if not audience_contains(
@@ -839,10 +836,7 @@ class AgentService(BaseService[AgentDB, AgentRepository]):
                     team_id=membership.team_id,
                 )
             )
-            if (
-                trigger.owner_id not in proposed_user_ids
-                and not has_baseline_access
-            ):
+            if trigger.owner_id not in proposed_user_ids and not has_baseline_access:
                 raise DomainValidationError(
                     f"Removing this grant would disable trigger '{trigger.name}'"
                 )
@@ -857,9 +851,7 @@ class AgentService(BaseService[AgentDB, AgentRepository]):
     ) -> None:
         is_admin = user_role == WorkspaceRole.admin
         for binding in await self.mcp_server_repository.list_for_agent(agent_id):
-            server = await self.mcp_servers.get_scoped_for_update(
-                binding.mcp_server_id
-            )
+            server = await self.mcp_servers.get_scoped_for_update(binding.mcp_server_id)
             if server is None:
                 continue
             team_ids = (
