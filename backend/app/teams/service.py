@@ -68,9 +68,7 @@ class TeamService(BaseService[TeamDB, TeamRepository]):
             raise AlreadyExistsError("Team name already exists") from exc
 
     async def delete(self, team_id: UUID, workspace_id: UUID) -> None:
-        team = await self.repository.get_in_workspace_for_update(
-            team_id, workspace_id
-        )
+        team = await self.repository.get_in_workspace_for_update(team_id, workspace_id)
         if team is None:
             raise NotFoundError(self.not_found_message)
         in_use = await self.repository.is_used_for_resource_visibility(team_id)

@@ -70,12 +70,9 @@ class InviteService(BaseService[InviteDB, InviteRepository]):
             workspace_id, existing_user.id
         ):
             raise AlreadyExistsError("User is already a workspace member")
-        if (
-            team_id is not None
-            and not await TeamRepository(
-                self.db
-            ).get_in_workspace_for_key_share(team_id, workspace_id)
-        ):
+        if team_id is not None and not await TeamRepository(
+            self.db
+        ).get_in_workspace_for_key_share(team_id, workspace_id):
             raise NotFoundError("Team not found")
         await self.repository.revoke_pending_by_email(workspace_id, email)
         data = InviteCreateDB(

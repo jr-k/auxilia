@@ -95,9 +95,7 @@ class TriggerDB(TriggerBase, BaseDBModel, table=True):
 class TriggerTeamDB(BaseDBModel, table=True):
     __tablename__ = "trigger_teams"
     __table_args__ = (
-        UniqueConstraint(
-            "trigger_id", "team_id", name="uq_trigger_visibility_team"
-        ),
+        UniqueConstraint("trigger_id", "team_id", name="uq_trigger_visibility_team"),
     )
 
     trigger_id: UUID = Field(

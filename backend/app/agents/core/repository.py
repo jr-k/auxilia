@@ -488,9 +488,7 @@ class AgentRepository(BaseRepository[AgentDB]):
         result = await self.db.execute(stmt)
         return list(result.scalars().all())
 
-    async def list_team_ids(
-        self, agent_ids: list[UUID]
-    ) -> dict[UUID, list[UUID]]:
+    async def list_team_ids(self, agent_ids: list[UUID]) -> dict[UUID, list[UUID]]:
         if not agent_ids:
             return {}
         stmt = select(AgentTeamDB.agent_id, AgentTeamDB.team_id).where(

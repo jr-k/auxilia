@@ -37,9 +37,7 @@ class MCPServerRepository(BaseRepository[MCPServerDB]):
 
     async def get_scoped_for_update(self, server_id: UUID) -> MCPServerDB | None:
         stmt = self._scope(
-            select(MCPServerDB)
-            .where(MCPServerDB.id == server_id)
-            .with_for_update()
+            select(MCPServerDB).where(MCPServerDB.id == server_id).with_for_update()
         )
         return (await self.db.execute(stmt)).scalar_one_or_none()
 
@@ -163,9 +161,9 @@ class MCPServerRepository(BaseRepository[MCPServerDB]):
     ) -> dict[UUID, list[UUID]]:
         if not server_ids:
             return {}
-        stmt = select(
-            MCPServerTeamDB.mcp_server_id, MCPServerTeamDB.team_id
-        ).where(MCPServerTeamDB.mcp_server_id.in_(server_ids))
+        stmt = select(MCPServerTeamDB.mcp_server_id, MCPServerTeamDB.team_id).where(
+            MCPServerTeamDB.mcp_server_id.in_(server_ids)
+        )
         result = await self.db.execute(stmt)
         grouped: dict[UUID, list[UUID]] = {}
         for server_id, team_id in result.all():
@@ -173,9 +171,7 @@ class MCPServerRepository(BaseRepository[MCPServerDB]):
         return grouped
 
     async def set_team_ids(self, server_id: UUID, team_ids: Collection[UUID]) -> None:
-        stmt = delete(MCPServerTeamDB).where(
-            MCPServerTeamDB.mcp_server_id == server_id
-        )
+        stmt = delete(MCPServerTeamDB).where(MCPServerTeamDB.mcp_server_id == server_id)
         await self.db.execute(stmt)
         self.db.add_all(
             [

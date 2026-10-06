@@ -174,10 +174,7 @@ class TriggerService(BaseService[TriggerDB, TriggerRepository]):
                         f"{auth_settings.FRONTEND_URL.rstrip('/')}"
                         f"/api/backend/triggers/webhooks/{t.webhook_id}"
                         if t.webhook_id is not None
-                        and (
-                            user.id == t.owner_id
-                            or user.role == WorkspaceRole.admin
-                        )
+                        and (user.id == t.owner_id or user.role == WorkspaceRole.admin)
                         else None
                     ),
                 },
@@ -423,9 +420,7 @@ class TriggerService(BaseService[TriggerDB, TriggerRepository]):
         trigger = await self.get_or_404(trigger_id)
         self._ensure_can_manage(trigger, user)
         owner = await self._get_owner(trigger)
-        await self._ensure_agent_usable(
-            trigger.agent_id, owner, trigger.workspace_id
-        )
+        await self._ensure_agent_usable(trigger.agent_id, owner, trigger.workspace_id)
         agent = await AgentService(self.db, trigger.workspace_id).repository.get_scoped(
             trigger.agent_id
         )
