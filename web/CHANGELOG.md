@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.11.14](https://github.com/jr-k/auxilia/compare/web-v0.11.13...web-v0.11.14) (2026-10-06)
+
+
+### Features
+
+* **web:** refine responsive workspace experience ([d1c5206](https://github.com/jr-k/auxilia/commit/d1c5206d124ed3fc7d57537e6e4bfd4197dc11e7))
+* **workspaces:** merge workspace administration ([3cbc5b3](https://github.com/jr-k/auxilia/commit/3cbc5b392553b4780f3c5aa6e31214345ee5182f))
+
 ## [0.11.13](https://github.com/jr-k/auxilia/compare/web-v0.11.12...web-v0.11.13) (2026-10-05)
 
 
