@@ -289,7 +289,7 @@ export function AppSidebar() {
 												asChild
 												isActive={isActive}
 												tooltip={title}
-												className="h-12 rounded-[7px] hover:bg-sidebar-hover data-[active=true]:bg-sidebar-accent group-data-[collapsible=icon]:h-12! group-data-[collapsible=icon]:w-[38px]! group-data-[collapsible=icon]:p-[5px]! group-data-[collapsible=icon]:data-[active=true]:bg-transparent"
+												className="h-12 rounded-[7px] focus-visible:ring-inset hover:bg-sidebar-hover data-[active=true]:bg-sidebar-accent group-data-[collapsible=icon]:h-12! group-data-[collapsible=icon]:w-[38px]! group-data-[collapsible=icon]:p-[5px]! group-data-[collapsible=icon]:data-[active=true]:bg-transparent"
 											>
 												<Link
 													href={`/agents/${thread.agentId}/chat/${thread.id}`}

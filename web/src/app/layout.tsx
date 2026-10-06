@@ -31,10 +31,6 @@ export const metadata: Metadata = {
 	description: "Platform for building AI-powered assistants",
 	applicationName: "auxilia",
 	icons: {
-		icon: [
-			{ url: "/pwa-icon.svg", type: "image/svg+xml" },
-			{ url: "/pwa-icon-192.png", sizes: "192x192", type: "image/png" },
-		],
 		apple: [
 			{
 				url: "/apple-touch-icon.png",
@@ -68,6 +64,13 @@ export default function RootLayout({
 }>) {
 	return (
 		<html lang="en" className="h-full" suppressHydrationWarning>
+			<head>
+				<link
+					rel="icon"
+					href="/pwa-icon.svg"
+					data-workspace-favicon="true"
+				/>
+			</head>
 			<body
 				className={`${spaceGrotesk.variable} ${hankenGrotesk.variable} ${ibmPlexMono.variable} antialiased h-full`}
 			>
