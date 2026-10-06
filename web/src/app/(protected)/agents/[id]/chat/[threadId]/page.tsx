@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Conversation,
   ConversationContent,
@@ -35,6 +35,12 @@ const ChatPage = () => {
   const params = useParams();
   const agentId = params.id as string;
   const threadId = params.threadId as string;
+  const completionSequence = useRef(0);
+  const playedCompletionSequence = useRef(0);
+  const [successfulCompletion, setSuccessfulCompletion] = useState<{
+    threadId: string;
+    sequence: number;
+  } | null>(null);
 
   const { meta, openError, run, transcript, hitl, actions } = useThreadSession({
     threadId,
@@ -44,13 +50,38 @@ const ChatPage = () => {
     },
     onCompleted: ({ reason }) => {
       if (reason !== "success") return;
-      if (!isResponseSoundEnabled()) return;
-      const audio = new Audio("/success.mp3");
-      audio.play().catch(() => {});
+      completionSequence.current += 1;
+      setSuccessfulCompletion({
+        threadId,
+        sequence: completionSequence.current,
+      });
     },
   });
   const promptQueue = usePromptQueue(threadId, run.status !== "idle");
   const thread = meta.thread;
+
+  useEffect(() => {
+    if (
+      successfulCompletion?.threadId !== threadId ||
+      successfulCompletion.sequence === playedCompletionSequence.current ||
+      run.status !== "idle" ||
+      promptQueue.items.length > 0 ||
+      promptQueue.runStarting
+    ) {
+      return;
+    }
+
+    playedCompletionSequence.current = successfulCompletion.sequence;
+    if (!isResponseSoundEnabled()) return;
+    const audio = new Audio("/success.mp3");
+    audio.play().catch(() => {});
+  }, [
+    promptQueue.items.length,
+    promptQueue.runStarting,
+    run.status,
+    successfulCompletion,
+    threadId,
+  ]);
 
   const canConfigure = useAgentsStore((s) =>
     canConfigureAgent(
