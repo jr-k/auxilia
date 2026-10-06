@@ -30,7 +30,18 @@ export function VisibilityPicker({
 	const [teams, setTeams] = useState<Team[]>([]);
 
 	useEffect(() => {
-		void teamsApi.listTeams().then(setTeams);
+		let cancelled = false;
+		void teamsApi
+			.listTeams()
+			.then((nextTeams) => {
+				if (!cancelled) setTeams(nextTeams);
+			})
+			.catch(() => {
+				if (!cancelled) setTeams([]);
+			});
+		return () => {
+			cancelled = true;
+		};
 	}, []);
 	useEffect(() => {
 		if (!open) return;
