@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.12](https://github.com/jr-k/auxilia/compare/backend-v0.10.11...backend-v0.10.12) (2026-10-06)
+
+
+### Bug Fixes
+
+* **mcp:** refresh server catalog metadata ([#23](https://github.com/jr-k/auxilia/issues/23)) ([4e44213](https://github.com/jr-k/auxilia/commit/4e44213e89850ff3c1840ab6cf15542b1c7177bb))
+
 ## [0.10.11](https://github.com/jr-k/auxilia/compare/backend-v0.10.10...backend-v0.10.11) (2026-10-05)
 
 
