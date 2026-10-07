@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.13](https://github.com/jr-k/auxilia/compare/backend-v0.10.12...backend-v0.10.13) (2026-10-07)
+
+
+### Features
+
+* add Gmail tools and navigation controls ([#29](https://github.com/jr-k/auxilia/issues/29)) ([8dcc47b](https://github.com/jr-k/auxilia/commit/8dcc47b300dd5f9d09e149eb95bd4b9c78ad4d1d))
+
 ## [0.10.12](https://github.com/jr-k/auxilia/compare/backend-v0.10.11...backend-v0.10.12) (2026-10-06)
 
 
