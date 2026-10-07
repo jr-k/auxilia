@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.16](https://github.com/jr-k/auxilia/compare/web-v0.11.15...web-v0.11.16) (2026-10-06)
+
+
+### Bug Fixes
+
+* **chat:** defer completion sound until prompt queue drains ([#27](https://github.com/jr-k/auxilia/issues/27)) ([42c4c03](https://github.com/jr-k/auxilia/commit/42c4c038c78378c21b14380d1084e26dead408ab))
+
 ## [0.11.15](https://github.com/jr-k/auxilia/compare/web-v0.11.14...web-v0.11.15) (2026-10-06)
 
 
