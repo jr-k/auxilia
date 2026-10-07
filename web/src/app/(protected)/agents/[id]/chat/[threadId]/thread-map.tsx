@@ -42,7 +42,8 @@ export const ThreadMap = memo(function ThreadMap({
     [messages],
   );
 
-  if (prompts.length === 0) return null;
+  // A single prompt has nowhere to jump to: no map until there are two.
+  if (prompts.length < 2) return null;
 
   const jumpTo = (anchorId: string) => {
     const target = document.getElementById(anchorId);
