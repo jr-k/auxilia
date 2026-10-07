@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.17](https://github.com/jr-k/auxilia/compare/web-v0.11.16...web-v0.11.17) (2026-10-07)
+
+
+### Features
+
+* add Gmail tools and navigation controls ([#29](https://github.com/jr-k/auxilia/issues/29)) ([8dcc47b](https://github.com/jr-k/auxilia/commit/8dcc47b300dd5f9d09e149eb95bd4b9c78ad4d1d))
+
 ## [0.11.16](https://github.com/jr-k/auxilia/compare/web-v0.11.15...web-v0.11.16) (2026-10-06)
 
 
