@@ -20,11 +20,12 @@ from app.mcp.client.auth import (
     quirk_token_endpoint_auth_method,
     resolve_quirks,
 )
+from app.mcp.gmail.settings import gmail_mcp_url
 
 
 SUPABASE_URL = "https://mcp.supabase.com/mcp"
 SUPABASE_ISSUER = "https://api.supabase.com/"
-GMAIL_URL = "https://gmailmcp.googleapis.com/mcp/v1"
+GMAIL_URL = gmail_mcp_url()
 
 
 def test_an_unknown_server_matches_nothing():
@@ -61,7 +62,7 @@ def test_google_asks_for_a_refresh_token():
     assert params == {"access_type": "offline", "prompt": "consent"}
 
 
-def test_gmail_scopes_are_fixed_because_the_server_advertises_none():
+def test_gmail_scopes_are_fixed_for_google_oauth():
     scope = quirk_scope(server_url=GMAIL_URL)
 
     assert scope is not None

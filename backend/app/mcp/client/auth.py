@@ -56,6 +56,7 @@ from pydantic import AnyHttpUrl, AnyUrl
 
 from app.auth.settings import auth_settings
 from app.mcp.client.exceptions import OAuthAuthorizationRequired
+from app.mcp.gmail.settings import GMAIL_SCOPES, gmail_mcp_url
 
 
 logger = logging.getLogger(__name__)
@@ -111,12 +112,13 @@ class OAuthQuirk:
     key, in two different layers, where the copies could disagree about which
     servers they covered (design review §4.1).
 
-    Fields are the three things a quirk can change, all optional:
+    Fields are the four things a quirk can change, all optional:
 
     * ``token_endpoint_auth_method`` — how the token request authenticates.
     * ``authorization_params`` — extra query params on the authorize URL.
     * ``scope`` — a fixed scope string, used when the server advertises none
       usable (see :func:`quirk_scope`).
+    * ``include_resource_parameter`` — whether RFC 8707's ``resource`` is sent.
     """
 
     name: str
@@ -125,6 +127,7 @@ class OAuthQuirk:
     token_endpoint_auth_method: str | None = None
     authorization_params: Mapping[str, str] = field(default_factory=dict)
     scope: str | None = None
+    include_resource_parameter: bool | None = None
 
 
 OAUTH_QUIRKS: tuple[OAuthQuirk, ...] = (
@@ -145,16 +148,12 @@ OAUTH_QUIRKS: tuple[OAuthQuirk, ...] = (
     ),
     OAuthQuirk(
         name="gmail",
-        server_url="https://gmailmcp.googleapis.com/mcp/v1",
-        # Google's MCP endpoint advertises no usable scopes, so they are named
-        # here. TODO: discover these instead of hardcoding them.
-        scope=(
-            "openid "
-            "https://www.googleapis.com/auth/userinfo.email "
-            "https://www.googleapis.com/auth/gmail.readonly "
-            "https://www.googleapis.com/auth/gmail.compose "
-            "https://www.googleapis.com/auth/gmail.modify"
-        ),
+        server_url=gmail_mcp_url(),
+        scope=" ".join(GMAIL_SCOPES),
+        # Google's standard OAuth server does not implement RFC 8707 resource
+        # indicators. The MCP resource remains protected; only the unsupported
+        # parameter is omitted from Google's authorize/token requests.
+        include_resource_parameter=False,
     ),
 )
 
@@ -217,6 +216,16 @@ def quirk_scope(
     return None
 
 
+def quirk_include_resource_parameter(
+    *, server_url: str | AnyUrl | None = None, issuer: str | AnyHttpUrl | None = None
+) -> bool | None:
+    """A provider-specific override for RFC 8707's resource parameter."""
+    for quirk in resolve_quirks(server_url=server_url, issuer=issuer):
+        if quirk.include_resource_parameter is not None:
+            return quirk.include_resource_parameter
+    return None
+
+
 def refresh_failure_is_transient(status_code: int) -> bool:
     """Whether a non-2xx from the token endpoint says nothing about the
     refresh credential: 429 (throttled) or 5xx (AS down). Every other
@@ -247,6 +256,31 @@ def strip_client_id_for_basic_auth(request: httpx2.Request) -> httpx2.Request:
     del data["client_id"]
     headers = {
         k: v for k, v in request.headers.items() if k.lower() != "content-length"
+    }
+    return httpx2.Request(request.method, request.url, data=data, headers=headers)
+
+
+def strip_unsupported_resource_parameter(
+    request: httpx2.Request,
+    *,
+    server_url: str | AnyUrl,
+    issuer: str | AnyHttpUrl | None,
+) -> httpx2.Request:
+    """Remove RFC 8707's form field for providers that reject it."""
+    include = quirk_include_resource_parameter(
+        server_url=server_url,
+        issuer=issuer,
+    )
+    if include is not False:
+        return request
+    data = dict(parse_qsl(request.content.decode()))
+    if "resource" not in data:
+        return request
+    del data["resource"]
+    headers = {
+        key: value
+        for key, value in request.headers.items()
+        if key.lower() != "content-length"
     }
     return httpx2.Request(request.method, request.url, data=data, headers=headers)
 
@@ -459,10 +493,20 @@ class WebOAuthClientProvider(OAuthClientProvider):
         self, *args, **kwargs
     ) -> httpx2.Request:
         request = await super()._exchange_token_authorization_code(*args, **kwargs)
+        request = strip_unsupported_resource_parameter(
+            request,
+            server_url=self.context.server_url,
+            issuer=self._issuer(),
+        )
         return strip_client_id_for_basic_auth(request)
 
     async def _refresh_token(self) -> httpx2.Request:
         request = await super()._refresh_token()
+        request = strip_unsupported_resource_parameter(
+            request,
+            server_url=self.context.server_url,
+            issuer=self._issuer(),
+        )
         return strip_client_id_for_basic_auth(request)
 
     def _negotiate_registration_auth_method(self) -> None:
@@ -675,7 +719,13 @@ class WebOAuthClientProvider(OAuthClientProvider):
                 server_url=self.context.server_url, issuer=self._issuer()
             )
         )
-        if self.context.should_include_resource_param(self.context.protocol_version):
+        include_resource = quirk_include_resource_parameter(
+            server_url=self.context.server_url,
+            issuer=self._issuer(),
+        )
+        if include_resource is not False and self.context.should_include_resource_param(
+            self.context.protocol_version
+        ):
             auth_params["resource"] = self.context.get_resource_url()
         if self.context.client_metadata.scope:
             auth_params["scope"] = self.context.client_metadata.scope

@@ -21,6 +21,7 @@ import yaml
 from pydantic import BaseModel, model_validator
 
 from app.exceptions import DomainValidationError
+from app.mcp.gmail.settings import gmail_mcp_url
 from app.mcp.servers.models import MCPAuthType
 from app.mcp.servers.settings import mcp_server_settings
 from app.utils.remote_catalog import RemoteCatalog
@@ -118,14 +119,47 @@ _catalog: RemoteCatalog[OfficialServer] = RemoteCatalog(
 )
 
 
+def _with_builtin_gmail(servers: list[OfficialServer]) -> list[OfficialServer]:
+    """Replace any catalog-provided Gmail entry with this deployment's endpoint."""
+    gmail = OfficialServer(
+        name="Gmail",
+        url=gmail_mcp_url(),
+        auth_type=MCPAuthType.oauth2,
+        icon_url=(
+            "https://pub-7a6e8912b3c448b8a8bfa47a0363f7bc.r2.dev/assets/icons/gmail.png"
+        ),
+        supports_dcr=False,
+        description=(
+            "Gmail is Google's email service. Auxilia's MCP server uses the stable "
+            "Gmail API to search and read messages and threads, create drafts, and "
+            "organize mail with labels."
+        ),
+    )
+    result: list[OfficialServer] = []
+    inserted = False
+    for server in servers:
+        if server.name.casefold() == "gmail":
+            if not inserted:
+                result.append(gmail)
+                inserted = True
+            continue
+        result.append(server)
+        if server.name.casefold() == "github" and not inserted:
+            result.append(gmail)
+            inserted = True
+    if not inserted:
+        result.append(gmail)
+    return result
+
+
 def bundled_catalog() -> list[OfficialServer]:
     """The snapshot shipped with the backend — the fallback of last resort."""
-    return _catalog.bundled()
+    return _with_builtin_gmail(_catalog.bundled())
 
 
 async def get_catalog() -> list[OfficialServer]:
     """The current catalog, through memo → Redis → CDN → last_good → bundled."""
-    return await _catalog.get()
+    return _with_builtin_gmail(await _catalog.get())
 
 
 async def sync_catalog() -> dict:

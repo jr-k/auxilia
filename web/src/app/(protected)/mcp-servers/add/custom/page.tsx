@@ -190,6 +190,7 @@ export default function CustomMCPServerPage() {
 	}, [officialUrl]);
 
 	const isNonDcrOAuth = requiresStaticOAuthCredentials(selectedOfficial);
+	const isGmail = selectedOfficial?.name === "Gmail";
 
 	const handleFormChange = (
 		field: keyof MCPServerCreateFormValues,
@@ -467,6 +468,22 @@ export default function CustomMCPServerPage() {
 										</>
 									)}
 								</div>
+								{isGmail && (
+									<div className="rounded-lg border border-border bg-card p-3 text-[12.5px] leading-[1.55] text-subtle dark:bg-white/5 dark:text-panel-body">
+										Enable the{" "}
+										<a
+											href="https://console.cloud.google.com/apis/library/gmail.googleapis.com"
+											target="_blank"
+											rel="noreferrer"
+											className="font-semibold text-petrol underline underline-offset-2"
+										>
+											Gmail API
+										</a>{" "}
+										in your Google Cloud project, then create an OAuth 2.0 Web
+										client and register the callback URL below. The Google
+										Workspace Developer Preview Program is not required.
+									</div>
+								)}
 								<OAuthCallbackUrl />
 								<div className="flex flex-col gap-[7px]">
 									<label htmlFor="mcp-oauth-client-id" className={LABEL_CLASS}>

@@ -5,6 +5,7 @@ import {
 	Copy,
 	Download,
 	KeyRound,
+	Menu,
 	ShieldCheck,
 	UserRound,
 	Volume2,
@@ -16,7 +17,9 @@ import { getApiErrorMessage } from "@/lib/api/errors";
 import * as usersApi from "@/lib/api/resources/users";
 import {
 	setResponseSoundEnabled,
+	setShowShortcutsInMenu,
 	useResponseSoundEnabled,
+	useShowShortcutsInMenu,
 } from "@/lib/user-preferences";
 import { useUserStore } from "@/stores/user-store";
 import type { CurrentUser } from "@/types/auth";
@@ -630,31 +633,58 @@ function TwoFactorCard({ user }: { user: CurrentUser }) {
 
 function PreferencesCard() {
 	const responseSoundEnabled = useResponseSoundEnabled();
+	const showShortcutsInMenu = useShowShortcutsInMenu();
 
 	return (
-		<section className="rounded-[12px] border border-border bg-card p-5">
-			<SectionHeading
-				icon={<Volume2 className="size-4" />}
-				title="Response sound"
-				description="Choose whether auxilia plays a sound when an agent finishes responding."
-			/>
-			<div className="flex items-center justify-between gap-6 rounded-[9px] border border-input px-4 py-3.5">
-				<div>
-					<p className="text-[13px] font-semibold text-foreground">
-						Play a sound when a response is ready
-					</p>
-					<p className="mt-0.5 text-[12px] leading-5 text-subtle dark:text-panel-body">
-						This preference is saved on this browser.
-					</p>
-				</div>
-				<Switch
-					checked={responseSoundEnabled}
-					onCheckedChange={setResponseSoundEnabled}
-					aria-label="Play a sound when a response is ready"
-					className="cursor-pointer"
+		<>
+			<section className="rounded-[12px] border border-border bg-card p-5">
+				<SectionHeading
+					icon={<Menu className="size-4" />}
+					title="Navigation"
+					description="Choose where workspace shortcuts appear."
 				/>
-			</div>
-		</section>
+				<div className="flex items-center justify-between gap-6 rounded-[9px] border border-input px-4 py-3.5">
+					<div>
+						<p className="text-[13px] font-semibold text-foreground">
+							Show shortcuts in the menu
+						</p>
+						<p className="mt-0.5 text-[12px] leading-5 text-subtle dark:text-panel-body">
+							On larger screens, workspace shortcuts appear directly in the
+							sidebar instead of the overflow menu.
+						</p>
+					</div>
+					<Switch
+						checked={showShortcutsInMenu}
+						onCheckedChange={setShowShortcutsInMenu}
+						aria-label="Show shortcuts in the menu"
+						className="cursor-pointer"
+					/>
+				</div>
+			</section>
+			<section className="rounded-[12px] border border-border bg-card p-5">
+				<SectionHeading
+					icon={<Volume2 className="size-4" />}
+					title="Response sound"
+					description="Choose whether auxilia plays a sound when an agent finishes responding."
+				/>
+				<div className="flex items-center justify-between gap-6 rounded-[9px] border border-input px-4 py-3.5">
+					<div>
+						<p className="text-[13px] font-semibold text-foreground">
+							Play a sound when a response is ready
+						</p>
+						<p className="mt-0.5 text-[12px] leading-5 text-subtle dark:text-panel-body">
+							This preference is saved on this browser.
+						</p>
+					</div>
+					<Switch
+						checked={responseSoundEnabled}
+						onCheckedChange={setResponseSoundEnabled}
+						aria-label="Play a sound when a response is ready"
+						className="cursor-pointer"
+					/>
+				</div>
+			</section>
+		</>
 	);
 }
 
