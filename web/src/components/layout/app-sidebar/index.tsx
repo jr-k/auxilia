@@ -62,6 +62,7 @@ import { AboutDialog } from "@/components/layout/app-sidebar/about-dialog";
 import { Thread } from "@/types/threads";
 import { useTheme } from "next-themes";
 import { WorkspaceSwitcher } from "@/components/layout/app-sidebar/workspace-switcher";
+import { useShowShortcutsInMenu } from "@/lib/user-preferences";
 
 const navItems: {
 	title: string;
@@ -146,6 +147,7 @@ export function AppSidebar() {
 	const [aboutOpen, setAboutOpen] = useState(false);
 	const activeRunThreadIds = useActiveRunThreadIds(threads);
 	const appearance = useAppearanceStore((state) => state.appearance);
+	const showShortcutsInMenu = useShowShortcutsInMenu();
 
 	const navCounts: Record<string, number | undefined> = {
 		"/agents": agentsReady ? agents.length : undefined,
@@ -428,7 +430,11 @@ export function AppSidebar() {
 						</SidebarGroupContent>
 					</SidebarGroup>
 
-					<SidebarGroup className="mt-auto hidden md:flex">
+					<SidebarGroup
+						className={
+							showShortcutsInMenu ? "mt-auto hidden md:flex" : "mt-auto hidden"
+						}
+					>
 						<SidebarGroupLabel className="h-auto overflow-hidden whitespace-nowrap px-2 pt-2 pb-1.5 font-sans text-[10px] font-semibold text-sidebar-muted-highlight group-data-[collapsible=icon]:mt-0">
 							Workspace
 						</SidebarGroupLabel>
@@ -561,7 +567,7 @@ export function AppSidebar() {
 											setAboutOpen(true);
 										},
 									},
-									...(isMobile
+									...(isMobile || !showShortcutsInMenu
 										? [
 												{ separator: true as const },
 												{ sectionLabel: "Workspace" },
