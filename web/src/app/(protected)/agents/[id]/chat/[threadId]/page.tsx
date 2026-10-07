@@ -1,6 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import type { BaseMessage } from "@langchain/core/messages";
+import {
+  isAIMessage,
+  isHumanMessage,
+} from "@langchain/core/messages";
 import {
   Conversation,
   ConversationContent,
@@ -25,6 +30,7 @@ import { getApiErrorMessage } from "@/lib/api/errors";
 import { isResponseSoundEnabled } from "@/lib/user-preferences";
 import { ConversationBody } from "./conversation-body";
 import { usePromptQueue } from "@/hooks/use-prompt-queue";
+import { ThreadMap } from "./thread-map";
 
 /**
  * The chat page renders one thread session. Run state, HITL, hydration and
@@ -37,10 +43,21 @@ const ChatPage = () => {
   const threadId = params.threadId as string;
   const completionSequence = useRef(0);
   const playedCompletionSequence = useRef(0);
+  const transcriptMessages = useRef<BaseMessage[]>([]);
+  // Id of the assistant message whose completion was already accounted for.
+  // Set when the user starts a run (the response on screen at that moment is
+  // old news) and when a completion is recorded, so a replayed terminal event
+  // for that same response can never be mistaken for a fresh one.
+  const acknowledgedAssistantId = useRef<string | null>(null);
   const [successfulCompletion, setSuccessfulCompletion] = useState<{
     threadId: string;
     sequence: number;
   } | null>(null);
+
+  const acknowledgeCurrentResponse = () => {
+    acknowledgedAssistantId.current =
+      transcriptMessages.current.findLast(isAIMessage)?.id ?? null;
+  };
 
   const { meta, openError, run, transcript, hitl, actions } = useThreadSession({
     threadId,
@@ -50,6 +67,23 @@ const ChatPage = () => {
     },
     onCompleted: ({ reason }) => {
       if (reason !== "success") return;
+      const messages = transcriptMessages.current;
+      const latestUserPrompt = messages.findLastIndex(
+        (message) => isHumanMessage(message) && message.name !== "host",
+      );
+      const latestAssistantResponse = messages.findLastIndex(isAIMessage);
+      // Starting a run can replay the preceding run's terminal event before
+      // the new lifecycle event arrives. At that point the optimistic user
+      // prompt is already present, but no assistant response follows it yet.
+      if (latestAssistantResponse <= latestUserPrompt) return;
+      // The transcript is throttled, so right after a send it may still show
+      // the previous turn as the latest one: compare against the response
+      // acknowledged when the run started.
+      const assistantId = messages[latestAssistantResponse].id ?? null;
+      if (assistantId !== null && assistantId === acknowledgedAssistantId.current) {
+        return;
+      }
+      acknowledgedAssistantId.current = assistantId;
       completionSequence.current += 1;
       setSuccessfulCompletion({
         threadId,
@@ -57,6 +91,9 @@ const ChatPage = () => {
       });
     },
   });
+  useEffect(() => {
+    transcriptMessages.current = transcript.messages;
+  }, [transcript.messages]);
   const promptQueue = usePromptQueue(threadId, run.status !== "idle");
   const thread = meta.thread;
 
@@ -130,13 +167,17 @@ const ChatPage = () => {
               nestedInterrupts={hitl.nestedInterrupts}
               respond={actions.respond}
               modelUnavailable={!meta.modelAvailable}
-              onRegenerate={actions.regenerate}
+              onRegenerate={() => {
+                acknowledgeCurrentResponse();
+                actions.regenerate();
+              }}
               error={run.error}
               rehydratedError={run.rehydratedError}
             />
           </ConversationContent>
           <ConversationScrollButton />
         </Conversation>
+        <ThreadMap messages={transcript.messages} />
         <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-background to-transparent z-10" />
       </div>
       <div className="w-full shrink-0 bg-background">
@@ -243,7 +284,10 @@ const ChatPage = () => {
         ) : (
           <ChatPromptInput
             key={threadId}
-            onSubmit={actions.send}
+            onSubmit={(message) => {
+              acknowledgeCurrentResponse();
+              return actions.send(message);
+            }}
             status={run.isLoading ? "streaming" : "ready"}
             queueMode={
               run.status !== "idle" ||

@@ -63,6 +63,7 @@ import {
   SubAgentProgress,
   SynthesisIndicator,
 } from "./subagent-card";
+import { threadMapAnchor } from "./thread-map";
 import { type DescribeTool, ToolStep, useDescribeTool } from "./tool-step";
 
 export type ConversationBodyProps = {
@@ -167,7 +168,11 @@ export const ConversationBody = memo(function ConversationBody({
           return isHostNotice(message) ? (
             <HostNotice key={key} message={message} />
           ) : (
-            <UserTurn key={key} message={message} />
+            <UserTurn
+              key={key}
+              message={message}
+              anchorId={threadMapAnchor(index)}
+            />
           );
         }
         if (!isAIMessage(message)) return null;
@@ -268,11 +273,17 @@ const HostNotice = ({ message }: { message: BaseMessage }) => (
   </div>
 );
 
-const UserTurn = ({ message }: { message: BaseMessage }) => {
+const UserTurn = ({
+  message,
+  anchorId,
+}: {
+  message: BaseMessage;
+  anchorId: string;
+}) => {
   const text = message.text;
   const attachments = getFileAttachments(message);
   return (
-    <>
+    <div id={anchorId} className="flex scroll-mt-24 flex-col gap-4">
       {attachments.length > 0 && (
         <div className="flex justify-end">
           <Attachments variant="inline">
@@ -325,7 +336,7 @@ const UserTurn = ({ message }: { message: BaseMessage }) => {
           </MessageContent>
         </Message>
       )}
-    </>
+    </div>
   );
 };
 
