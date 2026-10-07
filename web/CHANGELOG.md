@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.18](https://github.com/jr-k/auxilia/compare/web-v0.11.17...web-v0.11.18) (2026-10-07)
+
+
+### Bug Fixes
+
+* restore Gmail integration and refine prompt map ([#31](https://github.com/jr-k/auxilia/issues/31)) ([a640738](https://github.com/jr-k/auxilia/commit/a6407386fa165e7c9aa56f2b77fa4efb39b15c60))
+
 ## [0.11.17](https://github.com/jr-k/auxilia/compare/web-v0.11.16...web-v0.11.17) (2026-10-07)
 
 
