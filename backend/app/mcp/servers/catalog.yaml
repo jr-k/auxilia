@@ -114,16 +114,6 @@ servers:
       and code files, manage issues and PRs, analyze code, and automate workflows.
       All through natural language interactions.
 
-  - name: Gmail
-    url: "https://gmailmcp.googleapis.com/mcp/v1"
-    auth_type: oauth2
-    icon_url: "https://pub-7a6e8912b3c448b8a8bfa47a0363f7bc.r2.dev/assets/icons/gmail.png"
-    supports_dcr: false
-    description: >-
-      Gmail is Google's email service. Its MCP server lets an AI assistant search
-      and read messages and threads, create drafts, and organize mail with labels,
-      operating under the user's existing account permissions.
-
   - name: HubSpot
     url: "https://mcp.hubspot.com"
     auth_type: oauth2

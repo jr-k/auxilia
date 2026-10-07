@@ -27,6 +27,7 @@ from mcp.shared.auth import (
 from app.mcp.client.auth import WebOAuthClientProvider, build_oauth_client_metadata
 from app.mcp.client.exceptions import OAuthAuthorizationRequired
 from app.mcp.client.storage import StoredToken
+from app.mcp.gmail.settings import gmail_mcp_url
 
 
 BIGQUERY_URL = "https://bigquery.googleapis.com/mcp"
@@ -226,12 +227,12 @@ async def test_authorize_url_falls_back_when_as_metadata_missing(monkeypatch):
 async def test_gmail_keeps_its_fixed_scopes_over_discovery(monkeypatch):
     """The SDK's scope-selection step overwrites `client_metadata.scope` with
     what discovery found; the Gmail quirk must still win in the authorize URL."""
-    gmail_url = "https://gmailmcp.googleapis.com/mcp/v1"
+    gmail_url = gmail_mcp_url()
     _serve(
         monkeypatch,
         {
             f"POST {gmail_url}": _probe_must_not_be_sent,
-            "GET https://gmailmcp.googleapis.com/.well-known/oauth-protected-resource/mcp/v1": {
+            "GET http://localhost:8000/.well-known/oauth-protected-resource/gmail/mcp": {
                 "resource": gmail_url,
                 "authorization_servers": [GOOGLE_ISSUER],
                 "scopes_supported": ["openid"],
@@ -252,6 +253,7 @@ async def test_gmail_keeps_its_fixed_scopes_over_discovery(monkeypatch):
 
     query = parse_qs(urlparse(exc_info.value.url).query)
     assert "https://www.googleapis.com/auth/gmail.modify" in query["scope"][0]
+    assert "resource" not in query
 
 
 async def test_dynamic_client_registration_when_no_static_creds(monkeypatch):
