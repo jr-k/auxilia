@@ -22,7 +22,6 @@ from app.integrations.tracing import flush_tracing
 from app.invites.router import router as invites_router
 from app.logging_config import configure_logging
 from app.mcp.apps.router import router as mcp_apps_router
-from app.mcp.gmail.server import gmail_mcp_app, gmail_metadata_router
 from app.mcp.router import auxilia_mcp
 from app.mcp.servers.router import router as mcp_servers_router
 from app.model_providers.router import router as model_providers_router
@@ -92,10 +91,7 @@ async def lifespan(app: FastAPI):
         for task in background:
             task.add_done_callback(_log_background_crash)
 
-    async with (
-        auxilia_mcp.session_manager.run(),
-        gmail_mcp_app.lifespan(gmail_mcp_app),
-    ):
+    async with auxilia_mcp.session_manager.run():
         try:
             yield
         finally:
@@ -245,7 +241,6 @@ app.include_router(runs_router)
 app.include_router(user_runs_router)
 app.include_router(auth_router)
 app.include_router(tokens_router)
-app.include_router(gmail_metadata_router)
 app.include_router(mcp_apps_router)
 app.include_router(mcp_servers_router)
 app.include_router(threads_router)
@@ -262,5 +257,4 @@ app.include_router(observability_router)
 app.include_router(sandboxes_router)
 app.include_router(slack_router)
 
-app.mount("/gmail", gmail_mcp_app)
 app.mount("/", auxilia_mcp.streamable_http_app(stateless_http=True, json_response=True))
