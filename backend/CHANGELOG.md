@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.14](https://github.com/jr-k/auxilia/compare/backend-v0.10.13...backend-v0.10.14) (2026-10-07)
+
+
+### Bug Fixes
+
+* restore Gmail integration and refine prompt map ([#31](https://github.com/jr-k/auxilia/issues/31)) ([a640738](https://github.com/jr-k/auxilia/commit/a6407386fa165e7c9aa56f2b77fa4efb39b15c60))
+
 ## [0.10.13](https://github.com/jr-k/auxilia/compare/backend-v0.10.12...backend-v0.10.13) (2026-10-07)
 
 
