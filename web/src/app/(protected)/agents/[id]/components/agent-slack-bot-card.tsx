@@ -5,6 +5,7 @@ import { MessageCircleMore, Settings2, Unplug } from "lucide-react";
 import { useConfirmDialog } from "@/components/providers/dialog-provider";
 import { getApiErrorMessage } from "@/lib/api/errors";
 import * as agentsApi from "@/lib/api/resources/agents";
+import { useAppearanceStore } from "@/stores/appearance-store";
 import type {
 	AgentSlackBotSettings,
 	AgentSlackBotSettingsUpdate,
@@ -29,6 +30,7 @@ function SlackMark() {
 
 export default function AgentSlackBotCard({ agentId, canManage }: Props) {
 	const confirmDialog = useConfirmDialog();
+	const appName = useAppearanceStore((state) => state.appearance.appName);
 	const [settings, setSettings] = useState<AgentSlackBotSettings | null>(null);
 	const [loading, setLoading] = useState(true);
 	const [loadError, setLoadError] = useState<string | null>(null);
@@ -78,7 +80,7 @@ export default function AgentSlackBotCard({ agentId, canManage }: Props) {
 			!(await confirmDialog({
 				title: "Disconnect this Slack bot?",
 				description:
-					"New Slack messages will stop reaching this agent. Existing Auxilia threads remain available.",
+					`New Slack messages will stop reaching this agent. Existing ${appName} threads remain available.`,
 				confirmLabel: "Disconnect",
 				destructive: true,
 			}))

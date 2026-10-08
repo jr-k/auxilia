@@ -35,7 +35,7 @@ class RunStatus(str, Enum):
 MCP_REAUTH_ERROR = (
     "MCP authorization required: an MCP server used by this agent (or one of "
     "its subagents) is no longer connected for this user. Reconnect it from "
-    "the agent's chat page in auxilia, then run again."
+    "the agent's chat page, then run again."
 )
 
 # Terminal states stamp `threads.last_run_status` and TTL the run's Redis

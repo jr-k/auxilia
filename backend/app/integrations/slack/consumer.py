@@ -5,7 +5,7 @@ a `SlackRunConsumer`: it subscribes to the run's event log (Agent Streaming
 Protocol events, see `app/runtime/protocol/`), relays root text deltas and tool
 labels into a Slack streaming message (`chat.startStream`/`appendStream`/
 `stopStream` via `slack_sdk`'s `chat_stream`), and once the run is terminal
-posts either the tool-approval blocks (interrupted) or the "View in auxilia"
+posts either the tool-approval blocks (interrupted) or the configured instance
 link (success). This is the Slack half of the durable runtime — the web tier
 only enqueues the run (see `router.py`).
 """
@@ -18,11 +18,13 @@ from uuid import UUID
 from redis.asyncio import Redis
 from slack_sdk.web.async_client import AsyncWebClient
 
+from app.appearance.service import InstanceAppearanceService
 from app.auth.settings import auth_settings
 from app.database import AsyncSessionLocal, get_checkpointer
 from app.integrations.slack.blocks import (
     build_connect_prompt_blocks,
     build_tool_approval_blocks,
+    escape_mrkdwn,
     format_tool_streamer_label,
 )
 from app.integrations.slack.service import AgentSlackBotService
@@ -176,6 +178,7 @@ class SlackRunConsumer(DeliveryConsumer):
         self.delivery = cast(SlackDelivery, record.delivery or {})
         self.redis = redis
         self.client = client
+        self.app_name = "auxilia"
 
     @property
     def slack_client(self) -> AsyncWebClient:
@@ -219,6 +222,16 @@ class SlackRunConsumer(DeliveryConsumer):
                 await asyncio.sleep(0.25 * (2**attempt))
         return None
 
+    async def _resolve_app_name(self) -> str:
+        try:
+            async with AsyncSessionLocal() as db:
+                return (await InstanceAppearanceService(db).get_settings()).app_name
+        except Exception:  # noqa: BLE001 — branding lookup must not break delivery
+            logger.warning(
+                "Could not load the configured application name", exc_info=True
+            )
+            return "auxilia"
+
     async def run(self) -> None:
         client = await self._resolve_client()
         if client is None:
@@ -228,6 +241,7 @@ class SlackRunConsumer(DeliveryConsumer):
             )
             return
         self.client = client
+        self.app_name = await self._resolve_app_name()
         channel_id = self.delivery["channel_id"]
         thread_ts = self.delivery["thread_ts"]
         logger.info(
@@ -262,7 +276,7 @@ class SlackRunConsumer(DeliveryConsumer):
             elif status is RunStatus.interrupted:
                 await self._post_approvals(channel_id, thread_ts)
             elif status is RunStatus.success:
-                await self._post_auxilia_link(channel_id, thread_ts)
+                await self._post_instance_link(channel_id, thread_ts)
             elif status in (
                 RunStatus.error,
                 RunStatus.timeout,
@@ -374,8 +388,11 @@ class SlackRunConsumer(DeliveryConsumer):
             await self.slack_client.chat_postMessage(
                 channel=channel_id,
                 thread_ts=thread_ts,
-                blocks=build_connect_prompt_blocks(connect_url),
-                text="Please reconnect this agent's MCP servers on auxilia.",
+                blocks=build_connect_prompt_blocks(connect_url, self.app_name),
+                text=(
+                    "Please reconnect this agent's MCP servers on "
+                    f"{self.app_name}."
+                ),
             )
             return True
         except Exception:
@@ -427,8 +444,8 @@ class SlackRunConsumer(DeliveryConsumer):
                 text=text,
             )
 
-    async def _post_auxilia_link(self, channel_id: str, thread_ts: str) -> None:
-        """Post a divider + 'View in auxilia' link once the turn finishes cleanly."""
+    async def _post_instance_link(self, channel_id: str, thread_ts: str) -> None:
+        """Post a divider and instance link once the turn finishes cleanly."""
         async with AsyncSessionLocal() as db:
             thread = await ThreadRepository(db, self.record.workspace_id).get(
                 self.record.thread_id
@@ -446,7 +463,13 @@ class SlackRunConsumer(DeliveryConsumer):
                 {
                     "type": "context",
                     "elements": [
-                        {"type": "mrkdwn", "text": f"<{url}|*View in auxilia*>"}
+                        {
+                            "type": "mrkdwn",
+                            "text": (
+                                f"<{url}|*View in "
+                                f"{escape_mrkdwn(self.app_name)}*>"
+                            ),
+                        }
                     ],
                 },
             ],

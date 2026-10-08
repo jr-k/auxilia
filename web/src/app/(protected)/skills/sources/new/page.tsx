@@ -10,6 +10,7 @@ import ConfirmDialog from "@/components/ui/confirm-dialog";
 import { HeaderButton, HeaderPrimaryButton, SubpageHeader } from "@/components/layout/subpage-header";
 import { getApiErrorMessage } from "@/lib/api/errors";
 import { cn } from "@/lib/utils";
+import { useAppearanceStore } from "@/stores/appearance-store";
 import { useSkillsStore } from "@/stores/skills-store";
 import { shortRevision, type SkillSourceCreate, type SkillSourceKind, type SkillSourcePreview } from "@/types/skills";
 import { SkillRequirementChip } from "../../components/skill-requirement-chip";
@@ -130,6 +131,7 @@ function HostCards({ value, onChange, detected }: { value: SkillSourceKind; onCh
  * looked for and where.
  */
 function PreviewPanel({ preview }: { preview: SkillSourcePreview }) {
+	const appName = useAppearanceStore((state) => state.appearance.appName);
 	const importable = preview.skills.filter((s) => s.ok).length;
 	const nothingToImport = importable === 0;
 	return (
@@ -156,7 +158,7 @@ function PreviewPanel({ preview }: { preview: SkillSourcePreview }) {
 			</div>
 			{nothingToImport && (
 				<p className="border-b border-hairline px-4 py-2.5 text-[12.5px] leading-[1.5] text-subtle dark:border-white/5 dark:text-muted-foreground">
-					auxilia looked for <span className="font-mono text-[11.5px]">skills/&lt;name&gt;/SKILL.md</span>, a
+					{appName} looked for <span className="font-mono text-[11.5px]">skills/&lt;name&gt;/SKILL.md</span>, a
 					category folder one level deeper, or a <span className="font-mono text-[11.5px]">SKILL.md</span> at
 					the root
 					{preview.skills.length > 0
@@ -249,6 +251,7 @@ function ImportSummary({ preview }: { preview: SkillSourcePreview }) {
  */
 export default function NewSkillSourcePage() {
 	const router = useRouter();
+	const appName = useAppearanceStore((state) => state.appearance.appName);
 	const gate = useRoleGate("admin");
 	const previewSource = useSkillsStore((state) => state.previewSource);
 	const createSource = useSkillsStore((state) => state.createSource);
@@ -443,7 +446,7 @@ export default function NewSkillSourcePage() {
 								Which API this server speaks
 								{unsupported && (
 									<span className="ml-2 font-normal text-destructive">
-										{unsupported} is not supported, auxilia reads GitHub and GitLab only
+										{unsupported} is not supported, {appName} reads GitHub and GitLab only
 									</span>
 								)}
 								{!unsupported && hostUnconfirmed && urlValid && (

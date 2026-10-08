@@ -500,7 +500,7 @@ class SkillSourceService(BaseService[SkillSourceDB, SkillSourceRepository]):
 
 
 _EMPTY_HINT = (
-    "Push a skill to it first — auxilia reads "
+    "Push a skill to it first — supported layouts are "
     "skills/<name>/SKILL.md, a category folder one level deeper, or a "
     "SKILL.md at the root."
 )

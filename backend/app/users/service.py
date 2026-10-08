@@ -5,6 +5,7 @@ from uuid import UUID, uuid4
 from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.appearance.service import InstanceAppearanceService
 from app.auth.two_factor import (
     build_otpauth_uri,
     build_qr_code_data_url,
@@ -155,7 +156,10 @@ class UserService(BaseService[UserDB, UserRepository]):
             raise DomainValidationError("Two-factor authentication is already enabled")
         await self._verify_current_password(user, data.current_password)
         secret = generate_totp_secret()
-        otpauth_uri = build_otpauth_uri(secret, user.email or str(user.id))
+        app_name = (await InstanceAppearanceService(self.db).get_settings()).app_name
+        otpauth_uri = build_otpauth_uri(
+            secret, user.email or str(user.id), issuer=app_name
+        )
         return TwoFactorSetupResponse(
             secret=secret,
             otpauth_uri=otpauth_uri,

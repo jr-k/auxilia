@@ -11,7 +11,9 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/dialog";
+import { appearanceLogoUrl } from "@/lib/api/resources/appearance";
 import { getBackendVersion } from "@/lib/api/resources/system";
+import { useAppearanceStore } from "@/stores/appearance-store";
 import packageJson from "../../../../package.json";
 
 const GITHUB_URL = "https://github.com/keurcien/auxilia";
@@ -24,6 +26,7 @@ interface AboutDialogProps {
 
 export function AboutDialog({ open, onOpenChange }: AboutDialogProps) {
 	const [backendVersion, setBackendVersion] = useState<string | null>();
+	const appearance = useAppearanceStore((state) => state.appearance);
 
 	useEffect(() => {
 		if (!open || backendVersion !== undefined) return;
@@ -47,24 +50,36 @@ export function AboutDialog({ open, onOpenChange }: AboutDialogProps) {
 			<DialogContent className="overflow-hidden p-0 sm:max-w-[440px]">
 				<div className="border-b border-hairline px-7 pb-6 pt-8 dark:border-white/10">
 					<div className="mb-4 flex justify-center">
-						<Image
-							src="/logo.svg"
-							alt=""
-							width={34}
-							height={34}
-							className="size-[34px] dark:hidden"
-						/>
-						<Image
-							src="/logo-dark.svg"
-							alt=""
-							width={34}
-							height={34}
-							className="hidden size-[34px] dark:block"
-						/>
+						{appearance.logoRevision ? (
+							<Image
+								src={appearanceLogoUrl(appearance.logoRevision)}
+								alt={appearance.appName}
+								width={34}
+								height={34}
+								className="size-[34px]"
+							/>
+						) : (
+							<>
+								<Image
+									src="/logo.svg"
+									alt={appearance.appName}
+									width={34}
+									height={34}
+									className="size-[34px] dark:hidden"
+								/>
+								<Image
+									src="/logo-dark.svg"
+									alt={appearance.appName}
+									width={34}
+									height={34}
+									className="hidden size-[34px] dark:block"
+								/>
+							</>
+						)}
 					</div>
 					<DialogHeader className="items-center text-center">
 						<DialogTitle className="text-[22px] tracking-[-0.03em]">
-							auxilia
+							{appearance.appName}
 						</DialogTitle>
 						<DialogDescription className="max-w-[340px] text-[13.5px] leading-relaxed">
 							An open-source web client for building and running

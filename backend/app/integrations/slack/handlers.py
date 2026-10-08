@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.core.service import AgentService
 from app.agents.models import EffectivePermission
+from app.appearance.service import InstanceAppearanceService
 from app.auth.settings import auth_settings
 from app.database import AsyncSessionLocal, get_checkpointer
 from app.exceptions import (
@@ -24,7 +25,7 @@ from app.exceptions import (
     SandboxUnavailableError,
     StaleApprovalError,
 )
-from app.integrations.slack.blocks import build_connect_prompt_blocks
+from app.integrations.slack.blocks import build_connect_prompt_blocks, escape_mrkdwn
 from app.integrations.slack.commands.chat import (
     build_agent_picker_blocks,
     list_pickable_agents,
@@ -48,6 +49,15 @@ from app.users.models import UserDB
 
 
 logger = logging.getLogger(__name__)
+
+
+async def _instance_app_name() -> str:
+    try:
+        async with AsyncSessionLocal() as db:
+            return (await InstanceAppearanceService(db).get_settings()).app_name
+    except Exception:  # noqa: BLE001 — branding lookup must not break Slack delivery
+        logger.warning("Could not load the configured application name", exc_info=True)
+        return "auxilia"
 
 
 async def _resolve_slack_user(
@@ -438,10 +448,14 @@ async def handle_assistant_thread_started(
         user = await resolve_user(slack_user_id, workspace_id)
 
     if not user:
+        app_name = escape_mrkdwn(await _instance_app_name())
         await client.chat_postMessage(
             channel=channel_id,
             thread_ts=thread_ts,
-            text=f"Hi {display_name}! It seems like you haven't registered on auxilia yet.",
+            text=(
+                f"Hi {display_name}! It seems like you haven't registered on "
+                f"{app_name} yet."
+            ),
         )
         return
 
@@ -502,12 +516,13 @@ async def _is_agent_ready(
 async def _post_connect_prompt(
     client: AsyncWebClient, channel: str, thread_ts: str, agent_id
 ) -> None:
-    """Tell the Slack user to (re)connect the agent's MCP servers on auxilia."""
+    """Tell the Slack user to reconnect the agent's MCP servers."""
     connect_url = f"{auth_settings.FRONTEND_URL}/agents/{agent_id}/chat"
+    app_name = await _instance_app_name()
     await client.chat_postMessage(
         channel=channel,
         thread_ts=thread_ts,
-        blocks=build_connect_prompt_blocks(connect_url),
+        blocks=build_connect_prompt_blocks(connect_url, app_name),
     )
 
 
@@ -657,19 +672,22 @@ async def handle_agent_message(
     if client is None:
         return
     if not integration_enabled:
+        app_name = escape_mrkdwn(await _instance_app_name())
         await _post_agent_denial(
             client,
             event,
-            "This Slack bot is disabled in Auxilia. Ask an agent administrator to enable it.",
+            f"This Slack bot is disabled in {app_name}. "
+            "Ask an agent administrator to enable it.",
         )
         return
 
     user = await _resolve_slack_user(event.user, workspace_id, slack_bot_id)
     if user is None:
+        app_name = escape_mrkdwn(await _instance_app_name())
         await _post_agent_denial(
             client,
             event,
-            "You need an Auxilia account in this workspace to use this agent.",
+            f"You need a {app_name} account in this workspace to use this agent.",
         )
         return
 
@@ -734,10 +752,13 @@ async def handle_agent_message(
                 or thread.user_id != user.id
                 or thread.agent_id != agent_id
             ):
+                app_name = escape_mrkdwn(await _instance_app_name())
                 await _post_agent_denial(
                     client,
                     event,
-                    "I can't continue this conversation because its Auxilia thread is no longer available. Mention me in a new message to start again.",
+                    "I can't continue this conversation because its "
+                    f"{app_name} thread is no longer available. Mention me in "
+                    "a new message to start again.",
                 )
                 return
             if not question:
@@ -869,13 +890,14 @@ async def handle_interaction(
         # identify: nothing proves this card answers it, so never mark it or
         # resume from it — the buttons stay, and the web UI (which verifies
         # every resume against the checkpoint) takes over.
+        app_name = escape_mrkdwn(await _instance_app_name())
         await client.chat_postMessage(
             channel=channel_id,
             thread_ts=thread_ts,
             text=(
                 "This approval card predates an update and can't be matched "
                 "to the pending request — please approve or reject it from "
-                "auxilia."
+                f"{app_name}."
             ),
         )
         return

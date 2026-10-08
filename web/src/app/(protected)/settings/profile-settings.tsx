@@ -21,6 +21,7 @@ import {
 	useResponseSoundEnabled,
 	useShowShortcutsInMenu,
 } from "@/lib/user-preferences";
+import { useAppearanceStore } from "@/stores/appearance-store";
 import { useUserStore } from "@/stores/user-store";
 import type { CurrentUser } from "@/types/auth";
 
@@ -80,6 +81,7 @@ function BackupCodes({
 	onDone: () => void;
 }) {
 	const [copied, setCopied] = useState(false);
+	const appName = useAppearanceStore((state) => state.appearance.appName);
 
 	const copyCodes = async () => {
 		await navigator.clipboard.writeText(codes.join("\n"));
@@ -90,8 +92,11 @@ function BackupCodes({
 	};
 
 	const downloadCodes = () => {
+		const fileAppName =
+			appName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") ||
+			"app";
 		const content = [
-			"auxilia backup codes",
+			`${appName} backup codes`,
 			"Each code can be used once.",
 			"",
 			...codes,
@@ -102,7 +107,7 @@ function BackupCodes({
 		);
 		const link = document.createElement("a");
 		link.href = url;
-		link.download = "backup-codes-auxilia.txt";
+		link.download = `backup-codes-${fileAppName}.txt`;
 		link.click();
 		URL.revokeObjectURL(url);
 	};
@@ -632,6 +637,7 @@ function TwoFactorCard({ user }: { user: CurrentUser }) {
 }
 
 function PreferencesCard() {
+	const appName = useAppearanceStore((state) => state.appearance.appName);
 	const responseSoundEnabled = useResponseSoundEnabled();
 	const showShortcutsInMenu = useShowShortcutsInMenu();
 
@@ -665,7 +671,7 @@ function PreferencesCard() {
 				<SectionHeading
 					icon={<Volume2 className="size-4" />}
 					title="Response sound"
-					description="Choose whether auxilia plays a sound when an agent finishes responding."
+					description={`Choose whether ${appName} plays a sound when an agent finishes responding.`}
 				/>
 				<div className="flex items-center justify-between gap-6 rounded-[9px] border border-input px-4 py-3.5">
 					<div>
@@ -704,7 +710,7 @@ const sectionCopy: Record<
 	},
 	preferences: {
 		title: "Preferences",
-		description: "Choose how auxilia behaves for you on this browser.",
+		description: "",
 	},
 };
 
@@ -715,12 +721,16 @@ export default function ProfileSettings({
 	user: CurrentUser;
 	section: ProfileSection;
 }) {
+	const appName = useAppearanceStore((state) => state.appearance.appName);
 	const copy =
 		section === "information"
 			? sectionCopy.information
 			: section === "security"
 				? sectionCopy.security
-				: sectionCopy.preferences;
+				: {
+						...sectionCopy.preferences,
+						description: `Choose how ${appName} behaves for you on this browser.`,
+					};
 
 	return (
 		<div className="flex flex-col gap-4">

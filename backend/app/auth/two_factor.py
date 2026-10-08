@@ -28,8 +28,7 @@ def generate_totp_secret() -> str:
     return base64.b32encode(secrets.token_bytes(20)).decode().rstrip("=")
 
 
-def build_otpauth_uri(secret: str, email: str) -> str:
-    issuer = "auxilia"
+def build_otpauth_uri(secret: str, email: str, issuer: str = "auxilia") -> str:
     label = quote(f"{issuer}:{email}")
     return (
         f"otpauth://totp/{label}?secret={secret}&issuer={quote(issuer)}"

@@ -22,6 +22,7 @@ import type { ViewMode } from "@/components/ui/view-toggle";
 import { useRowSelection } from "@/hooks/use-row-selection";
 import { getApiErrorMessage, toApiError } from "@/lib/api/errors";
 import { buildGroupTree, flattenGroupTree } from "@/lib/groups";
+import { useAppearanceStore } from "@/stores/appearance-store";
 import { useSkillsStore } from "@/stores/skills-store";
 import type { BoundAgent } from "@/types/agents";
 import {
@@ -102,9 +103,10 @@ function UsedByAvatars({ agents }: { agents: BoundAgent[] }) {
  * nowhere until it is connected again.
  */
 function SourceCell({ skill }: { skill: SkillSummary }) {
+	const appName = useAppearanceStore((state) => state.appearance.appName);
 	if (!isSourced(skill)) {
 		return (
-			<span className="flex min-w-0 items-center gap-1.5" title="Written in auxilia, edit it here">
+			<span className="flex min-w-0 items-center gap-1.5" title={`Written in ${appName}, edit it here`}>
 				<PencilLine className="size-3.5 shrink-0 text-meta dark:text-panel-dim" />
 				<span className="truncate text-[11px] text-meta dark:text-panel-dim">in-app</span>
 			</span>

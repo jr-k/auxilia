@@ -12,6 +12,7 @@ import { VisibilityPicker } from "@/components/ui/visibility-picker";
 import { ImageUpload } from "@/components/ui/image-upload";
 import * as mcpServersApi from "@/lib/api/resources/mcp-servers";
 import { getApiErrorMessage } from "@/lib/api/errors";
+import { useAppearanceStore } from "@/stores/appearance-store";
 import { useMcpServersStore } from "@/stores/mcp-servers-store";
 import { MCPAuthType, OfficialMCPServer } from "@/types/mcp-servers";
 import { groupOptions } from "@/lib/groups";
@@ -135,6 +136,7 @@ function AuthMethodCards({
 export default function CustomMCPServerPage() {
 	const router = useRouter();
 	const searchParams = useSearchParams();
+	const appName = useAppearanceStore((state) => state.appearance.appName);
 	// The catalog has no ids — the `official` param carries the entry's url.
 	const officialUrl = searchParams.get("official");
 	const createMcpServer = useMcpServersStore((state) => state.createMcpServer);
@@ -330,7 +332,7 @@ export default function CustomMCPServerPage() {
 								</span>
 							) : (
 								<span className="text-[12px] text-meta dark:text-panel-dim">
-									Streamable HTTP endpoint, the only transport auxilia supports.
+									Streamable HTTP endpoint, the only transport {appName} supports.
 								</span>
 							)}
 						</div>

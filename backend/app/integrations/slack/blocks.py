@@ -13,7 +13,7 @@ def _quote_lines(lines: list[str]) -> str:
     return "\n".join(f"> {physical}" for line in lines for physical in line.split("\n"))
 
 
-def _escape_mrkdwn(text: str) -> str:
+def escape_mrkdwn(text: str) -> str:
     """Slack mrkdwn control characters, so a name renders as typed."""
     return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
@@ -76,14 +76,14 @@ def format_tool_streamer_label(tool_name: str) -> str:
     produces noisy literal mentions when a workspace has no matching emoji.
     """
     prefix, suffix = _split_tool_name(tool_name)
-    return f"\n> *{_escape_mrkdwn(prefix)}* › `{_escape_mrkdwn(suffix)}`\n"
+    return f"\n> *{escape_mrkdwn(prefix)}* › `{escape_mrkdwn(suffix)}`\n"
 
 
-def build_connect_prompt_blocks(connect_url: str) -> list[dict]:
+def build_connect_prompt_blocks(connect_url: str, app_name: str) -> list[dict]:
     """Blocks telling the user to (re)connect the agent's MCP servers on
-    auxilia. Used by the pre-enqueue gates (handlers) and by the delivery
-    consumer when the worker's OAuth pre-flight refused an already-enqueued
-    run."""
+    the configured instance. Used by handler readiness checks and the delivery
+    consumer's fallback for an unexpected OAuth failure."""
+    escaped_name = escape_mrkdwn(app_name)
     return [
         {
             "type": "section",
@@ -91,8 +91,9 @@ def build_connect_prompt_blocks(connect_url: str) -> list[dict]:
                 "type": "mrkdwn",
                 "text": (
                     "I can't run this request yet because one or more MCP servers "
-                    "used by this agent are not connected for your Auxilia account. "
-                    "Connect the required servers in Auxilia, then try again."
+                    f"used by this agent are not connected for your {escaped_name} "
+                    f"account. Connect the required servers in {escaped_name}, then "
+                    "try again."
                 ),
             },
         },
@@ -101,7 +102,10 @@ def build_connect_prompt_blocks(connect_url: str) -> list[dict]:
             "elements": [
                 {
                     "type": "button",
-                    "text": {"type": "plain_text", "text": "Connect on auxilia"},
+                    "text": {
+                        "type": "plain_text",
+                        "text": f"Connect on {app_name}",
+                    },
                     "url": connect_url,
                     "style": "primary",
                 }
@@ -160,7 +164,7 @@ def build_tool_approval_blocks(
                 "elements": [
                     {
                         "type": "mrkdwn",
-                        "text": f"Requested by subagent *{_escape_mrkdwn(subagent)}*",
+                        "text": f"Requested by subagent *{escape_mrkdwn(subagent)}*",
                     }
                 ],
             }

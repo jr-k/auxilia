@@ -84,7 +84,7 @@ function AppearanceForm({
 				</span>
 			</div>
 			<p className="mb-3.5 max-w-[620px] text-[13px] leading-[1.55] text-subtle dark:text-panel-body">
-				Customize the name and logo used throughout this auxilia instance.
+				Customize the name and logo used throughout this instance.
 			</p>
 
 			<div className="overflow-hidden rounded-[10px] border border-border bg-card dark:border-white/10">
@@ -126,7 +126,7 @@ function AppearanceForm({
 							onChange={(event) => {
 								setAppName(event.target.value);
 							}}
-							placeholder="auxilia"
+							placeholder="Application name"
 							className="max-w-[420px]"
 						/>
 						<span className="mt-1.5 block text-[11.5px] text-meta dark:text-panel-dim">

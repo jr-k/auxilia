@@ -49,7 +49,7 @@ class AgentSlackBotService:
     def _manifest(
         agent_name: str, events_url: str, interactions_url: str
     ) -> dict[str, Any]:
-        display_name = agent_name.strip()[:35] or "Auxilia agent"
+        display_name = agent_name.strip()[:35] or "Agent"
         return {
             "_metadata": {"major_version": 1},
             "display_information": {

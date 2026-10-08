@@ -14,7 +14,9 @@ import {
 	CardTitle,
 } from "@/components/ui/card";
 import * as authApi from "@/lib/api/resources/auth";
+import { appearanceLogoUrl } from "@/lib/api/resources/appearance";
 import { getApiErrorMessage } from "@/lib/api/errors";
+import { useAppearanceStore } from "@/stores/appearance-store";
 import type { InviteInfo } from "@/types/auth";
 
 
@@ -25,6 +27,7 @@ export default function InviteAcceptPage({
 }) {
 	const { token } = use(params);
 	const router = useRouter();
+	const appearance = useAppearanceStore((state) => state.appearance);
 	const [inviteInfo, setInviteInfo] = useState<InviteInfo | null>(null);
 	const [isLoading, setIsLoading] = useState(false);
 	const [isChecking, setIsChecking] = useState(true);
@@ -72,8 +75,12 @@ export default function InviteAcceptPage({
 				<CardHeader className="text-center flex flex-col items-center">
 					<CardTitle className="text-2xl flex flex-col items-center justify-center">
 						<Image
-							src="https://pub-7a6e8912b3c448b8a8bfa47a0363f7bc.r2.dev/assets/icons/logo.png"
-							alt="auxilia"
+							src={
+								appearance.logoRevision
+									? appearanceLogoUrl(appearance.logoRevision)
+									: "/pwa-icon.svg"
+							}
+							alt={appearance.appName}
 							width={48}
 							height={48}
 							className="mb-2"
@@ -103,13 +110,17 @@ export default function InviteAcceptPage({
 			<CardHeader className="text-center flex flex-col items-center">
 				<CardTitle className="text-2xl flex flex-col items-center justify-center">
 					<Image
-						src="https://pub-7a6e8912b3c448b8a8bfa47a0363f7bc.r2.dev/assets/icons/logo.png"
-						alt="auxilia"
+						src={
+							appearance.logoRevision
+								? appearanceLogoUrl(appearance.logoRevision)
+								: "/pwa-icon.svg"
+						}
+						alt={appearance.appName}
 						width={48}
 						height={48}
 						className="mb-2"
 					/>
-					<span className="text-2xl">Join auxilia</span>
+					<span className="text-2xl">Join {appearance.appName}</span>
 				</CardTitle>
 				<p className="text-sm text-muted-foreground mt-2">
 					You&apos;ve been invited to{" "}

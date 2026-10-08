@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
+import { useAppearanceStore } from "@/stores/appearance-store";
 import type {
 	AgentSlackBotSettings,
 	AgentSlackBotSettingsUpdate,
@@ -114,6 +115,7 @@ function AgentSlackSetupGuide({
 }) {
 	const [activeStep, setActiveStep] = useState(0);
 	const [setupMode, setSetupMode] = useState<"manifest" | "manual">("manifest");
+	const appName = useAppearanceStore((state) => state.appearance.appName);
 	const badgeClass =
 		"rounded-[4px] border border-border bg-background px-1.5 py-0.5 text-[11.5px] text-foreground dark:border-white/10";
 
@@ -152,9 +154,11 @@ function AgentSlackSetupGuide({
 			title: "Install the app",
 			body: (
 				<p>
-					Open <strong>OAuth &amp; Permissions</strong>, then click{" "}
-					<strong>Install to Workspace</strong>. Reinstall an existing app so
-					the manifest permissions are applied.
+					Slack normally asks you to install the app immediately after the
+					manifest is applied, so this may already be done. If you skipped it
+					or need to reinstall, open <strong>OAuth &amp; Permissions</strong>{" "}
+					and click <strong>Install to Workspace</strong> or{" "}
+					<strong>Reinstall to Workspace</strong>.
 				</p>
 			),
 		},
@@ -198,7 +202,7 @@ function AgentSlackSetupGuide({
 			body: (
 				<p>
 					Invite the bot to a public channel, then mention it with your request.
-					Replies remain visible in the Slack thread, while Auxilia checks that
+					Replies remain visible in the Slack thread, while {appName} checks that
 					the sender can use this agent.
 				</p>
 			),
@@ -229,7 +233,7 @@ function AgentSlackSetupGuide({
 			title: "Disable Socket Mode",
 			body: (
 				<p>
-					Open <strong>Settings → Socket Mode</strong> and turn it off. Auxilia
+					Open <strong>Settings → Socket Mode</strong> and turn it off. {appName}
 					uses public HTTP callback URLs; Slack hides the Request URL fields
 					while Socket Mode is enabled.
 				</p>
@@ -402,7 +406,7 @@ function AgentSlackSetupGuide({
 
 				<div className="mt-6 flex items-end justify-between gap-3 border-t border-border pt-4 dark:border-white/10">
 					<p className="max-w-[250px] text-[11px] leading-[1.45] text-meta">
-						Slack and Auxilia members must use the same email address.
+						Slack and {appName} members must use the same email address.
 					</p>
 					<DialogButton
 						onClick={() => {
