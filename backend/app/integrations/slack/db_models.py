@@ -31,9 +31,7 @@ class AgentSlackBotDB(BaseDBModel, table=True):
     )
     bot_token_encrypted: str = Field(sa_column=Column(Text, nullable=False))
     signing_secret_encrypted: str = Field(sa_column=Column(Text, nullable=False))
-    slack_team_id: str = Field(
-        sa_column=Column(String(64), nullable=False, index=True)
-    )
+    slack_team_id: str = Field(sa_column=Column(String(64), nullable=False, index=True))
     slack_team_name: str | None = Field(
         default=None, sa_column=Column(String(255), nullable=True)
     )

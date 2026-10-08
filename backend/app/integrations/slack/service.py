@@ -138,9 +138,7 @@ class AgentSlackBotService:
         row = await self.repository.get_for_agent(self.workspace_id, agent_id)
         token = data.bot_token.strip() if data.bot_token is not None else None
         secret = (
-            data.signing_secret.strip()
-            if data.signing_secret is not None
-            else None
+            data.signing_secret.strip() if data.signing_secret is not None else None
         )
         if (token is None) != (secret is None):
             raise DomainValidationError(
@@ -166,9 +164,7 @@ class AgentSlackBotService:
                 raise DomainValidationError("Slack did not return a workspace id")
             if not isinstance(bot_user_id, str) or not bot_user_id:
                 raise DomainValidationError("Slack did not return a bot user id")
-            existing = await self.repository.get_by_installation(
-                team_id, bot_user_id
-            )
+            existing = await self.repository.get_by_installation(team_id, bot_user_id)
             if existing is not None and (row is None or existing.id != row.id):
                 raise AlreadyExistsError(
                     "This Slack bot is already connected to another agent"
@@ -235,9 +231,7 @@ class AgentSlackBotService:
             return None
         return config
 
-    async def _runtime_config(
-        self, row: AgentSlackBotDB
-    ) -> AgentSlackRuntimeConfig:
+    async def _runtime_config(self, row: AgentSlackBotDB) -> AgentSlackRuntimeConfig:
         return AgentSlackRuntimeConfig(
             id=row.id,
             workspace_id=row.workspace_id,
