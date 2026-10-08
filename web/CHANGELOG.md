@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.11.20](https://github.com/jr-k/auxilia/compare/web-v0.11.19...web-v0.11.20) (2026-10-08)
+
+
+### Features
+
+* **slack:** give agents dedicated Slack bots ([fc79214](https://github.com/jr-k/auxilia/commit/fc79214641aa1534db61a6337e6c37f991c2a147))
+
+
+### Bug Fixes
+
+* address bulk selection review findings ([f69b59b](https://github.com/jr-k/auxilia/commit/f69b59baaf4d3a6a08b08f9f57213f122c6d478b))
+* address workspace review findings ([460565b](https://github.com/jr-k/auxilia/commit/460565b3f2c15279090ae1693b1c73f4782df91d))
+* **chat:** avoid indexed completion lookup ([02bbfd3](https://github.com/jr-k/auxilia/commit/02bbfd3fe3ed8d42c675d423112e72f62fd8d735))
+* **ui:** honor instance branding across messages ([e6e4d28](https://github.com/jr-k/auxilia/commit/e6e4d28e2c8b343bed2b9ac81bae80a20def76b8))
+
 ## [0.11.19](https://github.com/jr-k/auxilia/compare/web-v0.11.18...web-v0.11.19) (2026-10-08)
 
 
