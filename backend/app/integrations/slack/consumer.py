@@ -5,9 +5,10 @@ a `SlackRunConsumer`: it subscribes to the run's event log (Agent Streaming
 Protocol events, see `app/runtime/protocol/`), relays root text deltas and tool
 labels into a Slack streaming message (`chat.startStream`/`appendStream`/
 `stopStream` via `slack_sdk`'s `chat_stream`), and once the run is terminal
-posts either the tool-approval blocks (interrupted) or the configured instance
-link (success). This is the Slack half of the durable runtime — the web tier
-only enqueues the run (see `router.py`).
+posts tool-approval blocks when interrupted. Successful turns finalize that
+same streaming message with the configured instance link. This is the Slack
+half of the durable runtime — the web tier only enqueues the run (see
+`router.py`).
 """
 
 import asyncio
@@ -253,8 +254,7 @@ class SlackRunConsumer(DeliveryConsumer):
         marker_ts = await self._post_working_marker(channel_id, thread_ts)
         try:
             try:
-                text_chars = await self._stream_to_slack(channel_id, thread_ts)
-                status = await self._terminal_status()
+                text_chars, status = await self._stream_to_slack(channel_id, thread_ts)
             except Exception:
                 logger.exception("Slack delivery crashed for run %s", self.record.id)
                 await self._post_failure_notice(channel_id, thread_ts)
@@ -275,8 +275,6 @@ class SlackRunConsumer(DeliveryConsumer):
                 await self._post_failure_notice(channel_id, thread_ts)
             elif status is RunStatus.interrupted:
                 await self._post_approvals(channel_id, thread_ts)
-            elif status is RunStatus.success:
-                await self._post_instance_link(channel_id, thread_ts)
             elif status in (
                 RunStatus.error,
                 RunStatus.timeout,
@@ -320,13 +318,14 @@ class SlackRunConsumer(DeliveryConsumer):
                 exc_info=True,
             )
 
-    async def _stream_to_slack(self, channel_id: str, thread_ts: str) -> int:
+    async def _stream_to_slack(
+        self, channel_id: str, thread_ts: str
+    ) -> tuple[int, RunStatus | None]:
         """Relay the event log into a Slack streaming message.
 
-        Returns how many characters of answer text were streamed (0 is the
-        tell-tale of an empty/never-answered turn). Always closes the
-        streaming message — a mid-stream error must not leave an in-progress
-        Slack message open. Returns once the log's terminal entry is read.
+        Returns the answer character count and terminal status. Successful
+        turns include the instance link in the finalized message. Always
+        closes the stream, including after a mid-stream error.
         """
         streamer = await self.slack_client.chat_stream(
             channel=channel_id,
@@ -336,6 +335,8 @@ class SlackRunConsumer(DeliveryConsumer):
         )
         adapter = SlackProtocolAdapter()
         text_chars = 0
+        status: RunStatus | None = None
+        final_blocks: list[dict[str, Any]] | None = None
         try:
             async for raw in RunService(self.redis).stream(self.record.id):
                 event = decode_event(raw)
@@ -351,9 +352,12 @@ class SlackRunConsumer(DeliveryConsumer):
                     if not text.startswith("\n> "):  # tool labels aren't answer text
                         text_chars += len(text)
                     await streamer.append(markdown_text=text)
+            status = await self._terminal_status()
+            if status is RunStatus.success:
+                final_blocks = await self._instance_link_blocks()
         finally:
-            await streamer.stop()
-        return text_chars
+            await streamer.stop(blocks=final_blocks)
+        return text_chars, status
 
     async def _terminal_status(self) -> RunStatus | None:
         """The run's terminal status, from the durable record.
@@ -439,35 +443,27 @@ class SlackRunConsumer(DeliveryConsumer):
                 text=text,
             )
 
-    async def _post_instance_link(self, channel_id: str, thread_ts: str) -> None:
-        """Post a divider and instance link once the turn finishes cleanly."""
+    async def _instance_link_blocks(self) -> list[dict[str, Any]] | None:
+        """Build the footer rendered inside the finalized streaming message."""
         async with AsyncSessionLocal() as db:
             thread = await ThreadRepository(db, self.record.workspace_id).get(
                 self.record.thread_id
             )
         if thread is None:
-            return
+            return None
         url = f"{auth_settings.FRONTEND_URL}/agents/{thread.agent_id}/chat/{thread.id}"
-        await self.slack_client.chat_postMessage(
-            channel=channel_id,
-            thread_ts=thread_ts,
-            unfurl_links=False,
-            unfurl_media=False,
-            blocks=[
-                {"type": "divider"},
-                {
-                    "type": "context",
-                    "elements": [
-                        {
-                            "type": "mrkdwn",
-                            "text": (
-                                f"<{url}|*View in {escape_mrkdwn(self.app_name)}*>"
-                            ),
-                        }
-                    ],
-                },
-            ],
-        )
+        return [
+            {"type": "divider"},
+            {
+                "type": "context",
+                "elements": [
+                    {
+                        "type": "mrkdwn",
+                        "text": f"<{url}|*View in {escape_mrkdwn(self.app_name)}*>",
+                    }
+                ],
+            },
+        ]
 
 
 def _is_failed_terminal(event: dict[str, Any]) -> bool:

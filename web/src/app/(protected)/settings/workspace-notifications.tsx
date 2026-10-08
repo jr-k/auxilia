@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { SlackLogo } from "@/components/slack-logo";
 import { Switch } from "@/components/ui/switch";
 import { getApiErrorMessage, isApiError } from "@/lib/api/errors";
 import * as notificationsApi from "@/lib/api/resources/notifications";
@@ -8,17 +9,6 @@ import type { SlackNotificationSettings } from "@/types/notifications";
 
 interface Props {
 	onForbidden: () => void;
-}
-
-function SlackMark() {
-	return (
-		<span className="grid size-9 shrink-0 grid-cols-2 gap-0.5 rounded-[8px] border border-border bg-background p-2 shadow-sm dark:border-white/10">
-			<span className="rounded-full bg-[#36C5F0]" />
-			<span className="rounded-full bg-[#2EB67D]" />
-			<span className="rounded-full bg-[#E01E5A]" />
-			<span className="rounded-full bg-[#ECB22E]" />
-		</span>
-	);
 }
 
 export default function WorkspaceMessaging({ onForbidden }: Props) {
@@ -116,7 +106,7 @@ export default function WorkspaceMessaging({ onForbidden }: Props) {
 
 			<div className="overflow-hidden rounded-[10px] border border-border bg-card dark:border-white/10">
 				<div className="flex items-center gap-3 px-4 py-4">
-					<SlackMark />
+					<SlackLogo />
 					<div className="min-w-0 flex-1">
 						<p className="text-[13px] font-semibold text-foreground">
 							Slack integration

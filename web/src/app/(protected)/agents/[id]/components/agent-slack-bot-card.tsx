@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { MessageCircleMore, Settings2, Unplug } from "lucide-react";
 import { useConfirmDialog } from "@/components/providers/dialog-provider";
+import { SlackLogo } from "@/components/slack-logo";
 import { getApiErrorMessage } from "@/lib/api/errors";
 import * as agentsApi from "@/lib/api/resources/agents";
 import { useAppearanceStore } from "@/stores/appearance-store";
@@ -15,17 +16,6 @@ import AgentSlackBotDialog from "./agent-slack-bot-dialog";
 interface Props {
 	agentId: string;
 	canManage: boolean;
-}
-
-function SlackMark() {
-	return (
-		<span className="grid size-8 shrink-0 grid-cols-2 gap-0.5 rounded-[8px] border border-border bg-background p-[7px] dark:border-white/10">
-			<span className="rounded-full bg-[#36C5F0]" />
-			<span className="rounded-full bg-[#2EB67D]" />
-			<span className="rounded-full bg-[#E01E5A]" />
-			<span className="rounded-full bg-[#ECB22E]" />
-		</span>
-	);
 }
 
 export default function AgentSlackBotCard({ agentId, canManage }: Props) {
@@ -120,7 +110,7 @@ export default function AgentSlackBotCard({ agentId, canManage }: Props) {
 
 			<div className="overflow-hidden rounded-[10px] border border-border bg-card dark:border-white/10">
 				<div className="flex items-center gap-3 px-3.5 py-3">
-					<SlackMark />
+					<SlackLogo className="size-8 shadow-none" />
 					<div className="min-w-0 flex-1">
 						<div className="flex items-center gap-2">
 							<p className="text-[12.5px] font-semibold text-foreground">

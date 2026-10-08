@@ -14,6 +14,8 @@ interface ThreadsState {
 	isLoadingMore: boolean;
 	/** Fetch the first page, replacing the current list. */
 	fetchThreads: () => Promise<void>;
+	/** Merge newly-created first-page threads into the current sidebar list. */
+	pollRecentThreads: () => Promise<void>;
 	/** Append the next page (deduped by id — new threads shift offsets). */
 	loadMoreThreads: () => Promise<void>;
 	addThread: (thread: Thread) => void;
@@ -37,6 +39,26 @@ export const useThreadsStore = create<ThreadsState>((set, get) => ({
 			}
 		} catch (error) {
 			console.error("Error fetching threads:", error);
+		}
+	},
+	pollRecentThreads: async () => {
+		const generation = getWorkspaceGeneration();
+		try {
+			const page = await threadsApi.listThreads({ limit: PAGE_SIZE, offset: 0 });
+			if (!isCurrentWorkspaceGeneration(generation)) return;
+			set((state) => {
+				const knownIds = new Set(state.threads.map((thread) => thread.id));
+				const newThreads = page.items.filter(
+					(thread) => !knownIds.has(thread.id),
+				);
+				if (newThreads.length === 0 && state.total === page.total) return state;
+				return {
+					threads: [...newThreads, ...state.threads],
+					total: page.total,
+				};
+			});
+		} catch (error) {
+			console.error("Error polling recent threads:", error);
 		}
 	},
 	loadMoreThreads: async () => {

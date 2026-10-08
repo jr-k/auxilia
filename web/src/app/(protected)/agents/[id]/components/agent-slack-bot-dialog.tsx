@@ -19,6 +19,7 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/dialog";
+import { SlackLogo } from "@/components/slack-logo";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { useAppearanceStore } from "@/stores/appearance-store";
@@ -44,17 +45,6 @@ const scopes = [
 	"users:read",
 	"users:read.email",
 ];
-
-function SlackMark() {
-	return (
-		<span className="grid size-9 shrink-0 grid-cols-2 gap-0.5 rounded-[9px] border border-border bg-card p-2 shadow-sm dark:border-white/10">
-			<span className="rounded-full bg-[#36C5F0]" />
-			<span className="rounded-full bg-[#2EB67D]" />
-			<span className="rounded-full bg-[#E01E5A]" />
-			<span className="rounded-full bg-[#ECB22E]" />
-		</span>
-	);
-}
 
 function CopyValue({
 	label,
@@ -202,8 +192,9 @@ function AgentSlackSetupGuide({
 			body: (
 				<p>
 					Invite the bot to a public channel, then mention it with your request.
-					Replies remain visible in the Slack thread, while {appName} checks that
-					the sender can use this agent.
+					By default, every request in that thread must mention the bot. Replies
+					remain visible to the channel, while {appName} checks that the sender
+					can use this agent.
 				</p>
 			),
 		},
@@ -436,6 +427,9 @@ export default function AgentSlackBotDialog({
 }: Props) {
 	const [view, setView] = useState<"configuration" | "guide">("configuration");
 	const [enabled, setEnabled] = useState(settings.enabled);
+	const [requireMentionInThreads, setRequireMentionInThreads] = useState(
+		settings.requireMentionInThreads,
+	);
 	const [botToken, setBotToken] = useState("");
 	const [signingSecret, setSigningSecret] = useState("");
 	const manifest = useMemo(
@@ -454,6 +448,7 @@ export default function AgentSlackBotDialog({
 		if (!canSave) return;
 		await onSave({
 			enabled,
+			requireMentionInThreads,
 			...(credentialsComplete
 				? {
 						botToken: botToken.trim(),
@@ -489,7 +484,7 @@ export default function AgentSlackBotDialog({
 								<ArrowLeft className="size-4" />
 							</button>
 						) : (
-							<SlackMark />
+							<SlackLogo className="rounded-[9px] bg-card" />
 						)}
 						<div className="min-w-0">
 							<DialogTitle>
@@ -514,20 +509,38 @@ export default function AgentSlackBotDialog({
 								</div>
 							)}
 
-							<div className="flex items-center justify-between gap-4 rounded-[9px] border border-border bg-sidebar px-3.5 py-3 dark:border-white/10">
-								<div>
-									<p className="text-[12.5px] font-semibold text-foreground">
-										Accept Slack requests
-									</p>
-									<p className="mt-0.5 text-[10.5px] text-meta">
-										Agent permissions are checked on every message.
-									</p>
+							<div className="overflow-hidden rounded-[9px] border border-border bg-sidebar dark:border-white/10">
+								<div className="flex items-center justify-between gap-4 px-3.5 py-3">
+									<div>
+										<p className="text-[12.5px] font-semibold text-foreground">
+											Accept Slack requests
+										</p>
+										<p className="mt-0.5 text-[10.5px] text-meta">
+											Agent permissions are checked on every message.
+										</p>
+									</div>
+									<Switch
+										checked={enabled}
+										onCheckedChange={setEnabled}
+										className="cursor-pointer data-[state=checked]:bg-petrol"
+									/>
 								</div>
-								<Switch
-									checked={enabled}
-									onCheckedChange={setEnabled}
-									className="cursor-pointer data-[state=checked]:bg-petrol"
-								/>
+								<div className="flex items-center justify-between gap-4 border-t border-hairline px-3.5 py-3">
+									<div>
+										<p className="text-[12.5px] font-semibold text-foreground">
+											Require @mention in channel threads
+										</p>
+										<p className="mt-0.5 text-[10.5px] text-meta">
+											Ignore channel replies that do not mention this bot.
+											Direct messages are always accepted.
+										</p>
+									</div>
+									<Switch
+										checked={requireMentionInThreads}
+										onCheckedChange={setRequireMentionInThreads}
+										className="cursor-pointer data-[state=checked]:bg-petrol"
+									/>
+								</div>
 							</div>
 
 							<button

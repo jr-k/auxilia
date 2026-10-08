@@ -204,9 +204,9 @@ def _addressed_cards(
     """(decided ``{tool_call_id: decision}``, any_pending) among the cards tagged
     with this interrupt id.
 
-    Identity, not adjacency: an interleaved notice (a failure message, the
-    "View in auxilia" link) can't truncate the batch, and cards left over from
-    an older interrupt are ignored rather than miscounted.
+    Identity, not adjacency: an interleaved notice can't truncate the batch,
+    and cards left over from an older interrupt are ignored rather than
+    miscounted.
     """
     decided: dict[str, str] = {}
     any_pending = False
@@ -659,9 +659,16 @@ async def handle_agent_message(
     slack_bot_id: UUID,
     team_id: str | None = None,
     integration_enabled: bool = True,
+    require_mention_in_threads: bool = True,
 ) -> None:
-    """Route a mention or known thread reply to one agent-specific Slack bot."""
+    """Route an allowed channel mention or DM to one agent-specific Slack bot."""
     if not event.channel or not event.user or not event.ts:
+        return
+    if (
+        require_mention_in_threads
+        and event.channel_type != "im"
+        and event.type != "app_mention"
+    ):
         return
     external_thread_ts = event.thread_ts or event.ts
     client = await _client_for_bot(

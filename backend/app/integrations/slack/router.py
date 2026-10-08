@@ -141,11 +141,11 @@ async def agent_slack_events(
     if (
         event.type == "message"
         and event.channel_type != "im"
-        and event.thread_ts is None
+        and (event.thread_ts is None or verified.require_mention_in_threads)
     ):
-        # `message.channels` also carries the root mention. Let the matching
-        # `app_mention` event own it; otherwise this event would consume the
-        # shared timestamp dedup key before the actionable callback arrives.
+        # `message.channels` also carries mentions. Let the matching
+        # `app_mention` event own them so a duplicate callback cannot consume
+        # the shared timestamp dedup key before the actionable event arrives.
         return JSONResponse(content={"ok": True})
     if event.ts and not await _claim_delivery(
         f"slack:agent:{verified.slack_bot_id}:{event.channel}:{event.ts}"
@@ -159,6 +159,7 @@ async def agent_slack_events(
             slack_bot_id=verified.slack_bot_id,
             team_id=payload.team_id,
             integration_enabled=verified.integration_enabled,
+            require_mention_in_threads=verified.require_mention_in_threads,
         )
     )
     return JSONResponse(content={"ok": True})

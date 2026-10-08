@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field
 
 class AgentSlackBotUpdate(BaseModel):
     enabled: bool = True
+    require_mention_in_threads: bool = True
     bot_token: str | None = Field(default=None, max_length=4096)
     signing_secret: str | None = Field(default=None, max_length=4096)
 
@@ -12,6 +13,7 @@ class AgentSlackBotUpdate(BaseModel):
 class AgentSlackBotResponse(BaseModel):
     workspace_enabled: bool
     enabled: bool
+    require_mention_in_threads: bool
     is_configured: bool
     bot_token_last4: str | None = None
     has_signing_secret: bool = False

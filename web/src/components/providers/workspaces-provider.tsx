@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 
+import { useRecentThreadsPoll } from "@/hooks/use-recent-threads-poll";
 import { useAgentsStore } from "@/stores/agents-store";
 import { useAppearanceStore } from "@/stores/appearance-store";
 import { useMcpServersStore } from "@/stores/mcp-servers-store";
@@ -47,6 +48,7 @@ export function FullPageLoader() {
 export function WorkspacesProvider({ children }: { children: React.ReactNode }) {
 	const hydrate = useWorkspacesStore((state) => state.hydrate);
 	const [isReady, setIsReady] = useState(false);
+	useRecentThreadsPoll(isReady);
 
 	useEffect(() => {
 		let active = true;

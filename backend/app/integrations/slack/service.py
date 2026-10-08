@@ -24,6 +24,7 @@ class AgentSlackRuntimeConfig:
     workspace_id: UUID
     agent_id: UUID
     enabled: bool
+    require_mention_in_threads: bool
     workspace_enabled: bool
     bot_token: str
     signing_secret: str
@@ -115,6 +116,9 @@ class AgentSlackBotService:
         return AgentSlackBotResponse(
             workspace_enabled=await self._workspace_enabled(self.workspace_id),
             enabled=bool(row and row.enabled),
+            require_mention_in_threads=(
+                row.require_mention_in_threads if row else True
+            ),
             is_configured=row is not None,
             bot_token_last4=(
                 decrypt_value(row.bot_token_encrypted)[-4:] if row else None
@@ -174,6 +178,7 @@ class AgentSlackBotService:
                     workspace_id=self.workspace_id,
                     agent_id=agent_id,
                     enabled=data.enabled,
+                    require_mention_in_threads=data.require_mention_in_threads,
                     bot_token_encrypted=encrypt_value(token),
                     signing_secret_encrypted=encrypt_value(secret),
                     slack_team_id=team_id,
@@ -194,6 +199,7 @@ class AgentSlackBotService:
                 "Slack credentials are required to connect this agent"
             )
         row.enabled = data.enabled
+        row.require_mention_in_threads = data.require_mention_in_threads
         self.db.add(row)
         await self.db.flush()
         return await self.get_response(agent_id)
@@ -237,6 +243,7 @@ class AgentSlackBotService:
             workspace_id=row.workspace_id,
             agent_id=row.agent_id,
             enabled=row.enabled,
+            require_mention_in_threads=row.require_mention_in_threads,
             workspace_enabled=await self._workspace_enabled(row.workspace_id),
             bot_token=decrypt_value(row.bot_token_encrypted),
             signing_secret=decrypt_value(row.signing_secret_encrypted),
