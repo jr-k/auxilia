@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.21](https://github.com/jr-k/auxilia/compare/web-v0.11.20...web-v0.11.21) (2026-10-08)
+
+
+### Features
+
+* **slack:** refine agent bot conversations ([b99c890](https://github.com/jr-k/auxilia/commit/b99c8908849bb5e61699c7f41227f9ff057bebb5))
+
 ## [0.11.20](https://github.com/jr-k/auxilia/compare/web-v0.11.19...web-v0.11.20) (2026-10-08)
 
 
