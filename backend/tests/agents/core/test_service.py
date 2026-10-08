@@ -907,7 +907,7 @@ async def test_check_ready_returns_ready_when_all_servers_connected(
     assert result["status"] == "ready"
 
 
-async def test_check_ready_returns_not_ready_when_server_disconnected(
+async def test_check_ready_reports_optional_disconnected_server(
     service, mock_db, mock_repo
 ):
     agent_id, server_id = uuid4(), uuid4()
@@ -922,7 +922,7 @@ async def test_check_ready_returns_not_ready_when_server_disconnected(
     ):
         result = await service.describe_readiness(agent_id, "user-id")
 
-    assert result["ready"] is False
+    assert result["ready"] is True
     assert str(server_id) in result["disconnected_servers"]
 
 
@@ -957,8 +957,8 @@ async def test_check_ready_on_a_missing_agent_reports_ready_with_no_servers(
 async def test_describe_readiness_includes_subagent_servers(
     service, mock_db, mock_repo
 ):
-    # The bug: a subagent's unauthorized OAuth server must keep the agent "not
-    # ready" — otherwise the run launches and fails mid-flight.
+    # A subagent's unauthorized OAuth server is still reported so the UI can
+    # offer to connect it, but it remains optional for the run.
     parent_id, sub_id = uuid4(), uuid4()
     parent_server, sub_server = uuid4(), uuid4()
     mock_repo.get_run_spec.return_value = _run_spec(
@@ -975,7 +975,7 @@ async def test_describe_readiness_includes_subagent_servers(
     ):
         result = await service.describe_readiness(parent_id, "user-id")
 
-    assert result["ready"] is False
+    assert result["ready"] is True
     assert str(sub_server) in result["disconnected_servers"]
     assert str(parent_server) not in result["disconnected_servers"]
 

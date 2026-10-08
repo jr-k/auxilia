@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.10.16](https://github.com/jr-k/auxilia/compare/backend-v0.10.15...backend-v0.10.16) (2026-10-08)
+
+
+### Features
+
+* **slack:** give agents dedicated Slack bots ([fc79214](https://github.com/jr-k/auxilia/commit/fc79214641aa1534db61a6337e6c37f991c2a147))
+
+
+### Bug Fixes
+
+* address bulk selection review findings ([f69b59b](https://github.com/jr-k/auxilia/commit/f69b59baaf4d3a6a08b08f9f57213f122c6d478b))
+* **ui:** honor instance branding across messages ([e6e4d28](https://github.com/jr-k/auxilia/commit/e6e4d28e2c8b343bed2b9ac81bae80a20def76b8))
+
 ## [0.10.15](https://github.com/jr-k/auxilia/compare/backend-v0.10.14...backend-v0.10.15) (2026-10-08)
 
 
