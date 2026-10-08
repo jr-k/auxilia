@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.18](https://github.com/jr-k/auxilia/compare/backend-v0.10.17...backend-v0.10.18) (2026-10-08)
+
+
+### Features
+
+* **slack:** make tool callouts configurable ([bfd7d53](https://github.com/jr-k/auxilia/commit/bfd7d530eb70040ac0cc1fe9d134a1bca20bc35f))
+
 ## [0.10.17](https://github.com/jr-k/auxilia/compare/backend-v0.10.16...backend-v0.10.17) (2026-10-08)
 
 
