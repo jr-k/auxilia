@@ -195,6 +195,10 @@ class AuthService:
         if not invite:
             raise DomainValidationError("Invalid or expired invite")
         await self._ensure_password_auth(invite.workspace_id)
+        first_name = data.first_name.strip()
+        last_name = data.last_name.strip()
+        if not first_name or not last_name:
+            raise DomainValidationError("First and last name are required")
         result = await self.db.execute(
             select(UserDB).where(UserDB.email == invite.email)
         )
@@ -202,7 +206,9 @@ class AuthService:
         if user is None:
             user = UserDB(
                 email=invite.email,
-                name=data.name,
+                name=f"{first_name} {last_name}",
+                first_name=first_name,
+                last_name=last_name,
                 password_hash=await get_password_hash(data.password),
             )
             self.db.add(user)

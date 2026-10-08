@@ -264,7 +264,7 @@ export default function SettingsPage() {
 	const railTabClass = (active: boolean) =>
 		`flex cursor-pointer items-center gap-2 px-3 py-[7px] text-left text-[13px] transition-colors ${
 			active
-				? "font-semibold text-foreground"
+				? "font-semibold text-foreground underline decoration-2 decoration-petrol underline-offset-4"
 				: "font-medium text-subtle hover:text-foreground dark:text-panel-body"
 		}`;
 
