@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.23](https://github.com/jr-k/auxilia/compare/web-v0.11.22...web-v0.11.23) (2026-10-08)
+
+
+### Bug Fixes
+
+* **web:** focus prompt when opening a thread ([#37](https://github.com/jr-k/auxilia/issues/37)) ([07a7b5a](https://github.com/jr-k/auxilia/commit/07a7b5a8631b33a4c9409d9fa9abdd5e1690216a))
+
 ## [0.11.22](https://github.com/jr-k/auxilia/compare/web-v0.11.21...web-v0.11.22) (2026-10-08)
 
 
