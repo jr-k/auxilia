@@ -418,9 +418,7 @@ class Toolset:
                     lc_tools = await adapter.list_tools()
                 except BaseException as exc:
                     if entered:
-                        await adapter.__aexit__(
-                            type(exc), exc, exc.__traceback__
-                        )
+                        await adapter.__aexit__(type(exc), exc, exc.__traceback__)
                     if as_oauth_required(exc) is not None:
                         logger.info(
                             "Omitting unauthorized OAuth MCP server %s from run",

@@ -195,11 +195,7 @@ async def agent_slack_interactions(
         return JSONResponse(content={"ok": True})
     form_data = parse_qs(verified.body.decode())
     raw_payload = form_data.get("payload", [None])[0]
-    if (
-        not raw_payload
-        or verified.agent_id is None
-        or verified.slack_bot_id is None
-    ):
+    if not raw_payload or verified.agent_id is None or verified.slack_bot_id is None:
         return JSONResponse(content={"ok": True})
     payload = SlackInteractionPayload.model_validate(json.loads(raw_payload))
     if payload.type == "block_actions":

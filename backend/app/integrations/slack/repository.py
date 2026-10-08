@@ -52,9 +52,7 @@ class SlackThreadBindingRepository(BaseRepository[SlackThreadBindingDB]):
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
-    async def get_for_thread(
-        self, thread_id: str
-    ) -> SlackThreadBindingDB | None:
+    async def get_for_thread(self, thread_id: str) -> SlackThreadBindingDB | None:
         stmt = select(SlackThreadBindingDB).where(
             SlackThreadBindingDB.thread_id == thread_id
         )

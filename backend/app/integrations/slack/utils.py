@@ -133,9 +133,7 @@ async def verify_agent_slack_signature(
 
     async with AsyncSessionLocal() as db:
         config = await AgentSlackBotService(db).get_for_verification(agent_id)
-    if config is None or (
-        team_id is not None and config.slack_team_id != team_id
-    ):
+    if config is None or (team_id is not None and config.slack_team_id != team_id):
         raise HTTPException(status_code=403, detail="Slack bot is not configured")
 
     if not _signature_matches(
@@ -168,10 +166,10 @@ async def get_slack_client(
     async with AsyncSessionLocal() as db:
         workspace_config = await SlackNotificationSettingsService(
             db
-        ).get_runtime_config(
-            workspace_id
-        )
-    return AsyncWebClient(token=workspace_config.bot_token) if workspace_config else None
+        ).get_runtime_config(workspace_id)
+    return (
+        AsyncWebClient(token=workspace_config.bot_token) if workspace_config else None
+    )
 
 
 async def get_user_info(

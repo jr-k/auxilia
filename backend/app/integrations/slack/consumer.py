@@ -285,9 +285,7 @@ class SlackRunConsumer(DeliveryConsumer):
         finally:
             await self._remove_working_marker(channel_id, marker_ts)
 
-    async def _post_working_marker(
-        self, channel_id: str, thread_ts: str
-    ) -> str | None:
+    async def _post_working_marker(self, channel_id: str, thread_ts: str) -> str | None:
         """Post a temporary progress marker for agent-specific Slack bots."""
         if not self.delivery.get("slack_bot_id"):
             return None
@@ -389,10 +387,7 @@ class SlackRunConsumer(DeliveryConsumer):
                 channel=channel_id,
                 thread_ts=thread_ts,
                 blocks=build_connect_prompt_blocks(connect_url, self.app_name),
-                text=(
-                    "Please reconnect this agent's MCP servers on "
-                    f"{self.app_name}."
-                ),
+                text=(f"Please reconnect this agent's MCP servers on {self.app_name}."),
             )
             return True
         except Exception:
@@ -466,8 +461,7 @@ class SlackRunConsumer(DeliveryConsumer):
                         {
                             "type": "mrkdwn",
                             "text": (
-                                f"<{url}|*View in "
-                                f"{escape_mrkdwn(self.app_name)}*>"
+                                f"<{url}|*View in {escape_mrkdwn(self.app_name)}*>"
                             ),
                         }
                     ],
