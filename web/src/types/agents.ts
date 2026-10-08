@@ -42,6 +42,7 @@ export interface AgentSlackBotSettings {
 	workspaceEnabled: boolean;
 	enabled: boolean;
 	requireMentionInThreads: boolean;
+	showToolCallouts: boolean;
 	isConfigured: boolean;
 	botTokenLast4: string | null;
 	hasSigningSecret: boolean;
@@ -57,6 +58,7 @@ export interface AgentSlackBotSettings {
 export interface AgentSlackBotSettingsUpdate {
 	enabled: boolean;
 	requireMentionInThreads: boolean;
+	showToolCallouts: boolean;
 	botToken?: string;
 	signingSecret?: string;
 }

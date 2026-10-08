@@ -112,7 +112,8 @@ class SlackProtocolAdapter:
     (`pending_approval_requests`) once the run is terminal.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, *, show_tool_callouts: bool = True) -> None:
+        self._show_tool_callouts = show_tool_callouts
         self._tools_started: set[str] = set()
         self._tools_announced: set[str] = set()
         # The role of the message currently open on the root namespace, per
@@ -130,7 +131,11 @@ class SlackProtocolAdapter:
         method = event.get("method")
         if method == "messages":
             return self._on_message(str(params.get("node") or ""), data)
-        if method == "tools" and data.get("event") == "tool-started":
+        if (
+            self._show_tool_callouts
+            and method == "tools"
+            and data.get("event") == "tool-started"
+        ):
             tool_call_id = data.get("tool_call_id")
             tool_name = data.get("tool_name")
             if tool_call_id and tool_name and tool_call_id not in self._tools_started:
@@ -180,6 +185,7 @@ class SlackRunConsumer(DeliveryConsumer):
         self.redis = redis
         self.client = client
         self.app_name = "auxilia"
+        self.show_tool_callouts = True
 
     @property
     def slack_client(self) -> AsyncWebClient:
@@ -212,6 +218,7 @@ class SlackRunConsumer(DeliveryConsumer):
                             "Slack agent bot mismatch for run %s", self.record.id
                         )
                         return None
+                    self.show_tool_callouts = config.show_tool_callouts
                     return AsyncWebClient(token=config.bot_token)
                 return await get_slack_client(UUID(self.delivery["workspace_id"]))
             except Exception:
@@ -333,7 +340,9 @@ class SlackRunConsumer(DeliveryConsumer):
             recipient_team_id=self.delivery.get("team_id"),
             recipient_user_id=self.delivery.get("slack_user_id"),
         )
-        adapter = SlackProtocolAdapter()
+        adapter = SlackProtocolAdapter(
+            show_tool_callouts=self.show_tool_callouts,
+        )
         text_chars = 0
         status: RunStatus | None = None
         final_blocks: list[dict[str, Any]] | None = None

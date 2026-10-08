@@ -430,6 +430,9 @@ export default function AgentSlackBotDialog({
 	const [requireMentionInThreads, setRequireMentionInThreads] = useState(
 		settings.requireMentionInThreads,
 	);
+	const [showToolCallouts, setShowToolCallouts] = useState(
+		settings.showToolCallouts,
+	);
 	const [botToken, setBotToken] = useState("");
 	const [signingSecret, setSigningSecret] = useState("");
 	const manifest = useMemo(
@@ -449,6 +452,7 @@ export default function AgentSlackBotDialog({
 		await onSave({
 			enabled,
 			requireMentionInThreads,
+			showToolCallouts,
 			...(credentialsComplete
 				? {
 						botToken: botToken.trim(),
@@ -538,6 +542,22 @@ export default function AgentSlackBotDialog({
 									<Switch
 										checked={requireMentionInThreads}
 										onCheckedChange={setRequireMentionInThreads}
+										className="cursor-pointer data-[state=checked]:bg-petrol"
+									/>
+								</div>
+								<div className="flex items-center justify-between gap-4 border-t border-hairline px-3.5 py-3">
+									<div>
+										<p className="text-[12.5px] font-semibold text-foreground">
+											Show tool callouts
+										</p>
+										<p className="mt-0.5 text-[10.5px] text-meta">
+											Display tool names while the agent works. Turn off to
+											keep only the textual response.
+										</p>
+									</div>
+									<Switch
+										checked={showToolCallouts}
+										onCheckedChange={setShowToolCallouts}
 										className="cursor-pointer data-[state=checked]:bg-petrol"
 									/>
 								</div>
