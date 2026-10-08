@@ -20,7 +20,7 @@ import { SelectableLeading } from "@/components/ui/selectable-leading";
 import { SkillAvatar } from "@/components/ui/skill-avatar";
 import type { ViewMode } from "@/components/ui/view-toggle";
 import { useRowSelection } from "@/hooks/use-row-selection";
-import { getApiErrorMessage } from "@/lib/api/errors";
+import { getApiErrorMessage, toApiError } from "@/lib/api/errors";
 import { buildGroupTree, flattenGroupTree } from "@/lib/groups";
 import { useSkillsStore } from "@/stores/skills-store";
 import type { BoundAgent } from "@/types/agents";
@@ -176,6 +176,7 @@ export default function SkillTable({
 	const deleteSkill = useSkillsStore((state) => state.deleteSkill);
 	const getSkill = useSkillsStore((state) => state.getSkill);
 	const createSkill = useSkillsStore((state) => state.createSkill);
+	const workspaceSkills = useSkillsStore((state) => state.skills);
 	const [bulkOpen, setBulkOpen] = useState(false);
 	const orderedSkills = flattenGroupTree(groupTree);
 	const selection = useRowSelection({
@@ -199,36 +200,47 @@ export default function SkillTable({
 	const duplicateSkill = async (skill: SkillSummary) => {
 		try {
 			const full = await getSkill(skill.id);
-			const names = new Set(skills.map((candidate) => candidate.name));
-			const suffix = "-copy";
-			let copyName = `${skill.name.slice(0, SKILL_NAME_MAX - suffix.length)}${suffix}`;
-			let index = 2;
-			while (names.has(copyName)) {
-				const numberedSuffix = `-copy-${index}`;
-				copyName = `${skill.name.slice(
-					0,
-					SKILL_NAME_MAX - numberedSuffix.length,
-				)}${numberedSuffix}`;
-				index += 1;
+			if (full.files.length > 0) {
+				toast.error(
+					"Skills with repository files cannot be duplicated as standalone skills.",
+				);
+				return;
 			}
-			const fields = splitSkillMarkdown(full.content);
-			const content = fields
-				? composeSkillMarkdown({ ...fields, name: copyName })
-				: full.content.replace(
-						/^name:[ \t]*.*$/m,
-						`name: ${yamlScalar(copyName)}`,
-					);
-			const created = await createSkill({
-				content,
-				files: full.files,
-				group: full.group,
-				emoji: full.emoji,
-				color: full.color,
-				visibility: full.visibility,
-				teamIds: full.teamIds,
-			});
-			toast.success(`Duplicated as “${created.name}”.`);
-			router.push(`/skills/${created.id}?edit=1`);
+			const names = new Set(workspaceSkills.map((candidate) => candidate.name));
+			for (let copyNumber = 1; copyNumber <= 999; copyNumber += 1) {
+				const suffix =
+					copyNumber === 1 ? "-copy" : `-copy-${copyNumber}`;
+				const copyName = `${skill.name.slice(
+					0,
+					SKILL_NAME_MAX - suffix.length,
+				)}${suffix}`;
+				if (names.has(copyName)) continue;
+				const fields = splitSkillMarkdown(full.content);
+				const content = fields
+					? composeSkillMarkdown({ ...fields, name: copyName })
+					: full.content.replace(
+							/^name:[ \t]*.*$/m,
+							`name: ${yamlScalar(copyName)}`,
+						);
+				try {
+					const created = await createSkill({
+						content,
+						files: [],
+						group: full.group,
+						emoji: full.emoji,
+						color: full.color,
+						visibility: full.visibility,
+						teamIds: full.teamIds,
+					});
+					toast.success(`Duplicated as “${created.name}”.`);
+					router.push(`/skills/${created.id}?edit=1`);
+					return;
+				} catch (error: unknown) {
+					if (toApiError(error).status !== 409) throw error;
+					names.add(copyName);
+				}
+			}
+			throw new Error("Could not find an available skill name.");
 		} catch (error: unknown) {
 			toast.error(getApiErrorMessage(error, "Could not duplicate the skill."));
 		}
@@ -388,7 +400,7 @@ export default function SkillTable({
 									);
 								},
 							},
-							...(skill.canEdit || skill.canManage
+							...(skill.fileCount === 0 && (skill.canEdit || skill.canManage)
 								? [
 										{
 											label: "Duplicate",
@@ -571,7 +583,8 @@ export default function SkillTable({
 											);
 										},
 									},
-									...(skill.canEdit || skill.canManage
+									...(skill.fileCount === 0 &&
+									(skill.canEdit || skill.canManage)
 										? [
 												{
 													label: "Duplicate",
@@ -627,7 +640,8 @@ export default function SkillTable({
 						const succeeded: string[] = [];
 						const failures: BulkFailure[] = [];
 						results.forEach((result, index) => {
-							const item = items[index];
+							const item = items.at(index);
+							if (!item) return;
 							if (result.status === "fulfilled") succeeded.push(item.id);
 							else
 								failures.push({
@@ -711,7 +725,8 @@ export default function SkillTable({
 					const succeeded: string[] = [];
 					const failures: BulkFailure[] = [];
 					results.forEach((result, index) => {
-						const item = items[index];
+						const item = items.at(index);
+						if (!item) return;
 						if (result.status === "fulfilled") succeeded.push(item.id);
 						else
 							failures.push({

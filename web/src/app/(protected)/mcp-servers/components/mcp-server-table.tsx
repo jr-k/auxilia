@@ -144,7 +144,14 @@ export default function MCPServerTable({
 		const detachIds = new Set<string>();
 		setBulkItems(
 			selected.map((server, index) => {
-				const result = checks[index];
+				const result = checks.at(index);
+				if (!result) {
+					return {
+						id: server.id,
+						name: server.name,
+						blockedReason: "Could not verify its agent connections.",
+					};
+				}
 				if (result.status === "rejected") {
 					return {
 						id: server.id,
@@ -399,7 +406,8 @@ export default function MCPServerTable({
 					const succeeded: string[] = [];
 					const failures: BulkFailure[] = [];
 					results.forEach((result, index) => {
-						const item = items[index];
+						const item = items.at(index);
+						if (!item) return;
 						if (result.status === "fulfilled") succeeded.push(item.id);
 						else
 							failures.push({

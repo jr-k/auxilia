@@ -77,11 +77,17 @@ class ThreadRepository(BaseRepository[ThreadDB]):
             .order_by(ThreadDB.created_at.desc(), ThreadDB.id)
         )
         if query and (term := query.strip()):
-            pattern = f"%{term}%"
+            escape = "\\"
+            escaped_term = (
+                term.replace(escape, escape * 2)
+                .replace("%", f"{escape}%")
+                .replace("_", f"{escape}_")
+            )
+            pattern = f"%{escaped_term}%"
             stmt = stmt.where(
                 or_(
-                    ThreadDB.first_message_content.ilike(pattern),
-                    AgentDB.name.ilike(pattern),
+                    ThreadDB.first_message_content.ilike(pattern, escape=escape),
+                    AgentDB.name.ilike(pattern, escape=escape),
                 )
             )
         stmt = self._scope(stmt)

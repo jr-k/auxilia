@@ -28,6 +28,7 @@ interface TriggerCardProps {
 	trigger: Trigger;
 	onDelete: (id: string) => void;
 	onDuplicate: (trigger: Trigger) => void;
+	canCreate: boolean;
 	selected: boolean;
 	selectionMode: boolean;
 	onToggleSelection: (shiftKey: boolean) => void;
@@ -37,6 +38,7 @@ export default function TriggerCard({
 	trigger,
 	onDelete,
 	onDuplicate,
+	canCreate,
 	selected,
 	selectionMode,
 	onToggleSelection,
@@ -141,13 +143,17 @@ export default function TriggerCard({
 									router.push(`/triggers/${trigger.id}`);
 								},
 							},
-							{
-								label: "Duplicate",
-								icon: <Copy />,
-								onClick: () => {
-									onDuplicate(trigger);
-								},
-							},
+							...(canCreate
+								? [
+										{
+											label: "Duplicate",
+											icon: <Copy />,
+											onClick: () => {
+												onDuplicate(trigger);
+											},
+										},
+									]
+								: []),
 							{ separator: true as const },
 							{
 								label: "Delete",

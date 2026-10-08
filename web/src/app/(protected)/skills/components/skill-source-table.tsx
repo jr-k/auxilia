@@ -306,8 +306,9 @@ export default function SkillSourceTable({ sources, isLoading, canManage, onErro
 					/>
 					<button
 						type="button"
+						disabled={!canManage}
 						onClick={selection.toggleAll}
-						className="cursor-pointer text-[12px]! font-semibold text-foreground hover:text-petrol"
+						className="cursor-pointer text-[12px]! font-semibold text-foreground hover:text-petrol disabled:cursor-not-allowed disabled:opacity-50"
 					>
 						Select all
 					</button>
@@ -454,11 +455,22 @@ export default function SkillSourceTable({ sources, isLoading, canManage, onErro
 				confirmLabel="Disconnect"
 				busyLabel="Disconnecting…"
 				onConfirm={async (items) => {
-					const results = await deleteSources(items.map((item) => item.id));
+					const { results, refreshError } = await deleteSources(
+						items.map((item) => item.id),
+					);
+					if (refreshError) {
+						onError(
+							getApiErrorMessage(
+								refreshError,
+								"Repositories were disconnected, but the skill library could not be refreshed.",
+							),
+						);
+					}
 					const succeeded: string[] = [];
 					const failures: BulkFailure[] = [];
 					results.forEach((result, index) => {
-						const item = items[index];
+						const item = items.at(index);
+						if (!item) return;
 						if (result.status === "fulfilled") succeeded.push(item.id);
 						else
 							failures.push({

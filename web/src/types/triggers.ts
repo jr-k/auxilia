@@ -52,6 +52,7 @@ interface TriggerCreateBase {
 	instructions: string;
 	agentId: string;
 	modelId: string;
+	reasoningEffort?: string | null;
 	isActive?: boolean;
 	visibility?: ResourceVisibility;
 	teamIds?: string[];

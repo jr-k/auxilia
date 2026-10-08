@@ -43,7 +43,11 @@ export default function ProfileThreads() {
 	const [offset, setOffset] = useState(0);
 	const [search, setSearch] = useState("");
 	const deferredSearch = useDeferredValue(search);
-	const [isLoading, setIsLoading] = useState(true);
+	const requestKey = `${offset}:${deferredSearch.trim()}`;
+	const [settledRequestKey, setSettledRequestKey] = useState<string | null>(
+		null,
+	);
+	const isLoading = settledRequestKey !== requestKey;
 	const [loadError, setLoadError] = useState<string | null>(null);
 	const [bulkOpen, setBulkOpen] = useState(false);
 
@@ -66,12 +70,12 @@ export default function ProfileThreads() {
 				setLoadError(getApiErrorMessage(error, "Could not load conversations."));
 			})
 			.finally(() => {
-				if (!cancelled) setIsLoading(false);
+				if (!cancelled) setSettledRequestKey(requestKey);
 			});
 		return () => {
 			cancelled = true;
 		};
-	}, [deferredSearch, offset]);
+	}, [deferredSearch, offset, requestKey]);
 
 	const selection = useRowSelection({
 		orderedIds: threads.map((thread) => thread.id),
@@ -176,7 +180,6 @@ export default function ProfileThreads() {
 					onChange={(event) => {
 						setSearch(event.target.value);
 						setOffset(0);
-						setIsLoading(true);
 					}}
 					className="h-9 w-full rounded-[9px] border border-border bg-card pl-9 pr-9 text-[12.5px] text-foreground outline-none transition-[border-color,box-shadow] placeholder:text-ghost focus:border-petrol/55 focus:shadow-[0_0_0_3px_rgba(38,103,81,0.08)] dark:border-white/10"
 				/>
@@ -187,7 +190,6 @@ export default function ProfileThreads() {
 						onClick={() => {
 							setSearch("");
 							setOffset(0);
-							setIsLoading(true);
 						}}
 						className="absolute right-2 top-1/2 flex size-6 -translate-y-1/2 cursor-pointer items-center justify-center rounded-[6px] text-meta transition-colors hover:bg-hover hover:text-foreground"
 					>
@@ -237,7 +239,6 @@ export default function ProfileThreads() {
 					limit: PAGE_SIZE,
 					offset,
 					onOffsetChange: (nextOffset) => {
-						setIsLoading(true);
 						setOffset(nextOffset);
 					},
 					itemLabel: total === 1 ? "thread" : "threads",
@@ -263,7 +264,8 @@ export default function ProfileThreads() {
 					const succeeded: string[] = [];
 					const failures: BulkFailure[] = [];
 					results.forEach((result, index) => {
-						const item = items[index];
+						const item = items.at(index);
+						if (!item) return;
 						if (result.status === "fulfilled") {
 							succeeded.push(item.id);
 							removeStoredThread(item.id);
@@ -276,12 +278,17 @@ export default function ProfileThreads() {
 						}
 					});
 					if (succeeded.length > 0) {
+						const shouldGoBack =
+							succeeded.length >= threads.length && offset > 0;
 						const removed = new Set(succeeded);
 						setThreads((current) =>
 							current.filter((thread) => !removed.has(thread.id)),
 						);
 						setTotal((current) => Math.max(0, current - succeeded.length));
 						selection.remove(succeeded);
+						if (shouldGoBack) {
+							setOffset((current) => Math.max(0, current - PAGE_SIZE));
+						}
 					}
 					return failures;
 				}}

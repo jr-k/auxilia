@@ -34,7 +34,10 @@ interface SkillsState {
 	planSync: (id: string) => Promise<SkillSyncPlan>;
 	syncSource: (id: string) => Promise<SkillSource>;
 	deleteSource: (id: string) => Promise<void>;
-	deleteSources: (ids: string[]) => Promise<PromiseSettledResult<void>[]>;
+	deleteSources: (ids: string[]) => Promise<{
+		results: PromiseSettledResult<void>[];
+		refreshError: unknown;
+	}>;
 }
 
 const summaryOf = (skill: Skill): SkillSummary => {
@@ -167,14 +170,19 @@ export const useSkillsStore = create<SkillsState>((set, get) => ({
 			ids.map((id) => skillsApi.deleteSkillSource(id)),
 		);
 		const removed = new Set(
-			ids.filter((_, index) => results[index]?.status === "fulfilled"),
+			ids.filter((_, index) => results.at(index)?.status === "fulfilled"),
 		);
+		let refreshError: unknown = null;
 		if (removed.size > 0) {
 			set((state) => ({
 				sources: state.sources.filter((source) => !removed.has(source.id)),
 			}));
-			await get().fetchSkills(true);
+			try {
+				await get().fetchSkills(true);
+			} catch (error) {
+				refreshError = error;
+			}
 		}
-		return results;
+		return { results, refreshError };
 	},
 }));

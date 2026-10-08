@@ -318,29 +318,20 @@ export function DataTable<T>({
 	const renderRow = (row: T, depth = 0): ReactNode => {
 		const selected = isRowSelected?.(row) ?? false;
 		const selectRow =
-			selectionMode &&
-			!!onRowSelectionClick &&
-			(isRowSelectable?.(row) ?? true);
+			selectionMode && (isRowSelectable?.(row) ?? true)
+				? onRowSelectionClick
+				: undefined;
 		const selectedClass = selected
 			? "bg-petrol/[0.055] shadow-[inset_3px_0_0_0_var(--color-petrol)] dark:bg-petrol/10"
 			: "";
 		if (getRowHref) {
-			if (selectRow && onRowSelectionClick) {
+			if (selectRow) {
 				return (
 					<div
 						key={rowKey(row)}
-						role="button"
-						tabIndex={0}
 						data-selected={selected || undefined}
 						onClick={(event) => {
-							onRowSelectionClick(row, event.shiftKey);
-						}}
-						onKeyDown={(event) => {
-							if (event.target !== event.currentTarget) return;
-							if (event.key === "Enter" || event.key === " ") {
-								event.preventDefault();
-								onRowSelectionClick(row, event.shiftKey);
-							}
+							selectRow(row, event.shiftKey);
 						}}
 						className={`${gridClass} ${ROW_CLASS} ${selectedClass} cursor-pointer`}
 					>
@@ -359,29 +350,35 @@ export function DataTable<T>({
 				</Link>
 			);
 		}
-		if (onRowClick || selectRow) {
+		if (selectRow) {
+			return (
+				<div
+					key={rowKey(row)}
+					data-selected={selected || undefined}
+					onClick={(event) => {
+						selectRow(row, event.shiftKey);
+					}}
+					className={`${gridClass} ${ROW_CLASS} ${selectedClass} cursor-pointer`}
+				>
+					{renderCells(row, depth)}
+				</div>
+			);
+		}
+		if (onRowClick) {
 			return (
 				<div
 					key={rowKey(row)}
 					role="button"
 					tabIndex={0}
 					data-selected={selected || undefined}
-					onClick={(event) => {
-						if (selectRow && onRowSelectionClick) {
-							onRowSelectionClick(row, event.shiftKey);
-							return;
-						}
-						onRowClick?.(row);
+					onClick={() => {
+						onRowClick(row);
 					}}
 					onKeyDown={(event) => {
 						if (event.target !== event.currentTarget) return;
 						if (event.key === "Enter" || event.key === " ") {
 							event.preventDefault();
-							if (selectRow && onRowSelectionClick) {
-								onRowSelectionClick(row, event.shiftKey);
-							} else {
-								onRowClick?.(row);
-							}
+							onRowClick(row);
 						}
 					}}
 					className={`${gridClass} ${ROW_CLASS} ${selectedClass} cursor-pointer`}

@@ -135,9 +135,14 @@ export function BulkConfirmDialog({
 							<p className="font-semibold">
 								{failures.length} item{failures.length === 1 ? "" : "s"} could not be processed.
 							</p>
-							<p className="mt-1">
-								{failures.map((failure) => failure.name).join(", ")}
-							</p>
+							<ul className="mt-1 space-y-1">
+								{failures.map((failure) => (
+									<li key={failure.id}>
+										<span className="font-semibold">{failure.name}:</span>{" "}
+										{failure.message}
+									</li>
+								))}
+							</ul>
 						</div>
 					)}
 				</div>

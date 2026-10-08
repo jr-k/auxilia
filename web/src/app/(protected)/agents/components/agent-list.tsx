@@ -354,7 +354,8 @@ export default function AgentList({
 					const succeeded: string[] = [];
 					const failures: BulkFailure[] = [];
 					results.forEach((result, index) => {
-						const item = items[index];
+						const item = items.at(index);
+						if (!item) return;
 						if (result.status === "fulfilled") succeeded.push(item.id);
 						else
 							failures.push({
@@ -368,6 +369,17 @@ export default function AgentList({
 						onArchivedAgentsChange(
 							archivedAgents.filter((agent) => !removed.has(agent.id)),
 						);
+					} else if (succeeded.length > 0) {
+						const archivedIds = new Set(succeeded);
+						const newlyArchived = selectedAgents
+							.filter((agent) => archivedIds.has(agent.id))
+							.map((agent) => ({ ...agent, isArchived: true }));
+						onArchivedAgentsChange([
+							...newlyArchived,
+							...archivedAgents.filter(
+								(agent) => !archivedIds.has(agent.id),
+							),
+						]);
 					}
 					selection.remove(succeeded);
 					return failures;

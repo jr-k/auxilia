@@ -270,9 +270,20 @@ export default function AgentEditor({
 
 	const handleDuplicate = async () => {
 		if (!agent) return;
+		if (
+			isDirty &&
+			!(await confirmDialog({
+				title: "Duplicate the saved agent?",
+				description:
+					"Your unsaved edits are not part of the saved configuration. Duplicating will leave this draft and copy the last saved version.",
+				confirmLabel: "Duplicate saved version",
+			}))
+		) {
+			return;
+		}
 		try {
 			const source = await agentsApi.getAgent(agent.id);
-			const created = await createAgent({
+			let created = await createAgent({
 				name: `${source.name} copy`,
 				instructions: source.instructions ?? "",
 				description: source.description ?? null,
@@ -292,7 +303,31 @@ export default function AgentEditor({
 				subagentIds: source.subagents.map((subagent) => subagent.id),
 				skillIds: (source.skills ?? []).map((skill) => skill.id),
 			});
-			toast.success(`Duplicated as “${created.name}”.`);
+			let imageCopyFailed = false;
+			if (source.imageRevision) {
+				try {
+					const response = await fetch(
+						agentsApi.agentImageUrl(source.id, source.imageRevision),
+					);
+					if (!response.ok) throw new Error("Could not read the agent image.");
+					const blob = await response.blob();
+					const image = new File([blob], "agent-image", {
+						type: blob.type || "image/png",
+					});
+					const revision = await agentsApi.uploadAgentImage(created.id, image);
+					created = { ...created, imageRevision: revision };
+					updateAgent(created.id, created);
+				} catch {
+					imageCopyFailed = true;
+				}
+			}
+			if (imageCopyFailed) {
+				toast.warning(
+					`Duplicated as “${created.name}”, but its image could not be copied.`,
+				);
+			} else {
+				toast.success(`Duplicated as “${created.name}”.`);
+			}
 			router.push(`/agents/${created.id}`);
 		} catch (error: unknown) {
 			toast.error(

@@ -60,6 +60,11 @@ export default function AgentTable({
 	const [forbiddenOpen, setForbiddenOpen] = useState(false);
 
 	const groupTree = useMemo(() => buildGroupTree(agents), [agents]);
+	const hasSelectableAgents = agents.some(
+		(agent) =>
+			agent.currentUserPermission === "owner" ||
+			agent.currentUserPermission === "admin",
+	);
 
 	const serverInfo = (serverId: string) => {
 		const full = mcpServers.find((m) => m.id === serverId);
@@ -97,12 +102,14 @@ export default function AgentTable({
 					<Checkbox
 						checked={false}
 						aria-label="Select all agents"
+						disabled={!hasSelectableAgents}
 						onCheckedChange={onToggleAll}
 					/>
 					<button
 						type="button"
+						disabled={!hasSelectableAgents}
 						onClick={onToggleAll}
-						className="cursor-pointer text-[12px]! font-semibold text-foreground hover:text-petrol"
+						className="cursor-pointer text-[12px]! font-semibold text-foreground hover:text-petrol disabled:cursor-not-allowed disabled:opacity-50"
 					>
 						Select all
 					</button>

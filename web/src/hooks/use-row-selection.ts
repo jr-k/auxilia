@@ -29,32 +29,45 @@ export function useRowSelection({
 	);
 
 	useEffect(() => {
-		setSelectedIds((current) => {
-			const next = new Set(
-				[...current].filter(
-					(id) => eligibleSet.has(id) && stableOrderedIds.includes(id),
-				),
-			);
-			if (
-				next.size === current.size &&
-				[...next].every((id) => current.has(id))
-			) {
-				return current;
-			}
-			if (anchorId.current && !next.has(anchorId.current)) {
-				anchorId.current = null;
-			}
-			return next;
+		let cancelled = false;
+		if (
+			anchorId.current &&
+			(!eligibleSet.has(anchorId.current) ||
+				!stableOrderedIds.includes(anchorId.current))
+		) {
+			anchorId.current = null;
+		}
+		queueMicrotask(() => {
+			if (cancelled) return;
+			setSelectedIds((current) => {
+				const next = new Set(
+					[...current].filter(
+						(id) => eligibleSet.has(id) && stableOrderedIds.includes(id),
+					),
+				);
+				if (
+					next.size === current.size &&
+					[...next].every((id) => current.has(id))
+				) {
+					return current;
+				}
+				return next;
+			});
 		});
+		return () => {
+			cancelled = true;
+		};
 	}, [eligibleSet, stableOrderedIds]);
 
 	const toggle = useCallback(
 		(id: string, shiftKey = false) => {
 			if (!eligibleSet.has(id)) return;
+			const previousAnchor = anchorId.current;
+			anchorId.current = id;
 			setSelectedIds((current) => {
 				const next = new Set(current);
-				const anchorIndex = anchorId.current
-					? stableOrderedIds.indexOf(anchorId.current)
+				const anchorIndex = previousAnchor
+					? stableOrderedIds.indexOf(previousAnchor)
 					: -1;
 				const targetIndex = stableOrderedIds.indexOf(id);
 				const shouldSelect = !current.has(id);
@@ -73,7 +86,6 @@ export function useRowSelection({
 					next.delete(id);
 				}
 
-				anchorId.current = id;
 				return next;
 			});
 		},
@@ -87,6 +99,7 @@ export function useRowSelection({
 	const someSelected = eligibleVisibleIds.some((id) => selectedIds.has(id));
 
 	const toggleAll = useCallback(() => {
+		anchorId.current = null;
 		setSelectedIds((current) => {
 			const next = new Set(current);
 			const everyVisibleSelected = eligibleVisibleIds.every((id) =>
@@ -96,7 +109,6 @@ export function useRowSelection({
 				if (everyVisibleSelected) next.delete(id);
 				else next.add(id);
 			}
-			anchorId.current = null;
 			return next;
 		});
 	}, [eligibleVisibleIds]);

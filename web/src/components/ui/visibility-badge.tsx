@@ -14,8 +14,7 @@ function metaFor(visibility: ResourceVisibility) {
 		case "teams":
 			return { label: "Teams", Icon: Users };
 	}
-	const unsupported: never = visibility;
-	throw new Error(`Unsupported resource visibility: ${unsupported}`);
+	throw new Error("Unsupported resource visibility");
 }
 
 export function VisibilityBadge({

@@ -143,6 +143,7 @@ export default function TriggerList({
 	};
 
 	const handleDuplicate = async (trigger: Trigger) => {
+		if (!canCreate) return;
 		try {
 			const base = {
 				name: `${trigger.name} copy`,
@@ -150,6 +151,7 @@ export default function TriggerList({
 				instructions: trigger.instructions,
 				agentId: trigger.agentId,
 				modelId: trigger.modelId,
+				reasoningEffort: trigger.reasoningEffort,
 				isActive: false,
 				visibility: trigger.visibility,
 				teamIds: trigger.teamIds,
@@ -340,13 +342,17 @@ export default function TriggerList({
 										router.push(`/triggers/${trigger.id}`);
 									},
 								},
-								{
-									label: "Duplicate",
-									icon: <Copy />,
-									onClick: () => {
-										void handleDuplicate(trigger);
-									},
-								},
+								...(canCreate
+									? [
+											{
+												label: "Duplicate",
+												icon: <Copy />,
+												onClick: () => {
+													void handleDuplicate(trigger);
+												},
+											},
+										]
+									: []),
 								{ separator: true as const },
 								{
 									label: "Delete",
@@ -396,7 +402,8 @@ export default function TriggerList({
 					const succeeded: string[] = [];
 					const failures: BulkFailure[] = [];
 					results.forEach((result, index) => {
-						const item = items[index];
+						const item = items.at(index);
+						if (!item) return;
 						if (result.status === "fulfilled") succeeded.push(item.id);
 						else
 							failures.push({
@@ -528,6 +535,7 @@ export default function TriggerList({
 						onDuplicate={(candidate) => {
 							void handleDuplicate(candidate);
 						}}
+						canCreate={canCreate}
 						onDelete={(id) => {
 							void handleDelete(id);
 						}}
