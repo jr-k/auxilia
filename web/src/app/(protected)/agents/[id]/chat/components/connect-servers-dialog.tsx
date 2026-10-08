@@ -133,13 +133,14 @@ export function ConnectServersDialog({
 		<Dialog open={open} onOpenChange={onOpenChange}>
 			<DialogContent>
 				<DialogHeader>
-					<DialogTitle>Authentication required</DialogTitle>
+					<DialogTitle>Connect optional tools</DialogTitle>
 					<DialogDescription>
-						To use this agent, you need to authenticate with{" "}
+						This agent can run without{" "}
 						{disconnectedServers.length === 1
 							? disconnectedServers[0].name
 							: `${disconnectedServers.length} services`}
-						.
+						. Connect {disconnectedServers.length === 1 ? "it" : "them"} only
+						if you want the related tools to be available.
 					</DialogDescription>
 				</DialogHeader>
 
@@ -193,7 +194,7 @@ export function ConnectServersDialog({
 									Waiting for authentication…
 								</>
 							) : (
-								<>Authenticate with {currentServer.name}</>
+								<>Connect {currentServer.name}</>
 							)}
 						</DialogButton>
 					</DialogFooter>

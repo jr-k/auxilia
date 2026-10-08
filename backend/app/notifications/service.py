@@ -48,6 +48,14 @@ class SlackNotificationSettingsService:
             return None
         return await self.get_runtime_config(row.workspace_id)
 
+    async def list_runtime_configs(self) -> list[SlackRuntimeConfig]:
+        configs: list[SlackRuntimeConfig] = []
+        for row in await self.repository.list_configured():
+            config = await self.get_runtime_config(row.workspace_id)
+            if config is not None:
+                configs.append(config)
+        return configs
+
     async def get_response(
         self, workspace_id: UUID
     ) -> SlackNotificationSettingsResponse:
@@ -70,11 +78,6 @@ class SlackNotificationSettingsService:
         self, workspace_id: UUID, data: SlackNotificationSettingsUpdate
     ) -> SlackNotificationSettingsResponse:
         existing = await self.repository.get_settings(workspace_id)
-        has_existing_pair = bool(
-            existing
-            and existing.bot_token_encrypted
-            and existing.signing_secret_encrypted
-        )
         bot_token = data.bot_token.strip() if data.bot_token is not None else None
         signing_secret = (
             data.signing_secret.strip() if data.signing_secret is not None else None
@@ -87,8 +90,6 @@ class SlackNotificationSettingsService:
             raise DomainValidationError("Slack credentials cannot be empty")
         if signing_secret is not None and not signing_secret:
             raise DomainValidationError("Slack credentials cannot be empty")
-        if data.enabled and not has_existing_pair and bot_token is None:
-            raise DomainValidationError("Slack credentials are required")
         slack_team_id = (
             data.slack_team_id.strip()
             if data.slack_team_id is not None

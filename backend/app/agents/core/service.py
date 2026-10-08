@@ -1171,9 +1171,9 @@ class AgentService(BaseService[AgentDB, AgentRepository]):
                 "status": "sandbox_unavailable",
                 "detail": exc.detail,
             }
-        # Includes subagents' servers: a subagent's unauthorized OAuth server
-        # must keep the agent "not ready" too, or the run launches and fails
-        # mid-flight when the subagent calls it.
+        # Includes subagents' servers so the UI can offer every optional OAuth
+        # connection. Missing per-user OAuth no longer blocks a run: the
+        # runtime omits those servers from that user's toolset.
         bindings = spec.all_mcp_bindings if spec else []
 
         if not bindings:
@@ -1198,11 +1198,8 @@ class AgentService(BaseService[AgentDB, AgentRepository]):
         ]
 
         return {
-            "ready": not disconnected,
+            "ready": True,
             "disconnected_servers": disconnected,
-            # Was hardcoded to "disconnected" even when everything was connected
-            # (design review §4.1) — the frontend's own `ready` flag disagreed
-            # with the status string it was shown next to.
             "status": "disconnected" if disconnected else "ready",
         }
 

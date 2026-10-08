@@ -430,21 +430,6 @@ class TriggerService(BaseService[TriggerDB, TriggerRepository]):
         # run anyway, but this keeps a doomed request from leaving an orphan
         # thread behind.
         await self.model_service.ensure_available(trigger.model_id)
-        # Probe the OWNER's credentials (the run executes as them, even when an
-        # admin presses the button) via the shared pre-flight gate, so a broken
-        # OAuth fails the request with an actionable message instead of a
-        # doomed run. Scheduled firings get the same protection from the
-        # worker's pre-flight (`_mcp_unauthorized`).
-        if await RunService.required_oauth_url(
-            self.db,
-            trigger.agent_id,
-            str(trigger.owner_id),
-            trigger.workspace_id,
-        ):
-            raise DomainValidationError(
-                "The trigger owner must reconnect this agent's MCP servers "
-                "(from the agent's chat page) before it can run."
-            )
         thread = await self._create_fire_thread(trigger)
         await self.db.commit()
         record = await RunService().create(

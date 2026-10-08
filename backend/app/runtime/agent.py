@@ -519,7 +519,11 @@ class Agent:
         # Every MCP server the graph touches, in one query — the parent's and
         # each subagent's (design review §2.2 / P2-6).
         scope = await MCPResolutionScope.build(
-            spec.all_mcp_bindings, db, user_id, thread.workspace_id
+            spec.all_mcp_bindings,
+            db,
+            user_id,
+            thread.workspace_id,
+            authorized_only=True,
         )
         agent = await ResolvedAgent.resolve(
             spec.agent, db, user_id, is_parent=True, scope=scope

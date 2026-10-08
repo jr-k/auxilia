@@ -12,6 +12,7 @@ import { Agent } from "@/types/agents";
 import AgentToolList from "../[id]/components/agent-tool-list";
 import AgentSubagentList from "../[id]/components/agent-subagent-list";
 import AgentSkillList from "../[id]/components/agent-skill-list";
+import AgentSlackBotCard from "../[id]/components/agent-slack-bot-card";
 import { GroupPicker } from "@/components/ui/group-picker";
 import { VisibilityPicker } from "@/components/ui/visibility-picker";
 import { VisibilityBadge } from "@/components/ui/visibility-badge";
@@ -735,6 +736,12 @@ export default function AgentEditor({
 							setAddToolOpen(true);
 						}}
 					/>
+					{agent && (
+						<AgentSlackBotCard
+							agentId={agent.id}
+							canManage={canManageAgent}
+						/>
+					)}
 					{isAdmin && (
 						<AgentSubagentList
 							readOnly={readOnly}

@@ -18,6 +18,7 @@ from app.database import close_checkpointer_pool
 from app.exceptions import DomainError, root_cause, status_for
 from app.integrations.slack.consumer import build_slack_run_consumer
 from app.integrations.slack.router import router as slack_router
+from app.integrations.slack.settings_router import router as agent_slack_router
 from app.integrations.tracing import flush_tracing
 from app.invites.router import router as invites_router
 from app.logging_config import configure_logging
@@ -122,9 +123,9 @@ app = FastAPI(lifespan=lifespan, version=BACKEND_VERSION)
 # connect (`connection.open_client`, `Toolset.open`) and turned into a
 # response only by the endpoints whose job is connecting — `GET
 # /mcp-servers/{id}/list-tools` returns it as an `auth_required` variant, the
-# run endpoints and the MCP-app endpoints answer 401 explicitly. A global one
-# meant any endpoint touching MCP could answer 401 with an auth URL (design
-# review §2.4).
+# MCP-app endpoints answer 401 explicitly, and the run toolset omits that
+# server. A global handler meant any endpoint touching MCP could answer 401
+# with an auth URL (design review §2.4).
 
 
 @app.exception_handler(DomainError)
@@ -235,6 +236,7 @@ async def version() -> dict[str, str]:
 
 
 app.include_router(agents_router)
+app.include_router(agent_slack_router)
 app.include_router(appearance_router)
 app.include_router(protocol_router)
 app.include_router(runs_router)

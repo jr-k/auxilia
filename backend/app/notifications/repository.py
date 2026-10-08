@@ -2,7 +2,7 @@ from uuid import UUID
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlmodel import select
+from sqlmodel import col, select
 
 from app.notifications.models import SlackNotificationSettingsDB
 from app.repository import BaseRepository
@@ -49,6 +49,16 @@ class SlackNotificationSettingsRepository(BaseRepository[SlackNotificationSettin
         )
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
+
+    async def list_configured(self) -> list[SlackNotificationSettingsDB]:
+        stmt = select(SlackNotificationSettingsDB).where(
+            SlackNotificationSettingsDB.enabled,
+            col(SlackNotificationSettingsDB.slack_team_id).is_not(None),
+            col(SlackNotificationSettingsDB.bot_token_encrypted).is_not(None),
+            col(SlackNotificationSettingsDB.signing_secret_encrypted).is_not(None),
+        )
+        result = await self.db.execute(stmt)
+        return list(result.scalars().all())
 
     async def _get_or_create(self, workspace_id: UUID) -> SlackNotificationSettingsDB:
         row = await self.get_settings(workspace_id)

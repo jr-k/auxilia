@@ -8,6 +8,7 @@ from app.agents import models as agent_models  # noqa: F401
 from app.appearance import models as appearance_models  # noqa: F401
 from app.auth import models as auth_models  # noqa: F401
 from app.auth.tokens import models as auth_token_models  # noqa: F401
+from app.integrations.slack import db_models as slack_models  # noqa: F401
 from app.invites import models as invite_models  # noqa: F401
 from app.mcp.servers import models as mcp_server_models  # noqa: F401
 from app.model_providers import models as model_provider_models  # noqa: F401

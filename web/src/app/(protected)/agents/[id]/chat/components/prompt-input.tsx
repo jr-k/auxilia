@@ -707,6 +707,13 @@ const ChatPromptInput = ({
 						/>
 					) : (
 						<div className="flex items-center gap-1.5">
+							{disconnectedServers.length > 0 && (
+								<ConnectButton
+									onClick={() => {
+										setConnectDialogOpen(true);
+									}}
+								/>
+							)}
 							{status === "streaming" && stop && <StopButton stop={stop} />}
 							<SubmitButton disabled={queueLoading} />
 						</div>

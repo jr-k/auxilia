@@ -12,7 +12,7 @@ only enqueues the run (see `router.py`).
 
 import asyncio
 import logging
-from typing import Any, Final, Literal, TypedDict, cast
+from typing import Any, Final, Literal, NotRequired, TypedDict, cast
 from uuid import UUID
 
 from redis.asyncio import Redis
@@ -25,6 +25,7 @@ from app.integrations.slack.blocks import (
     build_tool_approval_blocks,
     format_tool_streamer_label,
 )
+from app.integrations.slack.service import AgentSlackBotService
 from app.integrations.slack.utils import get_slack_client
 from app.runtime.checkpoints import checkpoint_thread_id
 from app.runtime.hitl import load_interrupt_scope, pending_approval_requests
@@ -57,6 +58,7 @@ class SlackDelivery(TypedDict):
     slack_user_id: str
     team_id: str | None
     workspace_id: str
+    slack_bot_id: NotRequired[str | None]
 
 
 def build_slack_run_consumer(record: RunDB) -> "SlackRunConsumer | None":
@@ -77,9 +79,10 @@ def build_slack_delivery(
     slack_user_id: str,
     team_id: str | None,
     workspace_id: UUID,
+    slack_bot_id: UUID | None = None,
 ) -> SlackDelivery:
     """The delivery descriptor stored on a Slack-bound run."""
-    return {
+    delivery: SlackDelivery = {
         "channel": SLACK_CHANNEL,
         "channel_id": channel_id,
         "thread_ts": thread_ts,
@@ -87,6 +90,9 @@ def build_slack_delivery(
         "team_id": team_id,
         "workspace_id": str(workspace_id),
     }
+    if slack_bot_id is not None:
+        delivery["slack_bot_id"] = str(slack_bot_id)
+    return delivery
 
 
 class SlackProtocolAdapter:
@@ -105,6 +111,7 @@ class SlackProtocolAdapter:
 
     def __init__(self) -> None:
         self._tools_started: set[str] = set()
+        self._tools_announced: set[str] = set()
         # The role of the message currently open on the root namespace, per
         # node — deltas from a tool-role message must not reach the chat.
         self._open_role: dict[str, str] = {}
@@ -125,7 +132,10 @@ class SlackProtocolAdapter:
             tool_name = data.get("tool_name")
             if tool_call_id and tool_name and tool_call_id not in self._tools_started:
                 self._tools_started.add(tool_call_id)
-                return [format_tool_streamer_label(str(tool_name))]
+                normalized_name = str(tool_name)
+                if normalized_name not in self._tools_announced:
+                    self._tools_announced.add(normalized_name)
+                    return [format_tool_streamer_label(normalized_name)]
         return []
 
     def _on_message(self, node: str, data: dict[str, Any]) -> list[str]:
@@ -178,6 +188,27 @@ class SlackRunConsumer(DeliveryConsumer):
             return self.client
         for attempt in range(3):
             try:
+                slack_bot_id = self.delivery.get("slack_bot_id")
+                if slack_bot_id:
+                    async with AsyncSessionLocal() as db:
+                        config = await AgentSlackBotService(db).get_runtime(
+                            UUID(slack_bot_id)
+                        )
+                        thread = await ThreadRepository(
+                            db, self.record.workspace_id
+                        ).get(self.record.thread_id)
+                    if config is None:
+                        return None
+                    if (
+                        config.workspace_id != self.record.workspace_id
+                        or thread is None
+                        or thread.agent_id != config.agent_id
+                    ):
+                        logger.error(
+                            "Slack agent bot mismatch for run %s", self.record.id
+                        )
+                        return None
+                    return AsyncWebClient(token=config.bot_token)
                 return await get_slack_client(UUID(self.delivery["workspace_id"]))
             except Exception:
                 if attempt == 2:
@@ -205,36 +236,77 @@ class SlackRunConsumer(DeliveryConsumer):
             channel_id,
             thread_ts,
         )
+        marker_ts = await self._post_working_marker(channel_id, thread_ts)
         try:
-            text_chars = await self._stream_to_slack(channel_id, thread_ts)
-            status = await self._terminal_status()
-        except Exception:
-            logger.exception("Slack delivery crashed for run %s", self.record.id)
-            await self._post_failure_notice(channel_id, thread_ts)
-            return
+            try:
+                text_chars = await self._stream_to_slack(channel_id, thread_ts)
+                status = await self._terminal_status()
+            except Exception:
+                logger.exception("Slack delivery crashed for run %s", self.record.id)
+                await self._post_failure_notice(channel_id, thread_ts)
+                return
 
-        logger.info(
-            "Slack delivery for run %s ended: status=%s text_chars=%s",
-            self.record.id,
-            status,
-            text_chars,
-        )
-        if status is None:
-            # The log ended but the record is not terminal (it vanished, or a
-            # producer this build doesn't understand finalized it): the
-            # streaming message is already stopped, so say *something* rather
-            # than leaving the thread hanging. `cancelled` stays silent below
-            # on purpose — the user stopped the run themselves.
-            await self._post_failure_notice(channel_id, thread_ts)
-        elif status is RunStatus.interrupted:
-            await self._post_approvals(channel_id, thread_ts)
-        elif status is RunStatus.success:
-            await self._post_auxilia_link(channel_id, thread_ts)
-        elif status in (
-            RunStatus.error,
-            RunStatus.timeout,
-        ) and not await self._post_reauth_prompt_if_gated(channel_id, thread_ts):
-            await self._post_failure_notice(channel_id, thread_ts)
+            logger.info(
+                "Slack delivery for run %s ended: status=%s text_chars=%s",
+                self.record.id,
+                status,
+                text_chars,
+            )
+            if status is None:
+                # The log ended but the record is not terminal (it vanished, or a
+                # producer this build doesn't understand finalized it): the
+                # streaming message is already stopped, so say *something* rather
+                # than leaving the thread hanging. `cancelled` stays silent below
+                # on purpose — the user stopped the run themselves.
+                await self._post_failure_notice(channel_id, thread_ts)
+            elif status is RunStatus.interrupted:
+                await self._post_approvals(channel_id, thread_ts)
+            elif status is RunStatus.success:
+                await self._post_auxilia_link(channel_id, thread_ts)
+            elif status in (
+                RunStatus.error,
+                RunStatus.timeout,
+            ) and not await self._post_reauth_prompt_if_gated(channel_id, thread_ts):
+                await self._post_failure_notice(channel_id, thread_ts)
+        finally:
+            await self._remove_working_marker(channel_id, marker_ts)
+
+    async def _post_working_marker(
+        self, channel_id: str, thread_ts: str
+    ) -> str | None:
+        """Post a temporary progress marker for agent-specific Slack bots."""
+        if not self.delivery.get("slack_bot_id"):
+            return None
+        try:
+            response = await self.slack_client.chat_postMessage(
+                channel=channel_id,
+                thread_ts=thread_ts,
+                text=":hourglass_flowing_sand: Working on it…",
+            )
+            message_ts = response.get("ts")
+            return str(message_ts) if message_ts else None
+        except Exception:  # noqa: BLE001 — cosmetic marker must never fail delivery
+            logger.warning(
+                "Could not post Slack progress marker for run %s",
+                self.record.id,
+                exc_info=True,
+            )
+            return None
+
+    async def _remove_working_marker(
+        self, channel_id: str, message_ts: str | None
+    ) -> None:
+        """Best-effort cleanup of the temporary progress marker."""
+        if message_ts is None:
+            return
+        try:
+            await self.slack_client.chat_delete(channel=channel_id, ts=message_ts)
+        except Exception:  # noqa: BLE001 — cosmetic cleanup must never fail delivery
+            logger.warning(
+                "Could not remove Slack progress marker for run %s",
+                self.record.id,
+                exc_info=True,
+            )
 
     async def _stream_to_slack(self, channel_id: str, thread_ts: str) -> int:
         """Relay the event log into a Slack streaming message.
@@ -264,7 +336,7 @@ class SlackRunConsumer(DeliveryConsumer):
                     )
                     continue
                 for text in adapter.texts(event):
-                    if not text.startswith("\n\n:"):  # tool labels aren't answer text
+                    if not text.startswith("\n> "):  # tool labels aren't answer text
                         text_chars += len(text)
                     await streamer.append(markdown_text=text)
         finally:
@@ -367,6 +439,8 @@ class SlackRunConsumer(DeliveryConsumer):
         await self.slack_client.chat_postMessage(
             channel=channel_id,
             thread_ts=thread_ts,
+            unfurl_links=False,
+            unfurl_media=False,
             blocks=[
                 {"type": "divider"},
                 {

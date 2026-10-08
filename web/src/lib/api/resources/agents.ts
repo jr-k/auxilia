@@ -7,7 +7,12 @@
  */
 import { api } from "@/lib/api/client";
 import type { Paginated } from "@/types/api";
-import type { Agent, AgentPermission } from "@/types/agents";
+import type {
+	Agent,
+	AgentPermission,
+	AgentSlackBotSettings,
+	AgentSlackBotSettingsUpdate,
+} from "@/types/agents";
 import type { ResourceVisibility } from "@/types/visibility";
 
 /** `POST /agents` and `PUT /agents/{id}/config` share this body (see
@@ -129,6 +134,35 @@ export async function permanentlyDeleteAgent(agentId: string): Promise<void> {
 
 export async function getAgentReadiness(agentId: string): Promise<AgentReadiness> {
 	const response = await api.get<AgentReadiness>(`/agents/${agentId}/is-ready`);
+	return response.data;
+}
+
+export async function getAgentSlackBot(
+	agentId: string,
+): Promise<AgentSlackBotSettings> {
+	const response = await api.get<AgentSlackBotSettings>(
+		`/agents/${agentId}/integrations/slack`,
+	);
+	return response.data;
+}
+
+export async function updateAgentSlackBot(
+	agentId: string,
+	update: AgentSlackBotSettingsUpdate,
+): Promise<AgentSlackBotSettings> {
+	const response = await api.put<AgentSlackBotSettings>(
+		`/agents/${agentId}/integrations/slack`,
+		update,
+	);
+	return response.data;
+}
+
+export async function deleteAgentSlackBot(
+	agentId: string,
+): Promise<AgentSlackBotSettings> {
+	const response = await api.delete<AgentSlackBotSettings>(
+		`/agents/${agentId}/integrations/slack`,
+	);
 	return response.data;
 }
 

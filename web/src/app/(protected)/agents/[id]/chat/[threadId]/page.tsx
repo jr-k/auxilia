@@ -320,11 +320,7 @@ const ChatPage = () => {
               return actions.send(message);
             }}
             status={run.isLoading ? "streaming" : "ready"}
-            queueMode={
-              run.status !== "idle" ||
-              promptQueue.items.length > 0 ||
-              promptQueue.runStarting
-            }
+            queueMode={run.status === "streaming"}
             className="w-full max-w-4xl mx-auto lg:px-10 sm:px-6 px-3 py-4"
             stop={actions.stop}
             selectedModel={thread?.modelId ?? undefined}

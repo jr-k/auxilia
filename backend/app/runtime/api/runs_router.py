@@ -22,7 +22,6 @@ from app.exceptions import (
     PermissionDeniedError,
     StructuredOutputError,
 )
-from app.mcp.client.responses import oauth_required_response
 from app.redis_client import get_redis
 from app.runtime.agent import read_run_result
 from app.runtime.middleware.structured_output import validate_structured_response
@@ -152,20 +151,9 @@ async def invoke_run(
     `structured_response`, when `output_schema` is given) instead of relaying
     the live stream.
     """
-    # Pre-flight: refuse to launch if the agent or a subagent needs OAuth; the
-    # gate commits/releases the pooled connection itself before probing, so no
-    # run is created when authorization is missing and no connection is held
-    # during network IO.
-    if auth_url := await runs.required_oauth_url(
-        db, thread.agent_id, str(thread.user_id), thread.workspace_id
-    ):
-        # Explicit at the call site: this used to be an exception the
-        # app-global handler turned into a response on *any* endpoint that
-        # touched MCP (design review §2.4).
-        return oauth_required_response(auth_url)
-    # Auth queries are done — release the pooled connection before anything
-    # else (RunService opens its own sessions; holding both risks pool
-    # starvation) and before blocking for the whole run.
+    # Release the pooled connection before RunService opens its own sessions
+    # and before blocking for the whole run. Optional OAuth MCP servers are
+    # filtered from the toolset while the worker builds the agent.
     await db.commit()
     trigger, config_overrides = _parse_run_config(config)
     record = await runs.create(
@@ -208,17 +196,9 @@ async def create_run(
 ) -> RunResponse:
     """Create a run without subscribing (a protocol event-stream session on the
     thread picks it up as the thread's newest run)."""
-    # Pre-flight: refuse to launch if the agent or a subagent needs OAuth,
-    # before the run is created.
-    if auth_url := await runs.required_oauth_url(
-        db, thread.agent_id, str(thread.user_id), thread.workspace_id
-    ):
-        # Explicit at the call site: this used to be an exception the
-        # app-global handler turned into a response on *any* endpoint that
-        # touched MCP (design review §2.4).
-        return oauth_required_response(auth_url)
     # Release the pooled connection before RunService opens its own session
-    # (holding both risks pool starvation), matching /invoke.
+    # (holding both risks pool starvation), matching /invoke. Optional OAuth
+    # MCP servers do not gate run creation.
     await db.commit()
     trigger, config_overrides = _parse_run_config(body.config)
     record = await runs.create(
@@ -277,10 +257,6 @@ async def enqueue_prompt(
     text = body.text.strip()
     if not text:
         raise DomainValidationError("A queued prompt cannot be empty.")
-    if auth_url := await runs.required_oauth_url(
-        db, thread.agent_id, str(thread.user_id), thread.workspace_id
-    ):
-        return oauth_required_response(auth_url)
     await db.commit()
     record = await runs.create(
         thread_id=thread_id,

@@ -70,13 +70,13 @@ def _split_tool_name(tool_name: str) -> tuple[str, str]:
 
 
 def format_tool_streamer_label(tool_name: str) -> str:
-    """Format a tool call as Slack markdown text for the streaming chat surface.
+    """Format one compact tool-activity callout for the Slack stream.
 
-    Returns a block with leading and trailing newlines so it slots cleanly into
-    a streamer that's appending chunks of markdown.
+    Server names used to be rendered as ``:server:`` custom emoji, which
+    produces noisy literal mentions when a workspace has no matching emoji.
     """
     prefix, suffix = _split_tool_name(tool_name)
-    return f"\n\n:{prefix.lower()}:  **{prefix}**  ›  `{suffix}`\n\n"
+    return f"\n> *{_escape_mrkdwn(prefix)}* › `{_escape_mrkdwn(suffix)}`\n"
 
 
 def build_connect_prompt_blocks(connect_url: str) -> list[dict]:
@@ -89,7 +89,11 @@ def build_connect_prompt_blocks(connect_url: str) -> list[dict]:
             "type": "section",
             "text": {
                 "type": "mrkdwn",
-                "text": "Agent is not configured or agent requires authentication on your behalf. Please sign in to auxilia to continue.",
+                "text": (
+                    "I can't run this request yet because one or more MCP servers "
+                    "used by this agent are not connected for your Auxilia account. "
+                    "Connect the required servers in Auxilia, then try again."
+                ),
             },
         },
         {

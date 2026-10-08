@@ -118,6 +118,28 @@ export function useRowSelection({
 		setSelectedIds(new Set());
 	}, []);
 
+	useEffect(() => {
+		if (selectedIds.size === 0) return;
+
+		const handleEscape = (event: KeyboardEvent) => {
+			if (event.key !== "Escape" || event.repeat) return;
+
+			const modalOpen = document.querySelector(
+				'[role="dialog"][data-state="open"], [role="alertdialog"][data-state="open"], dialog[open]',
+			);
+			if (modalOpen) return;
+
+			clear();
+		};
+
+		// Capture runs before Radix handles Escape, so an open modal is still
+		// present when checked and one key press cannot close it and clear rows.
+		window.addEventListener("keydown", handleEscape, true);
+		return () => {
+			window.removeEventListener("keydown", handleEscape, true);
+		};
+	}, [clear, selectedIds.size]);
+
 	const remove = useCallback((ids: Iterable<string>) => {
 		setSelectedIds((current) => {
 			const next = new Set(current);

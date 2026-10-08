@@ -17,7 +17,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import get_current_user  # noqa: F401 — via authorize_thread
 from app.database import get_db
-from app.mcp.client.responses import oauth_required_response
 from app.redis_client import get_redis
 from app.runtime.api.protocol_schemas import (
     EventStreamBody,
@@ -25,8 +24,7 @@ from app.runtime.api.protocol_schemas import (
     ProtocolCommand,
 )
 from app.runtime.api.protocol_service import ProtocolService
-from app.runtime.api.runs_router import authorize_thread, get_run_service
-from app.runtime.runs.service import RunService
+from app.runtime.api.runs_router import authorize_thread
 from app.threads.dependencies import authorize_thread_read
 from app.threads.models import ThreadDB
 from app.threads.schemas import ThreadResponse
@@ -51,27 +49,12 @@ async def post_command(
     command: ProtocolCommand,
     thread: ThreadResponse = Depends(authorize_thread),
     service: ProtocolService = Depends(get_protocol_service),
-    runs: RunService = Depends(get_run_service),
     db: AsyncSession = Depends(get_db),  # dependency-cached: same session auth used
 ):
     """Execute one protocol command against the thread."""
-    # Same OAuth pre-flight as the run endpoints (`/runs/invoke`, `POST /runs`):
-    # refuse to launch
-    # when a bound MCP server needs (re)authorization, answering the same
-    # 401 body the frontend's connect affordance consumes. Covers resumes
-    # too — a thread can sit at an interrupt long enough for OAuth to
-    # expire, and the run endpoints re-check on both paths.
-    if command.method in ("run.start", "input.respond") and (
-        auth_url := await runs.required_oauth_url(
-            db,
-            thread.agent_id,
-            str(thread.user_id),
-            thread.workspace_id,
-        )
-    ):
-        return oauth_required_response(auth_url)
-    # Auth queries are done — release the pooled connection before RunService
-    # opens its own sessions (holding both risks pool starvation).
+    # Release the pooled connection before ProtocolService opens its own
+    # sessions. Optional OAuth MCP servers are omitted by the runtime instead
+    # of turning command submission into an `oauth_required` response.
     await db.commit()
     return await service.dispatch(
         thread.workspace_id, thread_id, str(thread.user_id), command

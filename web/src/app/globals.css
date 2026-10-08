@@ -275,6 +275,13 @@
 	--sidebar-section-label: var(--pm-panel-dim);
 }
 
+/* Keep accent text and link-like hover states readable on dark surfaces.
+ * Explicit dark text utilities remain authoritative for intentional exceptions. */
+.dark .text-petrol:not([class*="dark:text-"]),
+.dark [class~="hover:text-petrol"]:hover:not([class*="dark:hover:text-"]) {
+	color: var(--pm-panel-terminal);
+}
+
 @keyframes collapsible-down {
 	from {
 		height: 0;

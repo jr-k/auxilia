@@ -47,25 +47,6 @@ async def _cancel(task: asyncio.Task) -> None:
         await task
 
 
-async def _mcp_unauthorized(db, thread: ThreadDB, user_id: str) -> bool:
-    """Pre-flight for background-launched runs (trigger scanner, Slack, HITL
-    resume): True when a bound OAuth server is confirmed unauthorized for this
-    user. HTTP run creation already 401s before the run exists; this is the
-    net under every path that can't receive a 401 — the run fails fast with an
-    actionable error instead of burning an MCP session build.
-
-    Delegates to the HTTP preflight so every launch path shares one definition
-    of "unauthorized": probes all OAuth servers regardless of tools state,
-    fails open on infra errors, and commits to release the connection before
-    its network IO."""
-    return (
-        await RunService.required_oauth_url(
-            db, thread.agent_id, user_id, thread.workspace_id
-        )
-        is not None
-    )
-
-
 class RunWorker:
     """Executes a single claimed run end to end."""
 
@@ -212,8 +193,6 @@ class RunWorker:
                 include_archived=True,
             )
             await agents.ensure_subagent_scopes(thread.agent_id)
-            if await _mcp_unauthorized(db, thread, str(record.user_id)):
-                raise RuntimeError(MCP_REAUTH_ERROR)
             agent = await Agent.build(thread=thread, db=db)
             # Commit here, on purpose (CLAUDE.md, transactions, exception 2):
             # holding this pooled connection open for the length of an agent

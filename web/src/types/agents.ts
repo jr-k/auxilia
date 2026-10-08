@@ -37,6 +37,28 @@ export type AgentPermission = "owner" | "admin" | "editor" | "member";
 export const canConfigureAgent = (permission?: AgentPermission | null): boolean =>
 	permission === "owner" || permission === "admin" || permission === "editor";
 
+/** Bot credentials remain server-side; this is the safe agent settings projection. */
+export interface AgentSlackBotSettings {
+	workspaceEnabled: boolean;
+	enabled: boolean;
+	isConfigured: boolean;
+	botTokenLast4: string | null;
+	hasSigningSecret: boolean;
+	slackTeamId: string | null;
+	slackTeamName: string | null;
+	botUserId: string | null;
+	botName: string | null;
+	eventsUrl: string;
+	interactionsUrl: string;
+	manifest: Record<string, unknown>;
+}
+
+export interface AgentSlackBotSettingsUpdate {
+	enabled: boolean;
+	botToken?: string;
+	signingSecret?: string;
+}
+
 export interface SubagentInfo {
 	id: string;
 	name: string;

@@ -98,9 +98,9 @@ class RunService:
         endpoints, Slack, triggers) funnels through here while still inside
         its initiating context, so ModelUnavailableError surfaces as a 409
         (or a Slack reply / skipped firing) *before* any stream opens or run
-        row leaks. Unlike `required_oauth_url`, internal callers are
-        deliberately gated too — a run on an unavailable model is invalid no
-        matter who enqueues it.
+        row leaks. Internal callers are deliberately gated too — a run on an
+        unavailable model is invalid no matter who enqueues it. Missing
+        per-user OAuth is different: the runtime simply omits those MCP tools.
         """
         if input is not None and command is not None:
             raise DomainValidationError("Provide either input or command, not both.")
@@ -255,73 +255,6 @@ class RunService:
             raise NotFoundError("Agent not found")
         await ensure_sandboxes_available(spec.all_sandbox_rows)
         return thread
-
-    @staticmethod
-    async def required_oauth_url(
-        db: AsyncSession, agent_id: UUID, user_id: str, workspace_id: UUID
-    ) -> str | None:
-        """Pre-flight gate: the authorize URL a launch needs first, or None.
-
-        None means every OAuth server the agent **or a subagent** binds is
-        connected for this user; a URL means the first one that is not, and the
-        caller decides what that means — the HTTP run endpoints answer 401
-        {oauth_required, auth_url}, the worker fails a background run fast, and
-        `TriggerService.run_now` rejects with an actionable message.
-
-        It used to *raise* the URL and let an app-global handler turn the
-        exception into that 401. Returning it keeps the decision at the call
-        site, where the three callers already differed (design review §2.4).
-
-        Static — it needs no run state, only the caller's session. Not wired
-        into `RunService.create` on purpose: that path is also internal
-        (worker, reaper, seeding) and the worker gates itself.
-
-        Fail-open: if probing or OAuth discovery breaks for infra reasons
-        (provider down, no metadata), the run launches and the failure surfaces
-        in-thread as before — only a confirmed-unauthorized server blocks.
-        """
-        # Local imports avoid an import cycle (runs.service is imported early by
-        # the worker/reaper; AgentService and the MCP connectivity layer pull in
-        # far more).
-        from app.agents.core.service import AgentService
-        from app.mcp.client.connectivity import initiate_oauth, probe_authorization
-        from app.mcp.client.exceptions import OAuthAuthorizationRequired
-        from app.mcp.servers.models import MCPAuthType
-        from app.mcp.servers.repository import MCPServerRepository
-
-        bindings = await AgentService(db, workspace_id).collect_run_bindings(agent_id)
-        if not bindings:
-            return None
-
-        # Auth is per (user, server), so dedupe server ids — a server shared by
-        # the agent and a subagent need only be probed once.
-        server_ids = {b.mcp_server_id for b in bindings}
-        rows = await MCPServerRepository(db, workspace_id).list_by_ids(server_ids)
-        servers = [s for s in rows if s.auth_type == MCPAuthType.oauth2]
-        # DB reads done — release the pooled connection before the probes'
-        # network IO (token refresh, OAuth metadata discovery can take
-        # seconds). expire_on_commit=False keeps the loaded rows usable.
-        await db.commit()
-
-        # Concurrent, fail-open and memoized — shared with the readiness
-        # endpoint, which used to carry a sequential fail-loud copy (§4.1).
-        authorized = await probe_authorization(servers, user_id, workspace_id)
-        for server in servers:
-            if authorized.get(server.id, True):
-                continue
-            try:
-                # Ends in OAuthAuthorizationRequired(auth_url) for the first
-                # unauthorized server; the caller connects it and retries.
-                await initiate_oauth(server, user_id, workspace_id, db)
-            except OAuthAuthorizationRequired as exc:
-                return exc.url
-            except Exception:  # noqa: BLE001 — fail-open: a probe error must not block the run
-                logger.warning(
-                    "OAuth pre-flight for MCP server %s failed; letting the run launch",
-                    server.id,
-                    exc_info=True,
-                )
-        return None
 
     async def get(self, run_id: str, workspace_id: UUID | None = None) -> RunDB:
         async with AsyncSessionLocal() as db:
