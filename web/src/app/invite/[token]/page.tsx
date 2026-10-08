@@ -34,7 +34,8 @@ export default function InviteAcceptPage({
 	const [error, setError] = useState<string | null>(null);
 	const [invalidInvite, setInvalidInvite] = useState(false);
 
-	const [name, setName] = useState("");
+	const [firstName, setFirstName] = useState("");
+	const [lastName, setLastName] = useState("");
 	const [password, setPassword] = useState("");
 
 	useEffect(() => {
@@ -56,7 +57,12 @@ export default function InviteAcceptPage({
 		setIsLoading(true);
 
 		try {
-			const result = await authApi.acceptInvite({ token, password, name });
+			const result = await authApi.acceptInvite({
+				token,
+				password,
+				firstName,
+				lastName,
+			});
 			router.push(result.twoFactorRequired ? "/auth?two_factor=required" : "/agents");
 		} catch (err: unknown) {
 			setError(getApiErrorMessage(err, "An error occurred"));
@@ -149,15 +155,31 @@ export default function InviteAcceptPage({
 							/>
 						</div>
 
-						<div className="space-y-2">
-							<Label htmlFor="name">Name</Label>
-							<Input
-								id="name"
-								type="text"
-								placeholder="John Doe"
-								value={name}
-								onChange={(e) => { setName(e.target.value); }}
-							/>
+						<div className="grid gap-4 sm:grid-cols-2">
+							<div className="space-y-2">
+								<Label htmlFor="first-name">First name</Label>
+								<Input
+									id="first-name"
+									type="text"
+									autoComplete="given-name"
+									placeholder="John"
+									value={firstName}
+									onChange={(e) => { setFirstName(e.target.value); }}
+									required
+								/>
+							</div>
+							<div className="space-y-2">
+								<Label htmlFor="last-name">Last name</Label>
+								<Input
+									id="last-name"
+									type="text"
+									autoComplete="family-name"
+									placeholder="Doe"
+									value={lastName}
+									onChange={(e) => { setLastName(e.target.value); }}
+									required
+								/>
+							</div>
 						</div>
 
 						<div className="space-y-2">

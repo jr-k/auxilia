@@ -59,7 +59,8 @@ class InviteAcceptRequest(BaseModel):
 
     token: str
     password: str = Field(min_length=8)
-    name: str | None = None
+    first_name: str = Field(min_length=1, max_length=100)
+    last_name: str = Field(min_length=1, max_length=100)
 
 
 class WorkspaceAuthenticationResponse(BaseModel):

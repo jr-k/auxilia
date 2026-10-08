@@ -89,7 +89,8 @@ export async function getInviteInfo(token: string): Promise<InviteInfo> {
 export async function acceptInvite(payload: {
 	token: string;
 	password: string;
-	name: string;
+	firstName: string;
+	lastName: string;
 }): Promise<SignInResult> {
 	const response = await api.post<{
 		twoFactorRequired?: boolean;
