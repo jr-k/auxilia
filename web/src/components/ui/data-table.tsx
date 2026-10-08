@@ -38,6 +38,11 @@ interface DataTableProps<T> {
 	/** Click handler alternative to `getRowHref` for rows that need logic
 	 * before navigating (permission checks, dialogs…). */
 	onRowClick?: (row: T) => void;
+	/** While selection mode is active, row clicks toggle selection instead of
+	 * navigating or running the normal row action. */
+	selectionMode?: boolean;
+	onRowSelectionClick?: (row: T, shiftKey: boolean) => void;
+	isRowSelectable?: (row: T) => boolean;
 	/** Optional row grouping: consecutive rows sharing a key get a subheader
 	 * row above the first one. Rows must arrive pre-sorted by group. */
 	groupBy?: {
@@ -59,6 +64,7 @@ interface DataTableProps<T> {
 	/** Extend through WorkspacePage's mobile/tablet side padding. */
 	bleedOnNarrow?: boolean;
 	pagination?: DataTablePagination;
+	isRowSelected?: (row: T) => boolean;
 	className?: string;
 }
 
@@ -271,12 +277,16 @@ export function DataTable<T>({
 	emptyMessage = "No results.",
 	getRowHref,
 	onRowClick,
+	selectionMode = false,
+	onRowSelectionClick,
+	isRowSelectable,
 	groupBy,
 	groupTree,
 	scrollBody = false,
 	minTableWidth,
 	bleedOnNarrow = false,
 	pagination,
+	isRowSelected,
 	className = "",
 }: DataTableProps<T>) {
 	const gridTemplates = {
@@ -306,41 +316,86 @@ export function DataTable<T>({
 			</div>
 		));
 	const renderRow = (row: T, depth = 0): ReactNode => {
+		const selected = isRowSelected?.(row) ?? false;
+		const selectRow =
+			selectionMode &&
+			!!onRowSelectionClick &&
+			(isRowSelectable?.(row) ?? true);
+		const selectedClass = selected
+			? "bg-petrol/[0.055] shadow-[inset_3px_0_0_0_var(--color-petrol)] dark:bg-petrol/10"
+			: "";
 		if (getRowHref) {
+			if (selectRow && onRowSelectionClick) {
+				return (
+					<div
+						key={rowKey(row)}
+						role="button"
+						tabIndex={0}
+						data-selected={selected || undefined}
+						onClick={(event) => {
+							onRowSelectionClick(row, event.shiftKey);
+						}}
+						onKeyDown={(event) => {
+							if (event.target !== event.currentTarget) return;
+							if (event.key === "Enter" || event.key === " ") {
+								event.preventDefault();
+								onRowSelectionClick(row, event.shiftKey);
+							}
+						}}
+						className={`${gridClass} ${ROW_CLASS} ${selectedClass} cursor-pointer`}
+					>
+						{renderCells(row, depth)}
+					</div>
+				);
+			}
 			return (
 				<Link
 					key={rowKey(row)}
 					href={getRowHref(row)}
-					className={`${gridClass} ${ROW_CLASS}`}
+					data-selected={selected || undefined}
+					className={`${gridClass} ${ROW_CLASS} ${selectedClass}`}
 				>
 					{renderCells(row, depth)}
 				</Link>
 			);
 		}
-		if (onRowClick) {
+		if (onRowClick || selectRow) {
 			return (
 				<div
 					key={rowKey(row)}
 					role="button"
 					tabIndex={0}
-					onClick={() => {
-						onRowClick(row);
+					data-selected={selected || undefined}
+					onClick={(event) => {
+						if (selectRow && onRowSelectionClick) {
+							onRowSelectionClick(row, event.shiftKey);
+							return;
+						}
+						onRowClick?.(row);
 					}}
 					onKeyDown={(event) => {
 						if (event.target !== event.currentTarget) return;
 						if (event.key === "Enter" || event.key === " ") {
 							event.preventDefault();
-							onRowClick(row);
+							if (selectRow && onRowSelectionClick) {
+								onRowSelectionClick(row, event.shiftKey);
+							} else {
+								onRowClick?.(row);
+							}
 						}
 					}}
-					className={`${gridClass} ${ROW_CLASS} cursor-pointer`}
+					className={`${gridClass} ${ROW_CLASS} ${selectedClass} cursor-pointer`}
 				>
 					{renderCells(row, depth)}
 				</div>
 			);
 		}
 		return (
-			<div key={rowKey(row)} className={`${gridClass} ${ROW_CLASS}`}>
+			<div
+				key={rowKey(row)}
+				data-selected={selected || undefined}
+				className={`${gridClass} ${ROW_CLASS} ${selectedClass}`}
+			>
 				{renderCells(row, depth)}
 			</div>
 		);

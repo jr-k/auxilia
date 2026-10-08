@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
 	Clock,
+	Copy,
 	MoreVertical,
 	Pause,
 	Pencil,
@@ -21,13 +22,25 @@ import { useRunTrigger } from "@/hooks/use-run-trigger";
 import { AgentAvatar } from "@/components/ui/agent-avatar";
 import { VisibilityBadge } from "@/components/ui/visibility-badge";
 import { DropdownMenu } from "@/components/ui/dropdown-menu";
+import { SelectableLeading } from "@/components/ui/selectable-leading";
 
 interface TriggerCardProps {
 	trigger: Trigger;
 	onDelete: (id: string) => void;
+	onDuplicate: (trigger: Trigger) => void;
+	selected: boolean;
+	selectionMode: boolean;
+	onToggleSelection: (shiftKey: boolean) => void;
 }
 
-export default function TriggerCard({ trigger, onDelete }: TriggerCardProps) {
+export default function TriggerCard({
+	trigger,
+	onDelete,
+	onDuplicate,
+	selected,
+	selectionMode,
+	onToggleSelection,
+}: TriggerCardProps) {
 	const router = useRouter();
 	const updateTrigger = useTriggersStore((state) => state.updateTrigger);
 	const runTrigger = useRunTrigger();
@@ -60,18 +73,35 @@ export default function TriggerCard({ trigger, onDelete }: TriggerCardProps) {
 
 	return (
 		<div
-			className="group flex h-full flex-col gap-3 rounded-2xl border border-[#E9EEEB] dark:border-white/10 bg-white dark:bg-card p-5 cursor-pointer transition-[border-color,box-shadow] duration-[130ms] ease-out hover:border-[#D7E0DB] dark:hover:border-white/20 hover:shadow-[0_6px_18px_-4px_rgba(33,36,31,0.08)]"
-			onClick={() => {
+			className={`group flex h-full cursor-pointer flex-col gap-3 rounded-2xl border bg-white p-5 transition-[border-color,box-shadow] duration-[130ms] ease-out hover:shadow-[0_6px_18px_-4px_rgba(33,36,31,0.08)] dark:bg-card ${
+				selected
+					? "border-petrol/45 shadow-[inset_0_0_0_1px_rgba(38,103,81,0.12)] dark:border-petrol/60"
+					: "border-[#E9EEEB] hover:border-[#D7E0DB] dark:border-white/10 dark:hover:border-white/20"
+			}`}
+			onClick={(event) => {
+				if (selectionMode && trigger.canManage) {
+					onToggleSelection(event.shiftKey);
+					return;
+				}
 				router.push(`/triggers/${trigger.id}`);
 			}}
 		>
 			{/* Head: metadata wraps beneath the identity on narrow cards. */}
 			<div className="flex min-h-[30px] min-w-0 flex-wrap items-center gap-2.5">
-				<span
-					className={`size-2 shrink-0 rounded-full ${
-						trigger.isActive ? "bg-[#3D8B63]" : "bg-[#C2CFC8]"
-					}`}
-				/>
+				<SelectableLeading
+					selected={selected}
+					selectionMode={selectionMode}
+					disabled={!trigger.canManage}
+					label={`Select ${trigger.name}`}
+					onToggle={onToggleSelection}
+					className="size-[18px]"
+				>
+					<span
+						className={`block size-2 rounded-full ${
+							trigger.isActive ? "bg-[#3D8B63]" : "bg-[#C2CFC8]"
+						}`}
+					/>
+				</SelectableLeading>
 				<div className="min-w-[90px] flex-1 truncate font-[family-name:var(--font-jakarta-sans)] text-[17px] font-bold tracking-[-0.012em] text-[#1A2620] dark:text-foreground">
 					{trigger.name}
 				</div>
@@ -109,6 +139,13 @@ export default function TriggerCard({ trigger, onDelete }: TriggerCardProps) {
 								icon: <Pencil />,
 								onClick: () => {
 									router.push(`/triggers/${trigger.id}`);
+								},
+							},
+							{
+								label: "Duplicate",
+								icon: <Copy />,
+								onClick: () => {
+									onDuplicate(trigger);
 								},
 							},
 							{ separator: true as const },

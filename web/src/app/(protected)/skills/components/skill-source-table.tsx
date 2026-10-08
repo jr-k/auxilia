@@ -2,9 +2,17 @@
 
 import { useState } from "react";
 import { RefreshCw, Unplug } from "lucide-react";
+import {
+	BulkConfirmDialog,
+	type BulkFailure,
+} from "@/components/ui/bulk-confirm-dialog";
+import { BulkActionBar } from "@/components/ui/bulk-action-bar";
+import { Checkbox } from "@/components/ui/checkbox";
 import ConfirmDialog from "@/components/ui/confirm-dialog";
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import { DropdownMenu } from "@/components/ui/dropdown-menu";
+import { SelectableLeading } from "@/components/ui/selectable-leading";
+import { useRowSelection } from "@/hooks/use-row-selection";
 import { getApiErrorMessage } from "@/lib/api/errors";
 import { cn } from "@/lib/utils";
 import { useSkillsStore } from "@/stores/skills-store";
@@ -272,16 +280,54 @@ function SyncButton({ source, onError }: { source: SkillSource; onError: (m: str
  */
 export default function SkillSourceTable({ sources, isLoading, canManage, onError }: SkillSourceTableProps) {
 	const deleteSource = useSkillsStore((state) => state.deleteSource);
+	const deleteSources = useSkillsStore((state) => state.deleteSources);
 	const [toDisconnect, setToDisconnect] = useState<SkillSource | null>(null);
+	const [bulkOpen, setBulkOpen] = useState(false);
+	const selection = useRowSelection({
+		orderedIds: sources.map((source) => source.id),
+		eligibleIds: canManage ? sources.map((source) => source.id) : [],
+	});
+	const selectedSources = sources.filter((source) =>
+		selection.selectedIds.has(source.id),
+	);
 
 	const columns: DataTableColumn<SkillSource>[] = [
 		{
 			key: "source",
-			header: "Repository",
+			header: selection.selectionMode ? (
+				""
+			) : (
+				<span className="flex items-center gap-3">
+					<Checkbox
+						checked={false}
+						aria-label="Select all repositories"
+						disabled={!canManage}
+						onCheckedChange={selection.toggleAll}
+					/>
+					<button
+						type="button"
+						onClick={selection.toggleAll}
+						className="cursor-pointer text-[12px]! font-semibold text-foreground hover:text-petrol"
+					>
+						Select all
+					</button>
+				</span>
+			),
 			width: "minmax(240px, 1.5fr)",
 			cell: (source) => (
 				<div className="flex min-w-0 items-center gap-3">
-					<SourceHostTile url={source.url} kind={source.kind} />
+					<SelectableLeading
+						selected={selection.isSelected(source.id)}
+						selectionMode={selection.selectionMode}
+						disabled={!canManage}
+						label={`Select ${source.name}`}
+						onToggle={(shiftKey) => {
+							selection.toggle(source.id, shiftKey);
+						}}
+						className="size-8"
+					>
+						<SourceHostTile url={source.url} kind={source.kind} />
+					</SelectableLeading>
 					<div className="min-w-0">
 						<div className="truncate text-[13.5px] font-semibold text-foreground">{source.name}</div>
 						<div className="mt-px truncate font-mono text-[11px] text-subtle dark:text-muted-foreground">
@@ -395,10 +441,61 @@ export default function SkillSourceTable({ sources, isLoading, canManage, onErro
 				}}
 				errorMessage="Could not disconnect the repository. Please try again."
 			/>
+			<BulkConfirmDialog
+				open={bulkOpen}
+				onOpenChange={setBulkOpen}
+				title="Disconnect selected repositories?"
+				description="Their skills stay in the library, frozen at their current revisions, but will no longer sync."
+				items={selectedSources.map((source) => ({
+					id: source.id,
+					name: source.name,
+					note: `${source.skillCount} skill${source.skillCount === 1 ? "" : "s"} will stay available.`,
+				}))}
+				confirmLabel="Disconnect"
+				busyLabel="Disconnecting…"
+				onConfirm={async (items) => {
+					const results = await deleteSources(items.map((item) => item.id));
+					const succeeded: string[] = [];
+					const failures: BulkFailure[] = [];
+					results.forEach((result, index) => {
+						const item = items[index];
+						if (result.status === "fulfilled") succeeded.push(item.id);
+						else
+							failures.push({
+								id: item.id,
+								name: item.name,
+								message: getApiErrorMessage(
+									result.reason,
+									"Disconnect failed.",
+								),
+							});
+					});
+					selection.remove(succeeded);
+					return failures;
+				}}
+			/>
+			<BulkActionBar
+				selectedCount={selection.selectedCount}
+				totalCount={canManage ? sources.length : 0}
+				allSelected={selection.allSelected}
+				someSelected={selection.someSelected}
+				onToggleAll={selection.toggleAll}
+				onClear={selection.clear}
+				actionLabel="Disconnect"
+				actionIcon={<Unplug className="size-3.5" />}
+				onAction={() => {
+					setBulkOpen(true);
+				}}
+			/>
 			<DataTable
 				columns={columns}
 				rows={sources}
 				rowKey={(source) => source.id}
+				isRowSelected={(source) => selection.isSelected(source.id)}
+				selectionMode={selection.selectionMode}
+				onRowSelectionClick={(source, shiftKey) => {
+					selection.toggle(source.id, shiftKey);
+				}}
 				isLoading={isLoading}
 				scrollBody
 				minTableWidth="1000px"

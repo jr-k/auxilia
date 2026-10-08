@@ -4,7 +4,7 @@ import { useState, useMemo, useRef, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import EmojiPicker, { EmojiClickData, Theme } from "emoji-picker-react";
-import { ArchiveIcon, History, Pencil, Play } from "lucide-react";
+import { ArchiveIcon, Copy, History, Pencil, Play } from "lucide-react";
 import { toast } from "sonner";
 import { AGENT_COLORS } from "@/lib/colors";
 import { useTheme } from "next-themes";
@@ -268,6 +268,39 @@ export default function AgentEditor({
 		}
 	};
 
+	const handleDuplicate = async () => {
+		if (!agent) return;
+		try {
+			const source = await agentsApi.getAgent(agent.id);
+			const created = await createAgent({
+				name: `${source.name} copy`,
+				instructions: source.instructions ?? "",
+				description: source.description ?? null,
+				group: source.group ?? null,
+				emoji: source.emoji ?? null,
+				color: source.color ?? null,
+				visibility: source.visibility,
+				teamIds: source.teamIds,
+				mcpServers: source.mcpServers.map((server) => ({
+					mcpServerId: server.mcpServerId,
+					tools: server.tools ?? null,
+				})),
+				sandboxes: (source.sandboxes ?? []).map((sandbox) => ({
+					sandboxId: sandbox.sandboxId,
+					tools: sandbox.tools,
+				})),
+				subagentIds: source.subagents.map((subagent) => subagent.id),
+				skillIds: (source.skills ?? []).map((skill) => skill.id),
+			});
+			toast.success(`Duplicated as “${created.name}”.`);
+			router.push(`/agents/${created.id}`);
+		} catch (error: unknown) {
+			toast.error(
+				getApiErrorMessage(error, "Could not duplicate the agent."),
+			);
+		}
+	};
+
 	const fieldInputClass =
 		"w-full rounded-lg border border-input bg-card px-3 py-[7px] outline-none transition-[border-color,box-shadow] placeholder:text-meta dark:placeholder:text-panel-dim focus:border-petrol focus:shadow-[0_0_0_3px_rgba(22,96,110,0.10)] disabled:cursor-default";
 
@@ -348,6 +381,13 @@ export default function AgentEditor({
 									icon: <History />,
 									onClick: () => {
 										router.push(`/agents/${agent.id}/threads`);
+									},
+								},
+								{
+									label: "Duplicate",
+									icon: <Copy />,
+									onClick: () => {
+										void handleDuplicate();
 									},
 								},
 								{ separator: true as const },

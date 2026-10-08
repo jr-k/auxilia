@@ -8,6 +8,7 @@ import { useMcpServersStore } from "@/stores/mcp-servers-store";
 import ArchivedAgentDialog from "@/app/(protected)/agents/components/archived-agent-dialog";
 import ForbiddenErrorDialog from "@/components/forbidden-error-dialog";
 import { AgentAvatar } from "@/components/ui/agent-avatar";
+import { SelectableLeading } from "@/components/ui/selectable-leading";
 import { VisibilityBadge } from "@/components/ui/visibility-badge";
 import { mcpServerImageUrl } from "@/lib/api/resources/mcp-servers";
 
@@ -17,6 +18,9 @@ interface AgentCardProps {
 	// navigating to the agent page, and only manage-capable users can open it.
 	archived?: boolean;
 	onRemoved?: (agentId: string) => void;
+	selected?: boolean;
+	selectionMode?: boolean;
+	onToggleSelection?: (shiftKey: boolean) => void;
 }
 
 const ROLE_BADGE_CONFIG: Record<
@@ -55,6 +59,9 @@ export default function AgentCard({
 	agent,
 	archived = false,
 	onRemoved,
+	selected = false,
+	selectionMode = false,
+	onToggleSelection,
 }: AgentCardProps) {
 	const router = useRouter();
 	const [open, setOpen] = useState(false);
@@ -84,7 +91,11 @@ export default function AgentCard({
 	// for members; editing is gated there). Archived cards open the
 	// restore/delete dialog instead. No access → explain via a dialog rather
 	// than silently doing nothing.
-	const handleClick = () => {
+	const handleClick = (event: React.MouseEvent<HTMLDivElement>) => {
+		if (selectionMode && canManage && onToggleSelection) {
+			onToggleSelection(event.shiftKey);
+			return;
+		}
 		if (!hasAccess) {
 			setForbiddenOpen(true);
 			return;
@@ -101,19 +112,34 @@ export default function AgentCard({
 	return (
 		<>
 			<div
-				className="group flex h-full cursor-pointer flex-col rounded-xl border border-[#e1ebe6] dark:border-white/10 bg-white dark:bg-card p-4 pb-0 transition-[border-color,box-shadow] duration-[130ms] ease-out hover:border-[#cfe0d8] dark:hover:border-white/20 hover:shadow-[0_3px_10px_rgba(30,45,40,0.06)]"
+				className={`group flex h-full cursor-pointer flex-col rounded-xl border bg-white p-4 pb-0 transition-[border-color,box-shadow] duration-[130ms] ease-out hover:shadow-[0_3px_10px_rgba(30,45,40,0.06)] dark:bg-card ${
+					selected
+						? "border-petrol/45 shadow-[inset_0_0_0_1px_rgba(38,103,81,0.12)] dark:border-petrol/60"
+						: "border-[#e1ebe6] hover:border-[#cfe0d8] dark:border-white/10 dark:hover:border-white/20"
+				}`}
 				onClick={handleClick}
 			>
 				{/* Head: narrow cards wrap both badges beneath the identity. */}
 				<div className="mb-2.5 flex min-w-0 flex-wrap items-center gap-x-[11px] gap-y-2">
-					<AgentAvatar
-						agentId={agent.id}
-						name={agent.name}
-						imageRevision={agent.imageRevision}
-						color={agent.color}
-						emoji={agent.emoji}
-						size="sm"
-					/>
+					<SelectableLeading
+						selected={selected}
+						selectionMode={selectionMode}
+						disabled={!canManage || !onToggleSelection}
+						label={`Select ${agent.name}`}
+						onToggle={(shiftKey) => {
+							onToggleSelection?.(shiftKey);
+						}}
+						className="size-8"
+					>
+						<AgentAvatar
+							agentId={agent.id}
+							name={agent.name}
+							imageRevision={agent.imageRevision}
+							color={agent.color}
+							emoji={agent.emoji}
+							size="sm"
+						/>
+					</SelectableLeading>
 					<div className="min-w-[90px] flex-1">
 						<div className="truncate font-[family-name:var(--font-jakarta-sans)] text-[14.5px] font-bold tracking-[-0.01em] text-[#1e2d28] dark:text-foreground">
 							{agent.name}

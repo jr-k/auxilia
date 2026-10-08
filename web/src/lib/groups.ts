@@ -20,6 +20,14 @@ export interface GroupTree<T> {
 	ungrouped: T[];
 }
 
+export function flattenGroupTree<T>(tree: GroupTree<T>): T[] {
+	const flattenNode = (node: GroupNode<T>): T[] => [
+		...node.items,
+		...node.children.flatMap(flattenNode),
+	];
+	return [...tree.groups.flatMap(flattenNode), ...tree.ungrouped];
+}
+
 export const normalizeGroup = (value: string): string =>
 	value
 		.split("/")

@@ -1,21 +1,45 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { GitCompareArrows, Pencil, PencilLine, Trash2, Unplug } from "lucide-react";
+import { Copy, GitCompareArrows, Pencil, PencilLine, Trash2, Unplug } from "lucide-react";
+import { toast } from "sonner";
 import { AgentAvatar } from "@/components/ui/agent-avatar";
+import {
+	BulkConfirmDialog,
+	type BulkFailure,
+} from "@/components/ui/bulk-confirm-dialog";
+import { BulkActionBar } from "@/components/ui/bulk-action-bar";
+import { Checkbox } from "@/components/ui/checkbox";
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import { VisibilityBadge } from "@/components/ui/visibility-badge";
 import { DropdownMenu } from "@/components/ui/dropdown-menu";
 import { GroupedCardTree } from "@/components/ui/grouped-card-tree";
+import { SelectableLeading } from "@/components/ui/selectable-leading";
 import { SkillAvatar } from "@/components/ui/skill-avatar";
 import type { ViewMode } from "@/components/ui/view-toggle";
-import { buildGroupTree } from "@/lib/groups";
+import { useRowSelection } from "@/hooks/use-row-selection";
+import { getApiErrorMessage } from "@/lib/api/errors";
+import { buildGroupTree, flattenGroupTree } from "@/lib/groups";
+import { useSkillsStore } from "@/stores/skills-store";
 import type { BoundAgent } from "@/types/agents";
-import { isDetached, isSourced, repoLabel, shortRevision, type SkillSummary } from "@/types/skills";
+import {
+	isDetached,
+	isSourced,
+	repoLabel,
+	shortRevision,
+	SKILL_NAME_MAX,
+	type SkillSummary,
+} from "@/types/skills";
 import { relativeTime } from "../lib/relative-time";
 import { SkillRequirementChip } from "./skill-requirement-chip";
 import { SourceHostTile } from "./source-host-tile";
+import {
+	composeSkillMarkdown,
+	splitSkillMarkdown,
+	yamlScalar,
+} from "../lib/skill-form";
 
 interface SkillTableProps {
 	mode: ViewMode;
@@ -149,22 +173,120 @@ export default function SkillTable({
 }: SkillTableProps) {
 	const router = useRouter();
 	const groupTree = buildGroupTree(skills);
+	const deleteSkill = useSkillsStore((state) => state.deleteSkill);
+	const getSkill = useSkillsStore((state) => state.getSkill);
+	const createSkill = useSkillsStore((state) => state.createSkill);
+	const [bulkOpen, setBulkOpen] = useState(false);
+	const orderedSkills = flattenGroupTree(groupTree);
+	const selection = useRowSelection({
+		orderedIds: orderedSkills.map((skill) => skill.id),
+		eligibleIds: orderedSkills
+			.filter((skill) => skill.canManage)
+			.map((skill) => skill.id),
+	});
+	const selectedSkills = orderedSkills.filter((skill) =>
+		selection.selectedIds.has(skill.id),
+	);
+	const bulkItems = selectedSkills.map((skill) => ({
+		id: skill.id,
+		name: skill.name,
+		blockedReason:
+			skill.agentCount > 0
+				? `Used by ${skill.agentCount} agent${skill.agentCount === 1 ? "" : "s"}.`
+				: undefined,
+	}));
+
+	const duplicateSkill = async (skill: SkillSummary) => {
+		try {
+			const full = await getSkill(skill.id);
+			const names = new Set(skills.map((candidate) => candidate.name));
+			const suffix = "-copy";
+			let copyName = `${skill.name.slice(0, SKILL_NAME_MAX - suffix.length)}${suffix}`;
+			let index = 2;
+			while (names.has(copyName)) {
+				const numberedSuffix = `-copy-${index}`;
+				copyName = `${skill.name.slice(
+					0,
+					SKILL_NAME_MAX - numberedSuffix.length,
+				)}${numberedSuffix}`;
+				index += 1;
+			}
+			const fields = splitSkillMarkdown(full.content);
+			const content = fields
+				? composeSkillMarkdown({ ...fields, name: copyName })
+				: full.content.replace(
+						/^name:[ \t]*.*$/m,
+						`name: ${yamlScalar(copyName)}`,
+					);
+			const created = await createSkill({
+				content,
+				files: full.files,
+				group: full.group,
+				emoji: full.emoji,
+				color: full.color,
+				visibility: full.visibility,
+				teamIds: full.teamIds,
+			});
+			toast.success(`Duplicated as “${created.name}”.`);
+			router.push(`/skills/${created.id}?edit=1`);
+		} catch (error: unknown) {
+			toast.error(getApiErrorMessage(error, "Could not duplicate the skill."));
+		}
+	};
+
+	const masterCheckbox = !selection.selectionMode ? (
+		<Checkbox
+			checked={
+				selection.allSelected
+					? true
+					: selection.someSelected
+						? "indeterminate"
+						: false
+			}
+			aria-label={selection.allSelected ? "Unselect all skills" : "Select all skills"}
+			onCheckedChange={selection.toggleAll}
+		/>
+	) : null;
 
 	const columns: DataTableColumn<SkillSummary>[] = [
 		{
 			key: "name",
-			header: "Skill",
+			header: selection.selectionMode ? (
+				""
+			) : (
+				<span className="flex items-center gap-2.5">
+					{masterCheckbox}
+					<button
+						type="button"
+						onClick={selection.toggleAll}
+						className="cursor-pointer text-[12px]! font-semibold text-foreground hover:text-petrol"
+					>
+						Select all
+					</button>
+				</span>
+			),
 			width: "minmax(220px, 1.5fr)",
 			cell: (skill) => (
 				<div className="flex min-w-0 items-center gap-2.5">
-					<SkillAvatar
-						skillId={skill.id}
-						name={skill.name}
-						emoji={skill.emoji}
-						color={skill.color}
-						imageRevision={skill.imageRevision}
-						size="xs"
-					/>
+					<SelectableLeading
+						selected={selection.isSelected(skill.id)}
+						selectionMode={selection.selectionMode}
+						disabled={!skill.canManage}
+						label={`Select ${skill.name}`}
+						onToggle={(shiftKey) => {
+							selection.toggle(skill.id, shiftKey);
+						}}
+						className="size-6"
+					>
+						<SkillAvatar
+							skillId={skill.id}
+							name={skill.name}
+							emoji={skill.emoji}
+							color={skill.color}
+							imageRevision={skill.imageRevision}
+							size="xs"
+						/>
+					</SelectableLeading>
 					<div className="min-w-0">
 						<div className="flex min-w-0 items-center gap-2">
 							<span className="truncate text-[12.5px] font-semibold text-petrol dark:text-panel-terminal">
@@ -266,6 +388,17 @@ export default function SkillTable({
 									);
 								},
 							},
+							...(skill.canEdit || skill.canManage
+								? [
+										{
+											label: "Duplicate",
+											icon: <Copy />,
+											onClick: () => {
+												void duplicateSkill(skill);
+											},
+										},
+									]
+								: []),
 							...(skill.updateAvailable
 								? [
 										{
@@ -321,13 +454,31 @@ export default function SkillTable({
 		}
 
 		return (
-			<GroupedCardTree
+			<>
+				<BulkActionBar
+					selectedCount={selection.selectedCount}
+					totalCount={orderedSkills.filter((skill) => skill.canManage).length}
+					allSelected={selection.allSelected}
+					someSelected={selection.someSelected}
+					onToggleAll={selection.toggleAll}
+					onClear={selection.clear}
+					actionLabel="Delete"
+					onAction={() => {
+						setBulkOpen(true);
+					}}
+					showWhenEmpty
+				/>
+				<GroupedCardTree
 				tree={groupTree}
 				storageKey="skills:card-group"
 				renderItem={(skill, index) => (
 					<article
 						key={skill.id}
-						className="group relative flex min-h-[200px] animate-in flex-col rounded-xl border border-[#e1ebe6] bg-white p-4 fade-in slide-in-from-bottom-3 transition-[border-color,box-shadow] duration-400 ease-out hover:border-[#cfe0d8] hover:shadow-[0_3px_10px_rgba(30,45,40,0.06)] dark:border-white/10 dark:bg-card dark:hover:border-white/20"
+						className={`group relative flex min-h-[200px] animate-in flex-col rounded-xl border bg-white p-4 fade-in slide-in-from-bottom-3 transition-[border-color,box-shadow] duration-400 ease-out hover:shadow-[0_3px_10px_rgba(30,45,40,0.06)] dark:bg-card ${
+							selection.isSelected(skill.id)
+								? "border-petrol/45 shadow-[inset_0_0_0_1px_rgba(38,103,81,0.12)] dark:border-petrol/60"
+								: "border-[#e1ebe6] hover:border-[#cfe0d8] dark:border-white/10 dark:hover:border-white/20"
+						}`}
 						style={{
 							animationDelay: `${index * 40}ms`,
 							animationFillMode: "both",
@@ -335,20 +486,36 @@ export default function SkillTable({
 					>
 						<Link
 							href={`/skills/${skill.id}`}
+							onClick={(event) => {
+								if (!selection.selectionMode || !skill.canManage) return;
+								event.preventDefault();
+								selection.toggle(skill.id, event.shiftKey);
+							}}
 							className="absolute inset-0 rounded-xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-petrol"
 						>
 							<span className="sr-only">Open {skill.name}</span>
 						</Link>
 						<div className="pointer-events-none flex min-w-0 flex-wrap items-start justify-between gap-2">
 							<div className="flex min-w-[120px] flex-1 items-start gap-2.5">
-								<SkillAvatar
-									skillId={skill.id}
-									name={skill.name}
-									emoji={skill.emoji}
-									color={skill.color}
-									imageRevision={skill.imageRevision}
-									size="sm"
-								/>
+								<SelectableLeading
+									selected={selection.isSelected(skill.id)}
+									selectionMode={selection.selectionMode}
+									disabled={!skill.canManage}
+									label={`Select ${skill.name}`}
+									onToggle={(shiftKey) => {
+										selection.toggle(skill.id, shiftKey);
+									}}
+									className="pointer-events-auto z-10 size-8"
+								>
+									<SkillAvatar
+										skillId={skill.id}
+										name={skill.name}
+										emoji={skill.emoji}
+										color={skill.color}
+										imageRevision={skill.imageRevision}
+										size="sm"
+									/>
+								</SelectableLeading>
 								<div className="min-w-0">
 									<h2 className="truncate font-mono text-[13.5px] font-semibold text-petrol dark:text-panel-terminal">
 										{skill.name}
@@ -404,6 +571,17 @@ export default function SkillTable({
 											);
 										},
 									},
+									...(skill.canEdit || skill.canManage
+										? [
+												{
+													label: "Duplicate",
+													icon: <Copy />,
+													onClick: () => {
+														void duplicateSkill(skill);
+													},
+												},
+											]
+										: []),
 									...(skill.updateAvailable
 										? [
 												{
@@ -433,42 +611,119 @@ export default function SkillTable({
 						</div>
 					</article>
 				)}
-			/>
+				/>
+				<BulkConfirmDialog
+					open={bulkOpen}
+					onOpenChange={setBulkOpen}
+					title="Delete selected skills?"
+					description="Available skills will be removed permanently. Skills currently used by agents stay untouched."
+					items={bulkItems}
+					confirmLabel="Delete"
+					busyLabel="Deleting…"
+					onConfirm={async (items) => {
+						const results = await Promise.allSettled(
+							items.map((item) => deleteSkill(item.id)),
+						);
+						const succeeded: string[] = [];
+						const failures: BulkFailure[] = [];
+						results.forEach((result, index) => {
+							const item = items[index];
+							if (result.status === "fulfilled") succeeded.push(item.id);
+							else
+								failures.push({
+									id: item.id,
+									name: item.name,
+									message: getApiErrorMessage(result.reason, "Delete failed."),
+								});
+						});
+						selection.remove(succeeded);
+						return failures;
+					}}
+				/>
+			</>
 		);
 	}
 
 	return (
-		<DataTable
-			columns={columns}
-			rows={skills}
-			rowKey={(skill) => skill.id}
-			isLoading={isLoading}
-			scrollBody
-			minTableWidth="1060px"
-			bleedOnNarrow
-			groupTree={{
-				...groupTree,
-				storageKey: "skills:table-group",
-			}}
-			onRowClick={(skill) => {
-				router.push(`/skills/${skill.id}`);
-			}}
-			emptyMessage={
-				search ? (
-					<span>
-						No skill matches “{search}”.{" "}
-						<button
-							type="button"
-							onClick={onClearSearch}
-							className="cursor-pointer font-semibold text-petrol hover:underline dark:text-panel-terminal"
-						>
-							Clear search
-						</button>
-					</span>
-				) : (
-					"No skills yet."
-				)
-			}
-		/>
+		<>
+			<BulkActionBar
+				selectedCount={selection.selectedCount}
+				totalCount={orderedSkills.filter((skill) => skill.canManage).length}
+				allSelected={selection.allSelected}
+				someSelected={selection.someSelected}
+				onToggleAll={selection.toggleAll}
+				onClear={selection.clear}
+				actionLabel="Delete"
+				onAction={() => {
+					setBulkOpen(true);
+				}}
+			/>
+			<DataTable
+				columns={columns}
+				rows={skills}
+				rowKey={(skill) => skill.id}
+				isLoading={isLoading}
+				isRowSelected={(skill) => selection.isSelected(skill.id)}
+				selectionMode={selection.selectionMode}
+				isRowSelectable={(skill) => skill.canManage}
+				onRowSelectionClick={(skill, shiftKey) => {
+					selection.toggle(skill.id, shiftKey);
+				}}
+				scrollBody
+				minTableWidth="1060px"
+				bleedOnNarrow
+				groupTree={{
+					...groupTree,
+					storageKey: "skills:table-group",
+				}}
+				onRowClick={(skill) => {
+					router.push(`/skills/${skill.id}`);
+				}}
+				emptyMessage={
+					search ? (
+						<span>
+							No skill matches “{search}”.{" "}
+							<button
+								type="button"
+								onClick={onClearSearch}
+								className="cursor-pointer font-semibold text-petrol hover:underline dark:text-panel-terminal"
+							>
+								Clear search
+							</button>
+						</span>
+					) : (
+						"No skills yet."
+					)
+				}
+			/>
+			<BulkConfirmDialog
+				open={bulkOpen}
+				onOpenChange={setBulkOpen}
+				title="Delete selected skills?"
+				description="Available skills will be removed permanently. Skills currently used by agents stay untouched."
+				items={bulkItems}
+				confirmLabel="Delete"
+				busyLabel="Deleting…"
+				onConfirm={async (items) => {
+					const results = await Promise.allSettled(
+						items.map((item) => deleteSkill(item.id)),
+					);
+					const succeeded: string[] = [];
+					const failures: BulkFailure[] = [];
+					results.forEach((result, index) => {
+						const item = items[index];
+						if (result.status === "fulfilled") succeeded.push(item.id);
+						else
+							failures.push({
+								id: item.id,
+								name: item.name,
+								message: getApiErrorMessage(result.reason, "Delete failed."),
+							});
+					});
+					selection.remove(succeeded);
+					return failures;
+				}}
+			/>
+		</>
 	);
 }

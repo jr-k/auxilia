@@ -9,10 +9,17 @@ import {
 	Search,
 	Zap,
 } from "lucide-react";
+import {
+	BulkConfirmDialog,
+	type BulkFailure,
+} from "@/components/ui/bulk-confirm-dialog";
+import { BulkActionBar } from "@/components/ui/bulk-action-bar";
 import { Agent } from "@/types/agents";
 import AgentCard from "@/app/(protected)/agents/components/agent-card";
 import AgentTable from "@/app/(protected)/agents/components/agent-table";
-import { buildGroupTree, type GroupNode } from "@/lib/groups";
+import { buildGroupTree, flattenGroupTree, type GroupNode } from "@/lib/groups";
+import { useRowSelection } from "@/hooks/use-row-selection";
+import { getApiErrorMessage } from "@/lib/api/errors";
 import type { ViewMode } from "@/components/ui/view-toggle";
 import { useAgentsStore } from "@/stores/agents-store";
 import {
@@ -67,10 +74,16 @@ function AgentCardGrid({
 	agents,
 	archived,
 	onRemoved,
+	selectedIds,
+	selectionMode,
+	onToggleSelection,
 }: {
 	agents: Agent[];
 	archived?: boolean;
 	onRemoved?: (agentId: string) => void;
+	selectedIds: Set<string>;
+	selectionMode: boolean;
+	onToggleSelection: (agentId: string, shiftKey: boolean) => void;
 }) {
 	return (
 		<div
@@ -89,7 +102,16 @@ function AgentCardGrid({
 						animationFillMode: "both",
 					}}
 				>
-					<AgentCard agent={agent} archived={archived} onRemoved={onRemoved} />
+					<AgentCard
+						agent={agent}
+						archived={archived}
+						onRemoved={onRemoved}
+						selected={selectedIds.has(agent.id)}
+						selectionMode={selectionMode}
+						onToggleSelection={(shiftKey) => {
+							onToggleSelection(agent.id, shiftKey);
+						}}
+					/>
 				</div>
 			))}
 		</div>
@@ -101,11 +123,17 @@ function AgentSection({
 	archived,
 	onRemoved,
 	storageKey,
+	selectedIds,
+	selectionMode,
+	onToggleSelection,
 }: {
 	node: GroupNode<Agent>;
 	archived?: boolean;
 	onRemoved?: (agentId: string) => void;
 	storageKey: string;
+	selectedIds: Set<string>;
+	selectionMode: boolean;
+	onToggleSelection: (agentId: string, shiftKey: boolean) => void;
 }) {
 	const [expanded, setExpanded] = useState(() => {
 		try {
@@ -160,6 +188,9 @@ function AgentSection({
 								agents={node.items}
 								archived={archived}
 								onRemoved={onRemoved}
+								selectedIds={selectedIds}
+								selectionMode={selectionMode}
+								onToggleSelection={onToggleSelection}
 							/>
 						</div>
 					)}
@@ -170,6 +201,9 @@ function AgentSection({
 							archived={archived}
 							onRemoved={onRemoved}
 							storageKey={`${storageKey}:${child.path}`}
+							selectedIds={selectedIds}
+							selectionMode={selectionMode}
+							onToggleSelection={onToggleSelection}
 						/>
 					))}
 				</div>
@@ -210,6 +244,11 @@ export default function AgentList({
 	const storeReady = useAgentsStore((state) => state.isInitialized);
 	const fetchAgents = useAgentsStore((state) => state.fetchAgents);
 	const removeAgent = useAgentsStore((state) => state.removeAgent);
+	const archiveAgent = useAgentsStore((state) => state.archiveAgent);
+	const permanentlyDeleteAgent = useAgentsStore(
+		(state) => state.permanentlyDeleteAgent,
+	);
+	const [bulkOpen, setBulkOpen] = useState(false);
 
 	useEffect(() => {
 		if (!archived) fetchAgents().catch(console.error);
@@ -250,6 +289,92 @@ export default function AgentList({
 	);
 
 	const groupTree = useMemo(() => buildGroupTree(visible), [visible]);
+	const orderedAgents = useMemo(() => flattenGroupTree(groupTree), [groupTree]);
+	const manageableAgentIds = useMemo(
+		() =>
+			orderedAgents
+				.filter(
+					(agent) =>
+						agent.currentUserPermission === "owner" ||
+						agent.currentUserPermission === "admin",
+				)
+				.map((agent) => agent.id),
+		[orderedAgents],
+	);
+	const selection = useRowSelection({
+		orderedIds: orderedAgents.map((agent) => agent.id),
+		eligibleIds: manageableAgentIds,
+	});
+	const selectedAgents = orderedAgents.filter((agent) =>
+		selection.selectedIds.has(agent.id),
+	);
+
+	const bulkControls = (
+		<>
+			<BulkActionBar
+				selectedCount={selection.selectedCount}
+				totalCount={manageableAgentIds.length}
+				allSelected={selection.allSelected}
+				someSelected={selection.someSelected}
+				onToggleAll={selection.toggleAll}
+				onClear={selection.clear}
+				actionLabel={archived ? "Delete permanently" : "Archive"}
+				actionIcon={
+					archived ? undefined : <Archive className="size-3.5" />
+				}
+				onAction={() => {
+					setBulkOpen(true);
+				}}
+				showWhenEmpty={mode === "cards"}
+			/>
+			<BulkConfirmDialog
+				open={bulkOpen}
+				onOpenChange={setBulkOpen}
+				title={
+					archived
+						? "Permanently delete selected agents?"
+						: "Archive selected agents?"
+				}
+				description={
+					archived
+						? "This permanently removes the agents, their tool connections, and every chat thread that used them."
+						: "Archived agents stop being available for chat and automations, but can be restored later."
+				}
+				items={selectedAgents.map((agent) => ({
+					id: agent.id,
+					name: agent.name,
+				}))}
+				confirmLabel={archived ? "Delete" : "Archive"}
+				busyLabel={archived ? "Deleting…" : "Archiving…"}
+				onConfirm={async (items) => {
+					const action = archived ? permanentlyDeleteAgent : archiveAgent;
+					const results = await Promise.allSettled(
+						items.map((item) => action(item.id)),
+					);
+					const succeeded: string[] = [];
+					const failures: BulkFailure[] = [];
+					results.forEach((result, index) => {
+						const item = items[index];
+						if (result.status === "fulfilled") succeeded.push(item.id);
+						else
+							failures.push({
+								id: item.id,
+								name: item.name,
+								message: getApiErrorMessage(result.reason, "Action failed."),
+							});
+					});
+					if (archived && succeeded.length > 0) {
+						const removed = new Set(succeeded);
+						onArchivedAgentsChange(
+							archivedAgents.filter((agent) => !removed.has(agent.id)),
+						);
+					}
+					selection.remove(succeeded);
+					return failures;
+				}}
+			/>
+		</>
+	);
 
 	if (isLoading) return null;
 
@@ -319,10 +444,15 @@ export default function AgentList({
 		// height (WorkspacePage fillHeight) and scroll internally.
 		return (
 			<div className="flex min-h-0 w-full flex-1 flex-col animate-in fade-in duration-300">
+				{bulkControls}
 				<AgentTable
 					agents={visible}
 					archived={archived}
 					onRemoved={handleRemoved}
+					selectedIds={selection.selectedIds}
+					selectionMode={selection.selectionMode}
+					onToggleAll={selection.toggleAll}
+					onToggleSelection={selection.toggle}
 				/>
 			</div>
 		);
@@ -330,6 +460,7 @@ export default function AgentList({
 
 	return (
 		<div className="w-full animate-in fade-in duration-300">
+			{bulkControls}
 			{groupTree.groups.map((group) => (
 				<AgentSection
 					key={`${view}:${group.path}`}
@@ -337,6 +468,9 @@ export default function AgentList({
 					archived={archived}
 					onRemoved={handleRemoved}
 					storageKey={`agents:group:${view}:${group.path}:expanded`}
+					selectedIds={selection.selectedIds}
+					selectionMode={selection.selectionMode}
+					onToggleSelection={selection.toggle}
 				/>
 			))}
 			{groupTree.ungrouped.length > 0 &&
@@ -353,12 +487,18 @@ export default function AgentList({
 						archived={archived}
 						onRemoved={handleRemoved}
 						storageKey={`agents:group:${view}:__ungrouped__:expanded`}
+						selectedIds={selection.selectedIds}
+						selectionMode={selection.selectionMode}
+						onToggleSelection={selection.toggle}
 					/>
 				) : (
 					<AgentCardGrid
 						agents={groupTree.ungrouped}
 						archived={archived}
 						onRemoved={handleRemoved}
+						selectedIds={selection.selectedIds}
+						selectionMode={selection.selectionMode}
+						onToggleSelection={selection.toggle}
 					/>
 				))}
 		</div>

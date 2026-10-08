@@ -8,6 +8,8 @@ import { useMcpServersStore } from "@/stores/mcp-servers-store";
 import ArchivedAgentDialog from "@/app/(protected)/agents/components/archived-agent-dialog";
 import ForbiddenErrorDialog from "@/components/forbidden-error-dialog";
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
+import { Checkbox } from "@/components/ui/checkbox";
+import { SelectableLeading } from "@/components/ui/selectable-leading";
 import { UserAvatar } from "@/components/ui/user-avatar";
 import { cn } from "@/lib/utils";
 import { AgentAvatar } from "@/components/ui/agent-avatar";
@@ -36,6 +38,10 @@ interface AgentTableProps {
 	agents: Agent[];
 	archived?: boolean;
 	onRemoved?: (agentId: string) => void;
+	selectedIds: Set<string>;
+	selectionMode: boolean;
+	onToggleAll: () => void;
+	onToggleSelection: (agentId: string, shiftKey: boolean) => void;
 }
 
 /** Agents table with slash-delimited, collapsible group rows. */
@@ -43,6 +49,10 @@ export default function AgentTable({
 	agents,
 	archived = false,
 	onRemoved,
+	selectedIds,
+	selectionMode,
+	onToggleAll,
+	onToggleSelection,
 }: AgentTableProps) {
 	const router = useRouter();
 	const mcpServers = useMcpServersStore((state) => state.mcpServers);
@@ -80,19 +90,50 @@ export default function AgentTable({
 	const columns: DataTableColumn<Agent>[] = [
 		{
 			key: "agent",
-			header: "Agent",
+			header: selectionMode ? (
+				""
+			) : (
+				<span className="flex items-center gap-3">
+					<Checkbox
+						checked={false}
+						aria-label="Select all agents"
+						onCheckedChange={onToggleAll}
+					/>
+					<button
+						type="button"
+						onClick={onToggleAll}
+						className="cursor-pointer text-[12px]! font-semibold text-foreground hover:text-petrol"
+					>
+						Select all
+					</button>
+				</span>
+			),
 			width: "minmax(220px, 1.5fr)",
 			cell: (agent) => {
 				return (
 					<span className="flex min-w-0 items-center gap-3">
-						<AgentAvatar
-							agentId={agent.id}
-							name={agent.name}
-							imageRevision={agent.imageRevision}
-							color={agent.color}
-							emoji={agent.emoji}
-							size="xs"
-						/>
+						<SelectableLeading
+							selected={selectedIds.has(agent.id)}
+							selectionMode={selectionMode}
+							disabled={
+								agent.currentUserPermission !== "owner" &&
+								agent.currentUserPermission !== "admin"
+							}
+							label={`Select ${agent.name}`}
+							onToggle={(shiftKey) => {
+								onToggleSelection(agent.id, shiftKey);
+							}}
+							className="size-6"
+						>
+							<AgentAvatar
+								agentId={agent.id}
+								name={agent.name}
+								imageRevision={agent.imageRevision}
+								color={agent.color}
+								emoji={agent.emoji}
+								size="xs"
+							/>
+						</SelectableLeading>
 						<span className="min-w-0">
 							<span className="block truncate text-[12.5px] font-semibold tracking-[-0.01em] text-petrol">
 								{agent.name}
@@ -254,6 +295,15 @@ export default function AgentTable({
 				columns={columns}
 				rows={agents}
 				rowKey={(agent) => agent.id}
+				isRowSelected={(agent) => selectedIds.has(agent.id)}
+				selectionMode={selectionMode}
+				isRowSelectable={(agent) =>
+					agent.currentUserPermission === "owner" ||
+					agent.currentUserPermission === "admin"
+				}
+				onRowSelectionClick={(agent, shiftKey) => {
+					onToggleSelection(agent.id, shiftKey);
+				}}
 				onRowClick={handleRowClick}
 				emptyMessage="No agents here."
 				scrollBody

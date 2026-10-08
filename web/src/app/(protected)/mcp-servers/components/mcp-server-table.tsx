@@ -4,9 +4,17 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Check, X } from "lucide-react";
+import {
+	BulkConfirmDialog,
+	type BulkConfirmItem,
+	type BulkFailure,
+} from "@/components/ui/bulk-confirm-dialog";
+import { BulkActionBar } from "@/components/ui/bulk-action-bar";
+import { Checkbox } from "@/components/ui/checkbox";
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import { DropdownMenu } from "@/components/ui/dropdown-menu";
 import { GroupedCardTree } from "@/components/ui/grouped-card-tree";
+import { SelectableLeading } from "@/components/ui/selectable-leading";
 import { VisibilityBadge } from "@/components/ui/visibility-badge";
 import type { ViewMode } from "@/components/ui/view-toggle";
 import ForbiddenErrorDialog from "@/components/forbidden-error-dialog";
@@ -17,7 +25,9 @@ import { useMcpServersStore } from "@/stores/mcp-servers-store";
 import { useUserStore } from "@/stores/user-store";
 import { MCPServer } from "@/types/mcp-servers";
 import { getApiErrorMessage } from "@/lib/api/errors";
-import { buildGroupTree } from "@/lib/groups";
+import * as mcpServersApi from "@/lib/api/resources/mcp-servers";
+import { buildGroupTree, flattenGroupTree } from "@/lib/groups";
+import { useRowSelection } from "@/hooks/use-row-selection";
 import {
 	matchesResourceScope,
 	type ResourceScopeFilter,
@@ -72,6 +82,7 @@ export default function MCPServerTable({
 		mcpServers,
 		fetchMcpServers,
 		isInitialized,
+		deleteMcpServer,
 		resetMcpServerConnections,
 	} = useMcpServersStore();
 	const [isLoading, setIsLoading] = useState(true);
@@ -79,6 +90,11 @@ export default function MCPServerTable({
 	// Delete/reset failures render inline — they must not hide the table.
 	const [actionError, setActionError] = useState<string | null>(null);
 	const [forbiddenOpen, setForbiddenOpen] = useState(false);
+	const [bulkOpen, setBulkOpen] = useState(false);
+	const [bulkItems, setBulkItems] = useState<BulkConfirmItem[]>([]);
+	const [bulkDetachIds, setBulkDetachIds] = useState<Set<string>>(
+		() => new Set(),
+	);
 
 	useEffect(() => {
 		const load = async () => {
@@ -112,6 +128,46 @@ export default function MCPServerTable({
 		);
 	}, [filterTeamIds, mcpServers, scope, search]);
 	const groupTree = useMemo(() => buildGroupTree(filtered), [filtered]);
+	const orderedServers = useMemo(() => flattenGroupTree(groupTree), [groupTree]);
+	const selection = useRowSelection({
+		orderedIds: orderedServers.map((server) => server.id),
+		eligibleIds: isAdmin ? orderedServers.map((server) => server.id) : [],
+	});
+
+	const prepareBulkDelete = async () => {
+		const selected = orderedServers.filter((server) =>
+			selection.selectedIds.has(server.id),
+		);
+		const checks = await Promise.allSettled(
+			selected.map((server) => mcpServersApi.listMcpServerAgents(server.id)),
+		);
+		const detachIds = new Set<string>();
+		setBulkItems(
+			selected.map((server, index) => {
+				const result = checks[index];
+				if (result.status === "rejected") {
+					return {
+						id: server.id,
+						name: server.name,
+						blockedReason: "Could not verify its agent connections.",
+					};
+				}
+				if (result.value.length > 0) {
+					detachIds.add(server.id);
+					return {
+						id: server.id,
+						name: server.name,
+						note: `Will be detached from ${result.value.length} agent${
+							result.value.length === 1 ? "" : "s"
+						}.`,
+					};
+				}
+				return { id: server.id, name: server.name };
+			}),
+		);
+		setBulkDetachIds(detachIds);
+		setBulkOpen(true);
+	};
 
 	const {
 		guard: deleteGuard,
@@ -162,17 +218,47 @@ export default function MCPServerTable({
 	const columns: DataTableColumn<MCPServer>[] = [
 		{
 			key: "server",
-			header: "Server",
+			header: selection.selectionMode ? (
+				""
+			) : (
+				<span className="flex items-center gap-3">
+					<Checkbox
+						checked={false}
+						aria-label="Select all MCP servers"
+						disabled={!isAdmin}
+						onCheckedChange={selection.toggleAll}
+					/>
+					<button
+						type="button"
+						disabled={!isAdmin}
+						onClick={selection.toggleAll}
+						className="cursor-pointer text-[12px]! font-semibold text-foreground hover:text-petrol disabled:cursor-not-allowed disabled:opacity-35"
+					>
+						Select all
+					</button>
+				</span>
+			),
 			width: "minmax(220px, 1.35fr)",
 			cell: (server) => (
 				<div className="flex min-w-0 items-center gap-3">
-					<ServerIconTile
-						iconUrl={server.iconUrl}
-						serverId={server.id}
-						imageRevision={server.imageRevision}
-						name={server.name}
-						size={32}
-					/>
+					<SelectableLeading
+						selected={selection.isSelected(server.id)}
+						selectionMode={selection.selectionMode}
+						disabled={!isAdmin}
+						label={`Select ${server.name}`}
+						onToggle={(shiftKey) => {
+							selection.toggle(server.id, shiftKey);
+						}}
+						className="size-8"
+					>
+						<ServerIconTile
+							iconUrl={server.iconUrl}
+							serverId={server.id}
+							imageRevision={server.imageRevision}
+							name={server.name}
+							size={32}
+						/>
+					</SelectableLeading>
 					<div className="min-w-0">
 						<div className="truncate text-[13.5px] font-semibold text-foreground">
 							{server.name}
@@ -294,6 +380,51 @@ export default function MCPServerTable({
 					{actionError}
 				</div>
 			)}
+			<BulkConfirmDialog
+				open={bulkOpen}
+				onOpenChange={setBulkOpen}
+				title="Delete selected MCP servers?"
+				description="The servers will be removed permanently. Servers used by agents will first be detached from them."
+				items={bulkItems}
+				confirmLabel="Delete"
+				busyLabel="Deleting…"
+				onConfirm={async (items) => {
+					const results = await Promise.allSettled(
+						items.map((item) =>
+							deleteMcpServer(item.id, {
+								detachAgents: bulkDetachIds.has(item.id),
+							}),
+						),
+					);
+					const succeeded: string[] = [];
+					const failures: BulkFailure[] = [];
+					results.forEach((result, index) => {
+						const item = items[index];
+						if (result.status === "fulfilled") succeeded.push(item.id);
+						else
+							failures.push({
+								id: item.id,
+								name: item.name,
+								message: getApiErrorMessage(result.reason, "Delete failed."),
+							});
+					});
+					selection.remove(succeeded);
+					return failures;
+				}}
+			/>
+			<BulkActionBar
+				selectedCount={selection.selectedCount}
+				totalCount={isAdmin ? orderedServers.length : 0}
+				allSelected={selection.allSelected}
+				someSelected={selection.someSelected}
+				onToggleAll={selection.toggleAll}
+				onClear={selection.clear}
+				actionLabel="Delete"
+				onAction={() => {
+					void prepareBulkDelete();
+				}}
+				showWhenEmpty={mode === "cards"}
+			/>
 			{mode === "cards" ? (
 				isLoading ? null : filtered.length === 0 ? (
 					<div className="flex min-h-48 items-center justify-center rounded-[10px] border border-dashed border-border px-6 text-center text-[13px] text-subtle">
@@ -321,7 +452,11 @@ export default function MCPServerTable({
 						renderItem={(server, index) => (
 							<article
 								key={server.id}
-								className="group relative flex min-h-[190px] animate-in flex-col rounded-xl border border-[#e1ebe6] bg-white p-4 fade-in slide-in-from-bottom-3 transition-[border-color,box-shadow] duration-400 ease-out hover:border-[#cfe0d8] hover:shadow-[0_3px_10px_rgba(30,45,40,0.06)] dark:border-white/10 dark:bg-card dark:hover:border-white/20"
+								className={`group relative flex min-h-[190px] animate-in flex-col rounded-xl border bg-white p-4 fade-in slide-in-from-bottom-3 transition-[border-color,box-shadow] duration-400 ease-out hover:shadow-[0_3px_10px_rgba(30,45,40,0.06)] dark:bg-card ${
+									selection.isSelected(server.id)
+										? "border-petrol/45 shadow-[inset_0_0_0_1px_rgba(38,103,81,0.12)] dark:border-petrol/60"
+										: "border-[#e1ebe6] hover:border-[#cfe0d8] dark:border-white/10 dark:hover:border-white/20"
+								}`}
 								style={{
 									animationDelay: `${index * 40}ms`,
 									animationFillMode: "both",
@@ -329,18 +464,34 @@ export default function MCPServerTable({
 							>
 								<Link
 									href={`/mcp-servers/${server.id}`}
+									onClick={(event) => {
+										if (!selection.selectionMode || !isAdmin) return;
+										event.preventDefault();
+										selection.toggle(server.id, event.shiftKey);
+									}}
 									className="absolute inset-0 rounded-xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-petrol"
 								>
 									<span className="sr-only">Open {server.name}</span>
 								</Link>
 								<div className="pointer-events-none flex min-w-0 items-center gap-3">
-									<ServerIconTile
-										iconUrl={server.iconUrl}
-										serverId={server.id}
-										imageRevision={server.imageRevision}
-										name={server.name}
-										size={38}
-									/>
+									<SelectableLeading
+										selected={selection.isSelected(server.id)}
+										selectionMode={selection.selectionMode}
+										disabled={!isAdmin}
+										label={`Select ${server.name}`}
+										onToggle={(shiftKey) => {
+											selection.toggle(server.id, shiftKey);
+										}}
+										className="pointer-events-auto z-10 size-[38px]"
+									>
+										<ServerIconTile
+											iconUrl={server.iconUrl}
+											serverId={server.id}
+											imageRevision={server.imageRevision}
+											name={server.name}
+											size={38}
+										/>
+									</SelectableLeading>
 									<div className="min-w-0 flex-1">
 										<h2 className="truncate text-[14.5px] font-bold tracking-[-0.01em] text-foreground">
 											{server.name}
@@ -403,6 +554,11 @@ export default function MCPServerTable({
 					columns={columns}
 					rows={filtered}
 					rowKey={(server) => server.id}
+					isRowSelected={(server) => selection.isSelected(server.id)}
+					selectionMode={selection.selectionMode}
+					onRowSelectionClick={(server, shiftKey) => {
+						selection.toggle(server.id, shiftKey);
+					}}
 					isLoading={isLoading}
 					scrollBody
 					minTableWidth="950px"

@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
 	AlarmClock,
 	Clock,
+	Copy,
 	Pause,
 	Pencil,
 	Play,
@@ -15,11 +16,18 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import TriggerCard from "@/app/(protected)/triggers/components/trigger-card";
+import {
+	BulkConfirmDialog,
+	type BulkFailure,
+} from "@/components/ui/bulk-confirm-dialog";
+import { BulkActionBar } from "@/components/ui/bulk-action-bar";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useConfirmDialog } from "@/components/providers/dialog-provider";
 import { AgentAvatar } from "@/components/ui/agent-avatar";
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import { DropdownMenu } from "@/components/ui/dropdown-menu";
 import { GroupedCardTree } from "@/components/ui/grouped-card-tree";
+import { SelectableLeading } from "@/components/ui/selectable-leading";
 import type { ViewMode } from "@/components/ui/view-toggle";
 import { useRunTrigger } from "@/hooks/use-run-trigger";
 import {
@@ -27,7 +35,9 @@ import {
 	formatRunAt,
 	parseCronExpression,
 } from "@/lib/triggers/schedule";
-import { buildGroupTree } from "@/lib/groups";
+import { buildGroupTree, flattenGroupTree } from "@/lib/groups";
+import { useRowSelection } from "@/hooks/use-row-selection";
+import { getApiErrorMessage } from "@/lib/api/errors";
 import {
 	matchesResourceScope,
 	type ResourceScopeFilter,
@@ -68,11 +78,13 @@ export default function TriggerList({
 	const isInitialized = useTriggersStore((state) => state.isInitialized);
 	const fetchTriggers = useTriggersStore((state) => state.fetchTriggers);
 	const updateTrigger = useTriggersStore((state) => state.updateTrigger);
+	const createTrigger = useTriggersStore((state) => state.createTrigger);
 	const deleteTrigger = useTriggersStore((state) => state.deleteTrigger);
 	const agents = useAgentsStore((state) => state.agents);
 	const fetchAgents = useAgentsStore((state) => state.fetchAgents);
 	const confirmDialog = useConfirmDialog();
 	const runTrigger = useRunTrigger();
+	const [bulkOpen, setBulkOpen] = useState(false);
 
 	useEffect(() => {
 		fetchTriggers().catch(() => {});
@@ -96,7 +108,21 @@ export default function TriggerList({
 			agentName,
 		].some((value) => value?.toLowerCase().includes(query));
 	});
-	const groupTree = buildGroupTree(visibleTriggers);
+	const groupTree = useMemo(
+		() => buildGroupTree(visibleTriggers),
+		[visibleTriggers],
+	);
+	const orderedTriggers = useMemo(() => flattenGroupTree(groupTree), [groupTree]);
+	const manageableTriggerIds = orderedTriggers
+		.filter((trigger) => trigger.canManage)
+		.map((trigger) => trigger.id);
+	const selection = useRowSelection({
+		orderedIds: orderedTriggers.map((trigger) => trigger.id),
+		eligibleIds: manageableTriggerIds,
+	});
+	const selectedTriggers = orderedTriggers.filter((trigger) =>
+		selection.selectedIds.has(trigger.id),
+	);
 
 	const handleDelete = async (id: string) => {
 		if (
@@ -114,6 +140,39 @@ export default function TriggerList({
 			console.error("Error deleting trigger:", error);
 			toast.error("Failed to delete trigger. Please try again.");
 		});
+	};
+
+	const handleDuplicate = async (trigger: Trigger) => {
+		try {
+			const base = {
+				name: `${trigger.name} copy`,
+				group: trigger.group,
+				instructions: trigger.instructions,
+				agentId: trigger.agentId,
+				modelId: trigger.modelId,
+				isActive: false,
+				visibility: trigger.visibility,
+				teamIds: trigger.teamIds,
+			};
+			const created =
+				trigger.triggerType === "schedule"
+					? await createTrigger({
+							...base,
+							triggerType: "schedule",
+							cronExpression: trigger.cronExpression,
+							timezone: trigger.timezone,
+						})
+					: await createTrigger({
+							...base,
+							triggerType: "webhook",
+						});
+			toast.success(`Duplicated as “${created.name}” and paused.`);
+			router.push(`/triggers/${created.id}`);
+		} catch (error: unknown) {
+			toast.error(
+				getApiErrorMessage(error, "Could not duplicate the trigger."),
+			);
+		}
 	};
 
 	const handleRunNow = (trigger: Trigger) => {
@@ -135,15 +194,43 @@ export default function TriggerList({
 	const columns: DataTableColumn<Trigger>[] = [
 		{
 			key: "name",
-			header: "Trigger",
+			header: selection.selectionMode ? (
+				""
+			) : (
+				<span className="flex items-center gap-2.5">
+					<Checkbox
+						checked={false}
+						aria-label="Select all triggers"
+						onCheckedChange={selection.toggleAll}
+					/>
+					<button
+						type="button"
+						onClick={selection.toggleAll}
+						className="cursor-pointer text-[12px]! font-semibold text-foreground hover:text-petrol"
+					>
+						Select all
+					</button>
+				</span>
+			),
 			width: "minmax(240px, 1.5fr)",
 			cell: (trigger) => (
 				<div className="flex min-w-0 items-center gap-2.5">
-					<span
-						className={`size-2 shrink-0 rounded-full ${
-							trigger.isActive ? "bg-success" : "bg-faint"
-						}`}
-					/>
+					<SelectableLeading
+						selected={selection.isSelected(trigger.id)}
+						selectionMode={selection.selectionMode}
+						disabled={!trigger.canManage}
+						label={`Select ${trigger.name}`}
+						onToggle={(shiftKey) => {
+							selection.toggle(trigger.id, shiftKey);
+						}}
+						className="size-[18px]"
+					>
+						<span
+							className={`block size-2 rounded-full ${
+								trigger.isActive ? "bg-success" : "bg-faint"
+							}`}
+						/>
+					</SelectableLeading>
 					<div className="min-w-0">
 						<div className="flex min-w-0 items-center gap-2">
 							<span className="truncate text-[12.5px] font-semibold text-foreground">
@@ -253,6 +340,13 @@ export default function TriggerList({
 										router.push(`/triggers/${trigger.id}`);
 									},
 								},
+								{
+									label: "Duplicate",
+									icon: <Copy />,
+									onClick: () => {
+										void handleDuplicate(trigger);
+									},
+								},
 								{ separator: true as const },
 								{
 									label: "Delete",
@@ -268,6 +362,55 @@ export default function TriggerList({
 				) : null,
 		},
 	];
+
+	const bulkControls = (
+		<>
+			<BulkActionBar
+				selectedCount={selection.selectedCount}
+				totalCount={manageableTriggerIds.length}
+				allSelected={selection.allSelected}
+				someSelected={selection.someSelected}
+				onToggleAll={selection.toggleAll}
+				onClear={selection.clear}
+				actionLabel="Delete"
+				onAction={() => {
+					setBulkOpen(true);
+				}}
+				showWhenEmpty={mode === "cards"}
+			/>
+			<BulkConfirmDialog
+				open={bulkOpen}
+				onOpenChange={setBulkOpen}
+				title="Delete selected triggers?"
+				description="Their configurations will be removed permanently. Existing run history is unaffected."
+				items={selectedTriggers.map((trigger) => ({
+					id: trigger.id,
+					name: trigger.name,
+				}))}
+				confirmLabel="Delete"
+				busyLabel="Deleting…"
+				onConfirm={async (items) => {
+					const results = await Promise.allSettled(
+						items.map((item) => deleteTrigger(item.id)),
+					);
+					const succeeded: string[] = [];
+					const failures: BulkFailure[] = [];
+					results.forEach((result, index) => {
+						const item = items[index];
+						if (result.status === "fulfilled") succeeded.push(item.id);
+						else
+							failures.push({
+								id: item.id,
+								name: item.name,
+								message: getApiErrorMessage(result.reason, "Delete failed."),
+							});
+					});
+					selection.remove(succeeded);
+					return failures;
+				}}
+			/>
+		</>
+	);
 
 	if (!isInitialized) {
 		return mode === "table" ? (
@@ -340,37 +483,57 @@ export default function TriggerList({
 
 	if (mode === "table") {
 		return (
-			<DataTable
-				columns={columns}
-				rows={visibleTriggers}
-				rowKey={(trigger) => trigger.id}
-				scrollBody
-				minTableWidth="980px"
-				bleedOnNarrow
-				groupTree={{
-					...groupTree,
-					storageKey: `triggers:${view}:table-group`,
-				}}
-				onRowClick={(trigger) => {
-					router.push(`/triggers/${trigger.id}`);
-				}}
-			/>
+			<>
+				{bulkControls}
+				<DataTable
+					columns={columns}
+					rows={visibleTriggers}
+					rowKey={(trigger) => trigger.id}
+					isRowSelected={(trigger) => selection.isSelected(trigger.id)}
+					selectionMode={selection.selectionMode}
+					isRowSelectable={(trigger) => trigger.canManage}
+					onRowSelectionClick={(trigger, shiftKey) => {
+						selection.toggle(trigger.id, shiftKey);
+					}}
+					scrollBody
+					minTableWidth="980px"
+					bleedOnNarrow
+					groupTree={{
+						...groupTree,
+						storageKey: `triggers:${view}:table-group`,
+					}}
+					onRowClick={(trigger) => {
+						router.push(`/triggers/${trigger.id}`);
+					}}
+				/>
+			</>
 		);
 	}
 
 	return (
-		<GroupedCardTree
-			tree={groupTree}
-			storageKey={`triggers:${view}:card-group`}
-			renderItem={(trigger) => (
-				<TriggerCard
-					key={trigger.id}
-					trigger={trigger}
-					onDelete={(id) => {
-						void handleDelete(id);
-					}}
-				/>
-			)}
-		/>
+		<>
+			{bulkControls}
+			<GroupedCardTree
+				tree={groupTree}
+				storageKey={`triggers:${view}:card-group`}
+				renderItem={(trigger) => (
+					<TriggerCard
+						key={trigger.id}
+						trigger={trigger}
+						selected={selection.isSelected(trigger.id)}
+						selectionMode={selection.selectionMode}
+						onToggleSelection={(shiftKey) => {
+							selection.toggle(trigger.id, shiftKey);
+						}}
+						onDuplicate={(candidate) => {
+							void handleDuplicate(candidate);
+						}}
+						onDelete={(id) => {
+							void handleDelete(id);
+						}}
+					/>
+				)}
+			/>
+		</>
 	);
 }

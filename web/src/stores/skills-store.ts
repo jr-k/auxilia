@@ -34,6 +34,7 @@ interface SkillsState {
 	planSync: (id: string) => Promise<SkillSyncPlan>;
 	syncSource: (id: string) => Promise<SkillSource>;
 	deleteSource: (id: string) => Promise<void>;
+	deleteSources: (ids: string[]) => Promise<PromiseSettledResult<void>[]>;
 }
 
 const summaryOf = (skill: Skill): SkillSummary => {
@@ -160,5 +161,20 @@ export const useSkillsStore = create<SkillsState>((set, get) => ({
 			sources: state.sources.filter((source) => source.id !== id),
 		}));
 		await get().fetchSkills(true);
+	},
+	deleteSources: async (ids) => {
+		const results = await Promise.allSettled(
+			ids.map((id) => skillsApi.deleteSkillSource(id)),
+		);
+		const removed = new Set(
+			ids.filter((_, index) => results[index]?.status === "fulfilled"),
+		);
+		if (removed.size > 0) {
+			set((state) => ({
+				sources: state.sources.filter((source) => !removed.has(source.id)),
+			}));
+			await get().fetchSkills(true);
+		}
+		return results;
 	},
 }));
