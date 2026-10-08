@@ -12,6 +12,7 @@ import WorkspaceAuthentication from "./workspace-authentication";
 import WorkspaceMessaging from "./workspace-notifications";
 import WorkspaceObservability from "./workspace-observability";
 import ProfileSettings, { type ProfileSection } from "./profile-settings";
+import ProfileThreads from "./profile-threads";
 import { SubpageHeader } from "@/components/layout/subpage-header";
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import * as authApi from "@/lib/api/resources/auth";
@@ -112,13 +113,14 @@ function isAdminSettingsTab(
 	);
 }
 
-type ProfilePageSection = ProfileSection | "tokens";
+type ProfilePageSection = ProfileSection | "threads" | "tokens";
 
 function isProfileSection(value: string): value is ProfilePageSection {
 	return (
 		value === "information" ||
 		value === "security" ||
 		value === "preferences" ||
+		value === "threads" ||
 		value === "tokens"
 	);
 }
@@ -334,6 +336,15 @@ export default function SettingsPage() {
 								>
 									Preferences
 								</button>
+								<button
+									type="button"
+									className={railTabClass(profileSection === "threads")}
+									onClick={() => {
+										setProfileSection("threads");
+									}}
+								>
+									Threads
+								</button>
 							</div>
 							<div className="shrink-0">
 								<p className="mb-1.5 px-3.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-meta dark:text-panel-dim">
@@ -451,17 +462,32 @@ export default function SettingsPage() {
 					<div className="mx-auto max-w-[800px]">
 						<section
 							className={
-								tab === "profile" && profileSection !== "tokens"
+								tab === "profile" &&
+								profileSection !== "tokens" &&
+								profileSection !== "threads"
 									? ""
 									: "hidden"
 							}
 						>
 							{profileSection !== "tokens" &&
+								profileSection !== "threads" &&
 								(user ? (
 									<ProfileSettings user={user} section={profileSection} />
 								) : (
 									<div className="h-40 animate-pulse rounded-[12px] border border-border bg-card" />
 								))}
+						</section>
+
+						<section
+							className={
+								tab === "profile" && profileSection === "threads"
+									? ""
+									: "hidden"
+							}
+						>
+							{tab === "profile" && profileSection === "threads" && (
+								<ProfileThreads />
+							)}
 						</section>
 
 						{isAdmin && (

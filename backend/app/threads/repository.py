@@ -1,7 +1,7 @@
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import delete, update
+from sqlalchemy import delete, or_, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
@@ -59,7 +59,9 @@ class ThreadRepository(BaseRepository[ThreadDB]):
         result = await self.db.execute(stmt)
         return result.one_or_none()
 
-    async def list_for_user(self, user_id: UUID, page: PageParams):
+    async def list_for_user(
+        self, user_id: UUID, page: PageParams, query: str | None = None
+    ):
         stmt = (
             select(
                 ThreadDB,
@@ -74,6 +76,14 @@ class ThreadRepository(BaseRepository[ThreadDB]):
             .where(ThreadDB.source.in_(FIRST_PARTY_SOURCES))
             .order_by(ThreadDB.created_at.desc(), ThreadDB.id)
         )
+        if query and (term := query.strip()):
+            pattern = f"%{term}%"
+            stmt = stmt.where(
+                or_(
+                    ThreadDB.first_message_content.ilike(pattern),
+                    AgentDB.name.ilike(pattern),
+                )
+            )
         stmt = self._scope(stmt)
         result, total = await self.paginate(stmt, page)
         return result.all(), total

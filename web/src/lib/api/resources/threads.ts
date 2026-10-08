@@ -10,7 +10,7 @@ import type { Paginated } from "@/types/api";
 import type { QueuedPrompt, Run } from "@/types/runs";
 import type { AgentThread, Thread, ThreadCreate, ThreadRead } from "@/types/threads";
 
-export type PageParams = { limit: number; offset: number };
+export type PageParams = { limit: number; offset: number; q?: string };
 
 /** The caller's threads, newest first. */
 export async function listThreads(page: PageParams): Promise<Paginated<Thread>> {

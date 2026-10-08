@@ -45,10 +45,11 @@ async def read_thread(
 @router.get("/")
 async def get_threads(
     page: PageParams = Depends(),
+    q: str | None = None,
     current_user: UserDB = Depends(get_current_user),
     service: ThreadService = Depends(get_thread_service),
 ) -> Page[ThreadResponse]:
-    return await service.list(current_user.id, page)
+    return await service.list(current_user.id, page, query=q)
 
 
 @router.post("/")

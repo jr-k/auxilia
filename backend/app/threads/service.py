@@ -87,8 +87,12 @@ class ThreadService(BaseService[ThreadDB, ThreadRepository]):
         ).is_available(response.model_id)
         return response
 
-    async def list(self, user_id: UUID, page: PageParams) -> Page[ThreadResponse]:
-        rows, total = await self.repository.list_for_user(user_id, page)
+    async def list(
+        self, user_id: UUID, page: PageParams, query: str | None = None
+    ) -> Page[ThreadResponse]:
+        rows, total = await self.repository.list_for_user(
+            user_id, page, query=query
+        )
         return Page.build([_thread_with_agent(*row) for row in rows], total, page)
 
     async def list_for_agent(
