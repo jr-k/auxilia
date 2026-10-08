@@ -48,11 +48,13 @@ class _FakeStreamer:
         self.appended: list[str] = []
         self.stopped = False
         self.kwargs: dict = {}
+        self.final_kwargs: dict = {}
 
     async def append(self, markdown_text: str):
         self.appended.append(markdown_text)
 
-    async def stop(self):
+    async def stop(self, **kwargs):
+        self.final_kwargs = kwargs
         self.stopped = True
 
 
@@ -174,7 +176,7 @@ def test_adapter_emits_each_tool_label_once():
 # ── Delivery behavior ──────────────────────────────────────────────────
 
 
-async def test_consumer_streams_text_and_posts_link_on_success(monkeypatch):
+async def test_consumer_streams_text_and_embeds_link_on_success(monkeypatch):
     monkeypatch.setattr(
         consumer_mod.RunService, "stream", _log(*_text_message([], "model", "Hi"))
     )
@@ -188,7 +190,8 @@ async def test_consumer_streams_text_and_posts_link_on_success(monkeypatch):
 
     assert "Hi" in "".join(fake.streamer.appended)
     assert fake.streamer.stopped
-    assert any("View in auxilia" in str(p["blocks"]) for p in fake.posts)
+    assert "View in auxilia" in str(fake.streamer.final_kwargs["blocks"])
+    assert fake.posts == []
     # Streaming targets the right Slack thread/recipient.
     assert fake.streamer.kwargs["channel"] == "C1"
     assert fake.streamer.kwargs["recipient_user_id"] == "U1"
@@ -403,7 +406,8 @@ async def test_legacy_log_entries_are_ignored(monkeypatch):
     await consumer.run()
 
     assert fake.streamer.appended == []
-    assert any("View in auxilia" in str(p["blocks"]) for p in fake.posts)
+    assert "View in auxilia" in str(fake.streamer.final_kwargs["blocks"])
+    assert fake.posts == []
 
 
 async def _async(value):
