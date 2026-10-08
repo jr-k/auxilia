@@ -52,9 +52,12 @@ jobs:
           component: ${{ inputs.component }}
           platform: ${{ matrix.platform }}
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          # Both secrets or neither: a username alone would run the Docker Hub
+          # login with an empty token and fail the job before the GHCR push.
+          DOCKERHUB_CONFIGURED: ${{ secrets.DOCKERHUB_USERNAME != '' && secrets.DOCKERHUB_TOKEN != '' }}
         run: |
           images="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/auxilia-${component}"
-          if [ -n "$DOCKERHUB_USERNAME" ]; then
+          if [ "$DOCKERHUB_CONFIGURED" = "true" ]; then
             images="${DOCKERHUB_USERNAME}/auxilia-${component},${images}"
             echo "DOCKERHUB_ENABLED=true" >> "$GITHUB_ENV"
           fi
@@ -109,9 +112,12 @@ jobs:
         env:
           component: ${{ inputs.component }}
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          # Both secrets or neither: a username alone would run the Docker Hub
+          # login with an empty token and fail the job before the GHCR push.
+          DOCKERHUB_CONFIGURED: ${{ secrets.DOCKERHUB_USERNAME != '' && secrets.DOCKERHUB_TOKEN != '' }}
         run: |
           images="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/auxilia-${component}"
-          if [ -n "$DOCKERHUB_USERNAME" ]; then
+          if [ "$DOCKERHUB_CONFIGURED" = "true" ]; then
             images="${DOCKERHUB_USERNAME}/auxilia-${component},${images}"
             echo "DOCKERHUB_ENABLED=true" >> "$GITHUB_ENV"
           fi
