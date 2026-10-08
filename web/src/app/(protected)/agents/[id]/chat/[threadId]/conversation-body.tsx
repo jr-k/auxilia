@@ -283,7 +283,7 @@ const UserTurn = ({
   const text = message.text;
   const attachments = getFileAttachments(message);
   return (
-    <div id={anchorId} className="flex scroll-mt-24 flex-col gap-4">
+    <div id={anchorId} className="flex flex-col gap-4">
       {attachments.length > 0 && (
         <div className="flex justify-end">
           <Attachments variant="inline">

@@ -431,9 +431,7 @@ export function AppSidebar() {
 					</SidebarGroup>
 
 					<SidebarGroup
-						className={
-							showShortcutsInMenu ? "mt-auto hidden md:flex" : "mt-auto hidden"
-						}
+						className={`mt-auto hidden ${showShortcutsInMenu ? "md:flex" : ""}`}
 					>
 						<SidebarGroupLabel className="h-auto overflow-hidden whitespace-nowrap px-2 pt-2 pb-1.5 font-sans text-[10px] font-semibold text-sidebar-muted-highlight group-data-[collapsible=icon]:mt-0">
 							Workspace

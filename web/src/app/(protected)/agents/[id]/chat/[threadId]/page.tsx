@@ -43,6 +43,9 @@ const ChatPage = () => {
   const threadId = params.threadId as string;
   const completionSequence = useRef(0);
   const playedCompletionSequence = useRef(0);
+  const completionCandidate = useRef(0);
+  const completionTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const runStatusRef = useRef<"idle" | "streaming" | "interrupted">("idle");
   const transcriptMessages = useRef<BaseMessage[]>([]);
   // Id of the assistant message whose completion was already accounted for.
   // Set when the user starts a run (the response on screen at that moment is
@@ -59,26 +62,28 @@ const ChatPage = () => {
       transcriptMessages.current.findLast(isAIMessage)?.id ?? null;
   };
 
-  const { meta, openError, run, transcript, hitl, actions } = useThreadSession({
-    threadId,
-    agentId,
-    onStaleInterrupt: () => {
-      window.location.reload();
-    },
-    onCompleted: ({ reason }) => {
-      if (reason !== "success") return;
+  const settleSuccessfulCompletion = (candidate: number, attempt = 0) => {
+    if (completionTimer.current !== null) {
+      clearTimeout(completionTimer.current);
+    }
+    completionTimer.current = setTimeout(() => {
+      if (candidate !== completionCandidate.current) return;
+      // The run status and rendered transcript settle on separate React
+      // updates. Wait for both instead of judging a terminal event against
+      // the throttled transcript from the preceding render.
+      if (runStatusRef.current !== "idle") {
+        if (attempt < 50) settleSuccessfulCompletion(candidate, attempt + 1);
+        return;
+      }
       const messages = transcriptMessages.current;
       const latestUserPrompt = messages.findLastIndex(
         (message) => isHumanMessage(message) && message.name !== "host",
       );
       const latestAssistantResponse = messages.findLastIndex(isAIMessage);
-      // Starting a run can replay the preceding run's terminal event before
-      // the new lifecycle event arrives. At that point the optimistic user
-      // prompt is already present, but no assistant response follows it yet.
-      if (latestAssistantResponse <= latestUserPrompt) return;
-      // The transcript is throttled, so right after a send it may still show
-      // the previous turn as the latest one: compare against the response
-      // acknowledged when the run started.
+      if (latestAssistantResponse <= latestUserPrompt) {
+        if (attempt < 10) settleSuccessfulCompletion(candidate, attempt + 1);
+        return;
+      }
       const assistantId = messages[latestAssistantResponse].id ?? null;
       if (assistantId !== null && assistantId === acknowledgedAssistantId.current) {
         return;
@@ -89,11 +94,37 @@ const ChatPage = () => {
         threadId,
         sequence: completionSequence.current,
       });
+    }, 80);
+  };
+
+  const { meta, openError, run, transcript, hitl, actions } = useThreadSession({
+    threadId,
+    agentId,
+    onStaleInterrupt: () => {
+      window.location.reload();
+    },
+    onCompleted: ({ reason }) => {
+      const candidate = ++completionCandidate.current;
+      if (reason !== "success") {
+        if (completionTimer.current !== null) clearTimeout(completionTimer.current);
+        return;
+      }
+      settleSuccessfulCompletion(candidate);
     },
   });
   useEffect(() => {
     transcriptMessages.current = transcript.messages;
   }, [transcript.messages]);
+  useEffect(() => {
+    runStatusRef.current = run.status;
+  }, [run.status]);
+  useEffect(
+    () => () => {
+      completionCandidate.current += 1;
+      if (completionTimer.current !== null) clearTimeout(completionTimer.current);
+    },
+    [threadId],
+  );
   const promptQueue = usePromptQueue(threadId, run.status !== "idle");
   const thread = meta.thread;
 

@@ -24,7 +24,7 @@ function subscribeToPreference(
 ): () => void {
 	listeners.add(listener);
 	const handleStorage = (event: StorageEvent) => {
-		if (event.key === key) listener();
+		if (event.key === null || event.key === key) listener();
 	};
 	window.addEventListener("storage", handleStorage);
 	return () => {

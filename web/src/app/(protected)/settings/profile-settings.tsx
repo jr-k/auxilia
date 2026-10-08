@@ -646,7 +646,7 @@ function PreferencesCard() {
 				<div className="flex items-center justify-between gap-6 rounded-[9px] border border-input px-4 py-3.5">
 					<div>
 						<p className="text-[13px] font-semibold text-foreground">
-							Show shortcuts in the menu
+							Show shortcuts in the sidebar
 						</p>
 						<p className="mt-0.5 text-[12px] leading-5 text-subtle dark:text-panel-body">
 							On larger screens, workspace shortcuts appear directly in the
@@ -656,7 +656,7 @@ function PreferencesCard() {
 					<Switch
 						checked={showShortcutsInMenu}
 						onCheckedChange={setShowShortcutsInMenu}
-						aria-label="Show shortcuts in the menu"
+						aria-label="Show shortcuts in the sidebar"
 						className="cursor-pointer"
 					/>
 				</div>
