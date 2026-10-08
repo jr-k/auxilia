@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.19](https://github.com/jr-k/auxilia/compare/backend-v0.10.18...backend-v0.10.19) (2026-10-08)
+
+
+### Bug Fixes
+
+* improve settings navigation and invite profiles ([#39](https://github.com/jr-k/auxilia/issues/39)) ([bcf00ef](https://github.com/jr-k/auxilia/commit/bcf00ef03d8930c266a4a83e2aba7b6605f83150))
+
 ## [0.10.18](https://github.com/jr-k/auxilia/compare/backend-v0.10.17...backend-v0.10.18) (2026-10-08)
 
 
