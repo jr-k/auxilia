@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.22](https://github.com/jr-k/auxilia/compare/web-v0.11.21...web-v0.11.22) (2026-10-08)
+
+
+### Features
+
+* **slack:** make tool callouts configurable ([bfd7d53](https://github.com/jr-k/auxilia/commit/bfd7d530eb70040ac0cc1fe9d134a1bca20bc35f))
+
 ## [0.11.21](https://github.com/jr-k/auxilia/compare/web-v0.11.20...web-v0.11.21) (2026-10-08)
 
 
