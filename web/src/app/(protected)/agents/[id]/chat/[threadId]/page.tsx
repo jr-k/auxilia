@@ -84,7 +84,7 @@ const ChatPage = () => {
         if (attempt < 10) settleSuccessfulCompletion(candidate, attempt + 1);
         return;
       }
-      const assistantId = messages[latestAssistantResponse].id ?? null;
+      const assistantId = messages.at(latestAssistantResponse)?.id ?? null;
       if (assistantId !== null && assistantId === acknowledgedAssistantId.current) {
         return;
       }
