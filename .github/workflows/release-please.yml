@@ -56,6 +56,9 @@ jobs:
   publish-backend:
     needs: release-please
     if: needs.release-please.outputs.backend_released == 'true'
+    permissions:
+      contents: read
+      packages: write
     uses: ./.github/workflows/docker-publish.yml
     secrets: inherit
     with:
@@ -65,6 +68,9 @@ jobs:
   publish-web:
     needs: release-please
     if: needs.release-please.outputs.web_released == 'true'
+    permissions:
+      contents: read
+      packages: write
     uses: ./.github/workflows/docker-publish.yml
     secrets: inherit
     with:
