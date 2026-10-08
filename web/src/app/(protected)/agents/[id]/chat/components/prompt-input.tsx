@@ -137,6 +137,7 @@ const ChatPromptInput = ({
 	const [modelSelectorOpen, setModelSelectorOpen] = useState(false);
 	const [modelSearch, setModelSearch] = useState("");
 	const textareaRef = useRef<HTMLTextAreaElement>(null);
+	const initialFocusPendingRef = useRef(true);
 	const controller = usePromptInputController();
 	const [editingId, setEditingId] = useState<string | null>(null);
 	const [busyId, setBusyId] = useState<string | null>(null);
@@ -237,6 +238,24 @@ const ChatPromptInput = ({
 		},
 		[],
 	);
+
+	useEffect(() => {
+		if (
+			!initialFocusPendingRef.current ||
+			agentReady === false ||
+			queueLoading
+		) {
+			return;
+		}
+
+		const frame = requestAnimationFrame(() => {
+			textareaRef.current?.focus({ preventScroll: true });
+			initialFocusPendingRef.current = false;
+		});
+		return () => {
+			cancelAnimationFrame(frame);
+		};
+	}, [agentReady, queueLoading]);
 
 	const submitMessage = async (message: PromptInputMessage) => {
 		const hasText = Boolean("text" in message && message.text);
