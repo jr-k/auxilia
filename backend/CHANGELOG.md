@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.17](https://github.com/jr-k/auxilia/compare/backend-v0.10.16...backend-v0.10.17) (2026-10-08)
+
+
+### Features
+
+* **slack:** refine agent bot conversations ([b99c890](https://github.com/jr-k/auxilia/commit/b99c8908849bb5e61699c7f41227f9ff057bebb5))
+
 ## [0.10.16](https://github.com/jr-k/auxilia/compare/backend-v0.10.15...backend-v0.10.16) (2026-10-08)
 
 
