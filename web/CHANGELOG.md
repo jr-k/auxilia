@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.11.19](https://github.com/jr-k/auxilia/compare/web-v0.11.18...web-v0.11.19) (2026-10-08)
+
+
+### Features
+
+* **threads:** add profile thread management ([a3ff986](https://github.com/jr-k/auxilia/commit/a3ff9866e184760992f47e0c46f2b806f5dcab2d))
+* **web:** add bulk resource management ([edd5deb](https://github.com/jr-k/auxilia/commit/edd5deba94d77b857bbca7897b444d2315797dd3))
+
 ## [0.11.18](https://github.com/jr-k/auxilia/compare/web-v0.11.17...web-v0.11.18) (2026-10-07)
 
 

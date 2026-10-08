@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.15](https://github.com/jr-k/auxilia/compare/backend-v0.10.14...backend-v0.10.15) (2026-10-08)
+
+
+### Features
+
+* **threads:** add profile thread management ([a3ff986](https://github.com/jr-k/auxilia/commit/a3ff9866e184760992f47e0c46f2b806f5dcab2d))
+
 ## [0.10.14](https://github.com/jr-k/auxilia/compare/backend-v0.10.13...backend-v0.10.14) (2026-10-07)
 
 
