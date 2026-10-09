@@ -18,7 +18,7 @@ class ModelProviderSettings(BaseSettings):
     # it at your own file. Fetch failures always fall back to the bundled
     # snapshot, so this is never on the availability path.
     model_whitelist_url: str | None = (
-        "https://pub-7a6e8912b3c448b8a8bfa47a0363f7bc.r2.dev/models/whitelist.yaml"
+        "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/models/whitelist.yaml"
     )
 
     model_config = settings_config()

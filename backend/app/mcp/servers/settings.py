@@ -21,7 +21,7 @@ class MCPServerSettings(BaseSettings):
     # approved servers. Fetch failures always fall back to the bundled
     # snapshot, so this is never on the availability path.
     mcp_catalog_url: str | None = (
-        "https://pub-7a6e8912b3c448b8a8bfa47a0363f7bc.r2.dev/mcp/catalog.yaml"
+        "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/mcp/catalog.yaml"
     )
 
     @model_validator(mode="after")

@@ -4,7 +4,7 @@ import { parse } from "yaml";
 // (backend/app/mcp/servers/settings.py). Fetched server-side because the CDN
 // bucket sends no CORS headers, and revalidated hourly.
 const CATALOG_URL =
-	"https://pub-7a6e8912b3c448b8a8bfa47a0363f7bc.r2.dev/mcp/catalog.yaml";
+	"https://pub-fee562950db945e0af49322d187f2a02.r2.dev/mcp/catalog.yaml";
 
 export const revalidate = 3600;
 
