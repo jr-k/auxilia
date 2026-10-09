@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.10.21](https://github.com/jr-k/auxilia/compare/backend-v0.10.20...backend-v0.10.21) (2026-10-09)
+
+
+### Features
+
+* **mcp:** add service identity providers ([3175277](https://github.com/jr-k/auxilia/commit/31752779dc594e59dd44bd4c19d075de9db6f9ef))
+* **slack:** support multiple side-channels per agent ([e0f0695](https://github.com/jr-k/auxilia/commit/e0f06957c7444da2b8df36d46e383225ac2f9538))
+
 ## [0.10.20](https://github.com/jr-k/auxilia/compare/backend-v0.10.19...backend-v0.10.20) (2026-10-09)
 
 
