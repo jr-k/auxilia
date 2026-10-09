@@ -310,6 +310,7 @@ export function ConnectServersDialog({
 												<Switch
 													checked={isEnabled}
 													disabled={resourceSettingsSaving}
+													className="cursor-pointer data-[state=checked]:bg-petrol"
 													onCheckedChange={(checked) => {
 														setResourceEnabled("servers", server.id, checked);
 													}}
@@ -365,6 +366,7 @@ export function ConnectServersDialog({
 										<Switch
 											checked={isEnabled}
 											disabled={resourceSettingsSaving}
+											className="cursor-pointer data-[state=checked]:bg-petrol"
 											onCheckedChange={(checked) => {
 												setResourceEnabled("skills", skill.id, checked);
 											}}
