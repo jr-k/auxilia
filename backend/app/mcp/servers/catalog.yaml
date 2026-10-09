@@ -23,18 +23,89 @@
 schema_version: 1
 
 servers:
-  - name: Amplitude
+
+  - name: "3dsellers MCP"
+    url: "https://api.3dsellers.com/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/3dsellers-mcp.png"
+    supports_dcr: true
+    description: >-
+      Manages multichannel ecommerce listings, orders, pricing, support, and
+      automations across marketplaces supported by 3Dsellers.
+
+  - name: "Actionstep MCP Server"
+    url: "https://mcp.actionstep.com/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/actionstep-mcp-server.png"
+    supports_dcr: true
+    description: >-
+      Provides access to Actionstep legal matters, contacts, accounting, and
+      practice-management workflows.
+
+  - name: "ADITUS Developer Portal MCP"
+    url: "https://developers.aditus.com/api/mcp"
+    auth_type: none
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/aditus-developer-portal-mcp.png"
+    description: >-
+      Searches the official ADITUS ticketing API documentation without requiring
+      authentication.
+
+  - name: "Agent Native Slides"
+    url: "https://slides.agent-native.com/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/agent-native-slides.png"
+    supports_dcr: true
+    description: >-
+      Creates, edits, brands, and shares presentation decks through Builder.io's
+      Agent Native Slides service.
+
+  - name: "Aiven MCP"
+    url: "https://mcp.aiven.live/mcp"
+    auth_type: oauth2
+    supports_dcr: true
+    description: >-
+      Provisions and manages Aiven projects and managed data services including
+      PostgreSQL and Apache Kafka.
+
+  - name: "Alpha Vantage MCP Server"
+    url: "https://mcp.alphavantage.co/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/alpha-vantage-mcp-server.png"
+    supports_dcr: true
+    description: >-
+      Provides Alpha Vantage market data for equities, options, fundamentals,
+      currencies, commodities, and economic indicators.
+
+  - name: "Alpic"
+    url: "https://mcp.alpic.ai/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/alpic.png"
+    supports_dcr: true
+    description: >-
+      Manages MCP servers and MCP Apps hosted on the Alpic platform.
+
+  - name: "Amplitude"
     url: "https://mcp.amplitude.com/mcp"
     auth_type: oauth2
     icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/amplitude.png"
     supports_dcr: true
     description: >-
       The Amplitude Model Context Protocol (MCP) server enables teams to analyze
-      product data, experiments, and user behavior using conversational AI. Query
-      and create Amplitude content including charts, dashboards, experiments, and
-      cohorts directly through AI interfaces using natural language.
+      product data, experiments, and user behavior using conversational AI.
+      Query and create Amplitude content including charts, dashboards,
+      experiments, and cohorts directly through AI interfaces using natural
+      language.
 
-  - name: Asana
+  - name: "AppFollow"
+    url: "https://mcp.appfollow.io/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/appfollow.png"
+    supports_dcr: true
+    description: >-
+      Accesses AppFollow ratings, reviews, replies, rankings, keywords, and
+      app-store optimization data.
+
+  - name: "Asana"
     url: "https://mcp.asana.com/v2/mcp"
     auth_type: oauth2
     icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/asana.png"
@@ -45,19 +116,38 @@ servers:
       and coordinate projects through natural-language instructions while
       respecting their existing Asana permissions.
 
-  - name: Atlassian
+  - name: "Atlassian"
     url: "https://mcp.atlassian.com/v1/mcp"
     auth_type: oauth2
     icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/atlassian.png"
     supports_dcr: true
     description: >-
-      The Atlassian Rovo MCP Server is a cloud-based bridge between your Atlassian
-      Cloud site and compatible external tools. Once configured, it enables those
-      tools to interact with Jira, Compass, and Confluence data in real-time. This
-      functionality is powered by secure OAuth 2.1 authorization, which ensures
-      all actions respect the user's existing access controls.
+      The Atlassian Rovo MCP Server is a cloud-based bridge between your
+      Atlassian Cloud site and compatible external tools. Once configured, it
+      enables those tools to interact with Jira, Compass, and Confluence data in
+      real-time. This functionality is powered by secure OAuth 2.1
+      authorization, which ensures all actions respect the user's existing
+      access controls.
 
-  - name: BigQuery
+  - name: "Aurora"
+    url: "https://mcp.aurora.build/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/aurora.png"
+    supports_dcr: true
+    description: >-
+      Creates, previews, edits, and deploys full-stack web applications through
+      Aurora's hosted builder.
+
+  - name: "AWS MCP"
+    url: "https://aws-mcp.us-east-1.api.aws/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/aws-mcp.png"
+    supports_dcr: true
+    description: >-
+      Executes AWS service operations using the user's AWS identity through the
+      AWS-managed MCP server.
+
+  - name: "BigQuery"
     url: "https://bigquery.googleapis.com/mcp"
     auth_type: oauth2
     service_credential_providers:
@@ -69,28 +159,127 @@ servers:
       applications direct access to your analytics data through a defined set of
       tools.
 
-  - name: Calendar
+  - name: "Bitrise MCP"
+    url: "https://mcp.bitrise.io"
+    auth_type: api_key
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/bitrise-mcp.png"
+    description: >-
+      Manages Bitrise mobile CI/CD applications, builds, workflows, artifacts,
+      and troubleshooting data.
+
+  - name: "Bling MCP"
+    url: "https://mcp.bling.com.br/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/bling-mcp.png"
+    supports_dcr: true
+    description: >-
+      Accesses Bling ecommerce, inventory, order, invoicing, and ERP operations.
+
+  - name: "Blockworks MCP"
+    url: "https://mcp.blockworks.com/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/blockworks-mcp.png"
+    supports_dcr: true
+    description: >-
+      Provides Blockworks crypto, blockchain, market, and research data.
+
+  - name: "Bouncer Email Verification MCP Server"
+    url: "https://api.usebouncer.com/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/bouncer-email-verification-mcp-server.png"
+    supports_dcr: true
+    description: >-
+      Performs Bouncer email-address verification and explains deliverability
+      results.
+
+  - name: "Box"
+    url: "https://mcp.box.com"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/box.png"
+    supports_dcr: false
+    description: >-
+      Box's remote MCP server gives AI assistants secure, user-scoped access to
+      enterprise content. It can search, read, create, and collaborate on files
+      while respecting the permissions and governance policies configured in
+      Box.
+
+  - name: "Bryntum MCP"
+    url: "https://mcp.bryntum.com"
+    auth_type: none
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/bryntum-mcp.png"
+    description: >-
+      Searches Bryntum documentation and examples for Gantt, Scheduler,
+      Calendar, and Grid components.
+
+  - name: "Calendar"
     url: "https://calendarmcp.googleapis.com/mcp/v1"
     auth_type: oauth2
     icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/calendar.png"
     supports_dcr: false
     description: >-
-      Google Calendar is Google's scheduling and calendar service. Its MCP server
-      lets an AI assistant list calendars and events, check availability and
-      suggest times, and create, update, respond to, or delete events, inheriting
-      the user's existing permissions.
+      Google Calendar is Google's scheduling and calendar service. Its MCP
+      server lets an AI assistant list calendars and events, check availability
+      and suggest times, and create, update, respond to, or delete events,
+      inheriting the user's existing permissions.
 
-  - name: Canva
+  - name: "Calendly"
+    url: "https://mcp.calendly.com"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/calendly.ico"
+    supports_dcr: true
+    description: >-
+      Calendly's remote MCP server lets AI assistants work with the
+      authenticated user's scheduling data, including event types, scheduled
+      events, invitees, availability, and organization membership.
+
+  - name: "Canva"
     url: "https://mcp.canva.com/mcp"
     auth_type: oauth2
     icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/canva.png"
     supports_dcr: true
     description: >-
       Once set up, your AI can create new empty designs, autofill templates with
-      your content, find your existing designs, and export them as PDFs or images.
-      It's an easy way to speed up creative tasks, no coding required.
+      your content, find your existing designs, and export them as PDFs or
+      images. It's an easy way to speed up creative tasks, no coding required.
 
-  - name: Cloud Logging
+  - name: "Carbon MCP"
+    url: "https://mcp.carbondesignsystem.com/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/carbon-mcp.png"
+    supports_dcr: true
+    description: >-
+      Provides IBM Carbon Design System component source, documentation, and
+      code-audit guidance.
+
+  - name: "Catchr MCP"
+    url: "https://api.catchr.io/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/catchr-mcp.png"
+    supports_dcr: true
+    description: >-
+      Queries marketing data connected to Catchr from Google Ads, Meta Ads, GA4,
+      and other supported sources.
+
+  - name: "CData Connect AI"
+    url: "https://mcp.cloud.cdata.com/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/cdata-connect-ai.png"
+    supports_dcr: true
+    description: >-
+      Queries data sources configured in the vendor-operated CData Connect AI
+      platform.
+
+  - name: "ClickUp"
+    url: "https://mcp.clickup.com/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/clickup.png"
+    supports_dcr: true
+    description: >-
+      ClickUp's hosted MCP server connects AI assistants to workspaces, tasks,
+      documents, comments, time tracking, and team data through the
+      authenticated user's existing permissions.
+
+  - name: "Cloud Logging"
     url: "https://logging.googleapis.com/mcp"
     auth_type: oauth2
     service_credential_providers:
@@ -102,7 +291,87 @@ servers:
       interact with your log entries. The Cloud Logging remote MCP server is
       enabled when you enable the Cloud Logging API.
 
-  - name: Customer.io
+  - name: "Cloudflare"
+    url: "https://mcp.cloudflare.com/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/cloudflare.png"
+    supports_dcr: true
+    description: >-
+      Cloudflare's remote MCP server gives AI assistants authenticated access to
+      developer-platform resources and documentation, with tools selected for
+      the accounts and permissions available to the signed-in user.
+
+  - name: "Coconut Context"
+    url: "https://api.coconut.md/mcp"
+    auth_type: oauth2
+    supports_dcr: true
+    description: >-
+      Reads and writes versioned shared Markdown context managed by Coconut.
+
+  - name: "Componecat"
+    url: "https://app.componecat.ai/api/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/componecat.png"
+    supports_dcr: true
+    description: >-
+      Explores systems, services, libraries, documentation, and dependencies
+      registered in Componecat.
+
+  - name: "Connic MCP"
+    url: "https://mcp.connic.co/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/connic-mcp.png"
+    supports_dcr: true
+    description: >-
+      Inspects runs and logs and manages deployments and approvals for Connic AI
+      agents.
+
+  - name: "Contentful MCP"
+    url: "https://mcp.contentful.com/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/contentful-mcp.png"
+    supports_dcr: true
+    description: >-
+      Manages Contentful spaces, content types, entries, assets, and publishing
+      workflows.
+
+  - name: "Context7"
+    url: "https://mcp.context7.com/mcp"
+    auth_type: none
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/context7.png"
+    description: >-
+      Context7 provides current, version-specific library documentation and code
+      examples. Its remote MCP server lets assistants resolve a library and
+      query its documentation directly while writing or debugging code.
+
+  - name: "Cookiedeal MCP"
+    url: "https://mcp.cookiedeal.io/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/cookiedeal-mcp.png"
+    supports_dcr: true
+    description: >-
+      Retrieves Korean company intelligence, disclosures, registry documents,
+      and related corporate data from Cookiedeal.
+
+  - name: "COUNT MCP"
+    url: "https://api.getcount.com/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/count-mcp.png"
+    supports_dcr: true
+    description: >-
+      Queries financials and manages reconciliation, invoices, bills, reporting,
+      and accounting-practice workflows in COUNT.
+
+  - name: "CreatorDB MCP"
+    url: "https://mcp.creatordb.app/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/creatordb-mcp.png"
+    supports_dcr: true
+    description: >-
+      Provides creator discovery and audience analytics across CreatorDB's
+      social-profile dataset.
+
+  - name: "Customer.io"
     url: "https://mcp.customer.io/mcp"
     auth_type: oauth2
     icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/customer-io.svg"
@@ -113,7 +382,33 @@ servers:
       event data through natural-language instructions while respecting their
       existing workspace roles and permissions.
 
-  - name: DeepWiki
+  - name: "Dash Social"
+    url: "https://mcp.dashsocial.com/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/dash-social.png"
+    supports_dcr: true
+    description: >-
+      Analyze Dash Social brand, performance, community, and competitive
+      intelligence.
+
+  - name: "DataSelf MCP+"
+    url: "https://mcp.dataself.com"
+    auth_type: oauth2
+    supports_dcr: true
+    description: >-
+      Explore governed DataSelf warehouse schemas and query business data using
+      natural language.
+
+  - name: "DatoCMS"
+    url: "https://mcp.datocms.com"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/datocms.png"
+    supports_dcr: true
+    description: >-
+      Manage DatoCMS content, schemas, environments, and assets through native
+      MCP OAuth.
+
+  - name: "DeepWiki"
     url: "https://mcp.deepwiki.com/mcp"
     auth_type: none
     icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/deepwiki.png"
@@ -121,18 +416,189 @@ servers:
       DeepWiki provides up-to-date documentation you can talk to, for every repo
       in the world. Think Deep Research for GitHub.
 
-  - name: Drive
+  - name: "Digip"
+    url: "https://mcp.digip.com"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/digip.png"
+    supports_dcr: true
+    description: >-
+      Search live trademark registries and screen potential conflicts across
+      supported jurisdictions.
+
+  - name: "Drive"
     url: "https://drivemcp.googleapis.com/mcp/v1"
     auth_type: oauth2
     icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/drive.png"
     supports_dcr: false
     description: >-
       Google Drive is Google's cloud file storage and sharing service. Its MCP
-      server lets an AI assistant search files, read and download file content and
-      metadata, check permissions, and create or copy files, respecting the user's
-      existing access controls.
+      server lets an AI assistant search files, read and download file content
+      and metadata, check permissions, and create or copy files, respecting the
+      user's existing access controls.
 
-  - name: GitHub
+  - name: "Druva"
+    url: "https://mcp.druva.com/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/druva.png"
+    supports_dcr: true
+    description: >-
+      Inspect Druva backup health, audit logs, recovery state, and governance
+      data with existing RBAC.
+
+  - name: "Duvo"
+    url: "https://api.duvo.ai/v2/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/duvo.jpg"
+    supports_dcr: true
+    description: >-
+      Start and monitor Duvo automations, cases, files, approvals, and runs.
+
+  - name: "EquityRT Connect"
+    url: "https://connect-mcp.equityrt.com/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/equityrt-connect.png"
+    supports_dcr: true
+    description: >-
+      Read financial statements, prices, estimates, funds, bonds, and
+      macroeconomic series from EquityRT.
+
+  - name: "EULER"
+    url: "https://mcp.eulerapp.com/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/euler.png"
+    supports_dcr: true
+    description: >-
+      Manage partner programs, referrals, deals, commissions, and onboarding in
+      EULER.
+
+  - name: "EULEX.AI"
+    url: "https://mcp.eulex.ai/mcp"
+    auth_type: oauth2
+    supports_dcr: true
+    description: >-
+      Research EU, French, and Croatian legislation and case law with source
+      citations.
+
+  - name: "Eventtia"
+    url: "https://connect-mcp.eventtia.com/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/eventtia.png"
+    supports_dcr: true
+    description: >-
+      Manage Eventtia events, attendees, speakers, sessions, and registrations.
+
+  - name: "Exa"
+    url: "https://mcp.exa.ai/mcp"
+    auth_type: none
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/exa.png"
+    description: >-
+      Exa's remote MCP server gives AI assistants semantic web search and page
+      retrieval tools. The public endpoint can be used without credentials in
+      its rate-limited mode.
+
+  - name: "Excalidraw"
+    url: "https://api.excalidraw.com/api/v1/mcp"
+    auth_type: api_key
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/excalidraw.png"
+    description: >-
+      Create and manage Excalidraw+ scenes and collections through its hosted
+      Streamable HTTP server.
+
+  - name: "Faces"
+    url: "https://mcp.faces.app/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/faces.png"
+    supports_dcr: true
+    description: >-
+      Generate, edit, and publish interactive presentation decks in Faces.
+
+  - name: "Fastmail"
+    url: "https://api.fastmail.com/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/fastmail.png"
+    supports_dcr: true
+    description: >-
+      Read and act on Fastmail mail, calendars, and contacts at the access level
+      selected during consent.
+
+  - name: "FeedHive"
+    url: "https://mcp.feedhive.com"
+    auth_type: api_key
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/feedhive.png"
+    description: >-
+      Create, schedule, and publish social content through FeedHive's hosted
+      HTTP MCP server.
+
+  - name: "Finary"
+    url: "https://public-api.finary.com/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/finary.png"
+    supports_dcr: true
+    description: >-
+      Provide read-only analysis of the user's Finary investments, accounts, and
+      net worth.
+
+  - name: "Firecrawl"
+    url: "https://mcp.firecrawl.dev/v2/mcp"
+    auth_type: none
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/firecrawl.svg"
+    description: >-
+      Firecrawl's remote MCP server lets AI assistants search the web, scrape
+      pages, and extract structured data. Its public endpoint provides a limited
+      credential-free mode for immediate use.
+
+  - name: "Flexport"
+    url: "https://mcp.flexport.com/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/flexport.png"
+    supports_dcr: true
+    description: >-
+      Query shipments, rates, and logistics-network data using the signed-in
+      user's Flexport role.
+
+  - name: "Flodesk"
+    url: "https://mcp.flodesk.com/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/flodesk.png"
+    supports_dcr: true
+    description: >-
+      Analyze Flodesk email marketing performance and manage audience data.
+
+  - name: "Floot"
+    url: "https://mcp.floot.com/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/floot.png"
+    supports_dcr: true
+    description: >-
+      Create, edit, debug, run, and publish Floot applications from an MCP
+      client.
+
+  - name: "Formal Logic"
+    url: "https://reasoning.services/tools/formal-logic/mcp"
+    auth_type: api_key
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/formal-logic.png"
+    description: >-
+      Run deterministic entailment, satisfiability, temporal-logic, and
+      model-checking operations.
+
+  - name: "Gem"
+    url: "https://mcp.gem.com/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/gem.svg"
+    supports_dcr: true
+    description: >-
+      Query Gem recruiting candidates, pipelines, projects, and analytics under
+      the signed-in user's permissions.
+
+  - name: "GitBook"
+    url: "https://mcp.gitbook.com/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/gitbook.png"
+    supports_dcr: true
+    description: >-
+      Create, edit, and manage GitBook documentation over Streamable HTTP.
+
+  - name: "GitHub"
     url: "https://api.githubcopilot.com/mcp"
     auth_type: oauth2
     service_credential_providers:
@@ -140,22 +606,120 @@ servers:
     icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/github.png"
     supports_dcr: false
     description: >-
-      The GitHub MCP Server connects AI tools directly to GitHub's platform. This
-      gives AI agents, assistants, and chatbots the ability to read repositories
-      and code files, manage issues and PRs, analyze code, and automate workflows.
-      All through natural language interactions.
+      The GitHub MCP Server connects AI tools directly to GitHub's platform.
+      This gives AI agents, assistants, and chatbots the ability to read
+      repositories and code files, manage issues and PRs, analyze code, and
+      automate workflows. All through natural language interactions.
 
-  - name: Gmail
+  - name: "Givebutter"
+    url: "https://mcp.givebutter.com/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/givebutter.svg"
+    supports_dcr: true
+    description: >-
+      Read account-scoped Givebutter fundraising campaigns, contacts, and
+      transactions.
+
+  - name: "Gmail"
     url: "https://gmailmcp.googleapis.com/mcp/v1"
     auth_type: oauth2
     icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/gmail.png"
     supports_dcr: false
     description: >-
-      Gmail is Google's email service. Its MCP server lets an AI assistant search
-      and read messages and threads, create drafts, and organize mail with labels,
-      operating under the user's existing account permissions.
+      Gmail is Google's email service. Its MCP server lets an AI assistant
+      search and read messages and threads, create drafts, and organize mail
+      with labels, operating under the user's existing account permissions.
 
-  - name: HubSpot
+  - name: "Gong"
+    url: "https://mcp.gong.io/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/gong.png"
+    supports_dcr: false
+    description: >-
+      Access Gong conversation and revenue intelligence through an admin-created
+      manual OAuth integration.
+
+  - name: "Google Compute Engine"
+    url: "https://compute.googleapis.com/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/google-compute-engine.png"
+    supports_dcr: false
+    description: >-
+      Inspect and manage Compute Engine resources with OAuth scopes and existing
+      Google Cloud IAM permissions.
+
+  - name: "Google Docs"
+    url: "https://docsmcp.googleapis.com/mcp/v1"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/google-docs.png"
+    supports_dcr: false
+    description: >-
+      Google Docs is Google's collaborative document editor. Its remote MCP
+      server lets an AI assistant find, read, create, and edit documents while
+      respecting the authenticated user's existing Google Workspace permissions.
+
+  - name: "Google Sheets"
+    url: "https://sheetsmcp.googleapis.com/mcp/v1"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/google-sheets.png"
+    supports_dcr: false
+    description: >-
+      Google Sheets is Google's collaborative spreadsheet application. Its
+      remote MCP server lets an AI assistant inspect and update spreadsheets,
+      ranges, and structured table data under the user's existing permissions.
+
+  - name: "Gorgias"
+    url: "https://mcp.gorgias.com/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/gorgias.png"
+    supports_dcr: true
+    description: >-
+      Audit and operate Gorgias customers, tickets, and helpdesk workflows.
+
+  - name: "Grafana Cloud"
+    url: "https://mcp.grafana.com/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/grafana-cloud.svg"
+    supports_dcr: true
+    description: >-
+      Query Grafana Cloud observability data and manage dashboards and alerts
+      over Streamable HTTP.
+
+  - name: "Graph of Thought"
+    url: "https://reasoning.services/tools/graph-of-thought/mcp"
+    auth_type: api_key
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/graph-of-thought.png"
+    description: >-
+      Run deterministic graph-based reasoning workflows that diverge, evaluate,
+      and converge candidate ideas.
+
+  - name: "GraphOS"
+    url: "https://mcp.apollographql.com"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/graphos.png"
+    supports_dcr: true
+    description: >-
+      Search Apollo documentation and inspect or manage authenticated GraphOS
+      graph resources.
+
+  - name: "GrowthBook"
+    url: "https://mcp.growthbook.io/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/growthbook.png"
+    supports_dcr: true
+    description: >-
+      Manage GrowthBook feature flags, targeting rules, experiments, and
+      results.
+
+  - name: "HTML/CSS to Image"
+    url: "https://mcp.hcti.io"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/html-css-to-image.png"
+    supports_dcr: true
+    description: >-
+      Render HTML, public URLs, and saved templates into images or PDFs.
+
+  - name: "HubSpot"
     url: "https://mcp.hubspot.com"
     auth_type: oauth2
     icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/hubspot.png"
@@ -165,7 +729,84 @@ servers:
       Large Language Models to securely interact with your HubSpot CRM data
       through natural conversation.
 
-  - name: Intercom
+  - name: "Hugging Face"
+    url: "https://huggingface.co/mcp?login"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/hugging-face.png"
+    supports_dcr: true
+    description: >-
+      Hugging Face's remote MCP server lets AI assistants search and use
+      resources from the Hub and access tools exposed by compatible Spaces on
+      behalf of the authenticated user.
+
+  - name: "Humblytics"
+    url: "https://mcp.humblytics.com/v1"
+    auth_type: api_key
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/humblytics.png"
+    description: >-
+      Analyze Humblytics traffic, attribution, campaigns, conversions, and
+      experiments.
+
+  - name: "Hygraph"
+    url: "https://mcp.hygraph.com/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/hygraph.png"
+    supports_dcr: true
+    description: >-
+      Discover and manage Hygraph projects, environments, schemas, and content
+      under user permissions.
+
+  - name: "IDrive e2"
+    url: "https://mcp.idrivee2.com/s3"
+    auth_type: oauth2
+    supports_dcr: true
+    description: >-
+      List and manage IDrive e2 S3-compatible regions, buckets, and objects.
+
+  - name: "IFTTT"
+    url: "https://ifttt.com/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/ifttt.png"
+    supports_dcr: true
+    description: >-
+      Discover and invoke automations across services and devices connected
+      through IFTTT.
+
+  - name: "iManage Work"
+    url: "https://cloudimanage.com/mcp/work"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/imanage-work.png"
+    supports_dcr: true
+    description: >-
+      Access permission-aware documents, workspaces, folders, and matter context
+      in iManage Work.
+
+  - name: "incident.io"
+    url: "https://mcp.incident.io/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/incident-io.png"
+    supports_dcr: true
+    description: >-
+      Query incidents and alerts and manage on-call and escalation workflows.
+
+  - name: "Insider One"
+    url: "https://mcp.insiderone.com/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/insider-one.png"
+    supports_dcr: false
+    description: >-
+      Query Insider One analytics and create controlled campaign and template
+      drafts.
+
+  - name: "Instrumentl"
+    url: "https://mcp.instrumentl.com"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/instrumentl.png"
+    supports_dcr: true
+    description: >-
+      Find grant matches and manage grant tasks and records in Instrumentl.
+
+  - name: "Intercom"
     url: "https://mcp.intercom.com/mcp"
     auth_type: oauth2
     icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/intercom.png"
@@ -175,7 +816,32 @@ servers:
       access, interact with, and maintain context around Intercom data and tools
       like conversations, contacts, and workspace-specific functionality.
 
-  - name: Kahoot
+  - name: "iubenda"
+    url: "https://mcp-server.iubenda.com/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/iubenda.png"
+    supports_dcr: true
+    description: >-
+      Register sites, scan trackers, and manage privacy policies and cookie
+      banners.
+
+  - name: "Jasper"
+    url: "https://mcp.jasper.ai"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/jasper.svg"
+    supports_dcr: true
+    description: >-
+      Generate and manage content using Jasper brand and audience context.
+
+  - name: "Jotform"
+    url: "https://mcp.jotform.com"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/jotform.png"
+    supports_dcr: true
+    description: >-
+      Create and manage forms and access their submissions.
+
+  - name: "Kahoot"
     url: "https://mcp.kahoot.it/mcp"
     auth_type: oauth2
     icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/kahoot.png"
@@ -187,18 +853,393 @@ servers:
       including generating quiz questions and translating content (currently
       multiple-choice and true/false formats).
 
-  - name: Linear
+  - name: "Kaiva Bridge"
+    url: "https://api.kaiv.ai/api/bridge/manage/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/kaiva-bridge.png"
+    supports_dcr: true
+    description: >-
+      Create and manage hosted MCP servers backed by APIs, databases, or other
+      remote servers.
+
+  - name: "Kema Invoice"
+    url: "https://mcp.kema-studio.com/api/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/kema-invoice.png"
+    supports_dcr: true
+    description: >-
+      Create, issue, and track compliant invoices, quotes, retainers, and credit
+      notes.
+
+  - name: "Kit"
+    url: "https://app.kit.com/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/kit.png"
+    supports_dcr: true
+    description: >-
+      Manage Kit subscribers, broadcasts, sequences, tags, segments, and email
+      marketing data.
+
+  - name: "Kiwi.com"
+    url: "https://mcp.kiwi.com"
+    auth_type: none
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/kiwi-com.png"
+    description: >-
+      Search and compare live flight itineraries from Kiwi.com.
+
+  - name: "Klaviyo"
+    url: "https://mcp.klaviyo.com/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/klaviyo.png"
+    supports_dcr: true
+    description: >-
+      Work with Klaviyo campaigns, flows, profiles, reports, catalogs, and
+      events.
+
+  - name: "Klue"
+    url: "https://mcp.app.klue.com/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/klue.png"
+    supports_dcr: true
+    description: >-
+      Search and maintain competitive intelligence, battlecards, and win-loss
+      insights.
+
+  - name: "Kpler"
+    url: "https://m2m.mcp.kpler.com/v1/mcp/"
+    auth_type: api_key
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/kpler.png"
+    description: >-
+      Query Kpler maritime, commodities, vessel, trade-flow, and market
+      intelligence.
+
+  - name: "Krisp"
+    url: "https://mcp.krisp.ai/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/krisp.png"
+    supports_dcr: true
+    description: >-
+      Search Krisp meetings and retrieve transcripts, notes, action items, and
+      recordings.
+
+  - name: "La Growth Machine"
+    url: "https://mcp.lagrowthmachine.com/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/la-growth-machine.png"
+    supports_dcr: true
+    description: >-
+      Manage multichannel outreach campaigns, audiences, leads, enrichment, and
+      inbox conversations.
+
+  - name: "LatchBio"
+    url: "https://mcp.latch.bio/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/latchbio.png"
+    supports_dcr: true
+    description: >-
+      Browse bioinformatics data, launch Latch workflows, and monitor executions
+      and logs.
+
+  - name: "LawVu"
+    url: "https://mcp.lawvu.com/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/lawvu.webp"
+    supports_dcr: true
+    description: >-
+      Work with LawVu matters, contracts, legal knowledge, tasks, spend, and
+      workflows.
+
+  - name: "Leadfeeder"
+    url: "https://mcp.leadfeeder.com/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/leadfeeder.png"
+    supports_dcr: true
+    description: >-
+      Analyze website visitor intent and work with Leadfeeder companies,
+      contacts, and lists.
+
+  - name: "LegalZoom"
+    url: "https://www.legalzoom.com/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/legalzoom.png"
+    supports_dcr: true
+    description: >-
+      Access LegalZoom account-aware legal workflows and published legal service
+      tools.
+
+  - name: "Lightfield"
+    url: "https://mcp.lightfield.app/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/lightfield.png"
+    supports_dcr: true
+    description: >-
+      Read and update Lightfield CRM accounts, contacts, opportunities,
+      meetings, tasks, and notes.
+
+  - name: "LILT"
+    url: "https://mcp.lilt.com/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/lilt.ico"
+    supports_dcr: true
+    description: >-
+      Translate text and files and manage instant or human-verified translation
+      jobs.
+
+  - name: "Linear"
     url: "https://mcp.linear.app/mcp"
     auth_type: oauth2
     icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/linear.jpg"
     supports_dcr: true
     description: >-
-      Linear's MCP server follows the authenticated remote MCP spec, so the server
-      is centrally hosted and managed. The Linear MCP server has tools available
-      for finding, creating, and updating objects in Linear like issues, projects,
-      and comments.
+      Linear's MCP server follows the authenticated remote MCP spec, so the
+      server is centrally hosted and managed. The Linear MCP server has tools
+      available for finding, creating, and updating objects in Linear like
+      issues, projects, and comments.
 
-  - name: Notion
+  - name: "Livestorm"
+    url: "https://mcp.livestorm.co/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/livestorm.png"
+    supports_dcr: true
+    description: >-
+      Manage Livestorm events, sessions, people, and webinar data.
+
+  - name: "Local Falcon"
+    url: "https://mcp.localfalcon.com/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/local-falcon.svg"
+    supports_dcr: true
+    description: >-
+      Analyze local rankings, AI-search visibility, competitors, campaigns, and
+      business profiles.
+
+  - name: "Lorikeet"
+    url: "https://mcp.lorikeetcx.ai"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/lorikeet.png"
+    supports_dcr: true
+    description: >-
+      Manage Lorikeet workflows, knowledge, tickets, integrations, and support
+      simulations.
+
+  - name: "Lucid"
+    url: "https://mcp.lucid.app/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/lucid.png"
+    supports_dcr: true
+    description: >-
+      Search, create, edit, and summarize Lucid documents and diagrams.
+
+  - name: "Lumin"
+    url: "https://mcp.luminpdf.com/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/lumin.png"
+    supports_dcr: true
+    description: >-
+      Manage PDF documents, generate agreements, and send and track signature
+      requests.
+
+  - name: "LunarCrush"
+    url: "https://lunarcrush.ai/mcp"
+    auth_type: api_key
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/lunarcrush.png"
+    description: >-
+      Retrieve real-time social sentiment, trends, and market intelligence from
+      LunarCrush.
+
+  - name: "Lusha"
+    url: "https://mcp.lusha.com"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/lusha.png"
+    supports_dcr: true
+    description: >-
+      Search and enrich B2B contacts and companies and retrieve sales signals.
+
+  - name: "LZ Virtual Mail"
+    url: "https://api.earthclassmail.com/v2/mcp"
+    auth_type: api_key
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/lz-virtual-mail.ico"
+    description: >-
+      Search, read, organize, scan, and process physical mail in LegalZoom
+      Virtual Mail.
+
+  - name: "MailerLite"
+    url: "https://mcp.mailerlite.com/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/mailerlite.png"
+    supports_dcr: true
+    description: >-
+      Manages MailerLite subscribers, campaigns, automations, and
+      email-marketing data.
+
+  - name: "Make"
+    url: "https://mcp.make.com"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/make.jpg"
+    supports_dcr: true
+    description: >-
+      Runs Make scenarios and manages Make organizations through a vendor-hosted
+      Streamable HTTP server.
+
+  - name: "Matia"
+    url: "https://api.matia.io/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/matia.png"
+    supports_dcr: true
+    description: >-
+      Investigates data lineage, pipelines, quality, metrics, and incidents in
+      Matia workspaces.
+
+  - name: "Maze"
+    url: "https://connect.maze.co/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/maze.png"
+    supports_dcr: true
+    description: >-
+      Provides read-only access to Maze research studies, responses,
+      transcripts, and insights.
+
+  - name: "MDN"
+    url: "https://mcp.mdn.mozilla.net/"
+    auth_type: none
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/mdn.svg"
+    description: >-
+      Searches authoritative MDN web-platform documentation and
+      browser-compatibility data.
+
+  - name: "MeetGeek"
+    url: "https://mcp.meetgeek.ai/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/meetgeek.png"
+    supports_dcr: true
+    description: >-
+      Retrieves MeetGeek meeting transcripts, summaries, highlights, insights,
+      and action items.
+
+  - name: "Mem0"
+    url: "https://mcp.mem0.ai/mcp"
+    auth_type: api_key
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/mem0.svg"
+    description: >-
+      Provides persistent memory tools using a Mem0 API key sent as an ordinary
+      Bearer token.
+
+  - name: "Mercury"
+    url: "https://mcp.mercury.com/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/mercury.png"
+    supports_dcr: true
+    description: >-
+      Accesses Mercury accounts, balances, transactions, cards, recipients, and
+      supported financial actions.
+
+  - name: "Mermaid Chart"
+    url: "https://mcp.mermaidchart.com/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/mermaid-chart.png"
+    supports_dcr: true
+    description: >-
+      Creates, validates, and renders Mermaid diagrams through Mermaid Chart's
+      hosted service.
+
+  - name: "Microsoft Learn"
+    url: "https://learn.microsoft.com/api/mcp"
+    auth_type: none
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/microsoft-learn.png"
+    description: >-
+      Microsoft Learn's remote MCP server gives AI assistants access to official
+      Microsoft documentation, code samples, and complete documentation pages
+      for current technical guidance.
+
+  - name: "Mintlify"
+    url: "https://mcp.mintlify.com"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/mintlify.png"
+    supports_dcr: true
+    description: >-
+      Searches and administers Mintlify documentation projects through the
+      hosted Admin MCP.
+
+  - name: "Miro"
+    url: "https://mcp.miro.com/"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/miro.png"
+    supports_dcr: true
+    description: >-
+      Reads and creates Miro board content under the authenticated user's
+      existing permissions.
+
+  - name: "monday.com"
+    url: "https://mcp.monday.com/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/monday.png"
+    supports_dcr: true
+    description: >-
+      monday.com's hosted MCP server connects AI assistants to boards, work
+      items, updates, documents, and workspace data while preserving the
+      signed-in user's permissions.
+
+  - name: "Moneybird"
+    url: "https://moneybird.com/mcp/v1/read_write"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/moneybird.png"
+    supports_dcr: true
+    description: >-
+      Retrieves, creates, and updates Moneybird contacts, invoices, accounts,
+      and time entries.
+
+  - name: "MotherDuck"
+    url: "https://api.motherduck.com/mcp"
+    auth_type: api_key
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/motherduck.jpg"
+    description: >-
+      Queries and manages MotherDuck databases using a MotherDuck token sent as
+      an ordinary Bearer token.
+
+  - name: "Moz Data"
+    url: "https://api.moz.com/mcp/v1/data"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/moz-data.png"
+    supports_dcr: true
+    description: >-
+      Provides Moz SEO site metrics, links, keywords, rankings, and related
+      analysis data.
+
+  - name: "Moz Local"
+    url: "https://api.moz.com/mcp/v1/local"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/moz-local.png"
+    supports_dcr: true
+    description: >-
+      Manages and reports on Moz Local business locations and listings.
+
+  - name: "MyGeotab"
+    url: "https://mcp.geotab.com/mygeotab"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/mygeotab.png"
+    supports_dcr: true
+    description: >-
+      Analyzes and manages MyGeotab fleet, vehicle, trip, and operational data.
+
+  - name: "Neon"
+    url: "https://mcp.neon.tech/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/neon.svg"
+    supports_dcr: true
+    description: >-
+      Manage Neon projects, branches, schemas, SQL queries, and observability
+      data.
+
+  - name: "Netlify"
+    url: "https://netlify-mcp.netlify.app/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/netlify.png"
+    supports_dcr: true
+    description: >-
+      Manage Netlify projects, deployments, sites, and configuration through the
+      hosted MCP service.
+
+  - name: "Notion"
     url: "https://mcp.notion.com/mcp"
     auth_type: oauth2
     icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/notion.svg"
@@ -207,19 +1248,97 @@ servers:
       Connect your AI tools to Notion using the Model Context Protocol (MCP), an
       open standard that lets AI assistants interact with your Notion workspace.
 
-  - name: PandaDoc
+  - name: "Omni"
+    url: "https://callbacks.omniapp.co/callback/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/omni.ico"
+    supports_dcr: true
+    description: >-
+      Query governed Omni analytics models and business data through a
+      vendor-operated OAuth gateway.
+
+  - name: "Omnisend"
+    url: "https://mcp.omnisend.com/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/omnisend.png"
+    supports_dcr: true
+    description: >-
+      Analyze and manage Omnisend campaigns, automations, contacts, templates,
+      and reports.
+
+  - name: "OneSignal"
+    url: "https://api.onesignal.com/mcp/oauth"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/onesignal.svg"
+    supports_dcr: true
+    description: >-
+      Manage OneSignal messaging campaigns, users, segments, and delivery
+      analytics.
+
+  - name: "OpenRegister"
+    url: "https://mcp.openregister.de/mcp"
+    auth_type: api_key
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/openregister.jpg"
+    description: >-
+      Searches German company, ownership, financial, and insolvency records
+      using a Bearer API key.
+
+  - name: "OpsLevel"
+    url: "https://app.opslevel.com/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/opslevel.jpg"
+    supports_dcr: true
+    description: >-
+      Query OpsLevel service ownership, dependencies, catalog metadata, and
+      maturity information.
+
+  - name: "Otter.ai"
+    url: "https://mcp.otter.ai/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/otter-ai.png"
+    supports_dcr: true
+    description: >-
+      Access authorized Otter meeting conversations, transcripts, summaries, and
+      insights.
+
+  - name: "PagerDuty"
+    url: "https://mcp.pagerduty.com/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/pagerduty.png"
+    supports_dcr: false
+    description: >-
+      Read and manage PagerDuty incidents, services, schedules, and on-call
+      operations.
+
+  - name: "PandaDoc"
     url: "https://mcp.pandadoc.com/v1/mcp"
     auth_type: oauth2
     icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/pandadoc.png"
     supports_dcr: true
     description: >-
-      PandaDoc is a document automation platform for creating, sending, e-signing,
-      and tracking business documents such as proposals, quotes, and contracts.
-      Its MCP server connects AI assistants directly to your document and
-      agreement workflows, letting them draft, send, and manage documents through
-      natural-language instructions.
+      PandaDoc is a document automation platform for creating, sending,
+      e-signing, and tracking business documents such as proposals, quotes, and
+      contracts. Its MCP server connects AI assistants directly to your document
+      and agreement workflows, letting them draft, send, and manage documents
+      through natural-language instructions.
 
-  - name: Pennylane
+  - name: "Parallel Search"
+    url: "https://search.parallel.ai/mcp"
+    auth_type: none
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/parallel-search.png"
+    description: >-
+      Provide token-efficient web search through Parallel's anonymous hosted MCP
+      endpoint.
+
+  - name: "pdfrender"
+    url: "https://api.pdfrender.dev/mcp/"
+    auth_type: none
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/pdfrender.png"
+    description: >-
+      Renders HTML and CSS into PDF documents through pdfrender's hosted
+      Streamable HTTP tool.
+
+  - name: "Pennylane"
     url: "https://app.pennylane.com/mcp"
     auth_type: oauth2
     icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/pennylane.png"
@@ -229,7 +1348,44 @@ servers:
       many others. Query your accounting and financial data without leaving your
       conversation.
 
-  - name: Praiz
+  - name: "Pitch"
+    url: "https://mcp.pitch.com/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/pitch.jpg"
+    supports_dcr: true
+    description: >-
+      Find, read, create, share, and analyze presentations in an authorized
+      Pitch workspace.
+
+  - name: "PlanetScale"
+    url: "https://mcp.pscale.dev/mcp/planetscale"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/planetscale.png"
+    supports_dcr: true
+    description: >-
+      Manage PlanetScale organizations, databases, branches, schemas, Insights,
+      and SQL queries.
+
+  - name: "Porkbun"
+    url: "https://mcp.porkbun.com/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/porkbun.png"
+    supports_dcr: true
+    description: >-
+      Manages Porkbun domains, DNS, hosting, forwarding, certificates, and
+      account services.
+
+  - name: "PostHog"
+    url: "https://mcp.posthog.com/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/posthog.png"
+    supports_dcr: true
+    description: >-
+      PostHog's remote MCP server lets AI assistants query product analytics and
+      work with projects, insights, dashboards, feature flags, experiments, and
+      related debugging data using the signed-in user's access.
+
+  - name: "Praiz"
     url: "https://mcp.praiz.io/mcp"
     auth_type: oauth2
     icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/praiz.jpg"
@@ -238,10 +1394,37 @@ servers:
       Praiz is an AI meeting platform that records and transcribes sales and
       customer calls across tools like Zoom, Google Meet, and Microsoft Teams,
       turning conversations into structured, CRM-ready data. Its read-only MCP
-      server lets an AI assistant search and retrieve meeting videos, transcripts,
-      participants, comments, and usage insights from a Praiz workspace.
+      server lets an AI assistant search and retrieve meeting videos,
+      transcripts, participants, comments, and usage insights from a Praiz
+      workspace.
 
-  - name: Puppetflow
+  - name: "Prisma"
+    url: "https://mcp.prisma.io/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/prisma.png"
+    supports_dcr: true
+    description: >-
+      Manage Prisma Postgres databases, SQL, backups, Compute deployments, and
+      Object Storage.
+
+  - name: "Process Street"
+    url: "https://mcp.process.st/"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/process-street.png"
+    supports_dcr: true
+    description: >-
+      Operate Process Street workflows, workflow runs, tasks, datasets, and
+      permissions.
+
+  - name: "Productive"
+    url: "https://mcp.productive.io/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/productive.png"
+    supports_dcr: true
+    description: >-
+      Manage Productive projects, tasks, time tracking, budgets, and invoicing.
+
+  - name: "Puppetflow"
     url: "https://mcp.puppetflow.com/mcp"
     auth_type: oauth2
     icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/puppetflow.png"
@@ -252,7 +1435,111 @@ servers:
       run flows, inspect runs and artifacts, and manage workspace automation
       through each user's existing permissions.
 
-  - name: Salesforce
+  - name: "Pylon"
+    url: "https://mcp.usepylon.com"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/pylon.png"
+    supports_dcr: true
+    description: >-
+      Read and update Pylon issues, accounts, contacts, knowledge articles,
+      tasks, and projects.
+
+  - name: "Qonto"
+    url: "https://mcp.qonto.com/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/qonto.png"
+    supports_dcr: true
+    description: >-
+      Manage Qonto business banking data including transactions, invoices,
+      cards, and clients.
+
+  - name: "QuickNode"
+    url: "https://mcp.quicknode.com/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/quicknode.png"
+    supports_dcr: true
+    description: >-
+      Manage QuickNode blockchain endpoints, usage, security rules, and billing.
+
+  - name: "Railway"
+    url: "https://mcp.railway.com"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/railway.png"
+    supports_dcr: true
+    description: >-
+      Create Railway projects, deploy services, manage environments, and
+      diagnose deployments.
+
+  - name: "Rally"
+    url: "https://mcp.rallyuxr.com/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/rally.png"
+    supports_dcr: true
+    description: >-
+      Manage Rally UX research studies, participants, recruiting, scheduling,
+      and study data.
+
+  - name: "Razorpay"
+    url: "https://mcp.razorpay.com/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/razorpay.png"
+    supports_dcr: true
+    description: >-
+      Create and track Razorpay payments, orders, refunds, settlements, payouts,
+      and payment links.
+
+  - name: "Render"
+    url: "https://mcp.render.com/mcp"
+    auth_type: api_key
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/render.svg"
+    description: >-
+      Manage Render services, deploys, logs, environment groups, and
+      infrastructure using a Bearer API key.
+
+  - name: "Replit"
+    url: "https://mcp.replit.com/server/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/replit.png"
+    supports_dcr: true
+    description: >-
+      Create and manage applications and authorized workspace resources in
+      Replit.
+
+  - name: "Resend"
+    url: "https://mcp.resend.com/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/resend.svg"
+    supports_dcr: true
+    description: >-
+      Access Resend email, domain, contact, audience, template, and webhook
+      operations.
+
+  - name: "Roboflow"
+    url: "https://mcp.roboflow.com/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/roboflow.svg"
+    supports_dcr: true
+    description: >-
+      Work with Roboflow computer-vision projects, datasets, models, workflows,
+      and deployments.
+
+  - name: "RocketReach"
+    url: "https://mcp.rocketreach.co/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/rocketreach.ico"
+    supports_dcr: true
+    description: >-
+      Search RocketReach companies and people and retrieve authorized
+      professional contact data.
+
+  - name: "Sabre Developer Hub MCP Server"
+    url: "https://developer.mcp.sabre.com/mcp"
+    auth_type: none
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/sabre-developer-hub-mcp-server.png"
+    description: >-
+      Searches current Sabre API, SDK, product, and integration documentation.
+
+  - name: "Salesforce"
     url: "https://api.salesforce.com/platform/mcp/v1/platform/headless-360"
     auth_type: oauth2
     icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/salesforce.svg"
@@ -263,29 +1550,81 @@ servers:
       field, and sharing permissions and requires an External Client App with
       the MCP API OAuth scope.
 
-  - name: Sentry
+  - name: "Savvly"
+    url: "https://api.savvly.com/mcp"
+    auth_type: none
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/savvly.png"
+    description: >-
+      Provides public retirement-product information, eligibility checks,
+      comparisons, and projections.
+
+  - name: "Sealmetrics"
+    url: "https://mcp.sealmetrics.com/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/sealmetrics.jpg"
+    supports_dcr: true
+    description: >-
+      Queries privacy-first traffic, conversion, campaign, funnel, and event
+      analytics.
+
+  - name: "Sendd"
+    url: "https://sendd.dev/mcp"
+    auth_type: oauth2
+    supports_dcr: true
+    description: >-
+      Manages Sendd products, orders, customers, subscriptions, discounts,
+      events, and sales analytics.
+
+  - name: "Sentry"
     url: "https://mcp.sentry.dev/mcp"
     auth_type: oauth2
     icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/sentry.png"
     supports_dcr: true
     description: >-
-      The Sentry MCP Server provides a secure way of bringing Sentry's full issue
-      context into systems that are able to leverage the Model Context Protocol
-      (MCP). Sentry hosts and manages a remote MCP server, which you can connect
-      to and leverage centrally.
+      The Sentry MCP Server provides a secure way of bringing Sentry's full
+      issue context into systems that are able to leverage the Model Context
+      Protocol (MCP). Sentry hosts and manages a remote MCP server, which you
+      can connect to and leverage centrally.
 
-  - name: Slack
+  - name: "Sequentum"
+    url: "https://mcp.sequentum.com/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/sequentum.png"
+    supports_dcr: true
+    description: >-
+      Lists, runs, schedules, and monitors Sequentum web-data agents.
+
+  - name: "Shiplab"
+    url: "https://mcp.shiplab.com/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/shiplab.png"
+    supports_dcr: true
+    description: >-
+      Accesses carrier invoices, shipments, charges, and parcel-cost data in a
+      Shiplab organization.
+
+  - name: "ShopMCP"
+    url: "https://my.shop-mcp.app/api/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/shopmcp.png"
+    supports_dcr: true
+    description: >-
+      Provides workspace-scoped ecommerce, advertising, analytics, inventory,
+      and finance tools configured in ShopMCP.
+
+  - name: "Slack"
     url: "https://mcp.slack.com/mcp"
     auth_type: oauth2
     icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/slack.png"
     supports_dcr: false
     description: >-
-      The Slack MCP server provides tools for searching through Slack, retrieving
-      and sending messages, managing canvases, and managing users. Each of these
-      tools provides useful functionality for interacting with Slack; combine them
-      for comprehensive integrations that grasp your team's context and history.
+      The Slack MCP server provides tools for searching through Slack,
+      retrieving and sending messages, managing canvases, and managing users.
+      Each of these tools provides useful functionality for interacting with
+      Slack; combine them for comprehensive integrations that grasp your team's
+      context and history.
 
-  - name: Slides
+  - name: "Slides"
     url: "https://slidesmcp.googleapis.com/mcp/v1"
     auth_type: oauth2
     icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/slides.png"
@@ -294,7 +1633,42 @@ servers:
       Google Slides offers a remote Model Context Protocol (MCP) server that
       allows AI agents to securely interact with Google Slides data.
 
-  - name: Stripe
+  - name: "Solo"
+    url: "https://app.asksolo.ai/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/solo.png"
+    supports_dcr: true
+    description: >-
+      Answers product questions from an organization's connected code,
+      documentation, issue, and support sources.
+
+  - name: "Sonos"
+    url: "https://mcp.ws.sonos.com/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/sonos.ico"
+    supports_dcr: true
+    description: >-
+      Controls authorized Sonos playback, volume, rooms, and speaker groups.
+
+  - name: "Stellar Raven"
+    url: "https://raven.stellar.org/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/stellar-raven.jpg"
+    supports_dcr: true
+    description: >-
+      Searches Stellar documentation, live ecosystem data, community
+      intelligence, and operational playbooks.
+
+  - name: "Storyblok"
+    url: "https://mcp.storyblok.com/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/storyblok.png"
+    supports_dcr: true
+    description: >-
+      Manages Storyblok spaces, content, components, and assets through its
+      Management API.
+
+  - name: "Stripe"
     url: "https://mcp.stripe.com"
     auth_type: oauth2
     icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/stripe.png"
@@ -304,39 +1678,107 @@ servers:
       AI agents can use to interact with the Stripe API and search our knowledge
       base (including documentation and support articles).
 
-  - name: Supabase
+  - name: "Suger"
+    url: "https://apiv2.suger.cloud/mcp"
+    auth_type: oauth2
+    supports_dcr: true
+    description: >-
+      Manages cloud-marketplace products, offers, buyers, entitlements,
+      metering, revenue, and co-sell workflows.
+
+  - name: "Sugra API"
+    url: "https://mcp.sugra.ai/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/sugra-api.png"
+    supports_dcr: true
+    description: >-
+      Queries Sugra's normalized economic, market, weather, geographic, and
+      other public-source datasets.
+
+  - name: "Supabase"
     url: "https://mcp.supabase.com/mcp"
     auth_type: oauth2
     icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/supabase.png"
     supports_dcr: true
     description: >-
-      The Model Context Protocol (MCP) is a standard for connecting Large Language
-      Models (LLMs) to platforms like Supabase. Once connected, your AI assistants
-      can interact with and query your Supabase projects on your behalf.
+      The Model Context Protocol (MCP) is a standard for connecting Large
+      Language Models (LLMs) to platforms like Supabase. Once connected, your AI
+      assistants can interact with and query your Supabase projects on your
+      behalf.
 
-  - name: Tavily
+  - name: "Superhuman Mail"
+    url: "https://mcp.mail.superhuman.com/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/superhuman-mail.png"
+    supports_dcr: true
+    description: >-
+      Searches, drafts, sends, and manages email and calendar data connected to
+      Superhuman Mail.
+
+  - name: "Tavily"
     url: "https://mcp.tavily.com/mcp"
     auth_type: api_key
     icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/tavily.svg"
     description: >-
-      Tavily is a web search and data extraction API built for AI agents. Its MCP
-      server gives an AI assistant real-time tools to search the web, extract
-      structured content from URLs, and map or crawl websites, returning clean,
-      LLM-ready results.
+      Tavily is a web search and data extraction API built for AI agents. Its
+      MCP server gives an AI assistant real-time tools to search the web,
+      extract structured content from URLs, and map or crawl websites, returning
+      clean, LLM-ready results.
 
-  - name: Teamtailor
+  - name: "TaxAct"
+    url: "https://mcp.taxact.com/mcp"
+    auth_type: none
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/taxact.svg"
+    description: >-
+      Provides current-year tax guidance, filing-cost comparisons, document
+      checklists, and simple estimates.
+
+  - name: "Teamtailor"
     url: "https://mcp.teamtailor.com/mcp"
     auth_type: oauth2
     icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/teamtailor.png"
     supports_dcr: true
     description: >-
       Connect AI assistants like ChatGPT and Claude to your Teamtailor account
-      using the Model Context Protocol (MCP). Once connected, you can use your AI
-      assistant to interact with Teamtailor using natural language. Ask questions,
-      complete recruitment tasks, and streamline everyday workflows based on your
-      existing Teamtailor permissions.
+      using the Model Context Protocol (MCP). Once connected, you can use your
+      AI assistant to interact with Teamtailor using natural language. Ask
+      questions, complete recruitment tasks, and streamline everyday workflows
+      based on your existing Teamtailor permissions.
 
-  - name: TikTok
+  - name: "Textalize"
+    url: "https://mcp.textalize.ai/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/textalize.png"
+    supports_dcr: true
+    description: >-
+      Retrieves recorded meetings, summaries, transcripts, decisions, blockers,
+      action items, and playlists.
+
+  - name: "The Chancery Lane Project"
+    url: "https://mcp.chancerylaneproject.org/mcp"
+    auth_type: none
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/the-chancery-lane-project.png"
+    description: >-
+      Searches climate-aligned contract clauses, glossary terms, and
+      implementation guides.
+
+  - name: "Thunders"
+    url: "https://api.thunders.ai/v1/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/thunders.png"
+    supports_dcr: true
+    description: >-
+      Creates, runs, and debugs software tests in authorized Thunders projects.
+
+  - name: "Tigris"
+    url: "https://mcp.storage.dev/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/tigris.png"
+    supports_dcr: true
+    description: >-
+      Manages Tigris object-storage buckets, objects, snapshots, and forks.
+
+  - name: "TikTok"
     url: "https://business-api.tiktok.com/open_mcp/tt-ads-mcp-layer"
     auth_type: oauth2
     icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/tiktok.png"
@@ -344,8 +1786,246 @@ servers:
     description: >-
       TikTok for Business MCP Server is a standardized bridge built on the Model
       Context Protocol (MCP) that enables developers and advertisers to connect
-      AI agents directly to the TikTok Ads platform. By exposing core advertising
-      functions (campaign management, performance reporting, audience
-      configuration, and creative operations) as a set of reliable,
-      production-ready tools, the MCP Server allows AI agents to manage, optimize,
-      and report on TikTok advertising through simple, structured instructions.
+      AI agents directly to the TikTok Ads platform. By exposing core
+      advertising functions (campaign management, performance reporting,
+      audience configuration, and creative operations) as a set of reliable,
+      production-ready tools, the MCP Server allows AI agents to manage,
+      optimize, and report on TikTok advertising through simple, structured
+      instructions.
+
+  - name: "Timeless"
+    url: "https://api.timeless.day/mcp/"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/timeless.png"
+    supports_dcr: true
+    description: >-
+      Accesses Timeless meetings, transcripts, rooms, documents, recordings, and
+      webhooks.
+
+  - name: "Todoist"
+    url: "https://ai.todoist.net/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/todoist.png"
+    supports_dcr: true
+    description: >-
+      Todoist's remote MCP server lets AI assistants find, create, update, and
+      complete tasks and projects through the authenticated user's Todoist
+      account.
+
+  - name: "Token Terminal"
+    url: "https://mcp.tokenterminal.com/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/token-terminal.png"
+    supports_dcr: true
+    description: >-
+      Queries Token Terminal's standardized blockchain projects, chains,
+      sectors, financial metrics, and methodologies.
+
+  - name: "Trademo Hermes"
+    url: "https://trademo-gbs-mcp.trademo.com/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/trademo-hermes.png"
+    supports_dcr: true
+    description: >-
+      Searches global shipment records, company trade profiles, buyers,
+      suppliers, and commodity flows.
+
+  - name: "TrueProfit"
+    url: "https://mcp.trueprofit.io/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/trueprofit.png"
+    supports_dcr: true
+    description: >-
+      Queries connected Shopify profit, orders, products, advertising,
+      customers, and shipping data.
+
+  - name: "TrustFoundry Legal Search and Reasoning"
+    url: "https://mcp.trustfoundry.ai/api/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/trustfoundry-legal-search-and-reasoning.png"
+    supports_dcr: true
+    description: >-
+      Performs read-only US legal research, citation validation, result
+      retrieval, and usage checks.
+
+  - name: "Trustgrid"
+    url: "https://mcp.trustgrid.io/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/trustgrid.jpg"
+    supports_dcr: true
+    description: >-
+      Queries and reports Trustgrid network resources, status, configuration,
+      and live diagnostics.
+
+  - name: "Typefully"
+    url: "https://mcp.typefully.com/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/typefully.png"
+    supports_dcr: true
+    description: >-
+      Creates and schedules social posts through an authorized Typefully
+      account.
+
+  - name: "Ubersuggest"
+    url: "https://ubersuggest-mcp.neilpatelapi.com/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/ubersuggest.ico"
+    supports_dcr: true
+    description: >-
+      Provides keyword research, competitor analysis, backlink data, site
+      audits, and AI-search visibility.
+
+  - name: "Upflow"
+    url: "https://api.upflow.io/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/upflow.png"
+    supports_dcr: true
+    description: >-
+      Queries accounts-receivable invoices, collections, customer activity, and
+      cash-application data.
+
+  - name: "UptimeRobot"
+    url: "https://mcp.uptimerobot.com/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/uptimerobot.png"
+    supports_dcr: true
+    description: >-
+      Reads and manages UptimeRobot monitors, statuses, statistics, incidents,
+      and integrations.
+
+  - name: "Varify"
+    url: "https://app.varify.io/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/varify.png"
+    supports_dcr: true
+    description: >-
+      Creates, configures, runs, and analyzes A/B testing experiments in Varify.
+
+  - name: "Veltra Activities"
+    url: "https://ai.veltra.com/veltra/mcp"
+    auth_type: none
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/veltra-activities.svg"
+    description: >-
+      Searches Veltra tours and activities with prices, ratings, durations, and
+      booking links.
+
+  - name: "Vendizap"
+    url: "https://api-docs.vendizap.com/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/vendizap.png"
+    supports_dcr: true
+    description: >-
+      Manages Vendizap products, categories, inventory, orders, and discounts.
+
+  - name: "Virlo Social Media Brain"
+    url: "https://dev.virlo.ai/api/mcp/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/virlo-social-media-brain.png"
+    supports_dcr: true
+    description: >-
+      Searches short-form videos, creators, trends, hashtags, and
+      content-performance data in Virlo.
+
+  - name: "Vitally"
+    url: "https://mcp.vitally.io/mcp/v0"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/vitally.jpg"
+    supports_dcr: true
+    description: >-
+      Accesses customer health, renewals, account records, notes, and
+      customer-success workflows in Vitally.
+
+  - name: "Vori"
+    url: "https://mcp.vori.com"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/vori.png"
+    supports_dcr: true
+    description: >-
+      Accesses authorized grocery products, departments, inventory, invoices,
+      and related store data.
+
+  - name: "Vuetify"
+    url: "https://mcp.vuetifyjs.com/mcp"
+    auth_type: none
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/vuetify.svg"
+    description: >-
+      Searches current Vuetify component APIs, guides, release notes, and
+      migration documentation.
+
+  - name: "Webdock"
+    url: "https://mcp.webdock.io"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/webdock.png"
+    supports_dcr: true
+    description: >-
+      Deploys and manages Webdock cloud servers and account resources.
+
+  - name: "Within"
+    url: "https://api.within.ai/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/within.ico"
+    supports_dcr: true
+    description: >-
+      Provides a read-only view of an organization's process intelligence and
+      process knowledge graph.
+
+  - name: "Wiv"
+    url: "https://mcp.wiv.ai/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/wiv.png"
+    supports_dcr: true
+    description: >-
+      Runs and inspects FinOps workflows, cases, cloud operations, datastores,
+      and dashboards.
+
+  - name: "WP Agent"
+    url: "https://mcp.getwpagent.com/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/wp-agent.jpg"
+    supports_dcr: true
+    description: >-
+      Publishes and manages authorized WordPress posts, pages, media, SEO,
+      comments, menus, plugins, and settings.
+
+  - name: "Yespark"
+    url: "https://mcp-public.yespark.fr/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/yespark.jpg"
+    supports_dcr: true
+    description: >-
+      Searches bookable Yespark and Zenpark parking locations without exposing
+      payment or personal account data.
+
+  - name: "ZenHR"
+    url: "https://app.zenhr.com/zen_mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/zenhr.png"
+    supports_dcr: true
+    description: >-
+      Provides read-only workforce reports, HR metrics, and organizational
+      insights from ZenHR.
+
+  - name: "Zight"
+    url: "https://mcp.zight.com/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/zight.png"
+    supports_dcr: true
+    description: >-
+      Retrieves authorized Zight recordings, transcripts, OCR text, console
+      logs, and network details.
+
+  - name: "ココナラ"
+    url: "https://mcp.ai-assist.coconala.com/mcp"
+    auth_type: none
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/coconala.png"
+    description: >-
+      Searches and recommends services listed in Coconala's skills marketplace.
+
+  - name: "中央社新聞 CNA TAIWAN NEWS"
+    url: "https://ask.cna.com.tw/mcp/connect"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/cna-taiwan-news.png"
+    supports_dcr: true
+    description: >-
+      Searches Central News Agency news, photographs, almanac material, and
+      fact-checking resources.
