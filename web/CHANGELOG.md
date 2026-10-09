@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.11.25](https://github.com/jr-k/auxilia/compare/web-v0.11.24...web-v0.11.25) (2026-10-09)
+
+
+### Features
+
+* **mcp:** add shared service identities ([4e4b881](https://github.com/jr-k/auxilia/commit/4e4b8815867ff253197d07e31ed79ac224783d5a))
+
+
+### Bug Fixes
+
+* **mcp:** make custom HTTP a separate auth method ([741a5c2](https://github.com/jr-k/auxilia/commit/741a5c299c78c94a71c76d5c6d73e4f056bd57a1))
+
 ## [0.11.24](https://github.com/jr-k/auxilia/compare/web-v0.11.23...web-v0.11.24) (2026-10-08)
 
 
