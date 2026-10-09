@@ -301,27 +301,29 @@ export default function AgentMCPServer({
 				<span className="truncate text-[13.5px] font-semibold text-foreground">
 					{server.name}
 				</span>
-				{!isCheckingConnection &&
-					(isConnected ? (
-						<span className="rounded-[4px] bg-success-bg px-2 py-0.5 text-[9.5px] font-semibold text-success">
-							Connected
-						</span>
-					) : (
-						<span className="rounded-[4px] bg-[#FBEFED] px-2 py-0.5 text-[9.5px] font-semibold text-[#B04A3A]">
-							Not connected
-						</span>
-					))}
-				<button
-					onClick={handleToggleExpand}
-					aria-label={isExpanded ? "Collapse" : "Expand"}
-					className="ml-auto cursor-pointer p-1 text-meta transition-colors hover:text-foreground dark:text-panel-dim"
-				>
-					<ChevronRight
-						className={`size-4 transition-transform ${
-							isExpanded ? "rotate-90" : ""
-						}`}
-					/>
-				</button>
+				<div className="ml-auto flex shrink-0 items-center gap-2">
+					{!isCheckingConnection &&
+						(isConnected ? (
+							<span className="rounded-[4px] bg-success-bg px-2 py-0.5 text-[9.5px] font-semibold text-success">
+								Connected
+							</span>
+						) : (
+							<span className="rounded-[4px] bg-[#FBEFED] px-2 py-0.5 text-[9.5px] font-semibold text-[#B04A3A]">
+								Not connected
+							</span>
+						))}
+					<button
+						onClick={handleToggleExpand}
+						aria-label={isExpanded ? "Collapse" : "Expand"}
+						className="cursor-pointer p-1 text-meta transition-colors hover:text-foreground dark:text-panel-dim"
+					>
+						<ChevronRight
+							className={`size-4 transition-transform ${
+								isExpanded ? "rotate-90" : ""
+							}`}
+						/>
+					</button>
+				</div>
 			</div>
 
 			{isExpanded && (
