@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { KeyRound, Unplug } from "lucide-react";
+import { KeyRound, ServerCog, Unplug } from "lucide-react";
 import * as mcpServersApi from "@/lib/api/resources/mcp-servers";
 import { getApiErrorMessage } from "@/lib/api/errors";
 import { useConfirmDialog } from "@/components/providers/dialog-provider";
@@ -34,18 +34,31 @@ function StatusBadge({ status }: { status: MCPServerConnection["status"] }) {
 /** Right panel of a non-OAuth server: nothing per-user to manage. */
 function CredentialNote({ authType }: { authType: Exclude<MCPAuthType, "oauth2"> }) {
 	const isApiKey = authType === "api_key";
+	const isServiceIdentity = authType === "service_identity";
 	return (
 		<div className="flex items-start gap-3.5 rounded-[10px] border border-border bg-card p-[18px]">
 			<span className="flex size-[34px] shrink-0 items-center justify-center rounded-[9px] bg-petrol-tint text-petrol">
-				{isApiKey ? <KeyRound className="size-4" /> : <Unplug className="size-4" />}
+				{isApiKey ? (
+					<KeyRound className="size-4" />
+				) : isServiceIdentity ? (
+					<ServerCog className="size-4" />
+				) : (
+					<Unplug className="size-4" />
+				)}
 			</span>
 			<div className="min-w-0">
 				<div className="text-[13.5px] font-semibold text-foreground">
-					{isApiKey ? "Workspace credential" : "Open endpoint"}
+					{isApiKey
+						? "Workspace credential"
+						: isServiceIdentity
+							? "Service identity"
+							: "Open endpoint"}
 				</div>
 				<div className="mt-1 text-[12.5px] leading-[1.55] text-subtle dark:text-panel-body">
 					{isApiKey
 						? "Everyone uses the single API key configured on this server, there are no per-user connections to manage."
+						: isServiceIdentity
+							? "Everyone uses the managed service identity configured on this server, while access remains controlled by workspace visibility and agent permissions."
 						: "This server requires no credentials, there are no per-user connections to manage."}
 				</div>
 			</div>
@@ -92,8 +105,25 @@ export function ConnectedUsersPanel({
 
 	useEffect(() => {
 		if (!canView) return;
-		void fetchConnections();
-	}, [canView, fetchConnections]);
+		let active = true;
+		void mcpServersApi
+			.listMcpServerConnections(serverId)
+			.then((nextConnections) => {
+				if (!active) return;
+				setConnections(nextConnections);
+				setError(null);
+			})
+			.catch((err: unknown) => {
+				if (!active) return;
+				setError(getApiErrorMessage(err, "Failed to load connections."));
+			})
+			.finally(() => {
+				if (active) setIsLoading(false);
+			});
+		return () => {
+			active = false;
+		};
+	}, [canView, serverId]);
 
 	if (authType !== "oauth2") {
 		return <CredentialNote authType={authType} />;

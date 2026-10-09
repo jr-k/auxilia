@@ -179,6 +179,7 @@ class AgentMCPServerService(BaseService[AgentMCPServerDB, AgentMCPServerReposito
         should_fetch = mcp_server.auth_type in (
             MCPAuthType.none,
             MCPAuthType.api_key,
+            MCPAuthType.service_identity,
         ) or (
             mcp_server.auth_type == MCPAuthType.oauth2
             and await is_authorized(

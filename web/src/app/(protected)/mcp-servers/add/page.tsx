@@ -20,13 +20,13 @@ import { requiresStaticOAuthCredentials } from "../lib/mcp-server-create-form";
 
 function CatalogCard({
 	server,
-	isAdded,
+	configuredCount,
 	isPending,
 	disabled,
 	onAdd,
 }: {
 	server: OfficialMCPServer;
-	isAdded: boolean;
+	configuredCount: number;
 	isPending: boolean;
 	/** Any add in flight locks every card — prevents duplicate submissions. */
 	disabled: boolean;
@@ -56,22 +56,25 @@ function CatalogCard({
 			<p className="m-0 min-h-[7.5em] flex-1 text-[12.5px] leading-[1.5] text-subtle line-clamp-5 dark:text-panel-body">
 				{server.description || "No description provided."}
 			</p>
-			<div className="flex items-center justify-end">
-				{isAdded ? (
+			<div className="flex items-center gap-3">
+				{configuredCount > 0 && (
 					<span className="inline-flex items-center gap-1.5 rounded-[7px] bg-hover px-[13px] py-1.5 text-[12.5px] font-semibold text-meta dark:bg-white/10 dark:text-panel-dim">
-						✓ Added
+						{configuredCount} configured
 					</span>
-				) : (
-					<button
-						type="button"
-						disabled={disabled}
-						onClick={onAdd}
-						className="inline-flex cursor-pointer items-center gap-1.5 rounded-[7px] bg-petrol px-[15px] py-1.5 text-[12.5px] font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-default disabled:opacity-60"
-					>
-						{isPending && <Loader2 className="size-3 animate-spin" />}
-						{isPending ? "Adding…" : "Add"}
-					</button>
 				)}
+				<button
+					type="button"
+					disabled={disabled}
+					onClick={onAdd}
+					className="ml-auto inline-flex cursor-pointer items-center gap-1.5 rounded-[7px] bg-petrol px-[15px] py-1.5 text-[12.5px] font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-default disabled:opacity-60"
+				>
+					{isPending && <Loader2 className="size-3 animate-spin" />}
+					{isPending
+						? "Adding…"
+						: configuredCount > 0
+							? "Add another"
+							: "Add"}
+				</button>
 			</div>
 		</div>
 	);
@@ -87,8 +90,7 @@ export default function AddMCPServerPage() {
 	);
 	const [isLoading, setIsLoading] = useState(true);
 	const [searchQuery, setSearchQuery] = useState("");
-	// Catalog entries are file rows with no id — `url` is their identity.
-	const [addedUrls, setAddedUrls] = useState<Set<string>>(new Set());
+	const [addedCounts, setAddedCounts] = useState<Map<string, number>>(new Map());
 	const [pendingUrl, setPendingUrl] = useState<string | null>(null);
 	const [submitError, setSubmitError] = useState<string | null>(null);
 	const [forbiddenOpen, setForbiddenOpen] = useState(false);
@@ -146,7 +148,11 @@ export default function AddMCPServerPage() {
 				description: server.description || undefined,
 				iconUrl: server.iconUrl || undefined,
 			});
-			setAddedUrls((prev) => new Set(prev).add(server.url));
+			setAddedCounts((previous) => {
+				const next = new Map(previous);
+				next.set(server.url, (next.get(server.url) ?? 0) + 1);
+				return next;
+			});
 			toast.success(`${server.name} added to the workspace`);
 		} catch (error: unknown) {
 			if (error instanceof Object && "status" in error && error.status === 403) {
@@ -231,7 +237,10 @@ export default function AddMCPServerPage() {
 										<CatalogCard
 											key={server.url}
 											server={server}
-											isAdded={server.isInstalled || addedUrls.has(server.url)}
+											configuredCount={
+												(server.installedCount ?? 0) +
+												(addedCounts.get(server.url) ?? 0)
+											}
 											isPending={pendingUrl === server.url}
 											disabled={pendingUrl !== null}
 											onAdd={() => {

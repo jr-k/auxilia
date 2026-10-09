@@ -2,7 +2,12 @@ import logging
 from datetime import UTC, datetime, timedelta
 
 from mcp.client.auth import TokenStorage
-from mcp.shared.auth import OAuthClientInformationFull, OAuthMetadata, OAuthToken
+from mcp.shared.auth import (
+    OAuthClientInformationFull,
+    OAuthMetadata,
+    OAuthToken,
+    ProtectedResourceMetadata,
+)
 from pydantic import BaseModel
 from redis.asyncio import Redis
 
@@ -56,6 +61,9 @@ class RedisTokenStorage(TokenStorage):
 
     def _oauth_metadata_key(self) -> str:
         return f"{self._base()}:oauth_metadata"
+
+    def _protected_resource_metadata_key(self) -> str:
+        return f"{self._base()}:protected_resource_metadata"
 
     @staticmethod
     def _state_key(state: str, prefix: str = "mcp") -> str:
@@ -116,8 +124,8 @@ class RedisTokenStorage(TokenStorage):
         )
 
     async def delete_tokens(self) -> None:
-        """Forget the stored token pair, keeping client info and AS metadata so
-        the next authorization skips dynamic registration."""
+        """Forget the token pair, keeping client and discovery metadata so the
+        next authorization skips dynamic registration."""
         await self.redis.delete(self._tokens_key())
 
     async def get_client_info(self) -> OAuthClientInformationFull | None:
@@ -143,6 +151,22 @@ class RedisTokenStorage(TokenStorage):
         if not raw:
             return None
         return OAuthMetadata.model_validate_json(raw)
+
+    async def set_protected_resource_metadata(
+        self, metadata: ProtectedResourceMetadata
+    ) -> None:
+        await self.redis.set(
+            self._protected_resource_metadata_key(),
+            metadata.model_dump_json(),
+        )
+
+    async def get_protected_resource_metadata(
+        self,
+    ) -> ProtectedResourceMetadata | None:
+        raw = await self.redis.get(self._protected_resource_metadata_key())
+        if not raw:
+            return None
+        return ProtectedResourceMetadata.model_validate_json(raw)
 
     async def set_verifier(self, state: str, verifier: str) -> None:
         """Store OAuth state data including user_id, mcp_server_id, and verifier."""
@@ -257,7 +281,7 @@ class TokenStorageFactory:
         """Delete all Redis keys for one user's connection to an MCP server.
 
         Scans for keys matching mcp:{user_id}:{mcp_server_id}:* and deletes
-        them (tokens, client info, OAuth metadata).
+        them (tokens, client info, AS and protected-resource metadata).
 
         Returns:
             Number of keys deleted.

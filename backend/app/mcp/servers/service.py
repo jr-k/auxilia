@@ -11,7 +11,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.agents.core.repository import AgentRepository
 from app.database import get_db
 from app.exceptions import (
-    AlreadyExistsError,
     DomainValidationError,
     NotFoundError,
 )
@@ -22,6 +21,7 @@ from app.mcp.client.connectivity import (
     is_authorized,
 )
 from app.mcp.client.exceptions import OAuthAuthorizationRequired
+from app.mcp.client.service_credentials import validate_service_credential
 from app.mcp.client.storage import TokenStorageFactory
 from app.mcp.servers import catalog as mcp_catalog
 from app.mcp.servers.models import MCPAuthType, MCPServerDB, MCPServerImageDB
@@ -104,12 +104,23 @@ class MCPServerService(BaseService[MCPServerDB, MCPServerRepository]):
         await self.repository.delete_image(server_id)
 
     async def create(self, data: MCPServerCreate, owner_id: UUID) -> MCPServerDB:
-        if await self.repository.get_by_url(data.url):
-            raise AlreadyExistsError("An MCP server with this URL already exists")
-
         if data.auth_type == MCPAuthType.api_key and not data.api_key:
             raise DomainValidationError(
                 "API key is required when auth_type is 'api_key'"
+            )
+        service_credential = None
+        service_provider = data.service_credential_provider
+        service_credentials_json = data.service_credentials_json
+        if data.auth_type == MCPAuthType.service_identity:
+            if not service_provider or not service_credentials_json:
+                raise DomainValidationError(
+                    "A credential provider and credentials are required for "
+                    "service-identity auth"
+                )
+            service_credential = validate_service_credential(
+                service_provider,
+                service_credentials_json,
+                data.service_credential_scopes,
             )
 
         await self._validate_team_ids(data.team_ids)
@@ -131,6 +142,15 @@ class MCPServerService(BaseService[MCPServerDB, MCPServerRepository]):
                 data.oauth_client_id,
                 data.oauth_client_secret,
                 data.oauth_token_endpoint_auth_method,
+            )
+        if service_credential is not None:
+            assert service_provider is not None and service_credentials_json is not None
+            await self.repository.create_or_update_service_credential(
+                db_server.id,
+                provider=service_provider,
+                credentials_json=service_credentials_json,
+                scopes=service_credential.scopes,
+                principal=service_credential.principal,
             )
 
         return db_server
@@ -173,6 +193,11 @@ class MCPServerService(BaseService[MCPServerDB, MCPServerRepository]):
         if server.auth_type == MCPAuthType.oauth2:
             creds = await self.repository.get_oauth_credentials(server.id)
             oauth_client_id = creds.client_id if creds else None
+        service_creds = (
+            await self.repository.get_service_credential(server.id)
+            if server.auth_type == MCPAuthType.service_identity
+            else None
+        )
         team_ids = (
             await self.repository.list_team_ids(server.id)
             if server.visibility == ResourceVisibility.teams
@@ -181,6 +206,13 @@ class MCPServerService(BaseService[MCPServerDB, MCPServerRepository]):
         return MCPServerResponse(
             **server.model_dump(),
             oauth_client_id=oauth_client_id,
+            service_credential_provider=(
+                service_creds.provider if service_creds else None
+            ),
+            service_credential_principal=(
+                service_creds.principal if service_creds else None
+            ),
+            service_credential_scopes=(service_creds.scopes if service_creds else []),
             team_ids=team_ids,
         )
 
@@ -199,11 +231,11 @@ class MCPServerService(BaseService[MCPServerDB, MCPServerRepository]):
         return OAuthSecretHint(is_set=True, last4=last4, length=len(secret))
 
     async def list_responses(self, user: UserDB) -> list[MCPServerResponse]:
-        rows = await self.repository.list_with_oauth_client_id()
+        rows = await self.repository.list_with_credential_metadata()
         team_ids = await self.repository.list_team_ids_for_servers(
             [
                 server.id
-                for server, _ in rows
+                for server, *_ in rows
                 if server.visibility == ResourceVisibility.teams
             ]
         )
@@ -216,8 +248,29 @@ class MCPServerService(BaseService[MCPServerDB, MCPServerRepository]):
                 oauth_client_id=(
                     client_id if server.auth_type == MCPAuthType.oauth2 else None
                 ),
+                service_credential_provider=(
+                    service_provider
+                    if server.auth_type == MCPAuthType.service_identity
+                    else None
+                ),
+                service_credential_principal=(
+                    service_principal
+                    if server.auth_type == MCPAuthType.service_identity
+                    else None
+                ),
+                service_credential_scopes=(
+                    service_scopes or []
+                    if server.auth_type == MCPAuthType.service_identity
+                    else []
+                ),
             )
-            for server, client_id in rows
+            for (
+                server,
+                client_id,
+                service_provider,
+                service_principal,
+                service_scopes,
+            ) in rows
             if is_resource_visible(
                 visibility=server.visibility,
                 owner_id=server.owner_id,
@@ -291,6 +344,8 @@ class MCPServerService(BaseService[MCPServerDB, MCPServerRepository]):
                 await self.repository.delete_credentials(server_id, api_key=True)
             elif previous_auth_type == MCPAuthType.oauth2:
                 await self.repository.delete_credentials(server_id, api_key=False)
+            elif previous_auth_type == MCPAuthType.service_identity:
+                await self.repository.delete_service_credential(server_id)
 
         if data.api_key:
             await self.repository.create_or_update_api_key(server_id, data.api_key)
@@ -308,6 +363,40 @@ class MCPServerService(BaseService[MCPServerDB, MCPServerRepository]):
                 client_id=data.oauth_client_id or None,
                 client_secret=data.oauth_client_secret or None,
                 auth_method=data.oauth_token_endpoint_auth_method or None,
+            )
+
+        service_fields_changed = (
+            data.service_credential_provider is not None
+            or data.service_credentials_json is not None
+            or data.service_credential_scopes is not None
+        )
+        if updated.auth_type == MCPAuthType.service_identity and (
+            service_fields_changed or previous_auth_type != MCPAuthType.service_identity
+        ):
+            existing = await self.repository.get_service_credential(server_id)
+            provider = data.service_credential_provider or (
+                existing.provider if existing else None
+            )
+            credentials_json = data.service_credentials_json or (
+                decrypt_value(existing.credentials_encrypted) if existing else None
+            )
+            scopes = (
+                data.service_credential_scopes
+                if data.service_credential_scopes is not None
+                else (existing.scopes if existing else [])
+            )
+            if provider is None or credentials_json is None:
+                raise DomainValidationError(
+                    "A credential provider and credentials are required for "
+                    "service-identity auth"
+                )
+            validated = validate_service_credential(provider, credentials_json, scopes)
+            await self.repository.create_or_update_service_credential(
+                server_id,
+                provider=provider,
+                credentials_json=credentials_json,
+                scopes=validated.scopes,
+                principal=validated.principal,
             )
 
         return updated
@@ -404,14 +493,14 @@ class MCPServerService(BaseService[MCPServerDB, MCPServerRepository]):
             ) from exc
 
     async def list_official(self) -> list[OfficialMCPServerResponse]:
-        """The catalog (file order) with each entry flagged as installed or not.
-        The match is on url — installing an entry copies it into a workspace
-        server, so that is the only link between the two."""
+        """Return catalog templates with their workspace instance counts."""
         catalog = await mcp_catalog.get_catalog()
-        installed = await self.repository.list_urls()
+        installed_counts = await self.repository.count_by_url()
         return [
             OfficialMCPServerResponse(
-                **entry.model_dump(), is_installed=entry.url in installed
+                **entry.model_dump(),
+                is_installed=installed_counts.get(entry.url, 0) > 0,
+                installed_count=installed_counts.get(entry.url, 0),
             )
             for entry in catalog
         ]

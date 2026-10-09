@@ -1,6 +1,9 @@
 import type { ResourceVisibility } from "./visibility";
 
-export type MCPAuthType = "none" | "api_key" | "oauth2";
+export type MCPAuthType = "none" | "api_key" | "oauth2" | "service_identity";
+export type ServiceCredentialProvider =
+	| "google_service_account"
+	| "custom_http_headers";
 
 export interface MCPServer {
 	id: string;
@@ -19,6 +22,9 @@ export interface MCPServer {
 	updatedAt: string;
 	// Static OAuth client_id when configured (not a secret); absent for DCR.
 	oauthClientId?: string | null;
+	serviceCredentialProvider?: ServiceCredentialProvider | null;
+	serviceCredentialPrincipal?: string | null;
+	serviceCredentialScopes?: string[];
 }
 
 export interface MCPServerCreate {
@@ -34,6 +40,9 @@ export interface MCPServerCreate {
 	// OAuth credentials for pre-registered OAuth clients
 	oauthClientId?: string;
 	oauthClientSecret?: string;
+	serviceCredentialProvider?: ServiceCredentialProvider;
+	serviceCredentialsJson?: string;
+	serviceCredentialScopes?: string[];
 }
 
 export interface MCPServerUpdate {
@@ -50,6 +59,9 @@ export interface MCPServerUpdate {
 	apiKey?: string;
 	oauthClientId?: string;
 	oauthClientSecret?: string;
+	serviceCredentialProvider?: ServiceCredentialProvider;
+	serviceCredentialsJson?: string;
+	serviceCredentialScopes?: string[];
 	disabledTools?: string[];
 }
 
@@ -88,9 +100,8 @@ export interface ConnectionTestResult {
 	error?: string | null;
 }
 
-// An entry in the official catalog (a CDN-hosted file, not a DB row) — so it
-// has no id and no timestamps; `url` is its identity, and installing one copies
-// these fields into a new workspace MCPServer.
+// A reusable template in the official catalog (a CDN-hosted file, not a DB
+// row). Each installation copies these fields into a new workspace MCPServer.
 export interface OfficialMCPServer {
 	name: string;
 	url: string;
@@ -98,6 +109,7 @@ export interface OfficialMCPServer {
 	iconUrl?: string;
 	description?: string;
 	isInstalled: boolean;
+	installedCount?: number;
 	supportsDcr: boolean | null;
 }
 

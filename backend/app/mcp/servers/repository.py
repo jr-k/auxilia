@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Collection
 from uuid import UUID
 
-from sqlalchemy import delete, update
+from sqlalchemy import delete, func, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
@@ -13,7 +13,9 @@ from app.mcp.servers.models import (
     MCPServerDB,
     MCPServerImageDB,
     MCPServerOAuthCredentialsDB,
+    MCPServerServiceCredentialDB,
     MCPServerTeamDB,
+    ServiceCredentialProvider,
 )
 from app.mcp.servers.schemas import MCPServerCreate
 from app.repository import BaseRepository
@@ -59,27 +61,39 @@ class MCPServerRepository(BaseRepository[MCPServerDB]):
         result = await self.db.execute(stmt)
         return list(result.scalars().all())
 
-    async def list_with_oauth_client_id(
+    async def list_with_credential_metadata(
         self,
-    ) -> list[tuple[MCPServerDB, str | None]]:
-        """List servers alongside their static OAuth client_id (None for DCR /
-        non-OAuth servers), via a single LEFT JOIN to avoid an N+1."""
+    ) -> list[
+        tuple[
+            MCPServerDB,
+            str | None,
+            ServiceCredentialProvider | None,
+            str | None,
+            list[str] | None,
+        ]
+    ]:
+        """List servers with safe credential metadata via two LEFT JOINs."""
         stmt = (
-            select(MCPServerDB, MCPServerOAuthCredentialsDB.client_id)
+            select(
+                MCPServerDB,
+                MCPServerOAuthCredentialsDB.client_id,
+                MCPServerServiceCredentialDB.provider,
+                MCPServerServiceCredentialDB.principal,
+                MCPServerServiceCredentialDB.scopes,
+            )
             .outerjoin(
                 MCPServerOAuthCredentialsDB,
                 MCPServerOAuthCredentialsDB.mcp_server_id == MCPServerDB.id,
+            )
+            .outerjoin(
+                MCPServerServiceCredentialDB,
+                MCPServerServiceCredentialDB.mcp_server_id == MCPServerDB.id,
             )
             .order_by(MCPServerDB.created_at.asc())
         )
         stmt = self._scope(stmt)
         result = await self.db.execute(stmt)
         return result.all()
-
-    async def get_by_url(self, url: str) -> MCPServerDB | None:
-        stmt = self._scope(select(MCPServerDB).where(MCPServerDB.url == url))
-        result = await self.db.execute(stmt)
-        return result.scalar_one_or_none()
 
     async def get_image(self, server_id: UUID) -> MCPServerImageDB | None:
         stmt = select(MCPServerImageDB).where(
@@ -287,14 +301,58 @@ class MCPServerRepository(BaseRepository[MCPServerDB]):
             creds.token_endpoint_auth_method = auth_method
         await self.db.flush()
 
-    async def list_urls(self) -> set[str]:
-        """Every installed server's url — the catalog matches on it to decide
-        which of its entries are already installed."""
-        stmt = select(MCPServerDB.url)
+    async def get_service_credential(
+        self, server_id: UUID
+    ) -> MCPServerServiceCredentialDB | None:
+        stmt = select(MCPServerServiceCredentialDB).where(
+            MCPServerServiceCredentialDB.mcp_server_id == server_id
+        )
+        result = await self.db.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def create_or_update_service_credential(
+        self,
+        server_id: UUID,
+        *,
+        provider: ServiceCredentialProvider,
+        credentials_json: str,
+        scopes: Collection[str],
+        principal: str | None,
+    ) -> None:
+        row = await self.get_service_credential(server_id)
+        if row is None:
+            row = MCPServerServiceCredentialDB(
+                mcp_server_id=server_id,
+                provider=provider,
+                credentials_encrypted=encrypt_value(credentials_json),
+                scopes=list(scopes),
+                principal=principal,
+                created_by=None,
+            )
+            self.db.add(row)
+        else:
+            row.provider = provider
+            row.credentials_encrypted = encrypt_value(credentials_json)
+            row.scopes = list(scopes)
+            row.principal = principal
+        await self.db.flush()
+
+    async def delete_service_credential(self, server_id: UUID) -> None:
+        stmt = delete(MCPServerServiceCredentialDB).where(
+            MCPServerServiceCredentialDB.mcp_server_id == server_id
+        )
+        await self.db.execute(stmt)
+        await self.db.flush()
+
+    async def count_by_url(self) -> dict[str, int]:
+        """Count configured instances per catalog endpoint in this workspace."""
+        stmt = select(MCPServerDB.url, func.count(MCPServerDB.id)).group_by(
+            MCPServerDB.url
+        )
         if self.workspace_id is not None:
             stmt = stmt.where(MCPServerDB.workspace_id == self.workspace_id)
         result = await self.db.execute(stmt)
-        return set(result.scalars().all())
+        return dict(result.all())
 
     async def list_bound_agents(self, server_id: UUID) -> list[AgentDB]:
         stmt = (

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, Plus, Trash2, Upload } from "lucide-react";
 import ForbiddenErrorDialog from "@/components/forbidden-error-dialog";
 import ResourceInUseDialog from "@/components/resource-in-use-dialog";
 import { useConfirmDialog } from "@/components/providers/dialog-provider";
@@ -22,6 +22,7 @@ import {
 	MCPServer,
 	MCPServerUpdate,
 	OAuthSecretHint,
+	ServiceCredentialProvider,
 } from "@/types/mcp-servers";
 import { AuthTypeBadge } from "./auth-type-badge";
 import type { ResourceVisibility } from "@/types/visibility";
@@ -36,12 +37,18 @@ import {
 	SubpageHeader,
 } from "@/components/layout/subpage-header";
 import { isOfficialIcon, slugify } from "../lib/constants";
+import {
+	buildServiceCredentialsPayload,
+	parseServiceCredentialScopes,
+	validateServiceHeaders,
+} from "../lib/mcp-server-create-form";
 import { useConnectionTest } from "../lib/use-connection-test";
 
 const AUTH_TYPE_LABELS: Record<MCPServer["authType"], string> = {
 	none: "None",
-	api_key: "API key",
+	api_key: "API Key Bearer",
 	oauth2: "OAuth 2.0",
+	service_identity: "Service identity",
 };
 
 const LABEL_CLASS = "text-[13px] font-semibold text-foreground";
@@ -60,6 +67,10 @@ interface EditFormValues {
 	apiKey: string;
 	oauthClientId: string;
 	oauthClientSecret: string;
+	serviceCredentialProvider: ServiceCredentialProvider;
+	serviceCredentialsJson: string;
+	serviceCredentialScopes: string;
+	serviceHeaders: { name: string; value: string }[];
 }
 
 function formFromServer(server: MCPServer): EditFormValues {
@@ -76,6 +87,13 @@ function formFromServer(server: MCPServer): EditFormValues {
 		// secret is write-only and stays blank ("leave blank to keep").
 		oauthClientId: server.oauthClientId ?? "",
 		oauthClientSecret: "",
+		serviceCredentialProvider:
+			server.serviceCredentialProvider ?? "google_service_account",
+		serviceCredentialsJson: "",
+		serviceCredentialScopes:
+			server.serviceCredentialScopes?.join(" ") ??
+			"https://www.googleapis.com/auth/cloud-platform",
+		serviceHeaders: [{ name: "", value: "" }],
 	};
 }
 
@@ -142,6 +160,9 @@ export default function MCPServerDetail({
 	const [isResetting, setIsResetting] = useState(false);
 	const [forbiddenOpen, setForbiddenOpen] = useState(false);
 	const [showSecret, setShowSecret] = useState(false);
+	const [credentialFileName, setCredentialFileName] = useState<string | null>(
+		null,
+	);
 	const [imageFile, setImageFile] = useState<File | null>(null);
 	const [removeImage, setRemoveImage] = useState(false);
 	// Whether the saved server already has a static client secret; the secret
@@ -196,6 +217,7 @@ export default function MCPServerDetail({
 		setFieldErrors({});
 		setSubmitError(null);
 		setShowSecret(false);
+		setCredentialFileName(null);
 		setImageFile(null);
 		setRemoveImage(false);
 		setDisabledTools(server.disabledTools ?? []);
@@ -228,15 +250,44 @@ export default function MCPServerDetail({
 		if (testStatus !== "idle") resetTest();
 	};
 
+	const updateServiceHeader = (
+		index: number,
+		field: "name" | "value",
+		value: string,
+	) => {
+		setForm((current) => ({
+			...current,
+			serviceHeaders: current.serviceHeaders.map((header, position) =>
+				position === index ? { ...header, [field]: value } : header,
+			),
+		}));
+		setFieldErrors(
+			(current) =>
+				Object.fromEntries(
+					Object.entries(current).filter(
+						([key]) => key !== "serviceHeaders",
+					),
+				) as typeof fieldErrors,
+		);
+		if (testStatus !== "idle") resetTest();
+	};
+
 	const handleTest = () => {
 		// OAuth is per-user and interactive, so it's tested against the saved
 		// server. An api_key edit with a blank field means "keep the stored
 		// key", which likewise requires the saved config; everything else tests
 		// the current form values without saving.
+		const hasServiceCredentialReplacement =
+			form.serviceCredentialProvider === "custom_http_headers"
+				? form.serviceHeaders.some((header) => header.name.trim())
+				: Boolean(form.serviceCredentialsJson.trim());
+		const serviceCredentialsJson = buildServiceCredentialsPayload(form);
 		const useSavedTest =
 			!editing ||
 			server.authType === "oauth2" ||
-			(server.authType === "api_key" && !form.apiKey.trim());
+			(server.authType === "api_key" && !form.apiKey.trim()) ||
+			(server.authType === "service_identity" &&
+				!hasServiceCredentialReplacement);
 		if (useSavedTest) {
 			void runSavedTest(server);
 		} else {
@@ -244,6 +295,11 @@ export default function MCPServerDetail({
 				url: form.url,
 				authType: server.authType,
 				apiKey: form.apiKey,
+				serviceCredentialProvider: form.serviceCredentialProvider,
+				serviceCredentialsJson,
+				serviceCredentialScopes: parseServiceCredentialScopes(
+					form.serviceCredentialScopes,
+				),
 			});
 		}
 	};
@@ -268,12 +324,37 @@ export default function MCPServerDetail({
 					"Client ID is required when providing a client secret.";
 			}
 		}
+		if (server.authType === "service_identity") {
+			const providerChanged =
+				form.serviceCredentialProvider !== server.serviceCredentialProvider;
+			if (form.serviceCredentialProvider === "google_service_account") {
+				if (
+					(providerChanged || !server.serviceCredentialProvider) &&
+					!form.serviceCredentialsJson.trim()
+				) {
+					errors.serviceCredentialsJson =
+						"A service credential file is required.";
+				}
+			} else {
+				const hasHeaders = form.serviceHeaders.some((header) =>
+					header.name.trim(),
+				);
+				if (providerChanged || hasHeaders) {
+					const headerError = validateServiceHeaders(form.serviceHeaders);
+					if (headerError) errors.serviceHeaders = headerError;
+				}
+			}
+		}
 		setFieldErrors(errors);
 		if (Object.keys(errors).length > 0) return;
 
 		setSubmitError(null);
 		setIsSubmitting(true);
 		try {
+			const hasServiceCredentialReplacement =
+				form.serviceCredentialProvider === "custom_http_headers"
+					? form.serviceHeaders.some((header) => header.name.trim())
+					: Boolean(form.serviceCredentialsJson);
 			const payload: MCPServerUpdate = {
 				name: form.name,
 				url: form.url,
@@ -295,6 +376,21 @@ export default function MCPServerDetail({
 				oauthClientSecret:
 					server.authType === "oauth2" && form.oauthClientSecret
 						? form.oauthClientSecret
+						: undefined,
+				serviceCredentialProvider:
+					server.authType === "service_identity"
+						? form.serviceCredentialProvider
+						: undefined,
+				serviceCredentialsJson:
+					server.authType === "service_identity" &&
+					hasServiceCredentialReplacement
+						? buildServiceCredentialsPayload(form)
+						: undefined,
+				serviceCredentialScopes:
+					server.authType === "service_identity"
+						? form.serviceCredentialProvider === "google_service_account"
+							? parseServiceCredentialScopes(form.serviceCredentialScopes)
+							: []
 						: undefined,
 				disabledTools,
 			};
@@ -547,7 +643,7 @@ export default function MCPServerDetail({
 								</span>
 							</ConfigRow>
 							{server.authType === "api_key" && (
-								<ConfigRow label="API key" last>
+								<ConfigRow label="API key Bearer" last>
 									<span className="inline-flex items-center gap-2.5">
 										<span className="font-mono text-[12px] text-subtle dark:text-panel-dim">
 											••••••••
@@ -589,6 +685,57 @@ export default function MCPServerDetail({
 												Not set, using Dynamic Client Registration
 											</span>
 										)}
+									</ConfigRow>
+								</>
+							)}
+							{server.authType === "service_identity" && (
+								<>
+									<ConfigRow label="Credential provider">
+										<span className="text-[13.5px] text-foreground">
+											{server.serviceCredentialProvider ===
+											"custom_http_headers"
+												? "Custom HTTP"
+												: "Google Service Account"}
+										</span>
+									</ConfigRow>
+									<ConfigRow
+										label={
+											server.serviceCredentialProvider ===
+											"custom_http_headers"
+												? "Configuration"
+												: "Principal"
+										}
+									>
+										<span className="break-all font-mono text-[12px] text-foreground">
+											{server.serviceCredentialPrincipal ?? "Not available"}
+										</span>
+									</ConfigRow>
+									{server.serviceCredentialProvider ===
+										"google_service_account" && (
+										<ConfigRow label="OAuth scopes">
+											<span className="break-all font-mono text-[12px] text-foreground">
+												{server.serviceCredentialScopes?.join(", ") ||
+													"Provider default"}
+											</span>
+										</ConfigRow>
+									)}
+									<ConfigRow
+										label={
+											server.serviceCredentialProvider ===
+											"custom_http_headers"
+												? "Header values"
+												: "Credential file"
+										}
+										last
+									>
+										<span className="inline-flex items-center gap-2.5">
+											<span className="font-mono text-[12px] text-subtle dark:text-panel-dim">
+												••••••••
+											</span>
+											<span className="text-[12px] text-meta dark:text-panel-dim">
+												write-only
+											</span>
+										</span>
 									</ConfigRow>
 								</>
 							)}
@@ -698,7 +845,7 @@ export default function MCPServerDetail({
 							{server.authType === "api_key" && (
 								<div className="flex flex-col gap-[7px]">
 									<label htmlFor="mcp-edit-api-key" className={LABEL_CLASS}>
-										API key
+										API key Bearer
 									</label>
 									<input
 										id="mcp-edit-api-key"
@@ -779,6 +926,203 @@ export default function MCPServerDetail({
 										)}
 									</div>
 								</>
+							)}
+
+							{server.authType === "service_identity" && (
+								<div className="flex flex-col gap-[18px] rounded-xl border border-border bg-sidebar p-[18px] dark:bg-white/5">
+									<div className="text-[12.5px] leading-[1.55] text-meta dark:text-panel-dim">
+										The stored credential is write-only. Providing a replacement
+										updates it for every user and agent that can access this
+										server.
+									</div>
+									<div className="flex flex-col gap-[7px]">
+										<label
+											htmlFor="mcp-edit-service-provider"
+											className={LABEL_CLASS}
+										>
+											Credential provider
+										</label>
+										<select
+											id="mcp-edit-service-provider"
+											value={form.serviceCredentialProvider}
+											onChange={(e) => {
+												handleFormChange(
+													"serviceCredentialProvider",
+													e.target.value as ServiceCredentialProvider,
+												);
+											}}
+											className={INPUT_CLASS}
+										>
+											<option value="google_service_account">
+												Google Service Account
+											</option>
+											<option value="custom_http_headers">
+												Custom HTTP
+											</option>
+										</select>
+									</div>
+									{form.serviceCredentialProvider ===
+									"custom_http_headers" ? (
+										<div className="flex flex-col gap-3">
+											<div className="flex items-center justify-between gap-3">
+												<span className={LABEL_CLASS}>
+													Replacement HTTP headers
+												</span>
+												<button
+													type="button"
+													onClick={() => {
+														setForm((current) => ({
+															...current,
+															serviceHeaders: [
+																...current.serviceHeaders,
+																{ name: "", value: "" },
+															],
+														}));
+													}}
+													className="inline-flex cursor-pointer items-center gap-1.5 text-[12px] font-semibold text-petrol hover:underline dark:text-panel-terminal"
+												>
+													<Plus className="size-3.5" />
+													Add header
+												</button>
+											</div>
+											{form.serviceHeaders.map((header, index) => (
+												<div
+													key={index}
+													className="grid grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)_32px] gap-2"
+												>
+													<input
+														aria-label={`Header ${index + 1} name`}
+														placeholder="Authorization"
+														value={header.name}
+														onChange={(e) => {
+															updateServiceHeader(
+																index,
+																"name",
+																e.target.value,
+															);
+														}}
+														className={MONO_INPUT_CLASS}
+													/>
+													<input
+														aria-label={`Header ${index + 1} value`}
+														type="password"
+														placeholder="Bearer ••••••••"
+														value={header.value}
+														onChange={(e) => {
+															updateServiceHeader(
+																index,
+																"value",
+																e.target.value,
+															);
+														}}
+														className={MONO_INPUT_CLASS}
+													/>
+													<button
+														type="button"
+														aria-label={`Remove header ${index + 1}`}
+														onClick={() => {
+															setForm((current) => ({
+																...current,
+																serviceHeaders:
+																	current.serviceHeaders.filter(
+																		(_, position) => position !== index,
+																	),
+															}));
+														}}
+														className="flex cursor-pointer items-center justify-center rounded-lg text-meta transition-colors hover:bg-destructive/10 hover:text-destructive"
+													>
+														<Trash2 className="size-4" />
+													</button>
+												</div>
+											))}
+											{fieldErrors.serviceHeaders && (
+												<span className="text-[12.5px] text-destructive">
+													{fieldErrors.serviceHeaders}
+												</span>
+											)}
+											<span className="text-[12px] text-meta dark:text-panel-dim">
+												Leave all rows empty to keep the stored headers.
+												Entering any header replaces the complete set.
+											</span>
+										</div>
+									) : (
+										<>
+											<div className="flex flex-col gap-[7px]">
+												<span className={LABEL_CLASS}>Credential file</span>
+												<label
+													htmlFor="mcp-edit-service-credentials"
+													className="flex cursor-pointer items-center gap-3 rounded-[10px] border border-dashed border-input px-4 py-3 transition-colors hover:border-petrol hover:bg-card"
+												>
+													<span className="flex size-8 shrink-0 items-center justify-center rounded-[8px] bg-card text-petrol">
+														<Upload className="size-4" />
+													</span>
+													<span className="min-w-0 flex-1">
+														<span className="block truncate text-[13px] font-semibold text-foreground">
+															{credentialFileName ??
+																"Choose a replacement JSON file"}
+														</span>
+														<span className="mt-0.5 block text-[11.5px] text-meta dark:text-panel-dim">
+															{credentialFileName
+																? "Ready to replace the stored credential"
+																: "Leave empty to keep the current credential"}
+														</span>
+													</span>
+												</label>
+												<input
+													id="mcp-edit-service-credentials"
+													type="file"
+													accept=".json,application/json"
+													className="sr-only"
+													onChange={(e) => {
+														const file = e.target.files?.[0];
+														e.target.value = "";
+														if (!file) return;
+														void file
+															.text()
+															.then((contents) => {
+																handleFormChange(
+																	"serviceCredentialsJson",
+																	contents,
+																);
+																setCredentialFileName(file.name);
+															})
+															.catch(() => {
+																setFieldErrors((current) => ({
+																	...current,
+																	serviceCredentialsJson:
+																		"Could not read this credential file.",
+																}));
+															});
+													}}
+												/>
+												{fieldErrors.serviceCredentialsJson && (
+													<span className="text-[12.5px] text-destructive">
+														{fieldErrors.serviceCredentialsJson}
+													</span>
+												)}
+											</div>
+											<div className="flex flex-col gap-[7px]">
+												<label
+													htmlFor="mcp-edit-service-scopes"
+													className={LABEL_CLASS}
+												>
+													OAuth scopes
+												</label>
+												<input
+													id="mcp-edit-service-scopes"
+													value={form.serviceCredentialScopes}
+													onChange={(e) => {
+														handleFormChange(
+															"serviceCredentialScopes",
+															e.target.value,
+														);
+													}}
+													className={MONO_INPUT_CLASS}
+												/>
+											</div>
+										</>
+									)}
+								</div>
 							)}
 
 							<div className="flex items-center gap-2.5 border-t border-hairline pt-3.5 dark:border-white/5">

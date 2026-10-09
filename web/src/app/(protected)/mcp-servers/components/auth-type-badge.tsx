@@ -13,9 +13,15 @@ function badgeFor(authType: MCPAuthType): { label: string; className: string } {
 			};
 		case "api_key":
 			return {
-				label: "API key",
+				label: "API Key Bearer",
 				className:
 					"bg-neutral-bg text-subtle dark:bg-white/10 dark:text-panel-body",
+			};
+		case "service_identity":
+			return {
+				label: "Service identity",
+				className:
+					"bg-[#E8F3EE] text-[#2E7054] dark:bg-emerald-950 dark:text-emerald-300",
 			};
 		case "none":
 			return {

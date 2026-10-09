@@ -35,11 +35,17 @@ from app.mcp.client.auth import (
 )
 from app.mcp.client.connection import ConnectionSpec, open_client
 from app.mcp.client.exceptions import OAuthAuthorizationRequired
+from app.mcp.client.service_credentials import (
+    ServiceCredentialConfig,
+    build_service_auth,
+    service_credential_config,
+)
 from app.mcp.client.storage import RedisTokenStorage, TokenStorageFactory
 from app.mcp.servers.models import (
     MCPAuthType,
     MCPServerDB,
     MCPServerOAuthCredentialsDB,
+    ServiceCredentialProvider,
 )
 from app.mcp.servers.repository import MCPServerRepository
 from app.mcp.servers.schemas import ConnectionTestResult
@@ -151,6 +157,7 @@ class CredentialCache:
 
     api_keys: dict[UUID, str | None] = field(default_factory=dict)
     oauth: dict[UUID, StaticClientCredentials | None] = field(default_factory=dict)
+    service: dict[UUID, ServiceCredentialConfig | None] = field(default_factory=dict)
     persisted: set[UUID] = field(default_factory=set)
 
 
@@ -219,6 +226,30 @@ async def resolve_connection(
                 if credentials is not None:
                     credentials.persisted.add(server.id)
             return ConnectionSpec(url=server.url, auth=provider)
+
+        case MCPAuthType.service_identity:
+            memo = credentials.service if credentials is not None else None
+            if memo is not None and server.id in memo:
+                config = memo[server.id]
+            else:
+                row = await repository.get_service_credential(server.id)
+                config = (
+                    service_credential_config(
+                        provider=row.provider,
+                        credentials_json=decrypt_value(row.credentials_encrypted),
+                        scopes=row.scopes,
+                    )
+                    if row is not None
+                    else None
+                )
+                if memo is not None:
+                    memo[server.id] = config
+            if config is None:
+                raise DomainValidationError(
+                    f"MCP server '{server.name}' is configured for service-identity "
+                    "auth but has no credentials stored"
+                )
+            return ConnectionSpec(url=server.url, auth=build_service_auth(config))
 
         case _:
             # Unreachable while the arms above cover `MCPAuthType`. Kept as a
@@ -289,7 +320,11 @@ async def is_authorized(
     (the default) an expired-but-refreshable token is refreshed and still counts.
     No handshake is performed — use :func:`test_connection` for a real probe.
     """
-    if server.auth_type in (MCPAuthType.none, MCPAuthType.api_key):
+    if server.auth_type in (
+        MCPAuthType.none,
+        MCPAuthType.api_key,
+        MCPAuthType.service_identity,
+    ):
         return True
 
     storage = TokenStorageFactory().get_storage(
@@ -470,7 +505,13 @@ async def test_connection(
 
 
 async def probe_candidate(
-    url: str, auth_type: MCPAuthType, *, api_key: str | None = None
+    url: str,
+    auth_type: MCPAuthType,
+    *,
+    api_key: str | None = None,
+    service_credential_provider: ServiceCredentialProvider | None = None,
+    service_credentials_json: str | None = None,
+    service_credential_scopes: Collection[str] = (),
 ) -> ConnectionTestResult:
     """Stateless reachability probe for candidate credentials (the create/edit
     form's "Test connection"), persisting nothing.
@@ -494,13 +535,30 @@ async def probe_candidate(
             error="An API key is required to test this server.",
         )
 
-    headers = (
-        {"Authorization": f"Bearer {api_key}"}
-        if auth_type == MCPAuthType.api_key and api_key
-        else None
-    )
+    headers = None
+    auth = None
+    if auth_type == MCPAuthType.api_key and api_key:
+        headers = {"Authorization": f"Bearer {api_key}"}
+    elif auth_type == MCPAuthType.service_identity:
+        if service_credential_provider is None or not service_credentials_json:
+            return ConnectionTestResult(
+                reachable=False,
+                error="Service credentials are required to test this server.",
+            )
+        try:
+            auth = build_service_auth(
+                service_credential_config(
+                    provider=service_credential_provider,
+                    credentials_json=service_credentials_json,
+                    scopes=service_credential_scopes,
+                )
+            )
+        except DomainValidationError as exc:
+            return ConnectionTestResult(reachable=False, error=str(exc))
     try:
-        async with open_client(ConnectionSpec(url=url, headers=headers)) as client:
+        async with open_client(
+            ConnectionSpec(url=url, headers=headers, auth=auth)
+        ) as client:
             tools = await client.list_tools()
             return ConnectionTestResult(
                 reachable=True,

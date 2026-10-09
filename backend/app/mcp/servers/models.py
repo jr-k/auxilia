@@ -13,6 +13,12 @@ class MCPAuthType(str, enum.Enum):
     none = "none"
     api_key = "api_key"
     oauth2 = "oauth2"
+    service_identity = "service_identity"
+
+
+class ServiceCredentialProvider(str, enum.Enum):
+    google_service_account = "google_service_account"
+    custom_http_headers = "custom_http_headers"
 
 
 class MCPServerBase(SQLModel):
@@ -27,13 +33,11 @@ class MCPServerBase(SQLModel):
 
 class MCPServerDB(MCPServerBase, BaseDBModel, table=True):
     __tablename__ = "mcp_servers"
-    __table_args__ = (
-        sa.UniqueConstraint("workspace_id", "url", name="uq_mcp_server_workspace_url"),
-    )
 
     url: str = Field(nullable=False)
     auth_type: MCPAuthType = Field(
-        default=MCPAuthType.none, sa_column=Column(Enum(MCPAuthType), nullable=False)
+        default=MCPAuthType.none,
+        sa_column=Column(Enum(MCPAuthType, name="mcp_auth_type"), nullable=False),
     )
     image_revision: UUID | None = Field(default=None, nullable=True)
     owner_id: UUID = Field(
@@ -107,6 +111,36 @@ class MCPServerOAuthCredentialsDB(BaseDBModel, table=True):
     client_id: str = Field(nullable=False)
     client_secret_encrypted: str = Field(sa_column=Column(sa.Text, nullable=False))
     token_endpoint_auth_method: str | None = Field(default=None)
+    created_by: UUID | None = Field(default=None, foreign_key="users.id")
+
+
+class MCPServerServiceCredentialDB(BaseDBModel, table=True):
+    """Encrypted machine identity shared by every caller of one MCP server."""
+
+    __tablename__ = "mcp_server_service_credentials"
+
+    mcp_server_id: UUID = Field(
+        foreign_key="mcp_servers.id",
+        ondelete="CASCADE",
+        nullable=False,
+        unique=True,
+    )
+    provider: ServiceCredentialProvider = Field(
+        sa_column=Column(
+            Enum(
+                ServiceCredentialProvider,
+                native_enum=False,
+                create_constraint=False,
+            ),
+            nullable=False,
+        )
+    )
+    credentials_encrypted: str = Field(sa_column=Column(sa.Text, nullable=False))
+    scopes: list[str] = Field(
+        default_factory=list,
+        sa_column=Column(JSONB, nullable=False, server_default=sa.text("'[]'")),
+    )
+    principal: str | None = Field(default=None)
     created_by: UUID | None = Field(default=None, foreign_key="users.id")
 
 

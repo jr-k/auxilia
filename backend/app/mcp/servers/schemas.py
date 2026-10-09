@@ -5,7 +5,7 @@ from uuid import UUID
 from pydantic import field_validator
 from sqlmodel import Field, SQLModel
 
-from app.mcp.servers.models import MCPAuthType
+from app.mcp.servers.models import MCPAuthType, ServiceCredentialProvider
 from app.visibility import ResourceVisibility
 
 
@@ -31,6 +31,11 @@ class MCPServerCreate(SQLModel):
     oauth_client_id: str | None = Field(default=None, exclude=True)
     oauth_client_secret: str | None = Field(default=None, exclude=True)
     oauth_token_endpoint_auth_method: str | None = Field(default=None, exclude=True)
+    service_credential_provider: ServiceCredentialProvider | None = Field(
+        default=None, exclude=True
+    )
+    service_credentials_json: str | None = Field(default=None, exclude=True)
+    service_credential_scopes: list[str] = Field(default_factory=list, exclude=True)
 
     @field_validator("group")
     @classmethod
@@ -54,6 +59,11 @@ class MCPServerPatch(SQLModel):
     oauth_client_id: str | None = Field(default=None, exclude=True)
     oauth_client_secret: str | None = Field(default=None, exclude=True)
     oauth_token_endpoint_auth_method: str | None = Field(default=None, exclude=True)
+    service_credential_provider: ServiceCredentialProvider | None = Field(
+        default=None, exclude=True
+    )
+    service_credentials_json: str | None = Field(default=None, exclude=True)
+    service_credential_scopes: list[str] | None = Field(default=None, exclude=True)
     disabled_tools: list[str] = Field(default_factory=list)
 
     @field_validator("group")
@@ -80,20 +90,24 @@ class MCPServerResponse(SQLModel):
     # Static OAuth client_id when configured (public identifier, not a secret);
     # None for DCR servers. The client secret is never returned.
     oauth_client_id: str | None = None
+    service_credential_provider: ServiceCredentialProvider | None = None
+    service_credential_principal: str | None = None
+    service_credential_scopes: list[str] = Field(default_factory=list)
 
 
 class OfficialMCPServerResponse(SQLModel):
     """One catalog entry (see mcp/servers/catalog.py). Deliberately NOT an
     MCPServerResponse: catalog entries come from a file, so they have no id and
-    no timestamps — ``url`` is their identity."""
+    no timestamps. Entries are reusable templates, not singleton servers."""
 
     name: str
     url: str
     auth_type: MCPAuthType
     icon_url: str | None = None
     description: str | None = None
-    # Whether a workspace server already exists for this url.
+    # Kept for API compatibility; multiple configured instances are allowed.
     is_installed: bool = Field(default=False)
+    installed_count: int = Field(default=0, ge=0)
     supports_dcr: bool | None = Field(default=None)
 
 
@@ -153,6 +167,11 @@ class ConnectionProbeRequest(SQLModel):
     url: str
     auth_type: MCPAuthType = MCPAuthType.none
     api_key: str | None = Field(default=None, exclude=True)
+    service_credential_provider: ServiceCredentialProvider | None = Field(
+        default=None, exclude=True
+    )
+    service_credentials_json: str | None = Field(default=None, exclude=True)
+    service_credential_scopes: list[str] = Field(default_factory=list, exclude=True)
 
 
 class MCPToolInfo(SQLModel):

@@ -19,6 +19,7 @@ import type {
 	OAuthCallbackInfo,
 	OAuthSecretHint,
 	OfficialMCPServer,
+	ServiceCredentialProvider,
 } from "@/types/mcp-servers";
 
 export async function listMcpServers(): Promise<MCPServer[]> {
@@ -160,6 +161,9 @@ export interface ConnectionTestInput {
 	url: string;
 	authType: MCPAuthType;
 	apiKey?: string;
+	serviceCredentialProvider?: ServiceCredentialProvider;
+	serviceCredentialsJson?: string;
+	serviceCredentialScopes?: string[];
 }
 
 /** Probe a server that is not saved yet (the add form). */

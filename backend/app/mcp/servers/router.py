@@ -321,7 +321,12 @@ async def test_connection_candidate(
     be validated before saving (it is per-user and interactive).
     """
     return await probe_candidate(
-        payload.url, payload.auth_type, api_key=payload.api_key
+        payload.url,
+        payload.auth_type,
+        api_key=payload.api_key,
+        service_credential_provider=payload.service_credential_provider,
+        service_credentials_json=payload.service_credentials_json,
+        service_credential_scopes=payload.service_credential_scopes,
     )
 
 
