@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.27](https://github.com/jr-k/auxilia/compare/web-v0.11.26...web-v0.11.27) (2026-10-09)
+
+
+### Bug Fixes
+
+* **web:** prevent credential upload scroll jumps ([9c4ef0f](https://github.com/jr-k/auxilia/commit/9c4ef0f963a91c2dcd7e8ff669d9cf0ca19e01c1))
+
 ## [0.11.26](https://github.com/jr-k/auxilia/compare/web-v0.11.25...web-v0.11.26) (2026-10-09)
 
 
