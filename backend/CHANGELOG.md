@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.26](https://github.com/jr-k/auxilia/compare/backend-v0.10.25...backend-v0.10.26) (2026-10-09)
+
+
+### Bug Fixes
+
+* **slack:** link progress messages to conversations ([d7aede8](https://github.com/jr-k/auxilia/commit/d7aede8a94c8b00fa429e511d3e6b76fdf67124a))
+
 ## [0.10.25](https://github.com/jr-k/auxilia/compare/backend-v0.10.24...backend-v0.10.25) (2026-10-09)
 
 
