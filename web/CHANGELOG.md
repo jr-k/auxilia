@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.32](https://github.com/jr-k/auxilia/compare/web-v0.11.31...web-v0.11.32) (2026-10-09)
+
+
+### Code Refactoring
+
+* **mcp:** move catalog sync to add view ([009283a](https://github.com/jr-k/auxilia/commit/009283af5fe90a4d844221f9870fe0b984273674))
+
 ## [0.11.31](https://github.com/jr-k/auxilia/compare/web-v0.11.30...web-v0.11.31) (2026-10-09)
 
 
