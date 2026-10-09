@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChevronRight, Loader2, Plus } from "lucide-react";
+import { ChevronRight, Loader2, Plus, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import ForbiddenErrorDialog from "@/components/forbidden-error-dialog";
 import { SearchBar } from "@/components/ui/search-bar";
@@ -12,11 +12,24 @@ import * as mcpServersApi from "@/lib/api/resources/mcp-servers";
 import { getApiErrorMessage } from "@/lib/api/errors";
 import { useMcpServersStore } from "@/stores/mcp-servers-store";
 import { useUserStore } from "@/stores/user-store";
-import { OfficialMCPServer } from "@/types/mcp-servers";
+import {
+	MCPCatalogSyncResult,
+	OfficialMCPServer,
+} from "@/types/mcp-servers";
 import { AuthTypeBadge } from "../components/auth-type-badge";
 import { ServerIconTile } from "../components/server-icon-tile";
 import { HeaderButton, SubpageHeader } from "@/components/layout/subpage-header";
 import { requiresStaticOAuthCredentials } from "../lib/mcp-server-create-form";
+
+function syncSummary(result: MCPCatalogSyncResult): string {
+	const changes = [
+		result.added.length > 0 && `${result.added.length} added`,
+		result.removed.length > 0 && `${result.removed.length} removed`,
+	]
+		.filter(Boolean)
+		.join(", ");
+	return `Catalog synced, ${changes || "no changes"} (${result.serverCount} servers).`;
+}
 
 function CatalogCard({
 	server,
@@ -94,6 +107,11 @@ export default function AddMCPServerPage() {
 	const [pendingUrl, setPendingUrl] = useState<string | null>(null);
 	const [submitError, setSubmitError] = useState<string | null>(null);
 	const [forbiddenOpen, setForbiddenOpen] = useState(false);
+	const [isSyncing, setIsSyncing] = useState(false);
+	const [syncStatus, setSyncStatus] = useState<{
+		kind: "info" | "error";
+		text: string;
+	} | null>(null);
 
 	useEffect(() => {
 		const controller = new AbortController();
@@ -123,6 +141,41 @@ export default function AddMCPServerPage() {
 				(server.description ?? "").toLowerCase().includes(query),
 		);
 	}, [officialServers, searchQuery]);
+
+	// The catalog is CDN-hosted with a long cache TTL, so an admin syncs here,
+	// where the refreshed entries are immediately visible and actionable.
+	const handleSyncCatalog = async () => {
+		setIsSyncing(true);
+		setSyncStatus(null);
+		try {
+			const result = await mcpServersApi.syncMcpCatalog();
+			const summary = syncSummary(result);
+			try {
+				const catalog = await mcpServersApi.listOfficialMcpServers();
+				setOfficialServers(catalog);
+				setSyncStatus({ kind: "info", text: summary });
+			} catch {
+				setSyncStatus({
+					kind: "info",
+					text: `${summary} The catalog list could not be refreshed; reload the page.`,
+				});
+			}
+		} catch (error: unknown) {
+			if (error instanceof Object && "status" in error && error.status === 403) {
+				setForbiddenOpen(true);
+			} else {
+				setSyncStatus({
+					kind: "error",
+					text: getApiErrorMessage(
+						error,
+						"Catalog sync failed. Please retry.",
+					),
+				});
+			}
+		} finally {
+			setIsSyncing(false);
+		}
+	};
 
 	const handleAdd = async (server: OfficialMCPServer) => {
 		if (user && user.role !== "admin") {
@@ -174,6 +227,24 @@ export default function AddMCPServerPage() {
 					{ label: "add" },
 				]}
 			>
+				{user?.role === "admin" && (
+					<HeaderButton
+						accent
+						aria-label="Sync catalog"
+						title="Sync catalog"
+						disabled={isSyncing}
+						onClick={() => {
+							void handleSyncCatalog();
+						}}
+					>
+						<RefreshCw
+							className={
+								isSyncing ? "size-[13px] animate-spin" : "size-[13px]"
+							}
+						/>
+						Sync catalog
+					</HeaderButton>
+				)}
 				<HeaderButton
 					onClick={() => {
 						router.push("/mcp-servers");
@@ -213,6 +284,16 @@ export default function AddMCPServerPage() {
 							<ChevronRight className="size-4 text-meta transition-colors group-hover:text-foreground" />
 						</Link>
 					</div>
+
+					{syncStatus && (
+						<div className="mt-4">
+							<Alert
+								key={syncStatus.text}
+								variant={syncStatus.kind}
+								message={syncStatus.text}
+							/>
+						</div>
+					)}
 
 					{submitError && (
 						<div className="mt-4">
