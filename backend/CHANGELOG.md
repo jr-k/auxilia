@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.29](https://github.com/jr-k/auxilia/compare/backend-v0.10.28...backend-v0.10.29) (2026-10-09)
+
+
+### Bug Fixes
+
+* **slack:** preserve failure notice after delivery crash ([41e4b55](https://github.com/jr-k/auxilia/commit/41e4b555f30458b0b1b900c4b30be12107cc366d))
+
 ## [0.10.28](https://github.com/jr-k/auxilia/compare/backend-v0.10.27...backend-v0.10.28) (2026-10-09)
 
 
