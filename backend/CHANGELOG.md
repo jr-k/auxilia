@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.24](https://github.com/jr-k/auxilia/compare/backend-v0.10.23...backend-v0.10.24) (2026-10-09)
+
+
+### Features
+
+* **chat:** configure resources per conversation ([3ed3ebe](https://github.com/jr-k/auxilia/commit/3ed3ebe2f610192e6069c366c16c04b05ba5fa53))
+
 ## [0.10.23](https://github.com/jr-k/auxilia/compare/backend-v0.10.22...backend-v0.10.23) (2026-10-09)
 
 
