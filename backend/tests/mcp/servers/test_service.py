@@ -14,7 +14,7 @@ from uuid import uuid4
 import pytest
 from mcp.shared.auth import OAuthClientInformationFull
 
-from app.exceptions import AlreadyExistsError, DomainValidationError
+from app.exceptions import DomainValidationError
 from app.mcp.client import connectivity as connectivity_module
 from app.mcp.client.connectivity import build_oauth_provider
 from app.mcp.servers import service as service_module
@@ -139,6 +139,7 @@ def mock_repo():
     repo.update_oauth_credentials = AsyncMock()
     repo.get_oauth_credentials = AsyncMock()
     repo.delete_credentials = AsyncMock()
+    repo.count_by_url = AsyncMock(return_value={})
     return repo
 
 
@@ -163,15 +164,14 @@ def make_mcp_server(**kwargs):
 # ---------------------------------------------------------------------------
 
 
-async def test_create_raises_already_exists_when_url_taken(service, mock_repo):
-    mock_repo.get_by_url.return_value = make_mcp_server()
-
+async def test_create_allows_duplicate_urls(service, mock_repo):
+    created = make_mcp_server()
+    mock_repo.create.return_value = created
     data = MCPServerCreate(name="Duplicate", url="https://mcp.example.com/mcp")
-    with pytest.raises(AlreadyExistsError) as exc_info:
-        await service.create(data, TEST_OWNER_ID)
+    result = await service.create(data, TEST_OWNER_ID)
 
-    assert exc_info.value.detail == "An MCP server with this URL already exists"
-    mock_repo.create.assert_not_called()
+    assert result is created
+    mock_repo.create.assert_awaited_once()
 
 
 async def test_create_succeeds_when_url_is_new(service, mock_repo):
@@ -186,19 +186,16 @@ async def test_create_succeeds_when_url_is_new(service, mock_repo):
     mock_repo.create.assert_awaited_once()
 
 
-async def test_create_checks_duplicate_before_validating_auth(service, mock_repo):
-    """A duplicate URL is reported as a conflict even if other fields are invalid."""
-    mock_repo.get_by_url.return_value = make_mcp_server()
-
-    # api_key auth without a key would normally raise DomainValidationError,
-    # but the duplicate check runs first.
+async def test_create_validates_auth_when_url_is_duplicated(service, mock_repo):
     data = MCPServerCreate(
         name="Duplicate",
         url="https://mcp.example.com/mcp",
         auth_type=MCPAuthType.api_key,
     )
-    with pytest.raises(AlreadyExistsError):
+    with pytest.raises(DomainValidationError):
         await service.create(data, TEST_OWNER_ID)
+
+    mock_repo.create.assert_not_called()
 
 
 async def test_create_still_validates_api_key_for_new_url(service, mock_repo):
@@ -508,11 +505,10 @@ async def test_list_official_flags_installed_entries(service, mock_repo, monkeyp
     monkeypatch.setattr(
         service_module.mcp_catalog, "get_catalog", AsyncMock(return_value=catalog)
     )
-    mock_repo.list_urls = AsyncMock(
-        # An unrelated installed server must not flag anything.
+    mock_repo.count_by_url = AsyncMock(
         return_value={
-            "https://installed.example.com/mcp",
-            "https://other.example.com/mcp",
+            "https://installed.example.com/mcp": 2,
+            "https://other.example.com/mcp": 1,
         }
     )
 
@@ -523,6 +519,7 @@ async def test_list_official_flags_installed_entries(service, mock_repo, monkeyp
         ("Installed", True),
         ("Fresh", False),
     ]
+    assert [r.installed_count for r in result] == [2, 0]
     assert not hasattr(result[0], "id")
 
 

@@ -65,16 +65,13 @@ export function validateMCPServerCreateForm(
 			"Client Secret is required when providing a Client ID.";
 	}
 	if (form.authType === "service_identity") {
-		if (
-			form.serviceCredentialProvider === "google_service_account" &&
-			!form.serviceCredentialsJson?.trim()
-		) {
+		if (!form.serviceCredentialsJson?.trim()) {
 			errors.serviceCredentialsJson = "A service credential file is required.";
 		}
-		if (form.serviceCredentialProvider === "custom_http_headers") {
-			const headerError = validateServiceHeaders(form.serviceHeaders);
-			if (headerError) errors.serviceHeaders = headerError;
-		}
+	}
+	if (form.authType === "custom_http") {
+		const headerError = validateServiceHeaders(form.serviceHeaders);
+		if (headerError) errors.serviceHeaders = headerError;
 	}
 
 	// Only when OAuth is still the selected method — switching the auth type
@@ -97,11 +94,14 @@ export function validateMCPServerCreateForm(
 export function buildMCPServerCreatePayload(
 	form: MCPServerCreateFormValues,
 ): MCPServerCreate {
-	const apiKey = form.authType === "api_key" ? form.apiKey || undefined : undefined;
+	const apiKey =
+		form.authType === "api_key" ? form.apiKey || undefined : undefined;
 	const oauthClientId =
 		form.authType === "oauth2" ? form.oauthClientId || undefined : undefined;
 	const oauthClientSecret =
-		form.authType === "oauth2" ? form.oauthClientSecret || undefined : undefined;
+		form.authType === "oauth2"
+			? form.oauthClientSecret || undefined
+			: undefined;
 	const payload: MCPServerCreate = {
 		name: form.name,
 		url: form.url,
@@ -116,13 +116,16 @@ export function buildMCPServerCreatePayload(
 		oauthClientSecret,
 	};
 	if (form.authType === "service_identity") {
-		payload.serviceCredentialProvider =
-			form.serviceCredentialProvider ?? "google_service_account";
+		payload.serviceCredentialProvider = "google_service_account";
+		payload.serviceCredentialsJson = form.serviceCredentialsJson;
+		payload.serviceCredentialScopes = parseServiceCredentialScopes(
+			form.serviceCredentialScopes ?? "",
+		);
+	}
+	if (form.authType === "custom_http") {
+		payload.serviceCredentialProvider = "custom_http_headers";
 		payload.serviceCredentialsJson = buildServiceCredentialsPayload(form);
-		payload.serviceCredentialScopes =
-			payload.serviceCredentialProvider === "google_service_account"
-				? parseServiceCredentialScopes(form.serviceCredentialScopes ?? "")
-				: [];
+		payload.serviceCredentialScopes = [];
 	}
 	return payload;
 }
@@ -130,12 +133,13 @@ export function buildMCPServerCreatePayload(
 export function buildServiceCredentialsPayload(
 	form: Pick<
 		MCPServerCreateFormValues,
-		| "serviceCredentialProvider"
-		| "serviceCredentialsJson"
-		| "serviceHeaders"
-	>,
+		"serviceCredentialProvider" | "serviceCredentialsJson" | "serviceHeaders"
+	> & { authType?: MCPAuthType },
 ): string | undefined {
-	if (form.serviceCredentialProvider === "custom_http_headers") {
+	if (
+		form.authType === "custom_http" ||
+		form.serviceCredentialProvider === "custom_http_headers"
+	) {
 		return JSON.stringify({
 			headers: (form.serviceHeaders ?? []).map((header) => ({
 				name: header.name.trim(),

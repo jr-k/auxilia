@@ -78,10 +78,14 @@ const AUTH_OPTIONS: {
 	label: string;
 	description: string;
 }[] = [
-	{ value: "none", label: "None", description: "Open endpoint, no credentials." },
+	{
+		value: "none",
+		label: "None",
+		description: "Open endpoint, no credentials.",
+	},
 	{
 		value: "api_key",
-		label: "API key Bearer",
+		label: "API Key Bearer",
 		description: "One shared key sent as an Authorization Bearer token.",
 	},
 	{
@@ -93,6 +97,11 @@ const AUTH_OPTIONS: {
 		value: "service_identity",
 		label: "Service identity",
 		description: "One managed machine identity for the workspace.",
+	},
+	{
+		value: "custom_http",
+		label: "Custom HTTP",
+		description: "Attach workspace-managed headers to every request.",
 	},
 ];
 
@@ -179,8 +188,12 @@ export default function CustomMCPServerPage() {
 	const [forbiddenOpen, setForbiddenOpen] = useState(false);
 	const [imageFile, setImageFile] = useState<File | null>(null);
 
-	const { status: testStatus, message: testMessage, reset: resetTest, runCandidateTest } =
-		useConnectionTest();
+	const {
+		status: testStatus,
+		message: testMessage,
+		reset: resetTest,
+		runCandidateTest,
+	} = useConnectionTest();
 
 	// Arriving from a catalog card that needs static OAuth credentials: prefill
 	// the form with the official entry.
@@ -233,10 +246,11 @@ export default function CustomMCPServerPage() {
 		setForm((prev) => ({ ...prev, [field]: value }));
 		// Editing a field clears its error (rebuild without the key — no
 		// dynamic access/delete, which static analysis flags as injection).
-		setErrors((prev) =>
-			Object.fromEntries(
-				Object.entries(prev).filter(([key]) => key !== field),
-			) as MCPServerCreateFormErrors,
+		setErrors(
+			(prev) =>
+				Object.fromEntries(
+					Object.entries(prev).filter(([key]) => key !== field),
+				) as MCPServerCreateFormErrors,
 		);
 		// A prior test result no longer reflects the edited config.
 		if (testStatus !== "idle") resetTest();
@@ -267,10 +281,16 @@ export default function CustomMCPServerPage() {
 			toast.success(`${form.name.trim()} added to the workspace`);
 			router.push("/mcp-servers");
 		} catch (error: unknown) {
-			if (error instanceof Object && "status" in error && error.status === 403) {
+			if (
+				error instanceof Object &&
+				"status" in error &&
+				error.status === 403
+			) {
 				setForbiddenOpen(true);
 			} else {
-				setSubmitError(getApiErrorMessage(error, "Failed to create MCP server."));
+				setSubmitError(
+					getApiErrorMessage(error, "Failed to create MCP server."),
+				);
 			}
 		} finally {
 			setIsSubmitting(false);
@@ -291,9 +311,7 @@ export default function CustomMCPServerPage() {
 		setErrors(
 			(current) =>
 				Object.fromEntries(
-					Object.entries(current).filter(
-						([key]) => key !== "serviceHeaders",
-					),
+					Object.entries(current).filter(([key]) => key !== "serviceHeaders"),
 				) as MCPServerCreateFormErrors,
 		);
 		if (testStatus !== "idle") resetTest();
@@ -308,7 +326,10 @@ export default function CustomMCPServerPage() {
 			url: form.url,
 			authType: form.authType,
 			apiKey: form.apiKey,
-			serviceCredentialProvider: form.serviceCredentialProvider,
+			serviceCredentialProvider:
+				form.authType === "custom_http"
+					? "custom_http_headers"
+					: form.serviceCredentialProvider,
 			serviceCredentialsJson: buildServiceCredentialsPayload(form),
 			serviceCredentialScopes: parseServiceCredentialScopes(
 				form.serviceCredentialScopes ?? "",
@@ -355,7 +376,9 @@ export default function CustomMCPServerPage() {
 						‹ Catalog
 					</Link>
 					<h1 className="mt-3.5 font-display text-[26px] font-bold tracking-[-0.03em] text-foreground">
-						{selectedOfficial ? `Add ${selectedOfficial.name}` : "Custom MCP server"}
+						{selectedOfficial
+							? `Add ${selectedOfficial.name}`
+							: "Custom MCP server"}
 					</h1>
 					<p className="mt-2 text-[14px] leading-[1.6] text-body dark:text-panel-body text-pretty">
 						{/* Gate on the ACTIVE auth method — the catalog hint must not
@@ -363,7 +386,7 @@ export default function CustomMCPServerPage() {
 						{isNonDcrOAuth && form.authType === "oauth2"
 							? "This server requires OAuth credentials from the provider's developer console."
 							: selectedOfficial?.authType === "api_key" &&
-								 form.authType === "api_key"
+								  form.authType === "api_key"
 								? "This server requires an API key shared by the whole workspace."
 								: "Connect any remote server that speaks the Model Context Protocol over HTTP."}
 					</p>
@@ -372,7 +395,8 @@ export default function CustomMCPServerPage() {
 						{/* Remote server address */}
 						<div className="flex flex-col gap-[7px]">
 							<label htmlFor="mcp-url" className={LABEL_CLASS}>
-								Remote server address <span className="text-destructive">*</span>
+								Remote server address{" "}
+								<span className="text-destructive">*</span>
 							</label>
 							<input
 								id="mcp-url"
@@ -392,7 +416,8 @@ export default function CustomMCPServerPage() {
 								</span>
 							) : (
 								<span className="text-[12px] text-meta dark:text-panel-dim">
-									Streamable HTTP endpoint, the only transport {appName} supports.
+									Streamable HTTP endpoint, the only transport {appName}{" "}
+									supports.
 								</span>
 							)}
 						</div>
@@ -486,8 +511,7 @@ export default function CustomMCPServerPage() {
 								</div>
 								<div className="flex flex-col gap-[7px]">
 									<label htmlFor="mcp-api-key" className={LABEL_CLASS}>
-										API key Bearer{" "}
-										<span className="text-destructive">*</span>
+										API Key Bearer <span className="text-destructive">*</span>
 									</label>
 									<input
 										id="mcp-api-key"
@@ -552,13 +576,19 @@ export default function CustomMCPServerPage() {
 										className={MONO_INPUT_CLASS}
 									/>
 									{errors.oauthClientId && (
-										<span id="mcp-oauth-client-id-error" className={ERROR_CLASS}>
+										<span
+											id="mcp-oauth-client-id-error"
+											className={ERROR_CLASS}
+										>
 											{errors.oauthClientId}
 										</span>
 									)}
 								</div>
 								<div className="flex flex-col gap-[7px]">
-									<label htmlFor="mcp-oauth-client-secret" className={LABEL_CLASS}>
+									<label
+										htmlFor="mcp-oauth-client-secret"
+										className={LABEL_CLASS}
+									>
 										Client secret
 										{isNonDcrOAuth ? (
 											""
@@ -615,53 +645,49 @@ export default function CustomMCPServerPage() {
 						)}
 
 						{/* Service identity panel */}
-						{form.authType === "service_identity" && (
+						{(form.authType === "service_identity" ||
+							form.authType === "custom_http") && (
 							<div className="flex flex-col gap-[18px] rounded-xl border border-border bg-sidebar p-[18px] dark:bg-white/5">
 								<div className="flex items-start gap-3">
 									<span className="flex size-9 shrink-0 items-center justify-center rounded-[9px] bg-petrol-tint text-petrol">
 										<FileKey2 className="size-[17px]" />
 									</span>
 									<div className="text-[12.5px] leading-[1.55] text-subtle dark:text-panel-body">
-										This identity is shared by authorized users and agents. The
-										credential is encrypted at rest and its secret values are
-										never returned by the API.
+										{form.authType === "custom_http"
+											? "These headers are shared by authorized users and agents. Their values are encrypted at rest and never returned by the API."
+											: "This identity is shared by authorized users and agents. The credential is encrypted at rest and its secret values are never returned by the API."}
 									</div>
 								</div>
 
-								<div className="flex flex-col gap-[7px]">
-									<label
-										htmlFor="mcp-service-provider"
-										className={LABEL_CLASS}
-									>
-										Credential provider
-									</label>
-									<select
-										id="mcp-service-provider"
-										value={
-											form.serviceCredentialProvider ??
-											"google_service_account"
-										}
-										onChange={(e) => {
-											const provider = e.target
-												.value as ServiceCredentialProvider;
-											handleFormChange(
-												"serviceCredentialProvider",
-												provider,
-											);
-										}}
-										className={INPUT_CLASS}
-									>
-										<option value="google_service_account">
-											Google Service Account
-										</option>
-										<option value="custom_http_headers">
-											Custom HTTP
-										</option>
-									</select>
-								</div>
+								{form.authType === "service_identity" && (
+									<div className="flex flex-col gap-[7px]">
+										<label
+											htmlFor="mcp-service-provider"
+											className={LABEL_CLASS}
+										>
+											Credential provider
+										</label>
+										<select
+											id="mcp-service-provider"
+											value={
+												form.serviceCredentialProvider ??
+												"google_service_account"
+											}
+											onChange={(e) => {
+												const provider = e.target
+													.value as ServiceCredentialProvider;
+												handleFormChange("serviceCredentialProvider", provider);
+											}}
+											className={INPUT_CLASS}
+										>
+											<option value="google_service_account">
+												Google Service Account
+											</option>
+										</select>
+									</div>
+								)}
 
-								{form.serviceCredentialProvider ===
-								"custom_http_headers" ? (
+								{form.authType === "custom_http" ? (
 									<div className="flex flex-col gap-3">
 										<div className="flex items-center justify-between gap-3">
 											<span className={LABEL_CLASS}>HTTP headers</span>
@@ -692,11 +718,7 @@ export default function CustomMCPServerPage() {
 													placeholder="Authorization"
 													value={header.name}
 													onChange={(e) => {
-														updateServiceHeader(
-															index,
-															"name",
-															e.target.value,
-														);
+														updateServiceHeader(index, "name", e.target.value);
 													}}
 													className={MONO_INPUT_CLASS}
 												/>
@@ -706,11 +728,7 @@ export default function CustomMCPServerPage() {
 													placeholder="Bearer ••••••••"
 													value={header.value}
 													onChange={(e) => {
-														updateServiceHeader(
-															index,
-															"value",
-															e.target.value,
-														);
+														updateServiceHeader(index, "value", e.target.value);
 													}}
 													className={MONO_INPUT_CLASS}
 												/>
@@ -826,9 +844,9 @@ export default function CustomMCPServerPage() {
 												className={MONO_INPUT_CLASS}
 											/>
 											<span className="text-[12px] text-meta dark:text-panel-dim">
-												Separate multiple scopes with spaces or commas.
-												Resource permissions remain controlled by the
-												provider&apos;s IAM.
+												Separate multiple scopes with spaces or commas. Resource
+												permissions remain controlled by the provider&apos;s
+												IAM.
 											</span>
 										</div>
 									</>

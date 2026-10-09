@@ -227,7 +227,7 @@ async def resolve_connection(
                     credentials.persisted.add(server.id)
             return ConnectionSpec(url=server.url, auth=provider)
 
-        case MCPAuthType.service_identity:
+        case MCPAuthType.service_identity | MCPAuthType.custom_http:
             memo = credentials.service if credentials is not None else None
             if memo is not None and server.id in memo:
                 config = memo[server.id]
@@ -246,7 +246,8 @@ async def resolve_connection(
                     memo[server.id] = config
             if config is None:
                 raise DomainValidationError(
-                    f"MCP server '{server.name}' is configured for service-identity "
+                    f"MCP server '{server.name}' is configured for "
+                    f"{server.auth_type.value} "
                     "auth but has no credentials stored"
                 )
             return ConnectionSpec(url=server.url, auth=build_service_auth(config))
@@ -324,6 +325,7 @@ async def is_authorized(
         MCPAuthType.none,
         MCPAuthType.api_key,
         MCPAuthType.service_identity,
+        MCPAuthType.custom_http,
     ):
         return True
 
@@ -539,7 +541,7 @@ async def probe_candidate(
     auth = None
     if auth_type == MCPAuthType.api_key and api_key:
         headers = {"Authorization": f"Bearer {api_key}"}
-    elif auth_type == MCPAuthType.service_identity:
+    elif auth_type in (MCPAuthType.service_identity, MCPAuthType.custom_http):
         if service_credential_provider is None or not service_credentials_json:
             return ConnectionTestResult(
                 reachable=False,

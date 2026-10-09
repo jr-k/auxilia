@@ -23,6 +23,12 @@ function badgeFor(authType: MCPAuthType): { label: string; className: string } {
 				className:
 					"bg-[#E8F3EE] text-[#2E7054] dark:bg-emerald-950 dark:text-emerald-300",
 			};
+		case "custom_http":
+			return {
+				label: "Custom HTTP",
+				className:
+					"bg-[#F3ECE2] text-[#805A2F] dark:bg-amber-950 dark:text-amber-300",
+			};
 		case "none":
 			return {
 				label: "Open",

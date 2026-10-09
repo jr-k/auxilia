@@ -180,6 +180,7 @@ class AgentMCPServerService(BaseService[AgentMCPServerDB, AgentMCPServerReposito
             MCPAuthType.none,
             MCPAuthType.api_key,
             MCPAuthType.service_identity,
+            MCPAuthType.custom_http,
         ) or (
             mcp_server.auth_type == MCPAuthType.oauth2
             and await is_authorized(

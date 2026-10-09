@@ -49,6 +49,7 @@ const AUTH_TYPE_LABELS: Record<MCPServer["authType"], string> = {
 	api_key: "API Key Bearer",
 	oauth2: "OAuth 2.0",
 	service_identity: "Service identity",
+	custom_http: "Custom HTTP",
 };
 
 const LABEL_CLASS = "text-[13px] font-semibold text-foreground";
@@ -139,19 +140,22 @@ export default function MCPServerDetail({
 		updateMcpServer,
 		applyMcpServer,
 		resetMcpServerConnections,
-	} =
-		useMcpServersStore();
+	} = useMcpServersStore();
 
 	const [server, setServer] = useState<MCPServer>(initialServer);
 	const [isEditing, setIsEditing] = useState(initialEdit);
 	const [disabledTools, setDisabledTools] = useState(
 		initialServer.disabledTools ?? [],
 	);
-	const [rightPanel, setRightPanel] = useState<"tools" | "connections">("tools");
+	const [rightPanel, setRightPanel] = useState<"tools" | "connections">(
+		"tools",
+	);
 	// ?edit=1 must not expose the editor to non-admins — the backend would
 	// 403 the save, but the destructive controls shouldn't render at all.
 	const editing = isEditing && isAdmin;
-	const [form, setForm] = useState<EditFormValues>(formFromServer(initialServer));
+	const [form, setForm] = useState<EditFormValues>(
+		formFromServer(initialServer),
+	);
 	const [fieldErrors, setFieldErrors] = useState<
 		Partial<Record<keyof EditFormValues, string>>
 	>({});
@@ -189,9 +193,12 @@ export default function MCPServerDetail({
 		const controller = new AbortController();
 		void (async () => {
 			try {
-				const hint = await mcpServersApi.getMcpServerOAuthSecretHint(server.id, {
-					signal: controller.signal,
-				});
+				const hint = await mcpServersApi.getMcpServerOAuthSecretHint(
+					server.id,
+					{
+						signal: controller.signal,
+					},
+				);
 				setSecretHint(hint);
 				if (hint.isSet) setHasStoredSecret(true);
 			} catch {
@@ -264,9 +271,7 @@ export default function MCPServerDetail({
 		setFieldErrors(
 			(current) =>
 				Object.fromEntries(
-					Object.entries(current).filter(
-						([key]) => key !== "serviceHeaders",
-					),
+					Object.entries(current).filter(([key]) => key !== "serviceHeaders"),
 				) as typeof fieldErrors,
 		);
 		if (testStatus !== "idle") resetTest();
@@ -278,7 +283,7 @@ export default function MCPServerDetail({
 		// key", which likewise requires the saved config; everything else tests
 		// the current form values without saving.
 		const hasServiceCredentialReplacement =
-			form.serviceCredentialProvider === "custom_http_headers"
+			server.authType === "custom_http"
 				? form.serviceHeaders.some((header) => header.name.trim())
 				: Boolean(form.serviceCredentialsJson.trim());
 		const serviceCredentialsJson = buildServiceCredentialsPayload(form);
@@ -286,7 +291,8 @@ export default function MCPServerDetail({
 			!editing ||
 			server.authType === "oauth2" ||
 			(server.authType === "api_key" && !form.apiKey.trim()) ||
-			(server.authType === "service_identity" &&
+			((server.authType === "service_identity" ||
+				server.authType === "custom_http") &&
 				!hasServiceCredentialReplacement);
 		if (useSavedTest) {
 			void runSavedTest(server);
@@ -295,7 +301,10 @@ export default function MCPServerDetail({
 				url: form.url,
 				authType: server.authType,
 				apiKey: form.apiKey,
-				serviceCredentialProvider: form.serviceCredentialProvider,
+				serviceCredentialProvider:
+					server.authType === "custom_http"
+						? "custom_http_headers"
+						: form.serviceCredentialProvider,
 				serviceCredentialsJson,
 				serviceCredentialScopes: parseServiceCredentialScopes(
 					form.serviceCredentialScopes,
@@ -327,22 +336,21 @@ export default function MCPServerDetail({
 		if (server.authType === "service_identity") {
 			const providerChanged =
 				form.serviceCredentialProvider !== server.serviceCredentialProvider;
-			if (form.serviceCredentialProvider === "google_service_account") {
-				if (
-					(providerChanged || !server.serviceCredentialProvider) &&
-					!form.serviceCredentialsJson.trim()
-				) {
-					errors.serviceCredentialsJson =
-						"A service credential file is required.";
-				}
-			} else {
-				const hasHeaders = form.serviceHeaders.some((header) =>
-					header.name.trim(),
-				);
-				if (providerChanged || hasHeaders) {
-					const headerError = validateServiceHeaders(form.serviceHeaders);
-					if (headerError) errors.serviceHeaders = headerError;
-				}
+			if (
+				(providerChanged || !server.serviceCredentialProvider) &&
+				!form.serviceCredentialsJson.trim()
+			) {
+				errors.serviceCredentialsJson =
+					"A service credential file is required.";
+			}
+		}
+		if (server.authType === "custom_http") {
+			const hasHeaders = form.serviceHeaders.some((header) =>
+				header.name.trim(),
+			);
+			if (!server.serviceCredentialProvider || hasHeaders) {
+				const headerError = validateServiceHeaders(form.serviceHeaders);
+				if (headerError) errors.serviceHeaders = headerError;
 			}
 		}
 		setFieldErrors(errors);
@@ -352,7 +360,7 @@ export default function MCPServerDetail({
 		setIsSubmitting(true);
 		try {
 			const hasServiceCredentialReplacement =
-				form.serviceCredentialProvider === "custom_http_headers"
+				server.authType === "custom_http"
 					? form.serviceHeaders.some((header) => header.name.trim())
 					: Boolean(form.serviceCredentialsJson);
 			const payload: MCPServerUpdate = {
@@ -368,7 +376,9 @@ export default function MCPServerDetail({
 				// Credentials are sent only when the field was filled in; a blank
 				// field keeps the stored secret untouched.
 				apiKey:
-					server.authType === "api_key" && form.apiKey ? form.apiKey : undefined,
+					server.authType === "api_key" && form.apiKey
+						? form.apiKey
+						: undefined,
 				oauthClientId:
 					server.authType === "oauth2" && form.oauthClientId
 						? form.oauthClientId
@@ -378,17 +388,22 @@ export default function MCPServerDetail({
 						? form.oauthClientSecret
 						: undefined,
 				serviceCredentialProvider:
-					server.authType === "service_identity"
-						? form.serviceCredentialProvider
+					server.authType === "service_identity" ||
+					server.authType === "custom_http"
+						? server.authType === "custom_http"
+							? "custom_http_headers"
+							: "google_service_account"
 						: undefined,
 				serviceCredentialsJson:
-					server.authType === "service_identity" &&
+					(server.authType === "service_identity" ||
+						server.authType === "custom_http") &&
 					hasServiceCredentialReplacement
 						? buildServiceCredentialsPayload(form)
 						: undefined,
 				serviceCredentialScopes:
-					server.authType === "service_identity"
-						? form.serviceCredentialProvider === "google_service_account"
+					server.authType === "service_identity" ||
+					server.authType === "custom_http"
+						? server.authType === "service_identity"
 							? parseServiceCredentialScopes(form.serviceCredentialScopes)
 							: []
 						: undefined,
@@ -416,10 +431,16 @@ export default function MCPServerDetail({
 			}
 			setMode(false);
 		} catch (error: unknown) {
-			if (error instanceof Object && "status" in error && error.status === 403) {
+			if (
+				error instanceof Object &&
+				"status" in error &&
+				error.status === 403
+			) {
 				setForbiddenOpen(true);
 			} else {
-				setSubmitError(getApiErrorMessage(error, "Failed to update MCP server."));
+				setSubmitError(
+					getApiErrorMessage(error, "Failed to update MCP server."),
+				);
 			}
 		} finally {
 			setIsSubmitting(false);
@@ -473,7 +494,11 @@ export default function MCPServerDetail({
 			await resetMcpServerConnections(server.id);
 			return true;
 		} catch (error: unknown) {
-			if (error instanceof Object && "status" in error && error.status === 403) {
+			if (
+				error instanceof Object &&
+				"status" in error &&
+				error.status === 403
+			) {
 				setForbiddenOpen(true);
 			} else {
 				setSubmitError(
@@ -597,7 +622,11 @@ export default function MCPServerDetail({
 						<div className="mt-5 flex flex-col gap-2.5">
 							<ConnectionTestBanner status={testStatus} message={testMessage} />
 							{submitError && (
-								<Alert key={submitError} variant="error" message={submitError} />
+								<Alert
+									key={submitError}
+									variant="error"
+									message={submitError}
+								/>
 							)}
 						</div>
 					)}
@@ -611,7 +640,9 @@ export default function MCPServerDetail({
 					{!editing ? (
 						<div>
 							<ConfigRow label="Name">
-								<span className="text-[13.5px] text-foreground">{server.name}</span>
+								<span className="text-[13.5px] text-foreground">
+									{server.name}
+								</span>
 							</ConfigRow>
 							<ConfigRow label="Remote server address">
 								<span className="break-all font-mono text-[12px] text-foreground">
@@ -624,7 +655,9 @@ export default function MCPServerDetail({
 										{server.description}
 									</span>
 								) : (
-									<span className="text-[13.5px] text-meta dark:text-panel-dim">Not available</span>
+									<span className="text-[13.5px] text-meta dark:text-panel-dim">
+										Not available
+									</span>
 								)}
 							</ConfigRow>
 							<ConfigRow label="Visibility">
@@ -643,7 +676,7 @@ export default function MCPServerDetail({
 								</span>
 							</ConfigRow>
 							{server.authType === "api_key" && (
-								<ConfigRow label="API key Bearer" last>
+								<ConfigRow label="API Key Bearer" last>
 									<span className="inline-flex items-center gap-2.5">
 										<span className="font-mono text-[12px] text-subtle dark:text-panel-dim">
 											••••••••
@@ -688,7 +721,8 @@ export default function MCPServerDetail({
 									</ConfigRow>
 								</>
 							)}
-							{server.authType === "service_identity" && (
+							{(server.authType === "service_identity" ||
+								server.authType === "custom_http") && (
 								<>
 									<ConfigRow label="Credential provider">
 										<span className="text-[13.5px] text-foreground">
@@ -700,8 +734,7 @@ export default function MCPServerDetail({
 									</ConfigRow>
 									<ConfigRow
 										label={
-											server.serviceCredentialProvider ===
-											"custom_http_headers"
+											server.serviceCredentialProvider === "custom_http_headers"
 												? "Configuration"
 												: "Principal"
 										}
@@ -721,8 +754,7 @@ export default function MCPServerDetail({
 									)}
 									<ConfigRow
 										label={
-											server.serviceCredentialProvider ===
-											"custom_http_headers"
+											server.serviceCredentialProvider === "custom_http_headers"
 												? "Header values"
 												: "Credential file"
 										}
@@ -763,7 +795,8 @@ export default function MCPServerDetail({
 							</div>
 							<div className="flex flex-col gap-[7px]">
 								<label htmlFor="mcp-edit-url" className={LABEL_CLASS}>
-									Remote server address <span className="text-destructive">*</span>
+									Remote server address{" "}
+									<span className="text-destructive">*</span>
 								</label>
 								<input
 									id="mcp-edit-url"
@@ -845,7 +878,7 @@ export default function MCPServerDetail({
 							{server.authType === "api_key" && (
 								<div className="flex flex-col gap-[7px]">
 									<label htmlFor="mcp-edit-api-key" className={LABEL_CLASS}>
-										API key Bearer
+										API Key Bearer
 									</label>
 									<input
 										id="mcp-edit-api-key"
@@ -889,14 +922,19 @@ export default function MCPServerDetail({
 										)}
 									</div>
 									<div className="flex flex-col gap-[7px]">
-										<label htmlFor="mcp-edit-client-secret" className={LABEL_CLASS}>
+										<label
+											htmlFor="mcp-edit-client-secret"
+											className={LABEL_CLASS}
+										>
 											Client secret
 										</label>
 										<div className="relative">
 											<input
 												id="mcp-edit-client-secret"
 												type={showSecret ? "text" : "password"}
-												placeholder={secretMask ?? "Enter your OAuth client secret"}
+												placeholder={
+													secretMask ?? "Enter your OAuth client secret"
+												}
 												value={form.oauthClientSecret}
 												onChange={(e) => {
 													handleFormChange("oauthClientSecret", e.target.value);
@@ -928,41 +966,40 @@ export default function MCPServerDetail({
 								</>
 							)}
 
-							{server.authType === "service_identity" && (
+							{(server.authType === "service_identity" ||
+								server.authType === "custom_http") && (
 								<div className="flex flex-col gap-[18px] rounded-xl border border-border bg-sidebar p-[18px] dark:bg-white/5">
 									<div className="text-[12.5px] leading-[1.55] text-meta dark:text-panel-dim">
 										The stored credential is write-only. Providing a replacement
 										updates it for every user and agent that can access this
 										server.
 									</div>
-									<div className="flex flex-col gap-[7px]">
-										<label
-											htmlFor="mcp-edit-service-provider"
-											className={LABEL_CLASS}
-										>
-											Credential provider
-										</label>
-										<select
-											id="mcp-edit-service-provider"
-											value={form.serviceCredentialProvider}
-											onChange={(e) => {
-												handleFormChange(
-													"serviceCredentialProvider",
-													e.target.value as ServiceCredentialProvider,
-												);
-											}}
-											className={INPUT_CLASS}
-										>
-											<option value="google_service_account">
-												Google Service Account
-											</option>
-											<option value="custom_http_headers">
-												Custom HTTP
-											</option>
-										</select>
-									</div>
-									{form.serviceCredentialProvider ===
-									"custom_http_headers" ? (
+									{server.authType === "service_identity" && (
+										<div className="flex flex-col gap-[7px]">
+											<label
+												htmlFor="mcp-edit-service-provider"
+												className={LABEL_CLASS}
+											>
+												Credential provider
+											</label>
+											<select
+												id="mcp-edit-service-provider"
+												value={form.serviceCredentialProvider}
+												onChange={(e) => {
+													handleFormChange(
+														"serviceCredentialProvider",
+														e.target.value as ServiceCredentialProvider,
+													);
+												}}
+												className={INPUT_CLASS}
+											>
+												<option value="google_service_account">
+													Google Service Account
+												</option>
+											</select>
+										</div>
+									)}
+									{server.authType === "custom_http" ? (
 										<div className="flex flex-col gap-3">
 											<div className="flex items-center justify-between gap-3">
 												<span className={LABEL_CLASS}>
@@ -1023,10 +1060,9 @@ export default function MCPServerDetail({
 														onClick={() => {
 															setForm((current) => ({
 																...current,
-																serviceHeaders:
-																	current.serviceHeaders.filter(
-																		(_, position) => position !== index,
-																	),
+																serviceHeaders: current.serviceHeaders.filter(
+																	(_, position) => position !== index,
+																),
 															}));
 														}}
 														className="flex cursor-pointer items-center justify-center rounded-lg text-meta transition-colors hover:bg-destructive/10 hover:text-destructive"

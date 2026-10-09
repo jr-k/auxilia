@@ -32,13 +32,18 @@ function StatusBadge({ status }: { status: MCPServerConnection["status"] }) {
 }
 
 /** Right panel of a non-OAuth server: nothing per-user to manage. */
-function CredentialNote({ authType }: { authType: Exclude<MCPAuthType, "oauth2"> }) {
+function CredentialNote({
+	authType,
+}: {
+	authType: Exclude<MCPAuthType, "oauth2">;
+}) {
 	const isApiKey = authType === "api_key";
 	const isServiceIdentity = authType === "service_identity";
+	const isCustomHttp = authType === "custom_http";
 	return (
 		<div className="flex items-start gap-3.5 rounded-[10px] border border-border bg-card p-[18px]">
 			<span className="flex size-[34px] shrink-0 items-center justify-center rounded-[9px] bg-petrol-tint text-petrol">
-				{isApiKey ? (
+				{isApiKey || isCustomHttp ? (
 					<KeyRound className="size-4" />
 				) : isServiceIdentity ? (
 					<ServerCog className="size-4" />
@@ -50,16 +55,20 @@ function CredentialNote({ authType }: { authType: Exclude<MCPAuthType, "oauth2">
 				<div className="text-[13.5px] font-semibold text-foreground">
 					{isApiKey
 						? "Workspace credential"
-						: isServiceIdentity
-							? "Service identity"
-							: "Open endpoint"}
+						: isCustomHttp
+							? "Custom HTTP headers"
+							: isServiceIdentity
+								? "Service identity"
+								: "Open endpoint"}
 				</div>
 				<div className="mt-1 text-[12.5px] leading-[1.55] text-subtle dark:text-panel-body">
 					{isApiKey
 						? "Everyone uses the single API key configured on this server, there are no per-user connections to manage."
-						: isServiceIdentity
-							? "Everyone uses the managed service identity configured on this server, while access remains controlled by workspace visibility and agent permissions."
-						: "This server requires no credentials, there are no per-user connections to manage."}
+						: isCustomHttp
+							? "Every request uses the encrypted HTTP headers configured on this server; there are no per-user connections to manage."
+							: isServiceIdentity
+								? "Everyone uses the managed service identity configured on this server, while access remains controlled by workspace visibility and agent permissions."
+								: "This server requires no credentials, there are no per-user connections to manage."}
 				</div>
 			</div>
 		</div>
@@ -157,7 +166,10 @@ export function ConnectedUsersPanel({
 			return;
 		setRevokingId(connection.userId);
 		try {
-			await mcpServersApi.deleteMcpServerConnection(serverId, connection.userId);
+			await mcpServersApi.deleteMcpServerConnection(
+				serverId,
+				connection.userId,
+			);
 			setConnections((prev) =>
 				prev.filter((c) => c.userId !== connection.userId),
 			);

@@ -14,6 +14,7 @@ class MCPAuthType(str, enum.Enum):
     api_key = "api_key"
     oauth2 = "oauth2"
     service_identity = "service_identity"
+    custom_http = "custom_http"
 
 
 class ServiceCredentialProvider(str, enum.Enum):

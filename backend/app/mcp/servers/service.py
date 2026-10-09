@@ -24,7 +24,12 @@ from app.mcp.client.exceptions import OAuthAuthorizationRequired
 from app.mcp.client.service_credentials import validate_service_credential
 from app.mcp.client.storage import TokenStorageFactory
 from app.mcp.servers import catalog as mcp_catalog
-from app.mcp.servers.models import MCPAuthType, MCPServerDB, MCPServerImageDB
+from app.mcp.servers.models import (
+    MCPAuthType,
+    MCPServerDB,
+    MCPServerImageDB,
+    ServiceCredentialProvider,
+)
 from app.mcp.servers.repository import MCPServerRepository
 from app.mcp.servers.schemas import (
     AuthorizationRequired,
@@ -111,11 +116,24 @@ class MCPServerService(BaseService[MCPServerDB, MCPServerRepository]):
         service_credential = None
         service_provider = data.service_credential_provider
         service_credentials_json = data.service_credentials_json
-        if data.auth_type == MCPAuthType.service_identity:
+        if data.auth_type in (
+            MCPAuthType.service_identity,
+            MCPAuthType.custom_http,
+        ):
             if not service_provider or not service_credentials_json:
                 raise DomainValidationError(
                     "A credential provider and credentials are required for "
-                    "service-identity auth"
+                    f"{data.auth_type.value} auth"
+                )
+            expected_provider = (
+                ServiceCredentialProvider.google_service_account
+                if data.auth_type == MCPAuthType.service_identity
+                else ServiceCredentialProvider.custom_http_headers
+            )
+            if service_provider != expected_provider:
+                raise DomainValidationError(
+                    f"{data.auth_type.value} requires the "
+                    f"{expected_provider.value} credential provider"
                 )
             service_credential = validate_service_credential(
                 service_provider,
@@ -195,7 +213,8 @@ class MCPServerService(BaseService[MCPServerDB, MCPServerRepository]):
             oauth_client_id = creds.client_id if creds else None
         service_creds = (
             await self.repository.get_service_credential(server.id)
-            if server.auth_type == MCPAuthType.service_identity
+            if server.auth_type
+            in (MCPAuthType.service_identity, MCPAuthType.custom_http)
             else None
         )
         team_ids = (
@@ -250,17 +269,20 @@ class MCPServerService(BaseService[MCPServerDB, MCPServerRepository]):
                 ),
                 service_credential_provider=(
                     service_provider
-                    if server.auth_type == MCPAuthType.service_identity
+                    if server.auth_type
+                    in (MCPAuthType.service_identity, MCPAuthType.custom_http)
                     else None
                 ),
                 service_credential_principal=(
                     service_principal
-                    if server.auth_type == MCPAuthType.service_identity
+                    if server.auth_type
+                    in (MCPAuthType.service_identity, MCPAuthType.custom_http)
                     else None
                 ),
                 service_credential_scopes=(
                     service_scopes or []
-                    if server.auth_type == MCPAuthType.service_identity
+                    if server.auth_type
+                    in (MCPAuthType.service_identity, MCPAuthType.custom_http)
                     else []
                 ),
             )
@@ -344,7 +366,10 @@ class MCPServerService(BaseService[MCPServerDB, MCPServerRepository]):
                 await self.repository.delete_credentials(server_id, api_key=True)
             elif previous_auth_type == MCPAuthType.oauth2:
                 await self.repository.delete_credentials(server_id, api_key=False)
-            elif previous_auth_type == MCPAuthType.service_identity:
+            elif previous_auth_type in (
+                MCPAuthType.service_identity,
+                MCPAuthType.custom_http,
+            ):
                 await self.repository.delete_service_credential(server_id)
 
         if data.api_key:
@@ -370,9 +395,10 @@ class MCPServerService(BaseService[MCPServerDB, MCPServerRepository]):
             or data.service_credentials_json is not None
             or data.service_credential_scopes is not None
         )
-        if updated.auth_type == MCPAuthType.service_identity and (
-            service_fields_changed or previous_auth_type != MCPAuthType.service_identity
-        ):
+        if updated.auth_type in (
+            MCPAuthType.service_identity,
+            MCPAuthType.custom_http,
+        ) and (service_fields_changed or previous_auth_type != updated.auth_type):
             existing = await self.repository.get_service_credential(server_id)
             provider = data.service_credential_provider or (
                 existing.provider if existing else None
@@ -388,7 +414,17 @@ class MCPServerService(BaseService[MCPServerDB, MCPServerRepository]):
             if provider is None or credentials_json is None:
                 raise DomainValidationError(
                     "A credential provider and credentials are required for "
-                    "service-identity auth"
+                    f"{updated.auth_type.value} auth"
+                )
+            expected_provider = (
+                ServiceCredentialProvider.google_service_account
+                if updated.auth_type == MCPAuthType.service_identity
+                else ServiceCredentialProvider.custom_http_headers
+            )
+            if provider != expected_provider:
+                raise DomainValidationError(
+                    f"{updated.auth_type.value} requires the "
+                    f"{expected_provider.value} credential provider"
                 )
             validated = validate_service_credential(provider, credentials_json, scopes)
             await self.repository.create_or_update_service_credential(

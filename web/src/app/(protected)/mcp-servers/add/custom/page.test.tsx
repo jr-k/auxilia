@@ -52,8 +52,8 @@ describe("CustomMCPServerPage", () => {
 		render(<CustomMCPServerPage />);
 
 		await fillRequiredFields(user);
-		await user.click(screen.getByRole("radio", { name: /API key/ }));
-		await user.type(screen.getByLabelText(/^API key/), "secret-token");
+		await user.click(screen.getByRole("radio", { name: /API Key/ }));
+		await user.type(screen.getByLabelText(/^API Key/), "secret-token");
 		await user.click(screen.getByRole("button", { name: "Add server" }));
 
 		await waitFor(() => {
