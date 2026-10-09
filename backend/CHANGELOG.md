@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.10.22](https://github.com/jr-k/auxilia/compare/backend-v0.10.21...backend-v0.10.22) (2026-10-09)
+
+
+### Bug Fixes
+
+* address workspace administration review findings ([83523fb](https://github.com/jr-k/auxilia/commit/83523fba37b0c90cf97962a898ba88d4038f2cf3))
+* **runtime:** distinguish direct and queued prompts ([f62bf9a](https://github.com/jr-k/auxilia/commit/f62bf9a3ddad16af64896d9a489b24f2929f41cf))
+
 ## [0.10.21](https://github.com/jr-k/auxilia/compare/backend-v0.10.20...backend-v0.10.21) (2026-10-09)
 
 
