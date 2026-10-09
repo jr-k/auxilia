@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.23](https://github.com/jr-k/auxilia/compare/backend-v0.10.22...backend-v0.10.23) (2026-10-09)
+
+
+### Bug Fixes
+
+* **catalog:** use published R2 endpoints ([4237f22](https://github.com/jr-k/auxilia/commit/4237f22b5e951f4604d719299d31155a792605b4))
+
 ## [0.10.22](https://github.com/jr-k/auxilia/compare/backend-v0.10.21...backend-v0.10.22) (2026-10-09)
 
 
