@@ -1,0 +1,86 @@
+name: Publish reference catalogs
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - backend/app/mcp/servers/catalog.yaml
+      - backend/app/model_providers/whitelist.yaml
+      - .github/workflows/publish-catalogs.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A simple PutObject is atomic. Serializing runs also prevents two main pushes
+# from attempting to replace the same R2 objects at the same time.
+concurrency:
+  group: publish-reference-catalogs-r2
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.CLOUDFLARE_R2_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.CLOUDFLARE_R2_SECRET_ACCESS_KEY }}
+      AWS_DEFAULT_REGION: auto
+      AWS_EC2_METADATA_DISABLED: "true"
+      R2_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      R2_BUCKET: ${{ secrets.CLOUDFLARE_R2_BUCKET }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Check R2 configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          required=(
+            AWS_ACCESS_KEY_ID
+            AWS_SECRET_ACCESS_KEY
+            R2_ACCOUNT_ID
+            R2_BUCKET
+          )
+          for name in "${required[@]}"; do
+            if [ -z "${!name:-}" ]; then
+              echo "::error::Missing GitHub secret for $name"
+              exit 1
+            fi
+          done
+
+      - name: Validate YAML syntax
+        shell: bash
+        run: |
+          ruby -e '
+            require "yaml"
+            ARGV.each { |path| YAML.parse_file(path) }
+          ' \
+            backend/app/mcp/servers/catalog.yaml \
+            backend/app/model_providers/whitelist.yaml
+
+      - name: Publish catalogs to R2
+        shell: bash
+        env:
+          R2_ENDPOINT: https://${{ secrets.CLOUDFLARE_ACCOUNT_ID }}.r2.cloudflarestorage.com
+        run: |
+          set -euo pipefail
+          put_catalog() {
+            local source="$1"
+            local key="$2"
+            aws s3api put-object \
+              --endpoint-url "$R2_ENDPOINT" \
+              --bucket "$R2_BUCKET" \
+              --key "$key" \
+              --body "$source" \
+              --content-type "application/yaml; charset=utf-8" \
+              --cache-control "public, max-age=60, must-revalidate" \
+              >/dev/null
+            aws s3api head-object \
+              --endpoint-url "$R2_ENDPOINT" \
+              --bucket "$R2_BUCKET" \
+              --key "$key" \
+              >/dev/null
+          }
+
+          put_catalog backend/app/mcp/servers/catalog.yaml mcp/catalog.yaml
+          put_catalog backend/app/model_providers/whitelist.yaml models/whitelist.yaml
