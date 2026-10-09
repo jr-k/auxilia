@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.10.27](https://github.com/jr-k/auxilia/compare/backend-v0.10.26...backend-v0.10.27) (2026-10-09)
+
+
+### Features
+
+* **mcp:** expand official server catalog ([484bb5c](https://github.com/jr-k/auxilia/commit/484bb5c43d475ab73d4a23422d27973893ec66da))
+
+
+### Bug Fixes
+
+* **slack:** prevent progress link previews ([d2368de](https://github.com/jr-k/auxilia/commit/d2368de72f1a3f3f1a2ea04563fb572b0bdeb197))
+* **slack:** retain progress marker until completion ([a20f417](https://github.com/jr-k/auxilia/commit/a20f417840bc965b4f722212a8987895dab3096e))
+
 ## [0.10.26](https://github.com/jr-k/auxilia/compare/backend-v0.10.25...backend-v0.10.26) (2026-10-09)
 
 
