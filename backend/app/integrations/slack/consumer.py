@@ -291,14 +291,25 @@ class SlackRunConsumer(DeliveryConsumer):
             await self._remove_working_marker(channel_id, marker_ts)
 
     async def _post_working_marker(self, channel_id: str, thread_ts: str) -> str | None:
-        """Post a temporary progress marker for agent-specific Slack bots."""
+        """Post a temporary progress marker with a link to the conversation."""
         if not self.delivery.get("slack_bot_id"):
             return None
         try:
+            blocks: list[dict[str, Any]] = [
+                {
+                    "type": "section",
+                    "text": {
+                        "type": "mrkdwn",
+                        "text": ":hourglass_flowing_sand: Working on it…",
+                    },
+                }
+            ]
+            blocks.extend(await self._instance_link_blocks() or [])
             response = await self.slack_client.chat_postMessage(
                 channel=channel_id,
                 thread_ts=thread_ts,
                 text=":hourglass_flowing_sand: Working on it…",
+                blocks=blocks,
             )
             message_ts = response.get("ts")
             return str(message_ts) if message_ts else None
