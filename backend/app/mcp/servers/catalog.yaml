@@ -252,6 +252,17 @@ servers:
       run flows, inspect runs and artifacts, and manage workspace automation
       through each user's existing permissions.
 
+  - name: Salesforce
+    url: "https://api.salesforce.com/platform/mcp/v1/platform/headless-360"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/salesforce.svg"
+    supports_dcr: false
+    description: >-
+      Salesforce's hosted Headless 360 MCP server gives AI assistants
+      user-scoped access to Salesforce data and metadata. It respects object,
+      field, and sharing permissions and requires an External Client App with
+      the MCP API OAuth scope.
+
   - name: Sentry
     url: "https://mcp.sentry.dev/mcp"
     auth_type: oauth2
