@@ -310,6 +310,8 @@ class SlackRunConsumer(DeliveryConsumer):
                 thread_ts=thread_ts,
                 text=":hourglass_flowing_sand: Working on it…",
                 blocks=blocks,
+                unfurl_links=False,
+                unfurl_media=False,
             )
             message_ts = response.get("ts")
             return str(message_ts) if message_ts else None
