@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.31](https://github.com/jr-k/auxilia/compare/web-v0.11.30...web-v0.11.31) (2026-10-09)
+
+
+### Bug Fixes
+
+* **web:** match conversation resource switch colors ([bb7afe2](https://github.com/jr-k/auxilia/commit/bb7afe265c4ce68241be6e0f3077ba8f661e2086))
+
 ## [0.11.30](https://github.com/jr-k/auxilia/compare/web-v0.11.29...web-v0.11.30) (2026-10-09)
 
 
