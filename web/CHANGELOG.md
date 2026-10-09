@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.11.26](https://github.com/jr-k/auxilia/compare/web-v0.11.25...web-v0.11.26) (2026-10-09)
+
+
+### Features
+
+* **mcp:** add service identity providers ([3175277](https://github.com/jr-k/auxilia/commit/31752779dc594e59dd44bd4c19d075de9db6f9ef))
+* **slack:** support multiple side-channels per agent ([e0f0695](https://github.com/jr-k/auxilia/commit/e0f06957c7444da2b8df36d46e383225ac2f9538))
+
 ## [0.11.25](https://github.com/jr-k/auxilia/compare/web-v0.11.24...web-v0.11.25) (2026-10-09)
 
 
