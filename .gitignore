@@ -76,3 +76,5 @@ next-env.d.ts
 
 # design references dropped into the design tool, never referenced
 design/uploads/
+
+connectors_all.json
