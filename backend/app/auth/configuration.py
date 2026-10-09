@@ -32,10 +32,12 @@ class WorkspaceAuthenticationService:
         return f"{auth_settings.FRONTEND_URL}/api/backend/auth/google/callback"
 
     async def get_runtime_config(self, workspace_id: UUID) -> GoogleOAuthConfig | None:
+        row = await self.repository.get_settings(workspace_id)
+        if row is None or not row.enabled:
+            return None
         credentials = await self.repository.get_credentials(workspace_id)
         if credentials is None:
             return None
-        row = await self.repository.get_settings(workspace_id)
         return GoogleOAuthConfig(
             client_id=credentials[0],
             client_secret=credentials[1],

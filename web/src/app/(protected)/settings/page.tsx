@@ -311,6 +311,7 @@ export default function SettingsPage() {
 								</p>
 								<button
 									type="button"
+									aria-pressed={profileSection === "information"}
 									className={railTabClass(profileSection === "information")}
 									onClick={() => {
 										setProfileSection("information");
@@ -320,6 +321,7 @@ export default function SettingsPage() {
 								</button>
 								<button
 									type="button"
+									aria-pressed={profileSection === "security"}
 									className={railTabClass(profileSection === "security")}
 									onClick={() => {
 										setProfileSection("security");
@@ -329,6 +331,7 @@ export default function SettingsPage() {
 								</button>
 								<button
 									type="button"
+									aria-pressed={profileSection === "preferences"}
 									className={railTabClass(profileSection === "preferences")}
 									onClick={() => {
 										setProfileSection("preferences");
@@ -338,6 +341,7 @@ export default function SettingsPage() {
 								</button>
 								<button
 									type="button"
+									aria-pressed={profileSection === "threads"}
 									className={railTabClass(profileSection === "threads")}
 									onClick={() => {
 										setProfileSection("threads");
@@ -352,6 +356,7 @@ export default function SettingsPage() {
 								</p>
 								<button
 									type="button"
+									aria-pressed={profileSection === "tokens"}
 									className={railTabClass(profileSection === "tokens")}
 									onClick={() => {
 										setProfileSection("tokens");
@@ -469,13 +474,19 @@ export default function SettingsPage() {
 									: "hidden"
 							}
 						>
-							{profileSection !== "tokens" &&
-								profileSection !== "threads" &&
-								(user ? (
-									<ProfileSettings user={user} section={profileSection} />
-								) : (
-									<div className="h-40 animate-pulse rounded-[12px] border border-border bg-card" />
-								))}
+							{user ? (
+								<ProfileSettings
+									user={user}
+									section={
+										profileSection === "tokens" ||
+										profileSection === "threads"
+											? "information"
+											: profileSection
+									}
+								/>
+							) : (
+								<div className="h-40 animate-pulse rounded-[12px] border border-border bg-card" />
+							)}
 						</section>
 
 						<section
@@ -596,9 +607,7 @@ export default function SettingsPage() {
 						{isAdmin && (
 							<section className={tab === "sandboxes" ? "" : "hidden"}>
 								<WorkspaceSandboxes
-									onForbidden={() => {
-										setErrorDialogOpen(true);
-									}}
+									onForbidden={handleForbidden}
 									onCountChange={setSandboxCount}
 								/>
 							</section>

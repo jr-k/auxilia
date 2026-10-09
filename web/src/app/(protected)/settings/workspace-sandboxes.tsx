@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Image from "next/image";
 import { Pencil, Plus, Trash2 } from "lucide-react";
 import { HeaderButton } from "@/components/layout/subpage-header";
@@ -44,11 +44,6 @@ export default function WorkspaceSandboxes({
 	} | null>(null);
 	const [pendingIds, setPendingIds] = useState<ReadonlySet<string>>(new Set());
 
-	const onForbiddenRef = useRef(onForbidden);
-	onForbiddenRef.current = onForbidden;
-	const onCountChangeRef = useRef(onCountChange);
-	onCountChangeRef.current = onCountChange;
-
 	const [hasLoaded, setHasLoaded] = useState(false);
 
 	const loadSandboxes = useCallback(async () => {
@@ -59,23 +54,28 @@ export default function WorkspaceSandboxes({
 			setHasLoaded(true);
 		} catch (error: unknown) {
 			if (isForbidden(error)) {
-				onForbiddenRef.current();
+				onForbidden();
 			}
 			setLoadFailed(true);
 		} finally {
 			setIsLoading(false);
 		}
-	}, []);
+	}, [onForbidden]);
 
 	useEffect(() => {
-		void loadSandboxes();
+		const timeoutId = window.setTimeout(() => {
+			void loadSandboxes();
+		}, 0);
+		return () => {
+			window.clearTimeout(timeoutId);
+		};
 	}, [loadSandboxes]);
 
 	// Report the rail count after commit — never from inside a state updater,
 	// which React may re-invoke — and only once real data has loaded.
 	useEffect(() => {
-		if (hasLoaded) onCountChangeRef.current?.(sandboxes.length);
-	}, [hasLoaded, sandboxes]);
+		if (hasLoaded) onCountChange?.(sandboxes.length);
+	}, [hasLoaded, onCountChange, sandboxes]);
 
 	const setPending = (id: string, pending: boolean) => {
 		setPendingIds((prev) => {
@@ -113,7 +113,7 @@ export default function WorkspaceSandboxes({
 			setSandboxes((prev) => prev.filter((s) => s.id !== sandbox.id));
 		} catch (error: unknown) {
 			if (isForbidden(error)) {
-				onForbiddenRef.current();
+				onForbidden();
 			} else {
 				setStatus({ kind: "error", text: "Could not delete the sandbox." });
 			}
@@ -129,7 +129,7 @@ export default function WorkspaceSandboxes({
 			await sandboxesApi.deleteSandbox(sandbox.id, { detachAgents: true });
 		} catch (error: unknown) {
 			if (isForbidden(error)) {
-				onForbiddenRef.current();
+				onForbidden();
 				return;
 			}
 			throw error; // the dialog shows its own banner
@@ -271,7 +271,7 @@ export default function WorkspaceSandboxes({
 								type="button"
 								title="Delete sandbox"
 								aria-label={`Delete ${sandbox.name}`}
-								disabled={pendingIds.has(sandbox.id)}
+								disabled={pendingIds.size > 0 || deleteTarget !== null}
 								onClick={() => {
 									void handleDelete(sandbox);
 								}}

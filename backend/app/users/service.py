@@ -101,11 +101,14 @@ class UserService(BaseService[UserDB, UserRepository]):
         return await self.get(user.id, workspace_id)
 
     async def update_profile(self, user: UserDB, data: ProfilePatch) -> UserDB:
-        first_name = data.first_name.strip() or None
-        last_name = data.last_name.strip() or None
-        user.first_name = first_name
-        user.last_name = last_name
-        user.name = " ".join(part for part in (first_name, last_name) if part) or None
+        if "first_name" in data.model_fields_set:
+            user.first_name = (data.first_name or "").strip() or None
+        if "last_name" in data.model_fields_set:
+            user.last_name = (data.last_name or "").strip() or None
+        user.name = (
+            " ".join(part for part in (user.first_name, user.last_name) if part).strip()
+            or None
+        )
         self.db.add(user)
         await self.db.flush()
         await self.db.refresh(user)

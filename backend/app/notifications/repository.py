@@ -32,7 +32,6 @@ class SlackNotificationSettingsRepository(BaseRepository[SlackNotificationSettin
         row = await self.get_settings(workspace_id)
         if (
             row is None
-            or not row.enabled
             or not row.bot_token_encrypted
             or not row.signing_secret_encrypted
         ):

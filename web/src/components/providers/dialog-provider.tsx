@@ -4,11 +4,13 @@ import {
 	createContext,
 	useCallback,
 	useContext,
+	useEffect,
 	useMemo,
 	useRef,
 	useState,
 	type ReactNode,
 } from "react";
+import { usePathname } from "next/navigation";
 import ConfirmDialog from "@/components/ui/confirm-dialog";
 
 interface ConfirmDialogOptions {
@@ -33,7 +35,9 @@ const DialogContext = createContext<Confirm | null>(null);
  * same accessible, themed dialog.
  */
 export function DialogProvider({ children }: { children: ReactNode }) {
+	const pathname = usePathname();
 	const nextId = useRef(0);
+	const previousPathname = useRef(pathname);
 	const [pending, setPending] = useState<PendingConfirmation | null>(null);
 	const pendingRef = useRef<PendingConfirmation | null>(null);
 
@@ -55,6 +59,19 @@ export function DialogProvider({ children }: { children: ReactNode }) {
 		current.resolve(confirmed);
 		setPending(null);
 	}, []);
+
+	useEffect(() => {
+		if (previousPathname.current === pathname) return;
+		previousPathname.current = pathname;
+		const pendingId = pendingRef.current?.id;
+		if (pendingId === undefined) return;
+		const timeoutId = window.setTimeout(() => {
+			settle(pendingId, false);
+		}, 0);
+		return () => {
+			window.clearTimeout(timeoutId);
+		};
+	}, [pathname, settle]);
 
 	const value = useMemo(() => confirm, [confirm]);
 

@@ -22,6 +22,8 @@ services:
     image: postgres:17
     container_name: auxilia-postgres
     restart: always
+    # POSTGRES_* only initialize an empty volume. If DB_* changes later,
+    # update the existing role/database explicitly or recreate the dev volume.
     environment:
       POSTGRES_USER: ${DB_USER:-auxilia}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-auxilia}

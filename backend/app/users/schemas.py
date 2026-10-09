@@ -57,8 +57,8 @@ class CurrentUserResponse(UserResponse):
 
 
 class ProfilePatch(SQLModel):
-    first_name: str = Field(max_length=100)
-    last_name: str = Field(max_length=100)
+    first_name: str | None = Field(default=None, max_length=100)
+    last_name: str | None = Field(default=None, max_length=100)
 
 
 class PasswordChange(SQLModel):

@@ -20,6 +20,7 @@ def _normalize_group(value: str | None) -> str | None:
 
 class TriggerCreate(TriggerBase):
     trigger_type: TriggerType = TriggerType.schedule
+    timezone: str | None = Field(default="UTC", max_length=64)
     visibility: ResourceVisibility = ResourceVisibility.personal
     team_ids: list[UUID] = Field(default_factory=list, exclude=True)
 
@@ -33,8 +34,13 @@ class TriggerCreate(TriggerBase):
         if self.trigger_type == TriggerType.schedule:
             if not self.cron_expression or not self.timezone:
                 raise ValueError("Scheduled triggers require a schedule and timezone")
-        elif self.cron_expression is not None or self.timezone is not None:
-            raise ValueError("Webhook triggers cannot define a schedule or timezone")
+        else:
+            if "timezone" not in self.model_fields_set:
+                self.timezone = None
+            if self.cron_expression is not None or self.timezone is not None:
+                raise ValueError(
+                    "Webhook triggers cannot define a schedule or timezone"
+                )
         return self
 
 
@@ -50,7 +56,7 @@ class TriggerCreateDB(TriggerBase):
 class TriggerPatch(SQLModel):
     name: str | None = None
     group: str | None = None
-    instructions: str | None = None
+    instructions: str | None = Field(default=None, max_length=110_000)
     agent_id: UUID | None = None
     model_id: str | None = None
     reasoning_effort: str | None = None

@@ -9,10 +9,36 @@ interface TimezonePickerProps {
 	onChange: (timezone: string) => void;
 }
 
-const TIMEZONES = [
+const FALLBACK_TIMEZONES = [
 	"UTC",
-	...Intl.supportedValuesOf("timeZone").filter((timezone) => timezone !== "UTC"),
+	"America/Los_Angeles",
+	"America/New_York",
+	"America/Sao_Paulo",
+	"Asia/Dubai",
+	"Asia/Kolkata",
+	"Asia/Singapore",
+	"Asia/Tokyo",
+	"Australia/Sydney",
+	"Europe/Berlin",
+	"Europe/London",
+	"Europe/Paris",
 ];
+
+function supportedTimezones(): string[] {
+	try {
+		if (typeof Intl.supportedValuesOf !== "function") return FALLBACK_TIMEZONES;
+		return [
+			"UTC",
+			...Intl.supportedValuesOf("timeZone").filter(
+				(timezone) => timezone !== "UTC",
+			),
+		];
+	} catch {
+		return FALLBACK_TIMEZONES;
+	}
+}
+
+const TIMEZONES = supportedTimezones();
 
 function matchesQuery(timezone: string, query: string): boolean {
 	const normalizedQuery = query.trim().toLowerCase().replaceAll(" ", "_");
@@ -65,6 +91,7 @@ export default function TimezonePicker({
 							<Search className="size-3.5 shrink-0 text-faint" />
 							<input
 								ref={inputRef}
+								aria-label="Search timezones"
 								value={query}
 								onChange={(event) => {
 									setQuery(event.target.value);

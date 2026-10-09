@@ -450,6 +450,7 @@ export default function CustomMCPServerPage() {
 
 						<ImageUpload
 							file={imageFile}
+							disabled={isSubmitting}
 							onFileChange={setImageFile}
 							onRemove={() => {
 								setImageFile(null);

@@ -13,6 +13,10 @@ from slack_sdk.web.async_client import AsyncWebClient
 
 from app.database import AsyncSessionLocal
 from app.integrations.slack.models import SlackUserInfo
+from app.notifications.runtime import (
+    SlackRuntimeConfig,
+    get_cached_slack_runtime_configs,
+)
 from app.notifications.service import SlackNotificationSettingsService
 from app.users.models import UserDB
 from app.users.repository import UserRepository
@@ -22,6 +26,16 @@ from app.workspaces.repository import WorkspaceRepository
 logger = logging.getLogger(__name__)
 
 _MAX_AGE_SECONDS = 60 * 5
+
+
+async def _workspace_runtime_configs() -> tuple[SlackRuntimeConfig, ...]:
+    async def load() -> tuple[SlackRuntimeConfig, ...]:
+        async with AsyncSessionLocal() as db:
+            return tuple(
+                await SlackNotificationSettingsService(db).list_runtime_configs()
+            )
+
+    return await get_cached_slack_runtime_configs(load)
 
 
 @dataclass(frozen=True)
@@ -82,15 +96,12 @@ async def verify_slack_signature(
 
     body = await request.body()
     team_id = _team_id(body)
-    async with AsyncSessionLocal() as db:
-        service = SlackNotificationSettingsService(db)
-        if team_id:
-            config = await service.get_runtime_config_for_team(team_id)
-            candidates = [config] if config is not None else []
-        else:
-            # Slack's URL verification challenge has no team_id. Match its
-            # signature against configured workspace apps to identify the app.
-            candidates = await service.list_runtime_configs()
+    configs = await _workspace_runtime_configs()
+    candidates = [
+        config
+        for config in configs
+        if team_id is None or config.slack_team_id == team_id
+    ]
     if not candidates:
         raise HTTPException(status_code=503, detail="Slack is not configured")
 

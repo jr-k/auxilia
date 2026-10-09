@@ -39,7 +39,7 @@ def build_otpauth_uri(secret: str, email: str, issuer: str = "auxilia") -> str:
 def build_qr_code_data_url(uri: str) -> str:
     image = qrcode.make(uri)
     output = BytesIO()
-    image.save(output)
+    image.save(output, format="PNG")  # type: ignore[call-arg]
     encoded = base64.b64encode(output.getvalue()).decode()
     return f"data:image/png;base64,{encoded}"
 
@@ -61,7 +61,11 @@ def matching_totp_counter(
     secret: str, code: str, *, at: int | None = None
 ) -> int | None:
     normalized = code.replace(" ", "")
-    if len(normalized) != TOTP_DIGITS or not normalized.isdigit():
+    if (
+        len(normalized) != TOTP_DIGITS
+        or not normalized.isascii()
+        or not normalized.isdigit()
+    ):
         return None
     counter = (at if at is not None else int(time.time())) // TOTP_PERIOD_SECONDS
     for offset in (-1, 0, 1):

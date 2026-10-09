@@ -21,7 +21,6 @@ These must be set for **auxilia** to start. Missing any of them will fail backen
 | `BACKEND_ENCRYPTION_SALT`                          | Secret used to encrypt credentials stored through Settings            |
 | `FRONTEND_URL`                                     | Public URL of the web app (used as OAuth redirect base)               |
 | `BACKEND_URL`                                      | Internal URL the Next.js proxy uses to reach the backend (web only)   |
-| One LLM key                                        | See [LLM providers](#llm-providers) — at least one is required        |
 
 In production, also set:
 
@@ -31,7 +30,15 @@ In production, also set:
 
 ## LLM providers
 
-At least one provider must be configured. That means a provider key — except for Google, which also works with [Application Default Credentials](#google-via-application-default-credentials) alone. Configuring a provider makes its models eligible for the picker — configure multiple to give agent authors a choice. Which models actually appear (and which one is preselected) is managed by workspace admins under **Settings → Models**; see [Available models](/agents#available-models).
+An LLM credential is not required for the application to boot, but at least one
+provider must be configured before an agent can run. Admins can add credentials
+after startup under **Settings → Models**, or provide the environment variables
+below. Google also works with
+[Application Default Credentials](#google-via-application-default-credentials).
+Configuring a provider makes its models eligible for the picker — configure
+multiple to give agent authors a choice. Which models actually appear (and which
+one is preselected) is managed by workspace admins under **Settings → Models**;
+see [Available models](/agents#available-models).
 
 | Provider  | Environment variable | Models                                                     |
 | --------- | -------------------- | ---------------------------------------------------------- |

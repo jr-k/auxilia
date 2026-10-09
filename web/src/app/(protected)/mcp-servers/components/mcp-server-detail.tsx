@@ -866,6 +866,20 @@ export default function MCPServerDetail({
 									</span>
 								)}
 							</div>
+							<div className="flex flex-col gap-[7px]">
+								<label htmlFor="mcp-edit-icon-url" className={LABEL_CLASS}>
+									Icon URL
+								</label>
+								<input
+									id="mcp-edit-icon-url"
+									value={form.iconUrl}
+									onChange={(e) => {
+										handleFormChange("iconUrl", e.target.value);
+									}}
+									placeholder="https://example.com/icon.png"
+									className={MONO_INPUT_CLASS}
+								/>
+							</div>
 							<ImageUpload
 								currentUrl={
 									server.imageRevision
@@ -873,7 +887,7 @@ export default function MCPServerDetail({
 												server.id,
 												server.imageRevision,
 											)
-										: null
+										: form.iconUrl || null
 								}
 								file={imageFile}
 								removed={removeImage}
@@ -882,8 +896,16 @@ export default function MCPServerDetail({
 									if (file) setRemoveImage(false);
 								}}
 								onRemove={() => {
+									if (imageFile) {
+										setImageFile(null);
+										return;
+									}
 									setImageFile(null);
-									setRemoveImage(Boolean(server.imageRevision));
+									if (server.imageRevision) {
+										setRemoveImage(true);
+									} else {
+										handleFormChange("iconUrl", "");
+									}
 								}}
 								label="Uploaded logo"
 								className="rounded-[12px] border border-hairline bg-sidebar p-3 dark:border-white/5"

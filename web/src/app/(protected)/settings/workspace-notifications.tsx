@@ -118,6 +118,7 @@ export default function WorkspaceMessaging({ onForbidden }: Props) {
 						</p>
 					</div>
 					<Switch
+						aria-label="Enable Slack notifications"
 						checked={enabled}
 						disabled={saving}
 						onCheckedChange={(checked) => {

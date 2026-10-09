@@ -41,8 +41,10 @@ class WorkspaceObservabilityService:
         self, workspace_id: UUID
     ) -> ObservabilityRuntimeConfig | None:
         row = await self.repository.get_settings(workspace_id)
+        if row is None or not row.enabled:
+            return None
         credentials = await self.repository.get_credentials(workspace_id)
-        if row is None or credentials is None:
+        if credentials is None:
             return None
         return ObservabilityRuntimeConfig(
             base_url=row.base_url,

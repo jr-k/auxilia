@@ -742,14 +742,16 @@ export default function ProfileSettings({
 					{copy.description}
 				</p>
 			</div>
-			{section === "information" && <IdentityCard user={user} />}
-			{section === "security" && (
-				<>
+			<div className={section === "information" ? "" : "hidden"}>
+				<IdentityCard user={user} />
+			</div>
+			<div className={section === "security" ? "contents" : "hidden"}>
 					<PasswordCard />
 					<TwoFactorCard user={user} />
-				</>
-			)}
-			{section === "preferences" && <PreferencesCard />}
+			</div>
+			<div className={section === "preferences" ? "" : "hidden"}>
+				<PreferencesCard />
+			</div>
 		</div>
 	);
 }

@@ -47,7 +47,7 @@ def _process_image(raw: bytes) -> ProcessedImage:
             source.load()
             normalized = ImageOps.exif_transpose(source)
             has_alpha = normalized.mode in {"RGBA", "LA"} or (
-                normalized.mode == "P" and "transparency" in normalized.info
+                "transparency" in normalized.info
             )
             normalized = normalized.convert("RGBA" if has_alpha else "RGB")
             normalized = ImageOps.fit(
@@ -85,8 +85,12 @@ def image_response(
         "ETag": etag,
         "X-Content-Type-Options": "nosniff",
     }
-    if if_none_match and etag in {
-        candidate.strip() for candidate in if_none_match.split(",")
-    }:
-        return Response(status_code=304, headers=headers)
+    if if_none_match:
+        candidates = {candidate.strip() for candidate in if_none_match.split(",")}
+        normalized_candidates = {
+            candidate[2:] if candidate.startswith("W/") else candidate
+            for candidate in candidates
+        }
+        if "*" in candidates or etag in normalized_candidates:
+            return Response(status_code=304, headers=headers)
     return Response(content=data, media_type=media_type, headers=headers)

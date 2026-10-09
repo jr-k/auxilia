@@ -157,9 +157,10 @@ class AuthService:
         user = await self.db.get(UserDB, decoded.user_id)
         if user is None or not user.two_factor_enabled:
             raise InvalidCredentialsError("Invalid two-factor challenge")
+        workspace_id = await self.hydrate_signin_workspace(user, workspace_value)
+        await self._ensure_password_auth(workspace_id)
         await UserService(self.db).verify_second_factor(user.id, data.code)
         await consume_challenge(decoded.jti)
-        await self.hydrate_signin_workspace(user, workspace_value)
         return self.build_jwt_for_user(user)
 
     async def setup(self, data: SignupRequest) -> tuple[UserDB, str]:

@@ -28,9 +28,9 @@ export function SearchBar({
 				(event.metaKey || event.ctrlKey) &&
 				event.key.toLowerCase() === "k"
 			) {
-				event.preventDefault();
 				const input = inputRef.current;
 				if (!input || input.offsetParent === null) return;
+				event.preventDefault();
 				input.focus();
 				input.select();
 			}

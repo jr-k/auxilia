@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 from uuid import UUID
 
 from fastapi import Depends
@@ -9,18 +8,14 @@ from app.auth.settings import auth_settings
 from app.database import get_db
 from app.exceptions import DomainValidationError
 from app.notifications.repository import SlackNotificationSettingsRepository
+from app.notifications.runtime import (
+    SlackRuntimeConfig,
+    invalidate_slack_runtime_cache,
+)
 from app.notifications.schemas import (
     SlackNotificationSettingsResponse,
     SlackNotificationSettingsUpdate,
 )
-
-
-@dataclass(frozen=True)
-class SlackRuntimeConfig:
-    workspace_id: UUID
-    slack_team_id: str
-    bot_token: str
-    signing_secret: str
 
 
 class SlackNotificationSettingsService:
@@ -30,8 +25,10 @@ class SlackNotificationSettingsService:
 
     async def get_runtime_config(self, workspace_id: UUID) -> SlackRuntimeConfig | None:
         row = await self.repository.get_settings(workspace_id)
+        if row is None or not row.enabled:
+            return None
         credentials = await self.repository.get_credentials(workspace_id)
-        if credentials is None or row is None or not row.slack_team_id:
+        if credentials is None or not row.slack_team_id:
             return None
         return SlackRuntimeConfig(
             workspace_id=workspace_id,
@@ -117,10 +114,12 @@ class SlackNotificationSettingsService:
             signing_secret=signing_secret,
             slack_team_id=slack_team_id,
         )
+        invalidate_slack_runtime_cache()
         return await self.get_response(workspace_id)
 
     async def clear(self, workspace_id: UUID) -> SlackNotificationSettingsResponse:
         await self.repository.clear(workspace_id)
+        invalidate_slack_runtime_cache()
         return await self.get_response(workspace_id)
 
 

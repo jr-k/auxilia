@@ -262,6 +262,7 @@ export default function TriggerEditor({
 							<EditorSection label="Trigger name">
 								<input
 									type="text"
+									autoFocus={!trigger}
 									maxLength={255}
 									value={form.name}
 									onChange={(e) => {

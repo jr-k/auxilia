@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Switch } from "@/components/ui/switch";
 import { HeaderButton } from "@/components/layout/subpage-header";
+import { useConfirmDialog } from "@/components/providers/dialog-provider";
 import { Input } from "@/components/ui/input";
 import * as authApi from "@/lib/api/resources/auth";
 import { isApiError } from "@/lib/api/errors";
@@ -16,6 +17,7 @@ const labelClass =
 	"mb-1.5 block text-[12px] font-semibold text-subtle dark:text-panel-body";
 
 export default function WorkspaceAuthentication({ onForbidden }: Props) {
+	const confirmDialog = useConfirmDialog();
 	const [settings, setSettings] =
 		useState<WorkspaceAuthenticationSettings | null>(null);
 	const [enabled, setEnabled] = useState(false);
@@ -104,6 +106,40 @@ export default function WorkspaceAuthentication({ onForbidden }: Props) {
 		}
 	};
 
+	const removeCredentials = async () => {
+		if (
+			!(await confirmDialog({
+				title: "Remove Google OAuth credentials?",
+				description:
+					"Google sign-in will be disabled until new credentials are configured.",
+				confirmLabel: "Remove credentials",
+				destructive: true,
+			}))
+		) {
+			return;
+		}
+		setSaving(true);
+		setStatus(null);
+		try {
+			const updated = await authApi.deleteWorkspaceAuthentication();
+			setSettings(updated);
+			setEnabled(false);
+			setExclusive(false);
+			setClientId("");
+			setClientSecret("");
+			setStatus("Google OAuth credentials removed.");
+		} catch (error: unknown) {
+			if (isApiError(error) && error.status === 403) onForbidden();
+			setStatus(
+				isApiError(error) && error.detail
+					? error.detail
+					: "Could not remove Google OAuth credentials.",
+			);
+		} finally {
+			setSaving(false);
+		}
+	};
+
 	return (
 		<div>
 			<div className="mb-1.5 flex items-baseline gap-2.5">
@@ -130,6 +166,7 @@ export default function WorkspaceAuthentication({ onForbidden }: Props) {
 							</div>
 						</div>
 						<Switch
+							aria-label="Enable Google authentication"
 							checked={enabled}
 							disabled={saving}
 							onCheckedChange={(checked) => {
@@ -187,6 +224,7 @@ export default function WorkspaceAuthentication({ onForbidden }: Props) {
 									</div>
 								</div>
 								<Switch
+									aria-label="Require Google-only authentication"
 									checked={exclusive}
 									onCheckedChange={setExclusive}
 									className="cursor-pointer data-[state=checked]:bg-petrol"
@@ -195,17 +233,31 @@ export default function WorkspaceAuthentication({ onForbidden }: Props) {
 						</>
 					)}
 				</div>
-				{enabled && (
+				{(enabled || settings.isConfigured) && (
 					<div className="flex items-center gap-3 border-t border-hairline px-4 py-3">
-						<HeaderButton
-							accent
-							disabled={saving}
-							onClick={() => {
-								void save();
-							}}
-						>
-							{saving ? "Saving…" : "Save changes"}
-						</HeaderButton>
+						{settings.isConfigured && (
+							<button
+								type="button"
+								disabled={saving}
+								onClick={() => {
+									void removeCredentials();
+								}}
+								className="cursor-pointer text-[12px] font-semibold text-destructive hover:underline disabled:cursor-not-allowed disabled:opacity-50"
+							>
+								Remove credentials
+							</button>
+						)}
+						{enabled && (
+							<HeaderButton
+								accent
+								disabled={saving}
+								onClick={() => {
+									void save();
+								}}
+							>
+								{saving ? "Saving…" : "Save changes"}
+							</HeaderButton>
+						)}
 						{status && (
 							<span className="text-[12px] text-subtle">{status}</span>
 						)}

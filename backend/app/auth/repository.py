@@ -26,7 +26,6 @@ class WorkspaceAuthenticationRepository(BaseRepository[WorkspaceAuthenticationDB
         row = await self.get_settings(workspace_id)
         if (
             row is None
-            or not row.enabled
             or not row.google_client_id_encrypted
             or not row.google_client_secret_encrypted
         ):

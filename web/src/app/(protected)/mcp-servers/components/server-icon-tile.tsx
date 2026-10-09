@@ -74,6 +74,8 @@ export function ServerIconTile({
 				<img
 					src={source}
 					alt={name}
+					loading="lazy"
+					decoding="async"
 					width={showsUploadedImage ? size : iconPx}
 					height={showsUploadedImage ? size : iconPx}
 					className={

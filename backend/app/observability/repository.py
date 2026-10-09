@@ -30,12 +30,7 @@ class WorkspaceObservabilityRepository(BaseRepository[WorkspaceObservabilityDB])
         self, workspace_id: UUID | None = None
     ) -> tuple[str, str] | None:
         row = await self.get_settings(workspace_id)
-        if (
-            row is None
-            or not row.enabled
-            or not row.public_key_encrypted
-            or not row.secret_key_encrypted
-        ):
+        if row is None or not row.public_key_encrypted or not row.secret_key_encrypted:
             return None
         return (
             decrypt_value(row.public_key_encrypted),

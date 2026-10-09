@@ -6,15 +6,30 @@ const RESPONSE_SOUND_KEY = "auxilia:play-response-sound";
 const SHOW_SHORTCUTS_IN_MENU_KEY = "auxilia:show-shortcuts-in-menu";
 const responseSoundListeners = new Set<() => void>();
 const shortcutsMenuListeners = new Set<() => void>();
+let responseSoundFallback = true;
+let shortcutsMenuFallback = true;
+
+function readPreference(key: string, fallback: boolean): boolean {
+	if (typeof window === "undefined") return fallback;
+	try {
+		const value = window.localStorage.getItem(key);
+		return value === null ? fallback : value !== "false";
+	} catch {
+		return fallback;
+	}
+}
 
 function readResponseSoundPreference(): boolean {
-	if (typeof window === "undefined") return true;
-	return window.localStorage.getItem(RESPONSE_SOUND_KEY) !== "false";
+	responseSoundFallback = readPreference(RESPONSE_SOUND_KEY, responseSoundFallback);
+	return responseSoundFallback;
 }
 
 function readShowShortcutsInMenuPreference(): boolean {
-	if (typeof window === "undefined") return true;
-	return window.localStorage.getItem(SHOW_SHORTCUTS_IN_MENU_KEY) !== "false";
+	shortcutsMenuFallback = readPreference(
+		SHOW_SHORTCUTS_IN_MENU_KEY,
+		shortcutsMenuFallback,
+	);
+	return shortcutsMenuFallback;
 }
 
 function subscribeToPreference(
@@ -70,14 +85,24 @@ export function isResponseSoundEnabled(): boolean {
 }
 
 export function setResponseSoundEnabled(enabled: boolean): void {
-	window.localStorage.setItem(RESPONSE_SOUND_KEY, String(enabled));
+	responseSoundFallback = enabled;
+	try {
+		window.localStorage.setItem(RESPONSE_SOUND_KEY, String(enabled));
+	} catch {
+		// Keep the in-memory preference when storage is unavailable.
+	}
 	responseSoundListeners.forEach((listener) => {
 		listener();
 	});
 }
 
 export function setShowShortcutsInMenu(enabled: boolean): void {
-	window.localStorage.setItem(SHOW_SHORTCUTS_IN_MENU_KEY, String(enabled));
+	shortcutsMenuFallback = enabled;
+	try {
+		window.localStorage.setItem(SHOW_SHORTCUTS_IN_MENU_KEY, String(enabled));
+	} catch {
+		// Keep the in-memory preference when storage is unavailable.
+	}
 	shortcutsMenuListeners.forEach((listener) => {
 		listener();
 	});

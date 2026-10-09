@@ -451,7 +451,7 @@ class TriggerService(BaseService[TriggerDB, TriggerRepository]):
 
         owner = await self._get_owner(trigger)
         agent_id = data.agent_id or trigger.agent_id
-        model_id = data.model_id or trigger.model_id
+        model_id = data.model_id if data.model_id is not None else trigger.model_id
         instructions = (
             data.instructions if data.instructions is not None else trigger.instructions
         )
