@@ -18,10 +18,10 @@ from urllib.parse import urlparse
 
 import httpx
 import yaml
-from pydantic import BaseModel, model_validator
+from pydantic import BaseModel, Field, model_validator
 
 from app.exceptions import DomainValidationError
-from app.mcp.servers.models import MCPAuthType
+from app.mcp.servers.models import MCPAuthType, ServiceCredentialProvider
 from app.mcp.servers.settings import mcp_server_settings
 from app.utils.remote_catalog import RemoteCatalog
 
@@ -29,6 +29,16 @@ from app.utils.remote_catalog import RemoteCatalog
 # The single copy of the catalog: bundled into the image as the offline
 # fallback and uploaded as-is to the CDN (`MCP_CATALOG_URL`).
 _BUNDLED_PATH = Path(__file__).parent / "catalog.yaml"
+
+_KNOWN_SERVICE_CREDENTIAL_PROVIDERS: dict[str, list[ServiceCredentialProvider]] = {
+    "https://bigquery.googleapis.com/mcp": [
+        ServiceCredentialProvider.google_service_account
+    ],
+    "https://logging.googleapis.com/mcp": [
+        ServiceCredentialProvider.google_service_account
+    ],
+    "https://api.githubcopilot.com/mcp": [ServiceCredentialProvider.github_app],
+}
 
 
 class OfficialServer(BaseModel):
@@ -43,9 +53,19 @@ class OfficialServer(BaseModel):
     # admin installing it must supply a static client_id/secret. Must be None
     # for non-OAuth servers (not applicable).
     supports_dcr: bool | None = None
+    # Alternative machine identities explicitly supported by this endpoint.
+    # An empty list means Service identity is not offered for the catalog
+    # template; custom servers may choose any provider.
+    service_credential_providers: list[ServiceCredentialProvider] = Field(
+        default_factory=list
+    )
 
     @model_validator(mode="after")
     def validate_entry(self) -> "OfficialServer":
+        if not self.service_credential_providers:
+            self.service_credential_providers = list(
+                _KNOWN_SERVICE_CREDENTIAL_PROVIDERS.get(self.url, ())
+            )
         if not self.name.strip():
             raise ValueError("server name must not be empty")
         bad_url = ValueError(f"url {self.url!r} must be an absolute http(s) URL")
@@ -70,6 +90,17 @@ class OfficialServer(BaseModel):
         elif self.supports_dcr is not None:
             raise ValueError(
                 f"{self.name!r} is not an oauth2 server, so supports_dcr must be omitted"
+            )
+        if (
+            ServiceCredentialProvider.custom_http_headers
+            in self.service_credential_providers
+        ):
+            raise ValueError("custom_http_headers belongs to the custom_http auth type")
+        if len(set(self.service_credential_providers)) != len(
+            self.service_credential_providers
+        ):
+            raise ValueError(
+                f"{self.name!r} has duplicate service credential providers"
             )
         return self
 

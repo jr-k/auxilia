@@ -109,6 +109,9 @@ class OfficialMCPServerResponse(SQLModel):
     is_installed: bool = Field(default=False)
     installed_count: int = Field(default=0, ge=0)
     supports_dcr: bool | None = Field(default=None)
+    service_credential_providers: list[ServiceCredentialProvider] = Field(
+        default_factory=list
+    )
 
 
 class MCPCatalogSyncResponse(SQLModel):

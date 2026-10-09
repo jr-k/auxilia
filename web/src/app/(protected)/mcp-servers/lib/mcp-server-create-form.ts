@@ -5,6 +5,13 @@ import {
 	ServiceCredentialProvider,
 } from "@/types/mcp-servers";
 import type { ResourceVisibility } from "@/types/visibility";
+import {
+	buildProviderCredentialsJson,
+	EMPTY_SERVICE_CREDENTIAL_FIELDS,
+	ServiceCredentialFields,
+	ServiceIdentityProvider,
+	validateProviderCredentials,
+} from "./service-credential-providers";
 
 export interface MCPServerCreateFormValues {
 	name: string;
@@ -20,6 +27,7 @@ export interface MCPServerCreateFormValues {
 	serviceCredentialProvider?: ServiceCredentialProvider;
 	serviceCredentialsJson?: string;
 	serviceCredentialScopes?: string;
+	serviceCredentialFields?: ServiceCredentialFields;
 	serviceHeaders?: { name: string; value: string }[];
 	iconUrl: string;
 }
@@ -65,9 +73,15 @@ export function validateMCPServerCreateForm(
 			"Client Secret is required when providing a Client ID.";
 	}
 	if (form.authType === "service_identity") {
-		if (!form.serviceCredentialsJson?.trim()) {
-			errors.serviceCredentialsJson = "A service credential file is required.";
-		}
+		const provider =
+			(form.serviceCredentialProvider as ServiceIdentityProvider | undefined) ??
+			"google_service_account";
+		const providerError = validateProviderCredentials(
+			provider,
+			form.serviceCredentialFields ?? EMPTY_SERVICE_CREDENTIAL_FIELDS,
+			form.serviceCredentialsJson,
+		);
+		if (providerError) errors.serviceCredentialsJson = providerError;
 	}
 	if (form.authType === "custom_http") {
 		const headerError = validateServiceHeaders(form.serviceHeaders);
@@ -116,8 +130,9 @@ export function buildMCPServerCreatePayload(
 		oauthClientSecret,
 	};
 	if (form.authType === "service_identity") {
-		payload.serviceCredentialProvider = "google_service_account";
-		payload.serviceCredentialsJson = form.serviceCredentialsJson;
+		payload.serviceCredentialProvider =
+			form.serviceCredentialProvider ?? "google_service_account";
+		payload.serviceCredentialsJson = buildServiceCredentialsPayload(form);
 		payload.serviceCredentialScopes = parseServiceCredentialScopes(
 			form.serviceCredentialScopes ?? "",
 		);
@@ -133,7 +148,10 @@ export function buildMCPServerCreatePayload(
 export function buildServiceCredentialsPayload(
 	form: Pick<
 		MCPServerCreateFormValues,
-		"serviceCredentialProvider" | "serviceCredentialsJson" | "serviceHeaders"
+		| "serviceCredentialProvider"
+		| "serviceCredentialsJson"
+		| "serviceCredentialFields"
+		| "serviceHeaders"
 	> & { authType?: MCPAuthType },
 ): string | undefined {
 	if (
@@ -147,7 +165,12 @@ export function buildServiceCredentialsPayload(
 			})),
 		});
 	}
-	return form.serviceCredentialsJson;
+	return buildProviderCredentialsJson(
+		(form.serviceCredentialProvider ??
+			"google_service_account") as ServiceIdentityProvider,
+		form.serviceCredentialFields ?? EMPTY_SERVICE_CREDENTIAL_FIELDS,
+		form.serviceCredentialsJson,
+	);
 }
 
 export function validateServiceHeaders(

@@ -3,15 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import {
-	Eye,
-	EyeOff,
-	FileKey2,
-	Plus,
-	ShieldCheck,
-	Trash2,
-	Upload,
-} from "lucide-react";
+import { Eye, EyeOff, FileKey2, Plus, ShieldCheck, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import ForbiddenErrorDialog from "@/components/forbidden-error-dialog";
 import { Alert } from "@/components/ui/alert";
@@ -22,13 +14,10 @@ import * as mcpServersApi from "@/lib/api/resources/mcp-servers";
 import { getApiErrorMessage } from "@/lib/api/errors";
 import { useAppearanceStore } from "@/stores/appearance-store";
 import { useMcpServersStore } from "@/stores/mcp-servers-store";
-import {
-	MCPAuthType,
-	OfficialMCPServer,
-	ServiceCredentialProvider,
-} from "@/types/mcp-servers";
+import { MCPAuthType, OfficialMCPServer } from "@/types/mcp-servers";
 import { groupOptions } from "@/lib/groups";
 import { ConnectionTestBanner } from "../../components/connection-test-banner";
+import { ServiceIdentityFields } from "../../components/service-identity-fields";
 import { OAuthCallbackUrl } from "../../components/oauth-callback-url";
 import {
 	HeaderButton,
@@ -45,6 +34,10 @@ import {
 	validateMCPServerCreateForm,
 } from "../../lib/mcp-server-create-form";
 import { useConnectionTest } from "../../lib/use-connection-test";
+import {
+	EMPTY_SERVICE_CREDENTIAL_FIELDS,
+	ServiceIdentityProvider,
+} from "../../lib/service-credential-providers";
 
 const emptyForm: MCPServerCreateFormValues = {
 	name: "",
@@ -60,6 +53,7 @@ const emptyForm: MCPServerCreateFormValues = {
 	serviceCredentialProvider: "google_service_account",
 	serviceCredentialsJson: "",
 	serviceCredentialScopes: "https://www.googleapis.com/auth/cloud-platform",
+	serviceCredentialFields: { ...EMPTY_SERVICE_CREDENTIAL_FIELDS },
 	serviceHeaders: [{ name: "", value: "" }],
 	iconUrl: "",
 };
@@ -108,9 +102,11 @@ const AUTH_OPTIONS: {
 function AuthMethodCards({
 	value,
 	onChange,
+	allowServiceIdentity,
 }: {
 	value: MCPAuthType;
 	onChange: (value: MCPAuthType) => void;
+	allowServiceIdentity: boolean;
 }) {
 	return (
 		<div
@@ -118,7 +114,9 @@ function AuthMethodCards({
 			aria-label="Authentication method"
 			className="grid grid-cols-1 gap-2.5 sm:grid-cols-2"
 		>
-			{AUTH_OPTIONS.map((option) => {
+			{AUTH_OPTIONS.filter(
+				(option) => option.value !== "service_identity" || allowServiceIdentity,
+			).map((option) => {
 				const selected = option.value === value;
 				return (
 					<button
@@ -219,12 +217,17 @@ export default function CustomMCPServerPage() {
 					apiKey: "",
 					oauthClientId: "",
 					oauthClientSecret: "",
-					serviceCredentialProvider: "google_service_account",
+					serviceCredentialProvider:
+						official.serviceCredentialProviders?.[0] ??
+						"google_service_account",
 					serviceCredentialsJson: "",
 					serviceCredentialScopes:
 						official.url === "https://bigquery.googleapis.com/mcp"
 							? "https://www.googleapis.com/auth/bigquery"
 							: "https://www.googleapis.com/auth/cloud-platform",
+					serviceCredentialFields: {
+						...EMPTY_SERVICE_CREDENTIAL_FIELDS,
+					},
 					serviceHeaders: [{ name: "", value: "" }],
 					iconUrl: official.iconUrl ?? "",
 				});
@@ -496,6 +499,10 @@ export default function CustomMCPServerPage() {
 							<span className={LABEL_CLASS}>Authentication method</span>
 							<AuthMethodCards
 								value={form.authType}
+								allowServiceIdentity={
+									!selectedOfficial ||
+									(selectedOfficial.serviceCredentialProviders?.length ?? 0) > 0
+								}
 								onChange={(value) => {
 									handleFormChange("authType", value);
 								}}
@@ -660,34 +667,69 @@ export default function CustomMCPServerPage() {
 								</div>
 
 								{form.authType === "service_identity" && (
-									<div className="flex flex-col gap-[7px]">
-										<label
-											htmlFor="mcp-service-provider"
-											className={LABEL_CLASS}
-										>
-											Credential provider
-										</label>
-										<select
-											id="mcp-service-provider"
-											value={
-												form.serviceCredentialProvider ??
-												"google_service_account"
-											}
-											onChange={(e) => {
-												const provider = e.target
-													.value as ServiceCredentialProvider;
-												handleFormChange("serviceCredentialProvider", provider);
-											}}
-											className={INPUT_CLASS}
-										>
-											<option value="google_service_account">
-												Google Service Account
-											</option>
-										</select>
-									</div>
+									<ServiceIdentityFields
+										provider={
+											(form.serviceCredentialProvider ??
+												"google_service_account") as ServiceIdentityProvider
+										}
+										allowedProviders={
+											selectedOfficial?.serviceCredentialProviders
+										}
+										fields={
+											form.serviceCredentialFields ??
+											EMPTY_SERVICE_CREDENTIAL_FIELDS
+										}
+										scopes={form.serviceCredentialScopes ?? ""}
+										credentialFileName={credentialFileName}
+										error={errors.serviceCredentialsJson}
+										onProviderChange={(provider) => {
+											setCredentialFileName(null);
+											setForm((current) => ({
+												...current,
+												serviceCredentialProvider: provider,
+												serviceCredentialsJson: "",
+												serviceCredentialFields: {
+													...EMPTY_SERVICE_CREDENTIAL_FIELDS,
+												},
+												serviceCredentialScopes:
+													provider === "google_service_account"
+														? "https://www.googleapis.com/auth/cloud-platform"
+														: "",
+											}));
+											setErrors((current) => ({
+												...current,
+												serviceCredentialsJson: undefined,
+											}));
+											if (testStatus !== "idle") resetTest();
+										}}
+										onFieldsChange={(fields) => {
+											setForm((current) => ({
+												...current,
+												serviceCredentialFields: fields,
+											}));
+											setErrors((current) => ({
+												...current,
+												serviceCredentialsJson: undefined,
+											}));
+											if (testStatus !== "idle") resetTest();
+										}}
+										onScopesChange={(scopes) => {
+											handleFormChange("serviceCredentialScopes", scopes);
+										}}
+										onGoogleCredentialsChange={(contents, fileName) => {
+											handleFormChange("serviceCredentialsJson", contents);
+											setCredentialFileName(fileName);
+										}}
+										onError={(message) => {
+											setErrors((current) => ({
+												...current,
+												serviceCredentialsJson: message,
+											}));
+										}}
+									/>
 								)}
 
-								{form.authType === "custom_http" ? (
+								{form.authType === "custom_http" && (
 									<div className="flex flex-col gap-3">
 										<div className="flex items-center justify-between gap-3">
 											<span className={LABEL_CLASS}>HTTP headers</span>
@@ -760,96 +802,6 @@ export default function CustomMCPServerPage() {
 											are not allowed.
 										</span>
 									</div>
-								) : (
-									<>
-										<div className="flex flex-col gap-[7px]">
-											<span className={LABEL_CLASS}>
-												Credential file{" "}
-												<span className="text-destructive">*</span>
-											</span>
-											<label
-												htmlFor="mcp-service-credentials"
-												className={`flex cursor-pointer items-center gap-3 rounded-[10px] border border-dashed px-4 py-3 transition-colors hover:border-petrol hover:bg-card ${
-													errors.serviceCredentialsJson
-														? "border-destructive"
-														: "border-input"
-												}`}
-											>
-												<span className="flex size-8 shrink-0 items-center justify-center rounded-[8px] bg-card text-petrol">
-													<Upload className="size-4" />
-												</span>
-												<span className="min-w-0 flex-1">
-													<span className="block truncate text-[13px] font-semibold text-foreground">
-														{credentialFileName ??
-															"Choose a JSON credential file"}
-													</span>
-													<span className="mt-0.5 block text-[11.5px] text-meta dark:text-panel-dim">
-														{credentialFileName
-															? "Ready to encrypt and save"
-															: "The file stays write-only after upload"}
-													</span>
-												</span>
-											</label>
-											<input
-												id="mcp-service-credentials"
-												type="file"
-												accept=".json,application/json"
-												className="sr-only"
-												onChange={(e) => {
-													const file = e.target.files?.[0];
-													e.target.value = "";
-													if (!file) return;
-													void file
-														.text()
-														.then((contents) => {
-															handleFormChange(
-																"serviceCredentialsJson",
-																contents,
-															);
-															setCredentialFileName(file.name);
-														})
-														.catch(() => {
-															setErrors((current) => ({
-																...current,
-																serviceCredentialsJson:
-																	"Could not read this credential file.",
-															}));
-														});
-												}}
-											/>
-											{errors.serviceCredentialsJson && (
-												<span className={ERROR_CLASS}>
-													{errors.serviceCredentialsJson}
-												</span>
-											)}
-										</div>
-
-										<div className="flex flex-col gap-[7px]">
-											<label
-												htmlFor="mcp-service-scopes"
-												className={LABEL_CLASS}
-											>
-												OAuth scopes
-											</label>
-											<input
-												id="mcp-service-scopes"
-												value={form.serviceCredentialScopes ?? ""}
-												onChange={(e) => {
-													handleFormChange(
-														"serviceCredentialScopes",
-														e.target.value,
-													);
-												}}
-												placeholder="https://www.googleapis.com/auth/cloud-platform"
-												className={MONO_INPUT_CLASS}
-											/>
-											<span className="text-[12px] text-meta dark:text-panel-dim">
-												Separate multiple scopes with spaces or commas. Resource
-												permissions remain controlled by the provider&apos;s
-												IAM.
-											</span>
-										</div>
-									</>
 								)}
 							</div>
 						)}

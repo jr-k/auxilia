@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Eye, EyeOff, Plus, Trash2, Upload } from "lucide-react";
+import { Eye, EyeOff, Plus, Trash2 } from "lucide-react";
 import ForbiddenErrorDialog from "@/components/forbidden-error-dialog";
 import ResourceInUseDialog from "@/components/resource-in-use-dialog";
 import { useConfirmDialog } from "@/components/providers/dialog-provider";
@@ -22,6 +22,7 @@ import {
 	MCPServer,
 	MCPServerUpdate,
 	OAuthSecretHint,
+	OfficialMCPServer,
 	ServiceCredentialProvider,
 } from "@/types/mcp-servers";
 import { AuthTypeBadge } from "./auth-type-badge";
@@ -31,6 +32,7 @@ import { ConnectionTestBanner } from "./connection-test-banner";
 import { MCPServerToolsPanel } from "./mcp-server-tools-panel";
 import { OAuthCallbackUrl } from "./oauth-callback-url";
 import { ServerIconTile } from "./server-icon-tile";
+import { ServiceIdentityFields } from "./service-identity-fields";
 import {
 	HeaderButton,
 	HeaderPrimaryButton,
@@ -43,6 +45,15 @@ import {
 	validateServiceHeaders,
 } from "../lib/mcp-server-create-form";
 import { useConnectionTest } from "../lib/use-connection-test";
+import {
+	EMPTY_SERVICE_CREDENTIAL_FIELDS,
+	hasProviderCredentialInput,
+	knownServiceProvidersForUrl,
+	providerLabel,
+	ServiceCredentialFields,
+	ServiceIdentityProvider,
+	validateProviderCredentials,
+} from "../lib/service-credential-providers";
 
 const AUTH_TYPE_LABELS: Record<MCPServer["authType"], string> = {
 	none: "None",
@@ -71,6 +82,7 @@ interface EditFormValues {
 	serviceCredentialProvider: ServiceCredentialProvider;
 	serviceCredentialsJson: string;
 	serviceCredentialScopes: string;
+	serviceCredentialFields: ServiceCredentialFields;
 	serviceHeaders: { name: string; value: string }[];
 }
 
@@ -94,6 +106,7 @@ function formFromServer(server: MCPServer): EditFormValues {
 		serviceCredentialScopes:
 			server.serviceCredentialScopes?.join(" ") ??
 			"https://www.googleapis.com/auth/cloud-platform",
+		serviceCredentialFields: { ...EMPTY_SERVICE_CREDENTIAL_FIELDS },
 		serviceHeaders: [{ name: "", value: "" }],
 	};
 }
@@ -167,6 +180,9 @@ export default function MCPServerDetail({
 	const [credentialFileName, setCredentialFileName] = useState<string | null>(
 		null,
 	);
+	const [catalogEntry, setCatalogEntry] = useState<OfficialMCPServer | null>(
+		null,
+	);
 	const [imageFile, setImageFile] = useState<File | null>(null);
 	const [removeImage, setRemoveImage] = useState(false);
 	// Whether the saved server already has a static client secret; the secret
@@ -186,6 +202,24 @@ export default function MCPServerDetail({
 		runSavedTest,
 		runCandidateTest,
 	} = useConnectionTest();
+
+	useEffect(() => {
+		if (server.authType !== "service_identity") return;
+		const controller = new AbortController();
+		void mcpServersApi
+			.listOfficialMcpServers({ signal: controller.signal })
+			.then((catalog) => {
+				setCatalogEntry(
+					catalog.find((entry) => entry.url === server.url) ?? null,
+				);
+			})
+			.catch(() => {
+				if (!controller.signal.aborted) setCatalogEntry(null);
+			});
+		return () => {
+			controller.abort();
+		};
+	}, [server.authType, server.url]);
 
 	// Admin-only secret hint for OAuth servers (403 for non-admins is expected).
 	useEffect(() => {
@@ -285,7 +319,11 @@ export default function MCPServerDetail({
 		const hasServiceCredentialReplacement =
 			server.authType === "custom_http"
 				? form.serviceHeaders.some((header) => header.name.trim())
-				: Boolean(form.serviceCredentialsJson.trim());
+				: hasProviderCredentialInput(
+						form.serviceCredentialProvider as ServiceIdentityProvider,
+						form.serviceCredentialFields,
+						form.serviceCredentialsJson,
+					);
 		const serviceCredentialsJson = buildServiceCredentialsPayload(form);
 		const useSavedTest =
 			!editing ||
@@ -336,12 +374,22 @@ export default function MCPServerDetail({
 		if (server.authType === "service_identity") {
 			const providerChanged =
 				form.serviceCredentialProvider !== server.serviceCredentialProvider;
+			const hasReplacement = hasProviderCredentialInput(
+				form.serviceCredentialProvider as ServiceIdentityProvider,
+				form.serviceCredentialFields,
+				form.serviceCredentialsJson,
+			);
 			if (
-				(providerChanged || !server.serviceCredentialProvider) &&
-				!form.serviceCredentialsJson.trim()
+				providerChanged ||
+				!server.serviceCredentialProvider ||
+				hasReplacement
 			) {
-				errors.serviceCredentialsJson =
-					"A service credential file is required.";
+				const providerError = validateProviderCredentials(
+					form.serviceCredentialProvider as ServiceIdentityProvider,
+					form.serviceCredentialFields,
+					form.serviceCredentialsJson,
+				);
+				if (providerError) errors.serviceCredentialsJson = providerError;
 			}
 		}
 		if (server.authType === "custom_http") {
@@ -362,7 +410,11 @@ export default function MCPServerDetail({
 			const hasServiceCredentialReplacement =
 				server.authType === "custom_http"
 					? form.serviceHeaders.some((header) => header.name.trim())
-					: Boolean(form.serviceCredentialsJson);
+					: hasProviderCredentialInput(
+							form.serviceCredentialProvider as ServiceIdentityProvider,
+							form.serviceCredentialFields,
+							form.serviceCredentialsJson,
+						);
 			const payload: MCPServerUpdate = {
 				name: form.name,
 				url: form.url,
@@ -392,7 +444,7 @@ export default function MCPServerDetail({
 					server.authType === "custom_http"
 						? server.authType === "custom_http"
 							? "custom_http_headers"
-							: "google_service_account"
+							: form.serviceCredentialProvider
 						: undefined,
 				serviceCredentialsJson:
 					(server.authType === "service_identity" ||
@@ -726,10 +778,9 @@ export default function MCPServerDetail({
 								<>
 									<ConfigRow label="Credential provider">
 										<span className="text-[13.5px] text-foreground">
-											{server.serviceCredentialProvider ===
-											"custom_http_headers"
-												? "Custom HTTP"
-												: "Google Service Account"}
+											{server.serviceCredentialProvider
+												? providerLabel(server.serviceCredentialProvider)
+												: "Not configured"}
 										</span>
 									</ConfigRow>
 									<ConfigRow
@@ -743,8 +794,10 @@ export default function MCPServerDetail({
 											{server.serviceCredentialPrincipal ?? "Not available"}
 										</span>
 									</ConfigRow>
-									{server.serviceCredentialProvider ===
-										"google_service_account" && (
+									{(server.serviceCredentialProvider ===
+										"google_service_account" ||
+										server.serviceCredentialProvider ===
+											"oauth_client_credentials") && (
 										<ConfigRow label="OAuth scopes">
 											<span className="break-all font-mono text-[12px] text-foreground">
 												{server.serviceCredentialScopes?.join(", ") ||
@@ -756,7 +809,7 @@ export default function MCPServerDetail({
 										label={
 											server.serviceCredentialProvider === "custom_http_headers"
 												? "Header values"
-												: "Credential file"
+												: "Credential values"
 										}
 										last
 									>
@@ -975,31 +1028,66 @@ export default function MCPServerDetail({
 										server.
 									</div>
 									{server.authType === "service_identity" && (
-										<div className="flex flex-col gap-[7px]">
-											<label
-												htmlFor="mcp-edit-service-provider"
-												className={LABEL_CLASS}
-											>
-												Credential provider
-											</label>
-											<select
-												id="mcp-edit-service-provider"
-												value={form.serviceCredentialProvider}
-												onChange={(e) => {
-													handleFormChange(
-														"serviceCredentialProvider",
-														e.target.value as ServiceCredentialProvider,
-													);
-												}}
-												className={INPUT_CLASS}
-											>
-												<option value="google_service_account">
-													Google Service Account
-												</option>
-											</select>
-										</div>
+										<ServiceIdentityFields
+											provider={
+												form.serviceCredentialProvider as ServiceIdentityProvider
+											}
+											allowedProviders={
+												catalogEntry?.serviceCredentialProviders ??
+												knownServiceProvidersForUrl(server.url)
+											}
+											fields={form.serviceCredentialFields}
+											scopes={form.serviceCredentialScopes}
+											credentialFileName={credentialFileName}
+											error={fieldErrors.serviceCredentialsJson}
+											replacement
+											onProviderChange={(provider) => {
+												setCredentialFileName(null);
+												setForm((current) => ({
+													...current,
+													serviceCredentialProvider: provider,
+													serviceCredentialsJson: "",
+													serviceCredentialFields: {
+														...EMPTY_SERVICE_CREDENTIAL_FIELDS,
+													},
+													serviceCredentialScopes:
+														provider === "google_service_account"
+															? "https://www.googleapis.com/auth/cloud-platform"
+															: "",
+												}));
+												setFieldErrors((current) => ({
+													...current,
+													serviceCredentialsJson: undefined,
+												}));
+												if (testStatus !== "idle") resetTest();
+											}}
+											onFieldsChange={(fields) => {
+												setForm((current) => ({
+													...current,
+													serviceCredentialFields: fields,
+												}));
+												setFieldErrors((current) => ({
+													...current,
+													serviceCredentialsJson: undefined,
+												}));
+												if (testStatus !== "idle") resetTest();
+											}}
+											onScopesChange={(scopes) => {
+												handleFormChange("serviceCredentialScopes", scopes);
+											}}
+											onGoogleCredentialsChange={(contents, fileName) => {
+												handleFormChange("serviceCredentialsJson", contents);
+												setCredentialFileName(fileName);
+											}}
+											onError={(message) => {
+												setFieldErrors((current) => ({
+													...current,
+													serviceCredentialsJson: message,
+												}));
+											}}
+										/>
 									)}
-									{server.authType === "custom_http" ? (
+									{server.authType === "custom_http" && (
 										<div className="flex flex-col gap-3">
 											<div className="flex items-center justify-between gap-3">
 												<span className={LABEL_CLASS}>
@@ -1081,82 +1169,6 @@ export default function MCPServerDetail({
 												Entering any header replaces the complete set.
 											</span>
 										</div>
-									) : (
-										<>
-											<div className="flex flex-col gap-[7px]">
-												<span className={LABEL_CLASS}>Credential file</span>
-												<label
-													htmlFor="mcp-edit-service-credentials"
-													className="flex cursor-pointer items-center gap-3 rounded-[10px] border border-dashed border-input px-4 py-3 transition-colors hover:border-petrol hover:bg-card"
-												>
-													<span className="flex size-8 shrink-0 items-center justify-center rounded-[8px] bg-card text-petrol">
-														<Upload className="size-4" />
-													</span>
-													<span className="min-w-0 flex-1">
-														<span className="block truncate text-[13px] font-semibold text-foreground">
-															{credentialFileName ??
-																"Choose a replacement JSON file"}
-														</span>
-														<span className="mt-0.5 block text-[11.5px] text-meta dark:text-panel-dim">
-															{credentialFileName
-																? "Ready to replace the stored credential"
-																: "Leave empty to keep the current credential"}
-														</span>
-													</span>
-												</label>
-												<input
-													id="mcp-edit-service-credentials"
-													type="file"
-													accept=".json,application/json"
-													className="sr-only"
-													onChange={(e) => {
-														const file = e.target.files?.[0];
-														e.target.value = "";
-														if (!file) return;
-														void file
-															.text()
-															.then((contents) => {
-																handleFormChange(
-																	"serviceCredentialsJson",
-																	contents,
-																);
-																setCredentialFileName(file.name);
-															})
-															.catch(() => {
-																setFieldErrors((current) => ({
-																	...current,
-																	serviceCredentialsJson:
-																		"Could not read this credential file.",
-																}));
-															});
-													}}
-												/>
-												{fieldErrors.serviceCredentialsJson && (
-													<span className="text-[12.5px] text-destructive">
-														{fieldErrors.serviceCredentialsJson}
-													</span>
-												)}
-											</div>
-											<div className="flex flex-col gap-[7px]">
-												<label
-													htmlFor="mcp-edit-service-scopes"
-													className={LABEL_CLASS}
-												>
-													OAuth scopes
-												</label>
-												<input
-													id="mcp-edit-service-scopes"
-													value={form.serviceCredentialScopes}
-													onChange={(e) => {
-														handleFormChange(
-															"serviceCredentialScopes",
-															e.target.value,
-														);
-													}}
-													className={MONO_INPUT_CLASS}
-												/>
-											</div>
-										</>
 									)}
 								</div>
 							)}

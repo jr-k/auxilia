@@ -3,7 +3,12 @@ import type { ResourceVisibility } from "./visibility";
 export type MCPAuthType =
 	"none" | "api_key" | "oauth2" | "service_identity" | "custom_http";
 export type ServiceCredentialProvider =
-	"google_service_account" | "custom_http_headers";
+	| "google_service_account"
+	| "oauth_client_credentials"
+	| "github_app"
+	| "aws_iam"
+	| "azure_managed_identity"
+	| "custom_http_headers";
 
 export interface MCPServer {
 	id: string;
@@ -111,6 +116,7 @@ export interface OfficialMCPServer {
 	isInstalled: boolean;
 	installedCount?: number;
 	supportsDcr: boolean | null;
+	serviceCredentialProviders?: ServiceCredentialProvider[];
 }
 
 /** A user's stored OAuth connection to a server (admin view). `expired`

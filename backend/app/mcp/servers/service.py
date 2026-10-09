@@ -125,15 +125,23 @@ class MCPServerService(BaseService[MCPServerDB, MCPServerRepository]):
                     "A credential provider and credentials are required for "
                     f"{data.auth_type.value} auth"
                 )
-            expected_provider = (
-                ServiceCredentialProvider.google_service_account
-                if data.auth_type == MCPAuthType.service_identity
-                else ServiceCredentialProvider.custom_http_headers
-            )
-            if service_provider != expected_provider:
+            if (
+                data.auth_type == MCPAuthType.custom_http
+                and service_provider != ServiceCredentialProvider.custom_http_headers
+            ):
                 raise DomainValidationError(
-                    f"{data.auth_type.value} requires the "
-                    f"{expected_provider.value} credential provider"
+                    "custom_http requires the custom_http_headers credential provider"
+                )
+            if (
+                data.auth_type == MCPAuthType.service_identity
+                and service_provider == ServiceCredentialProvider.custom_http_headers
+            ):
+                raise DomainValidationError(
+                    "custom_http_headers must use the custom_http auth type"
+                )
+            if data.auth_type == MCPAuthType.service_identity:
+                await self._validate_catalog_service_provider(
+                    data.url, service_provider
                 )
             service_credential = validate_service_credential(
                 service_provider,
@@ -203,6 +211,27 @@ class MCPServerService(BaseService[MCPServerDB, MCPServerRepository]):
                 is None
             ):
                 raise DomainValidationError("Team not found in workspace")
+
+    @staticmethod
+    async def _validate_catalog_service_provider(
+        url: str, provider: ServiceCredentialProvider
+    ) -> None:
+        """Keep curated endpoints on the machine identities they document.
+
+        Custom endpoints may use any provider. A catalog endpoint may use only
+        the providers explicitly declared for that exact URL, so a GitHub App
+        can never accidentally be configured for BigQuery.
+        """
+        entry = next(
+            (item for item in await mcp_catalog.get_catalog() if item.url == url),
+            None,
+        )
+        if entry is None:
+            return
+        if provider not in entry.service_credential_providers:
+            raise DomainValidationError(
+                f"{provider.value} is not supported by catalog server '{entry.name}'"
+            )
 
     async def to_response(self, server: MCPServerDB) -> MCPServerResponse:
         """Project a server to its API response, enriching OAuth2 servers with
@@ -416,16 +445,22 @@ class MCPServerService(BaseService[MCPServerDB, MCPServerRepository]):
                     "A credential provider and credentials are required for "
                     f"{updated.auth_type.value} auth"
                 )
-            expected_provider = (
-                ServiceCredentialProvider.google_service_account
-                if updated.auth_type == MCPAuthType.service_identity
-                else ServiceCredentialProvider.custom_http_headers
-            )
-            if provider != expected_provider:
+            if (
+                updated.auth_type == MCPAuthType.custom_http
+                and provider != ServiceCredentialProvider.custom_http_headers
+            ):
                 raise DomainValidationError(
-                    f"{updated.auth_type.value} requires the "
-                    f"{expected_provider.value} credential provider"
+                    "custom_http requires the custom_http_headers credential provider"
                 )
+            if (
+                updated.auth_type == MCPAuthType.service_identity
+                and provider == ServiceCredentialProvider.custom_http_headers
+            ):
+                raise DomainValidationError(
+                    "custom_http_headers must use the custom_http auth type"
+                )
+            if updated.auth_type == MCPAuthType.service_identity:
+                await self._validate_catalog_service_provider(updated.url, provider)
             validated = validate_service_credential(provider, credentials_json, scopes)
             await self.repository.create_or_update_service_credential(
                 server_id,

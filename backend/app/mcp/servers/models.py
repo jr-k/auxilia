@@ -19,6 +19,10 @@ class MCPAuthType(str, enum.Enum):
 
 class ServiceCredentialProvider(str, enum.Enum):
     google_service_account = "google_service_account"
+    oauth_client_credentials = "oauth_client_credentials"
+    github_app = "github_app"
+    aws_iam = "aws_iam"
+    azure_managed_identity = "azure_managed_identity"
     custom_http_headers = "custom_http_headers"
 
 

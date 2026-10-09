@@ -16,6 +16,8 @@
 #   description   - shown in the dialog
 #   supports_dcr  - OAuth servers only: false means the workspace admin must
 #                   supply a static client_id/secret (no dynamic registration)
+#   service_credential_providers - optional machine identities confirmed to
+#                   work with this exact endpoint
 
 schema_version: 1
 
@@ -46,6 +48,8 @@ servers:
   - name: BigQuery
     url: "https://bigquery.googleapis.com/mcp"
     auth_type: oauth2
+    service_credential_providers:
+      - google_service_account
     icon_url: "https://pub-7a6e8912b3c448b8a8bfa47a0363f7bc.r2.dev/assets/icons/bigquery.png"
     supports_dcr: false
     description: >-
@@ -77,6 +81,8 @@ servers:
   - name: Cloud Logging
     url: "https://logging.googleapis.com/mcp"
     auth_type: oauth2
+    service_credential_providers:
+      - google_service_account
     icon_url: "https://pub-7a6e8912b3c448b8a8bfa47a0363f7bc.r2.dev/assets/icons/cloud-logging.png"
     supports_dcr: false
     description: >-
@@ -106,6 +112,8 @@ servers:
   - name: GitHub
     url: "https://api.githubcopilot.com/mcp"
     auth_type: oauth2
+    service_credential_providers:
+      - github_app
     icon_url: "https://pub-7a6e8912b3c448b8a8bfa47a0363f7bc.r2.dev/assets/icons/github.png"
     supports_dcr: false
     description: >-
