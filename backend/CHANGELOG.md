@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.10.25](https://github.com/jr-k/auxilia/compare/backend-v0.10.24...backend-v0.10.25) (2026-10-09)
+
+
+### Features
+
+* **mcp:** add Salesforce to server catalog ([29c7416](https://github.com/jr-k/auxilia/commit/29c741668ad20b0ba523ef38c0af13e3a1d4e8e0))
+* **mcp:** expand catalog and publish icons to R2 ([b1b4546](https://github.com/jr-k/auxilia/commit/b1b454661cd16f8e785f4544ad111be806a02e30))
+
 ## [0.10.24](https://github.com/jr-k/auxilia/compare/backend-v0.10.23...backend-v0.10.24) (2026-10-09)
 
 
