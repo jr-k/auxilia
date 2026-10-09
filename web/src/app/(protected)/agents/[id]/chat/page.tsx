@@ -215,6 +215,7 @@ const StarterChatPage = () => {
 						/>
 					) : (
 						<ChatPromptInput
+							agentId={agentId}
 							onSubmit={(message) => {
 								void handleSubmit(message);
 							}}

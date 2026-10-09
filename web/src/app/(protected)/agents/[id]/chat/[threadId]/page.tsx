@@ -315,6 +315,7 @@ const ChatPage = () => {
         ) : (
           <ChatPromptInput
             key={threadId}
+            agentId={agentId}
             onSubmit={(message) => {
               acknowledgeCurrentResponse();
               return actions.send(message);

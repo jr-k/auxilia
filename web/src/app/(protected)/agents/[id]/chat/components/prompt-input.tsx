@@ -53,6 +53,7 @@ const composerPillClass = cn(
 );
 
 interface ChatPromptInputProps {
+	agentId: string;
 	onSubmit: (message: PromptInputMessage) => void | Promise<void>;
 	status: "submitted" | "streaming" | "ready" | "error";
 	queueMode?: boolean;
@@ -106,6 +107,7 @@ const safeHttpUrl = (value: unknown): string | null => {
 };
 
 const ChatPromptInput = ({
+	agentId,
 	onSubmit,
 	status,
 	queueMode = false,
@@ -425,10 +427,15 @@ const ChatPromptInput = ({
 		}
 		// The queue is an external server subscription; losing its item ends
 		// the local editing session.
-		setEditingId(null);
-		controller.textInput.setInput(draftRef.current ?? "");
-		draftRef.current = null;
-		toast.info("That prompt has started, so it can no longer be edited.");
+		const timeoutId = window.setTimeout(() => {
+			setEditingId(null);
+			controller.textInput.setInput(draftRef.current ?? "");
+			draftRef.current = null;
+			toast.info("That prompt has started, so it can no longer be edited.");
+		}, 0);
+		return () => {
+			window.clearTimeout(timeoutId);
+		};
 	}, [controller.textInput, editingId, queuedPrompts]);
 
 	const removeQueued = async (id: string) => {
@@ -718,33 +725,31 @@ const ChatPromptInput = ({
 									/>
 								)}
 					</PromptInputTools>
-					{agentReady === false ? (
+					<div className="flex items-center gap-1.5">
 						<ConnectButton
+							allConnected={
+								agentReady === true && disconnectedServers.length === 0
+							}
 							onClick={() => {
 								setConnectDialogOpen(true);
 							}}
 						/>
-					) : (
-						<div className="flex items-center gap-1.5">
-							{disconnectedServers.length > 0 && (
-								<ConnectButton
-									onClick={() => {
-										setConnectDialogOpen(true);
-									}}
-								/>
-							)}
-							{status === "streaming" && stop && <StopButton stop={stop} />}
-							<SubmitButton disabled={queueLoading} />
-						</div>
-					)}
+						{agentReady !== false && (
+							<>
+								{status === "streaming" && stop && <StopButton stop={stop} />}
+								<SubmitButton disabled={queueLoading} />
+							</>
+						)}
+					</div>
 				</PromptInputFooter>
 				</PromptInput>
 			</div>
 			<ConnectServersDialog
 				open={connectDialogOpen}
 				onOpenChange={setConnectDialogOpen}
+				agentId={agentId}
 				disconnectedServers={disconnectedServers}
-				onAllConnected={() => onAllConnected?.()}
+				onConnectionChange={() => onAllConnected?.()}
 			/>
 		</>
 	);
@@ -792,20 +797,31 @@ const StopButton = ({ stop }: { stop: () => void }) => (
 	</button>
 );
 
-const ConnectButton = ({ onClick }: { onClick: () => void }) => {
+const ConnectButton = ({
+	allConnected,
+	onClick,
+}: {
+	allConnected: boolean;
+	onClick: () => void;
+}) => {
 	return (
 		<button
 			type="button"
 			onClick={onClick}
+			aria-label={
+				allConnected ? "View connected resources" : "Connect agent resources"
+			}
+			title={allConnected ? "View agent resources" : undefined}
 			className={cn(
-				"flex h-[38px] cursor-pointer items-center gap-2 rounded-full px-4 transition-all",
+				"flex h-[38px] cursor-pointer items-center justify-center gap-2 rounded-full transition-all",
 				"text-[14px] font-semibold",
-				"bg-petrol text-white hover:opacity-90",
-				"shadow-submit",
+				allConnected
+					? "w-[38px] bg-hover px-0 text-meta hover:bg-petrol-tint hover:text-petrol dark:bg-white/5 dark:text-panel-dim dark:hover:bg-white/10"
+					: "bg-petrol px-4 text-white shadow-submit hover:opacity-90",
 			)}
 		>
 			<PlugIcon size={16} />
-			<span>Connect</span>
+			{!allConnected && <span>Connect</span>}
 		</button>
 	);
 };

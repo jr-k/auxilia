@@ -17,6 +17,8 @@ import {
 } from "@/components/ai-elements/chain-of-thought";
 import { cn } from "@/lib/utils";
 import { fetchThreadMessage } from "@/lib/api/thread-messages";
+import { mcpServerImageUrl } from "@/lib/api/resources/mcp-servers";
+import type { MCPServer } from "@/types/mcp-servers";
 import type { HitlDecision } from "@/hooks/use-hitl-approvals";
 import {
   type ToolCallView,
@@ -34,7 +36,10 @@ export type DescribeTool = (toolName: string) => ToolIdentity;
 
 /** Resolve `<server>_<tool>` names against the workspace's MCP servers. */
 export function useDescribeTool(
-  mcpServers: readonly { name: string; iconUrl?: string | null }[],
+  mcpServers: readonly Pick<
+    MCPServer,
+    "id" | "name" | "iconUrl" | "imageRevision"
+  >[],
 ): DescribeTool {
   return useMemo(() => {
     const known = mcpServers
@@ -45,10 +50,14 @@ export function useDescribeTool(
         return { serverName: "Code execution", toolName: name, icon: TERMINAL_ICON };
       }
       const { serverName, toolName } = getToolMetadata(name, known);
+      const server = mcpServers.find((candidate) => candidate.name === serverName);
       return {
         serverName,
         toolName,
-        icon: mcpServers.find((s) => s.name === serverName)?.iconUrl ?? undefined,
+        icon:
+          server?.imageRevision != null
+            ? mcpServerImageUrl(server.id, server.imageRevision)
+            : server?.iconUrl,
       };
     };
   }, [mcpServers]);
