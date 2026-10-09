@@ -325,6 +325,7 @@ test.describe("docs screenshots", () => {
 		test("trigger editor (new)", async ({ page }) => {
 			const agent = await seededAgent();
 			await page.goto("/triggers/new");
+			await page.getByRole("button", { name: /^Schedule/ }).click();
 			await page.locator('input[placeholder="What does this trigger do?"]').fill("Weekly docs digest");
 			await page.getByRole("button", { name: "Select an agent" }).click();
 			const dialog = page.getByRole("dialog");

@@ -472,6 +472,8 @@ test("demo walkthrough", async ({ page, baseURL }) => {
 		await cursorClick(page, page.getByRole("button", { name: "New trigger" }).first());
 		await page.waitForURL("**/triggers/new");
 		await beat(page, 900);
+		await cursorClick(page, page.getByRole("button", { name: /^Schedule/ }));
+		await beat(page, 500);
 
 		await humanType(
 			page,
