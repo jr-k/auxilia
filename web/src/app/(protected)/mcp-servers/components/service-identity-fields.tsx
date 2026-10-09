@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Eye, EyeOff, Upload } from "lucide-react";
 import type { ServiceCredentialProvider } from "@/types/mcp-servers";
 import {
@@ -83,6 +83,8 @@ export function ServiceIdentityFields({
 	onError,
 }: ServiceIdentityFieldsProps) {
 	const [showSecrets, setShowSecrets] = useState(false);
+	const googleCredentialsInputRef = useRef<HTMLInputElement>(null);
+	const githubPrivateKeyInputRef = useRef<HTMLInputElement>(null);
 	const providers =
 		allowedProviders && allowedProviders.length > 0
 			? SERVICE_IDENTITY_PROVIDERS.filter((entry) =>
@@ -142,9 +144,12 @@ export function ServiceIdentityFields({
 						<span className={LABEL_CLASS}>
 							{replacement ? "Replacement credential file" : "Credential file"}
 						</span>
-						<label
-							htmlFor="mcp-service-credentials"
-							className={`flex cursor-pointer items-center gap-3 rounded-[10px] border border-dashed px-4 py-3 transition-colors hover:border-petrol hover:bg-card ${
+						<button
+							type="button"
+							onClick={() => {
+								googleCredentialsInputRef.current?.click();
+							}}
+							className={`flex w-full cursor-pointer items-center gap-3 rounded-[10px] border border-dashed px-4 py-3 text-left transition-colors hover:border-petrol hover:bg-card ${
 								error ? "border-destructive" : "border-input"
 							}`}
 						>
@@ -166,12 +171,12 @@ export function ServiceIdentityFields({
 											: "The file stays write-only after upload"}
 								</span>
 							</span>
-						</label>
+						</button>
 						<input
-							id="mcp-service-credentials"
+							ref={googleCredentialsInputRef}
 							type="file"
 							accept=".json,application/json"
-							className="sr-only"
+							className="hidden"
 							onChange={(event) => {
 								const file = event.target.files?.[0];
 								event.target.value = "";
@@ -277,9 +282,12 @@ export function ServiceIdentityFields({
 					</div>
 					<div className="flex flex-col gap-[7px]">
 						<span className={LABEL_CLASS}>Private key</span>
-						<label
-							htmlFor="mcp-github-private-key"
-							className="flex cursor-pointer items-center gap-3 rounded-[10px] border border-dashed border-input px-4 py-3 transition-colors hover:border-petrol hover:bg-card"
+						<button
+							type="button"
+							onClick={() => {
+								githubPrivateKeyInputRef.current?.click();
+							}}
+							className="flex w-full cursor-pointer items-center gap-3 rounded-[10px] border border-dashed border-input px-4 py-3 text-left transition-colors hover:border-petrol hover:bg-card"
 						>
 							<Upload className="size-4 text-petrol" />
 							<span className="truncate text-[13px] font-semibold text-foreground">
@@ -289,12 +297,12 @@ export function ServiceIdentityFields({
 										? "Choose a replacement .pem file"
 										: "Choose the GitHub App .pem file"}
 							</span>
-						</label>
+						</button>
 						<input
-							id="mcp-github-private-key"
+							ref={githubPrivateKeyInputRef}
 							type="file"
 							accept=".pem,application/x-pem-file"
-							className="sr-only"
+							className="hidden"
 							onChange={(event) => {
 								const file = event.target.files?.[0];
 								event.target.value = "";
