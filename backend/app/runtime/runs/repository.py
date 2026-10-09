@@ -141,8 +141,9 @@ class RunRepository(BaseRepository[RunDB]):
         by `(created_at, id)` so two runs created in the same instant are
         still both followed, in a stable order.
         """
-        # Enqueued pending rows are queue metadata, not streamable runs.
-        # Legacy/reject pending rows remain visible for the original run API.
+        # Enqueued rows are not streamable until the dispatcher claims them:
+        # positioned rows are queue metadata, while an unpositioned direct
+        # start has no protocol events to consume yet.
         stmt = select(RunDB).where(
             RunDB.thread_id == thread_id,
             or_(

@@ -82,6 +82,7 @@ class RunService:
         delivery: dict | None = None,
         multitask_strategy: MultitaskStrategy = "reject",
         text_only_when_queued: bool = False,
+        force_queue_position: bool = False,
     ) -> RunDB:
         """Create a pending run. Caller has already authorized the thread.
 
@@ -122,6 +123,7 @@ class RunService:
                     delivery=delivery,
                     multitask_strategy=multitask_strategy,
                     text_only_when_queued=text_only_when_queued,
+                    force_queue_position=force_queue_position,
                 )
                 await db.commit()
         except IntegrityError as exc:
@@ -146,6 +148,7 @@ class RunService:
         delivery: dict | None = None,
         multitask_strategy: MultitaskStrategy = "reject",
         text_only_when_queued: bool = False,
+        force_queue_position: bool = False,
         _command_prepared: bool = False,
     ) -> RunDB:
         """Create a pending run in the caller's transaction.
@@ -184,9 +187,13 @@ class RunService:
                 raise DomainValidationError(
                     "Only text prompts can be queued while a run is active."
                 )
-            queue_position = await repository.allocate_queue_position(thread_id)
-            if queue_position is None:
-                queue_position = await repository.next_queue_position(thread_id)
+            is_busy = active is not None or (
+                thread is not None and thread.awaiting_input
+            )
+            if is_busy or force_queue_position:
+                queue_position = await repository.allocate_queue_position(thread_id)
+                if queue_position is None:
+                    queue_position = await repository.next_queue_position(thread_id)
         return await repository.create(
             RunDB(
                 workspace_id=thread.workspace_id,

@@ -263,6 +263,7 @@ async def enqueue_prompt(
         user_id=str(thread.user_id),
         input=queued_prompt_input(text),
         multitask_strategy="enqueue",
+        force_queue_position=True,
     )
     response = QueuedPromptResponse.from_record(record)
     if response is None:  # construction above guarantees this shape

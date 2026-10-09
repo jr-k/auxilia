@@ -99,8 +99,8 @@ class RunDB(TimestampMixin, SQLModel, table=True):
     multitask_strategy: MultitaskStrategy = Field(
         default="reject", sa_column=Column(String, nullable=False)
     )
-    # Only user prompts submitted through the durable web queue receive a
-    # position. Historical/trigger/Slack runs stay NULL.
+    # Only user prompts waiting behind active/interrupted work (or submitted
+    # through the explicit queue endpoint) receive a position.
     queue_position: int | None = Field(
         default=None, sa_column=Column(BigInteger, nullable=True)
     )
