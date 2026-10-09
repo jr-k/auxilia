@@ -273,7 +273,6 @@ class SlackRunConsumer(DeliveryConsumer):
                         "Could not wait for run %s after Slack delivery crashed",
                         self.record.id,
                     )
-                    return
                 await self._post_failure_notice(channel_id, thread_ts)
                 return
 
