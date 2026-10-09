@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.11.28](https://github.com/jr-k/auxilia/compare/web-v0.11.27...web-v0.11.28) (2026-10-09)
+
+
+### Features
+
+* **chat:** expose connected agent resources ([27f07b9](https://github.com/jr-k/auxilia/commit/27f07b92c5149dbf7e246ac5440ac3046996334e))
+
+
+### Bug Fixes
+
+* address workspace administration review findings ([83523fb](https://github.com/jr-k/auxilia/commit/83523fba37b0c90cf97962a898ba88d4038f2cf3))
+* **triggers:** update chooser walkthroughs ([9f11fda](https://github.com/jr-k/auxilia/commit/9f11fda48c64ecabbc2e805f4163b1c25cdaf211))
+
 ## [0.11.27](https://github.com/jr-k/auxilia/compare/web-v0.11.26...web-v0.11.27) (2026-10-09)
 
 
