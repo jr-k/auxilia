@@ -6,6 +6,7 @@ on:
     paths:
       - backend/app/mcp/servers/catalog.yaml
       - backend/app/model_providers/whitelist.yaml
+      - .github/assets/mcp-icons/**
       - .github/workflows/publish-catalogs.yml
   workflow_dispatch:
 
@@ -57,6 +58,35 @@ jobs:
           ' \
             backend/app/mcp/servers/catalog.yaml \
             backend/app/model_providers/whitelist.yaml
+
+      - name: Publish MCP icons to R2
+        shell: bash
+        env:
+          R2_ENDPOINT: https://${{ secrets.CLOUDFLARE_ACCOUNT_ID }}.r2.cloudflarestorage.com
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          icons=(.github/assets/mcp-icons/*)
+          if [ "${#icons[@]}" -eq 0 ]; then
+            echo "::error::No MCP icons found"
+            exit 1
+          fi
+
+          aws s3 cp \
+            .github/assets/mcp-icons/ \
+            "s3://$R2_BUCKET/assets/icons/" \
+            --recursive \
+            --endpoint-url "$R2_ENDPOINT" \
+            --cache-control "public, max-age=86400, must-revalidate" \
+            --only-show-errors
+
+          for icon in "${icons[@]}"; do
+            aws s3api head-object \
+              --endpoint-url "$R2_ENDPOINT" \
+              --bucket "$R2_BUCKET" \
+              --key "assets/icons/${icon##*/}" \
+              >/dev/null
+          done
 
       - name: Publish catalogs to R2
         shell: bash

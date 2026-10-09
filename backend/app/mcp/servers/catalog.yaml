@@ -1,3 +1,4 @@
+
 # auxilia official MCP server catalog
 #
 # The curated list of remote MCP servers offered in the "add server" dialog.
@@ -25,7 +26,7 @@ servers:
   - name: Amplitude
     url: "https://mcp.amplitude.com/mcp"
     auth_type: oauth2
-    icon_url: "https://pub-7a6e8912b3c448b8a8bfa47a0363f7bc.r2.dev/assets/icons/amplitude.png"
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/amplitude.png"
     supports_dcr: true
     description: >-
       The Amplitude Model Context Protocol (MCP) server enables teams to analyze
@@ -33,10 +34,21 @@ servers:
       and create Amplitude content including charts, dashboards, experiments, and
       cohorts directly through AI interfaces using natural language.
 
+  - name: Asana
+    url: "https://mcp.asana.com/v2/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/asana.png"
+    supports_dcr: false
+    description: >-
+      Asana's MCP server connects AI assistants to workspaces, projects, tasks,
+      and goals. It lets users find and summarize work, create and update tasks,
+      and coordinate projects through natural-language instructions while
+      respecting their existing Asana permissions.
+
   - name: Atlassian
     url: "https://mcp.atlassian.com/v1/mcp"
     auth_type: oauth2
-    icon_url: "https://pub-7a6e8912b3c448b8a8bfa47a0363f7bc.r2.dev/assets/icons/atlassian.png"
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/atlassian.png"
     supports_dcr: true
     description: >-
       The Atlassian Rovo MCP Server is a cloud-based bridge between your Atlassian
@@ -50,7 +62,7 @@ servers:
     auth_type: oauth2
     service_credential_providers:
       - google_service_account
-    icon_url: "https://pub-7a6e8912b3c448b8a8bfa47a0363f7bc.r2.dev/assets/icons/bigquery.png"
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/bigquery.png"
     supports_dcr: false
     description: >-
       MCP helps accelerate the AI agent building process by giving LLM-powered
@@ -60,7 +72,7 @@ servers:
   - name: Calendar
     url: "https://calendarmcp.googleapis.com/mcp/v1"
     auth_type: oauth2
-    icon_url: "https://pub-7a6e8912b3c448b8a8bfa47a0363f7bc.r2.dev/assets/icons/calendar.png"
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/calendar.png"
     supports_dcr: false
     description: >-
       Google Calendar is Google's scheduling and calendar service. Its MCP server
@@ -71,7 +83,7 @@ servers:
   - name: Canva
     url: "https://mcp.canva.com/mcp"
     auth_type: oauth2
-    icon_url: "https://pub-7a6e8912b3c448b8a8bfa47a0363f7bc.r2.dev/assets/icons/canva.png"
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/canva.png"
     supports_dcr: true
     description: >-
       Once set up, your AI can create new empty designs, autofill templates with
@@ -83,17 +95,28 @@ servers:
     auth_type: oauth2
     service_credential_providers:
       - google_service_account
-    icon_url: "https://pub-7a6e8912b3c448b8a8bfa47a0363f7bc.r2.dev/assets/icons/cloud-logging.png"
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/cloud-logging.png"
     supports_dcr: false
     description: >-
       The Cloud Logging remote MCP server lets agents and API applications
       interact with your log entries. The Cloud Logging remote MCP server is
       enabled when you enable the Cloud Logging API.
 
+  - name: Customer.io
+    url: "https://mcp.customer.io/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/customer-io.svg"
+    supports_dcr: true
+    description: >-
+      Customer.io's MCP server connects AI assistants to Journeys and Data
+      Pipelines. It lets users manage campaigns, messages, people, segments, and
+      event data through natural-language instructions while respecting their
+      existing workspace roles and permissions.
+
   - name: DeepWiki
     url: "https://mcp.deepwiki.com/mcp"
     auth_type: none
-    icon_url: "https://pub-7a6e8912b3c448b8a8bfa47a0363f7bc.r2.dev/assets/icons/deepwiki.png"
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/deepwiki.png"
     description: >-
       DeepWiki provides up-to-date documentation you can talk to, for every repo
       in the world. Think Deep Research for GitHub.
@@ -101,7 +124,7 @@ servers:
   - name: Drive
     url: "https://drivemcp.googleapis.com/mcp/v1"
     auth_type: oauth2
-    icon_url: "https://pub-7a6e8912b3c448b8a8bfa47a0363f7bc.r2.dev/assets/icons/drive.png"
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/drive.png"
     supports_dcr: false
     description: >-
       Google Drive is Google's cloud file storage and sharing service. Its MCP
@@ -114,7 +137,7 @@ servers:
     auth_type: oauth2
     service_credential_providers:
       - github_app
-    icon_url: "https://pub-7a6e8912b3c448b8a8bfa47a0363f7bc.r2.dev/assets/icons/github.png"
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/github.png"
     supports_dcr: false
     description: >-
       The GitHub MCP Server connects AI tools directly to GitHub's platform. This
@@ -125,7 +148,7 @@ servers:
   - name: Gmail
     url: "https://gmailmcp.googleapis.com/mcp/v1"
     auth_type: oauth2
-    icon_url: "https://pub-7a6e8912b3c448b8a8bfa47a0363f7bc.r2.dev/assets/icons/gmail.png"
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/gmail.png"
     supports_dcr: false
     description: >-
       Gmail is Google's email service. Its MCP server lets an AI assistant search
@@ -135,7 +158,7 @@ servers:
   - name: HubSpot
     url: "https://mcp.hubspot.com"
     auth_type: oauth2
-    icon_url: "https://pub-7a6e8912b3c448b8a8bfa47a0363f7bc.r2.dev/assets/icons/hubspot.png"
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/hubspot.png"
     supports_dcr: false
     description: >-
       The HubSpot Model Context Protocol (MCP) server enables AI assistants and
@@ -145,7 +168,7 @@ servers:
   - name: Intercom
     url: "https://mcp.intercom.com/mcp"
     auth_type: oauth2
-    icon_url: "https://pub-7a6e8912b3c448b8a8bfa47a0363f7bc.r2.dev/assets/icons/intercom.png"
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/intercom.png"
     supports_dcr: true
     description: >-
       Intercom's MCP is a secure, standardized protocol that allows AI models to
@@ -155,7 +178,7 @@ servers:
   - name: Kahoot
     url: "https://mcp.kahoot.it/mcp"
     auth_type: oauth2
-    icon_url: "https://pub-7a6e8912b3c448b8a8bfa47a0363f7bc.r2.dev/assets/icons/kahoot.png"
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/kahoot.png"
     supports_dcr: true
     description: >-
       Kahoot! is a game-based learning platform for creating and running
@@ -167,7 +190,7 @@ servers:
   - name: Linear
     url: "https://mcp.linear.app/mcp"
     auth_type: oauth2
-    icon_url: "https://pub-7a6e8912b3c448b8a8bfa47a0363f7bc.r2.dev/assets/icons/linear.png"
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/linear.jpg"
     supports_dcr: true
     description: >-
       Linear's MCP server follows the authenticated remote MCP spec, so the server
@@ -178,7 +201,7 @@ servers:
   - name: Notion
     url: "https://mcp.notion.com/mcp"
     auth_type: oauth2
-    icon_url: "https://pub-7a6e8912b3c448b8a8bfa47a0363f7bc.r2.dev/assets/icons/notion.png"
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/notion.svg"
     supports_dcr: true
     description: >-
       Connect your AI tools to Notion using the Model Context Protocol (MCP), an
@@ -187,7 +210,7 @@ servers:
   - name: PandaDoc
     url: "https://mcp.pandadoc.com/v1/mcp"
     auth_type: oauth2
-    icon_url: "https://pub-7a6e8912b3c448b8a8bfa47a0363f7bc.r2.dev/assets/icons/pandadoc.png"
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/pandadoc.png"
     supports_dcr: true
     description: >-
       PandaDoc is a document automation platform for creating, sending, e-signing,
@@ -199,7 +222,7 @@ servers:
   - name: Pennylane
     url: "https://app.pennylane.com/mcp"
     auth_type: oauth2
-    icon_url: "https://pub-7a6e8912b3c448b8a8bfa47a0363f7bc.r2.dev/assets/icons/pennylane.png"
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/pennylane.png"
     supports_dcr: true
     description: >-
       Connect Pennylane to the AI of your choice: Claude, ChatGPT, Mistral, and
@@ -209,7 +232,7 @@ servers:
   - name: Praiz
     url: "https://mcp.praiz.io/mcp"
     auth_type: oauth2
-    icon_url: "https://pub-7a6e8912b3c448b8a8bfa47a0363f7bc.r2.dev/assets/icons/praiz.jpeg"
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/praiz.jpg"
     supports_dcr: true
     description: >-
       Praiz is an AI meeting platform that records and transcribes sales and
@@ -221,7 +244,7 @@ servers:
   - name: Puppetflow
     url: "https://mcp.puppetflow.com/mcp"
     auth_type: oauth2
-    icon_url: "https://puppetflow.com/favicon/favicon-196x196.png"
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/puppetflow.png"
     supports_dcr: true
     description: >-
       Puppetflow is a browser automation platform for building code and visual
@@ -232,7 +255,7 @@ servers:
   - name: Sentry
     url: "https://mcp.sentry.dev/mcp"
     auth_type: oauth2
-    icon_url: "https://pub-7a6e8912b3c448b8a8bfa47a0363f7bc.r2.dev/assets/icons/sentry.png"
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/sentry.png"
     supports_dcr: true
     description: >-
       The Sentry MCP Server provides a secure way of bringing Sentry's full issue
@@ -243,7 +266,7 @@ servers:
   - name: Slack
     url: "https://mcp.slack.com/mcp"
     auth_type: oauth2
-    icon_url: "https://pub-7a6e8912b3c448b8a8bfa47a0363f7bc.r2.dev/assets/icons/slack.png"
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/slack.png"
     supports_dcr: false
     description: >-
       The Slack MCP server provides tools for searching through Slack, retrieving
@@ -254,7 +277,7 @@ servers:
   - name: Slides
     url: "https://slidesmcp.googleapis.com/mcp/v1"
     auth_type: oauth2
-    icon_url: "https://pub-7a6e8912b3c448b8a8bfa47a0363f7bc.r2.dev/assets/icons/slides.png"
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/slides.png"
     supports_dcr: false
     description: >-
       Google Slides offers a remote Model Context Protocol (MCP) server that
@@ -263,7 +286,7 @@ servers:
   - name: Stripe
     url: "https://mcp.stripe.com"
     auth_type: oauth2
-    icon_url: "https://pub-7a6e8912b3c448b8a8bfa47a0363f7bc.r2.dev/assets/icons/stripe.png"
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/stripe.png"
     supports_dcr: true
     description: >-
       The Stripe Model Context Protocol (MCP) server defines a set of tools that
@@ -273,7 +296,7 @@ servers:
   - name: Supabase
     url: "https://mcp.supabase.com/mcp"
     auth_type: oauth2
-    icon_url: "https://pub-7a6e8912b3c448b8a8bfa47a0363f7bc.r2.dev/assets/icons/supabase.png"
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/supabase.png"
     supports_dcr: true
     description: >-
       The Model Context Protocol (MCP) is a standard for connecting Large Language
@@ -283,7 +306,7 @@ servers:
   - name: Tavily
     url: "https://mcp.tavily.com/mcp"
     auth_type: api_key
-    icon_url: "https://pub-7a6e8912b3c448b8a8bfa47a0363f7bc.r2.dev/assets/icons/tavily.png"
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/tavily.svg"
     description: >-
       Tavily is a web search and data extraction API built for AI agents. Its MCP
       server gives an AI assistant real-time tools to search the web, extract
@@ -293,7 +316,7 @@ servers:
   - name: Teamtailor
     url: "https://mcp.teamtailor.com/mcp"
     auth_type: oauth2
-    icon_url: "https://pub-7a6e8912b3c448b8a8bfa47a0363f7bc.r2.dev/assets/icons/teamtailor.png"
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/teamtailor.png"
     supports_dcr: true
     description: >-
       Connect AI assistants like ChatGPT and Claude to your Teamtailor account
@@ -305,7 +328,7 @@ servers:
   - name: TikTok
     url: "https://business-api.tiktok.com/open_mcp/tt-ads-mcp-layer"
     auth_type: oauth2
-    icon_url: "https://pub-7a6e8912b3c448b8a8bfa47a0363f7bc.r2.dev/assets/icons/tiktok.png"
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/tiktok.png"
     supports_dcr: true
     description: >-
       TikTok for Business MCP Server is a standardized bridge built on the Model
