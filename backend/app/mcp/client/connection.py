@@ -66,6 +66,8 @@ _fastmcp_logger.propagate = True
 UI_EXTENSION = "io.modelcontextprotocol/ui"
 UI_CAPABILITY = {"mimeTypes": ["text/html;profile=mcp-app"]}
 GOOGLE_WORKSPACE_MCP_HOST_SUFFIX = "mcp.googleapis.com"
+GITHUB_COPILOT_MCP_HOST = "api.githubcopilot.com"
+GITHUB_DISABLE_FORM_DEFERRAL = "mcp_apps_disable_form_deferral"
 
 
 def _uses_google_workspace_status_quirk(url: str) -> bool:
@@ -125,6 +127,27 @@ class ConnectionSpec:
     url: str
     headers: dict[str, str] | None = None
     auth: httpx2.Auth | None = None
+
+
+def _transport_headers(spec: ConnectionSpec) -> dict[str, str] | None:
+    """Apply endpoint-specific transport features without changing stored URLs."""
+    headers = dict(spec.headers or {})
+    if urlsplit(spec.url).hostname == GITHUB_COPILOT_MCP_HOST:
+        # GitHub otherwise defers writes to an MCP App form. Auxilia's own
+        # HITL gate handles confirmation; executing directly avoids a deferred
+        # result that can never complete when no interactive form is mounted.
+        key = next(
+            (name for name in headers if name.lower() == "x-mcp-features"),
+            "X-MCP-Features",
+        )
+        features = {
+            feature.strip()
+            for feature in headers.get(key, "").split(",")
+            if feature.strip()
+        }
+        features.add(GITHUB_DISABLE_FORM_DEFERRAL)
+        headers[key] = ",".join(sorted(features))
+    return headers or None
 
 
 class LenientClientSession(ClientSession):
@@ -214,7 +237,7 @@ def build_client(spec: ConnectionSpec, *, terminate_on_close: bool = True) -> Cl
     )
     transport = transport_cls(
         spec.url,
-        headers=spec.headers,
+        headers=_transport_headers(spec),
         auth=spec.auth,
         httpx_client_factory=httpx_client_factory,
     )
