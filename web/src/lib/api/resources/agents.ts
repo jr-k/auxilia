@@ -10,6 +10,7 @@ import type { Paginated } from "@/types/api";
 import type {
 	Agent,
 	AgentPermission,
+	AgentResources,
 	AgentSlackBotSettings,
 	AgentSlackBotSettingsUpdate,
 } from "@/types/agents";
@@ -81,6 +82,13 @@ export async function getAgent(
 	const response = await api.get<Agent>(`/agents/${agentId}`, {
 		headers: options.cookie ? { Cookie: options.cookie } : undefined,
 	});
+	return response.data;
+}
+
+export async function getAgentResources(
+	agentId: string,
+): Promise<AgentResources> {
+	const response = await api.get<AgentResources>(`/agents/${agentId}/resources`);
 	return response.data;
 }
 

@@ -21,16 +21,22 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { useParams } from "next/navigation";
-import { useAgentsStore } from "@/stores/agents-store";
-import { canConfigureAgent } from "@/types/agents";
+import { toast } from "sonner";
 import { useAgentReadiness } from "@/hooks/use-agent-readiness";
 import { useChatHeaderStore } from "@/stores/chat-header-store";
 import { chatHeaderFromThread, useThreadSession } from "@/lib/thread-session";
+import * as threadsApi from "@/lib/api/resources/threads";
 import { getApiErrorMessage } from "@/lib/api/errors";
 import { isResponseSoundEnabled } from "@/lib/user-preferences";
 import { ConversationBody } from "./conversation-body";
 import { usePromptQueue } from "@/hooks/use-prompt-queue";
 import { ThreadMap } from "./thread-map";
+import type { ThreadResourceSettings } from "@/types/threads";
+
+const EMPTY_RESOURCE_SETTINGS: ThreadResourceSettings = {
+  disabledMcpServerIds: [],
+  disabledSkillIds: [],
+};
 
 /**
  * The chat page renders one thread session. Run state, HITL, hydration and
@@ -56,6 +62,11 @@ const ChatPage = () => {
     threadId: string;
     sequence: number;
   } | null>(null);
+  const [resourceSettingsOverride, setResourceSettingsOverride] = useState<{
+    threadId: string;
+    settings: ThreadResourceSettings;
+  } | null>(null);
+  const [resourceSettingsSaving, setResourceSettingsSaving] = useState(false);
 
   const acknowledgeCurrentResponse = () => {
     acknowledgedAssistantId.current =
@@ -127,6 +138,39 @@ const ChatPage = () => {
   );
   const promptQueue = usePromptQueue(threadId, run.status !== "idle");
   const thread = meta.thread;
+  const resourceSettings =
+    resourceSettingsOverride?.threadId === threadId
+      ? resourceSettingsOverride.settings
+      : thread
+        ? {
+            disabledMcpServerIds: thread.disabledMcpServerIds ?? [],
+            disabledSkillIds: thread.disabledSkillIds ?? [],
+          }
+        : EMPTY_RESOURCE_SETTINGS;
+
+  const updateResourceSettings = async (next: ThreadResourceSettings) => {
+    if (resourceSettingsSaving) return;
+    const previous = resourceSettings;
+    setResourceSettingsOverride({ threadId, settings: next });
+    setResourceSettingsSaving(true);
+    try {
+      const updated = await threadsApi.updateThreadResources(threadId, next);
+      setResourceSettingsOverride({
+        threadId,
+        settings: {
+          disabledMcpServerIds: updated.disabledMcpServerIds ?? [],
+          disabledSkillIds: updated.disabledSkillIds ?? [],
+        },
+      });
+    } catch (error) {
+      setResourceSettingsOverride({ threadId, settings: previous });
+      toast.error(
+        getApiErrorMessage(error, "Conversation resources could not be updated."),
+      );
+    } finally {
+      setResourceSettingsSaving(false);
+    }
+  };
 
   useEffect(() => {
     if (
@@ -151,11 +195,6 @@ const ChatPage = () => {
     threadId,
   ]);
 
-  const canConfigure = useAgentsStore((s) =>
-    canConfigureAgent(
-      s.agents.find((a) => a.id === agentId)?.currentUserPermission,
-    ),
-  );
   const {
     ready: agentReady,
     status: agentStatus,
@@ -302,16 +341,6 @@ const ChatPage = () => {
               </Button>
             </div>
           </div>
-        ) : agentStatus === "not_configured" ? (
-          <div className="w-full max-w-4xl mx-auto lg:px-10 sm:px-6 px-3 py-4">
-            <div className="w-full flex items-center justify-center border border-destructive/30 bg-destructive/10 rounded-lg px-4 py-8">
-              <p className="text-md text-center text-destructive">
-                {canConfigure
-                  ? "This agent's MCP tools aren't configured yet. Configure them in the agent's settings."
-                  : "Agent is not configured yet. Contact agent owner to configure it first."}
-              </p>
-            </div>
-          </div>
         ) : (
           <ChatPromptInput
             key={threadId}
@@ -330,6 +359,11 @@ const ChatPage = () => {
             agentReady={agentReady}
             disconnectedServers={disconnectedMcpServers}
             onAllConnected={refetchReady}
+            resourceSettings={resourceSettings}
+            onResourceSettingsChange={(settings) => {
+              void updateResourceSettings(settings);
+            }}
+            resourceSettingsSaving={resourceSettingsSaving}
             queuedPrompts={promptQueue.items}
             queueLoading={promptQueue.isLoading}
             onQueueAuthorizationRequired={refetchReady}

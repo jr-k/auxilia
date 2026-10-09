@@ -499,6 +499,14 @@ class SkillService(BaseService[SkillDB, SkillRepository]):
             for row in await self.repository.list_attached(agent_id)
         ]
 
+    async def list_for_agents(
+        self, agent_ids: Iterable[UUID]
+    ) -> list[AgentSkillResponse]:
+        return [
+            AgentSkillResponse(**row._mapping)
+            for row in await self.repository.list_attached_for_agents(agent_ids)
+        ]
+
     async def set_for_agent(self, agent_id: UUID, skill_ids: Iterable[UUID]) -> None:
         """Whole-set replace of an agent's skills, from the config save.
 

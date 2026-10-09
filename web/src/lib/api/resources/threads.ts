@@ -8,7 +8,13 @@
 import { api } from "@/lib/api/client";
 import type { Paginated } from "@/types/api";
 import type { QueuedPrompt, Run } from "@/types/runs";
-import type { AgentThread, Thread, ThreadCreate, ThreadRead } from "@/types/threads";
+import type {
+	AgentThread,
+	Thread,
+	ThreadCreate,
+	ThreadRead,
+	ThreadResourceSettings,
+} from "@/types/threads";
 
 export type PageParams = { limit: number; offset: number };
 export type ThreadPageParams = PageParams & { q?: string };
@@ -49,6 +55,17 @@ export async function renameThread(
 	firstMessageContent: string,
 ): Promise<void> {
 	await api.patch(`/threads/${threadId}`, { firstMessageContent });
+}
+
+export async function updateThreadResources(
+	threadId: string,
+	settings: ThreadResourceSettings,
+): Promise<Thread> {
+	const response = await api.put<Thread>(
+		`/threads/${threadId}/resources`,
+		settings,
+	);
+	return response.data;
 }
 
 export async function deleteThread(threadId: string): Promise<void> {

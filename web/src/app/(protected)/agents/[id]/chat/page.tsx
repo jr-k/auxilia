@@ -15,11 +15,16 @@ import * as agentsApi from "@/lib/api/resources/agents";
 import * as threadsApi from "@/lib/api/resources/threads";
 import { generateUuid } from "@/lib/utils/uuid";
 import { ChevronDown } from "lucide-react";
-import { Agent, canConfigureAgent } from "@/types/agents";
+import { Agent } from "@/types/agents";
 import { AgentAvatar } from "@/components/ui/agent-avatar";
-import { Alert } from "@/components/ui/alert";
 import { getDefaultModel } from "@/lib/utils/get-default-model";
 import { useAgentReadiness } from "@/hooks/use-agent-readiness";
+import type { ThreadResourceSettings } from "@/types/threads";
+
+const EMPTY_RESOURCE_SETTINGS: ThreadResourceSettings = {
+	disabledMcpServerIds: [],
+	disabledSkillIds: [],
+};
 
 const StarterChatPage = () => {
 	const params = useParams();
@@ -33,6 +38,14 @@ const StarterChatPage = () => {
 	// Reasoning-effort choice for the selected model; null = the model's
 	// default. Pinned onto the thread at creation, like the model.
 	const [reasoningEffort, setReasoningEffort] = useState<string | null>(null);
+	const [resourceSettingsState, setResourceSettingsState] = useState<{
+		agentId: string;
+		settings: ThreadResourceSettings;
+	}>({ agentId, settings: EMPTY_RESOURCE_SETTINGS });
+	const resourceSettings =
+		resourceSettingsState.agentId === agentId
+			? resourceSettingsState.settings
+			: EMPTY_RESOURCE_SETTINGS;
 	const addThread = useThreadsStore((state) => state.addThread);
 	const setPendingMessage = usePendingMessageStore(
 		(state) => state.setPendingMessage,
@@ -90,6 +103,7 @@ const StarterChatPage = () => {
 				modelId,
 				reasoningEffort,
 				firstMessageContent: textContent,
+				...resourceSettings,
 			});
 			if (agentRequestIdRef.current !== submittedAgentRequestId) {
 				usePendingMessageStore.getState().consumePendingMessage(threadId);
@@ -179,7 +193,7 @@ const StarterChatPage = () => {
 						</h1>
 						<ChevronDown className="size-5 text-muted-foreground ml-8 mt-1" />
 					</button>
-					{status !== "not_configured" && status !== "sandbox_unavailable" && (
+					{status !== "sandbox_unavailable" && (
 						<p className="text-lg text-muted-foreground">
 							Ask me anything to begin
 						</p>
@@ -203,16 +217,6 @@ const StarterChatPage = () => {
 								Check again
 							</button>
 						</div>
-					) : status === "not_configured" ? (
-						<Alert
-							variant="error"
-							message={
-								canConfigureAgent(currentAgent?.currentUserPermission)
-									? "This agent's MCP tools aren't configured yet. Configure them in the agent's settings."
-									: "Agent is not configured yet. Contact agent owner to configure it first."
-							}
-							dismissible={false}
-						/>
 					) : (
 						<ChatPromptInput
 							agentId={agentId}
@@ -234,6 +238,10 @@ const StarterChatPage = () => {
 							disconnectedServers={disconnectedMcpServers}
 							onAllConnected={() => {
 								refetchReady();
+							}}
+							resourceSettings={resourceSettings}
+							onResourceSettingsChange={(settings) => {
+								setResourceSettingsState({ agentId, settings });
 							}}
 						/>
 					)}

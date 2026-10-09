@@ -106,3 +106,17 @@ export interface Agent {
 	isSubagent: boolean;
 	currentUserPermission?: AgentPermission | null;
 }
+
+export interface AgentResourceMCPServer {
+	id: string;
+	name: string;
+	iconUrl: string | null;
+	imageRevision: string | null;
+	description: string | null;
+	configured: boolean;
+}
+
+export interface AgentResources {
+	mcpServers: AgentResourceMCPServer[];
+	skills: AgentSkill[];
+}

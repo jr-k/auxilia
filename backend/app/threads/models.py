@@ -2,7 +2,8 @@ from datetime import datetime
 from enum import Enum
 from uuid import UUID, uuid4
 
-from sqlalchemy import BigInteger, Boolean, DateTime, Enum as SAEnum
+from sqlalchemy import JSON, BigInteger, Boolean, DateTime, Enum as SAEnum, text
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Column, Field, SQLModel, String, Text
 
 from app.models import TimestampMixin
@@ -27,6 +28,14 @@ FIRST_PARTY_SOURCES: tuple[ThreadSource, ...] = (
     ThreadSource.slack,
     ThreadSource.trigger,
 )
+
+
+def _json_list_column() -> Column:
+    return Column(
+        JSON().with_variant(JSONB(), "postgresql"),
+        nullable=False,
+        server_default=text("'[]'"),
+    )
 
 
 class ThreadBase(SQLModel):
@@ -76,6 +85,15 @@ class ThreadDB(ThreadBase, TimestampMixin, table=True):
     # cannot know it: the run failed instead of starting a fresh sandbox.
     sandbox_source_id: UUID | None = Field(
         default=None, foreign_key="sandboxes.id", ondelete="SET NULL", nullable=True
+    )
+    # Conversation-level capability narrowing. Deny lists preserve the agent's
+    # defaults for existing threads and automatically enable resources attached
+    # to the graph later.
+    disabled_mcp_server_ids: list[str] = Field(
+        default_factory=list, sa_column=_json_list_column()
+    )
+    disabled_skill_ids: list[str] = Field(
+        default_factory=list, sa_column=_json_list_column()
     )
     # Terminal status of the thread's most recent run, stamped in the same
     # transaction as the run's terminal update. NULL = no finished run

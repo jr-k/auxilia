@@ -12,7 +12,11 @@ import {
 import * as agentsApi from "@/lib/api/resources/agents";
 import * as mcpServersApi from "@/lib/api/resources/mcp-servers";
 import type { MCPServer } from "@/types/mcp-servers";
-import type { AgentSkill } from "@/types/skills";
+import type {
+	AgentResourceMCPServer,
+	AgentResources,
+} from "@/types/agents";
+import type { ThreadResourceSettings } from "@/types/threads";
 import {
 	ExternalLinkIcon,
 	LoaderIcon,
@@ -22,8 +26,8 @@ import {
 import { toast } from "sonner";
 import { ServerIconTile } from "@/app/(protected)/mcp-servers/components/server-icon-tile";
 import { SkillAvatar } from "@/components/ui/skill-avatar";
+import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
-import { useMcpServersStore } from "@/stores/mcp-servers-store";
 
 interface ConnectServersDialogProps {
 	open: boolean;
@@ -31,15 +35,12 @@ interface ConnectServersDialogProps {
 	agentId: string;
 	disconnectedServers: MCPServer[];
 	onConnectionChange: () => void;
+	resourceSettings: ThreadResourceSettings;
+	onResourceSettingsChange: (settings: ThreadResourceSettings) => void;
+	resourceSettingsSaving?: boolean;
 }
 
 type ResourceTab = "servers" | "skills";
-
-interface AgentResources {
-	agentId: string;
-	serverIds: string[];
-	skills: AgentSkill[];
-}
 
 export function ConnectServersDialog({
 	open,
@@ -47,14 +48,16 @@ export function ConnectServersDialog({
 	agentId,
 	disconnectedServers,
 	onConnectionChange,
+	resourceSettings,
+	onResourceSettingsChange,
+	resourceSettingsSaving = false,
 }: ConnectServersDialogProps) {
 	const [activeTab, setActiveTab] = useState<ResourceTab>("servers");
 	const [resources, setResources] = useState<AgentResources | null>(null);
+	const [resourcesAgentId, setResourcesAgentId] = useState<string | null>(null);
 	const [loadFailedFor, setLoadFailedFor] = useState<string | null>(null);
 	const [connectedIds, setConnectedIds] = useState<Set<string>>(new Set());
 	const [connectingId, setConnectingId] = useState<string | null>(null);
-	const workspaceServers = useMcpServersStore((state) => state.mcpServers);
-	const fetchMcpServers = useMcpServersStore((state) => state.fetchMcpServers);
 	const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 	const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const resourceRequestRef = useRef(0);
@@ -63,23 +66,24 @@ export function ConnectServersDialog({
 		() => new Set(disconnectedServers.map((server) => server.id)),
 		[disconnectedServers],
 	);
-	const loadedResources = resources?.agentId === agentId ? resources : null;
-	const servers = useMemo(() => {
-		if (!loadedResources) return disconnectedServers;
-		const fallbackById = new Map(
-			disconnectedServers.map((server) => [server.id, server]),
-		);
-		return loadedResources.serverIds
-			.map(
-				(serverId) =>
-					workspaceServers.find((server) => server.id === serverId) ??
-					fallbackById.get(serverId),
-			)
-			.filter((server): server is MCPServer => server !== undefined);
-	}, [disconnectedServers, loadedResources, workspaceServers]);
-	const skills = loadedResources?.skills ?? [];
+	const servers = resources?.mcpServers ?? [];
+	const skills = resources?.skills ?? [];
+	const disabledServerIds = useMemo(
+		() => new Set(resourceSettings.disabledMcpServerIds),
+		[resourceSettings.disabledMcpServerIds],
+	);
+	const disabledSkillIds = useMemo(
+		() => new Set(resourceSettings.disabledSkillIds),
+		[resourceSettings.disabledSkillIds],
+	);
+	const enabledServerCount = servers.filter(
+		(server) => !disabledServerIds.has(server.id),
+	).length;
+	const enabledSkillCount = skills.filter(
+		(skill) => !disabledSkillIds.has(skill.id),
+	).length;
 	const isLoadingResources =
-		open && loadedResources === null && loadFailedFor !== agentId;
+		open && resourcesAgentId !== agentId && loadFailedFor !== agentId;
 
 	const clearPolling = useCallback(() => {
 		if (pollRef.current) clearInterval(pollRef.current);
@@ -98,32 +102,26 @@ export function ConnectServersDialog({
 
 	useEffect(() => {
 		if (!open) return;
-		void fetchMcpServers().catch((error: unknown) => {
-			console.error("Failed to load MCP servers:", error);
-		});
 		const requestId = ++resourceRequestRef.current;
 		void agentsApi
-			.getAgent(agentId)
-			.then((agent) => {
+			.getAgentResources(agentId)
+			.then((loadedResources) => {
 				if (requestId !== resourceRequestRef.current) return;
-				setResources({
-					agentId,
-					serverIds: (agent.mcpServers ?? []).map(
-						(binding) => binding.mcpServerId,
-					),
-					skills: agent.skills ?? [],
-				});
+				setResources(loadedResources);
+				setResourcesAgentId(agentId);
 				setLoadFailedFor(null);
 			})
 			.catch((error: unknown) => {
 				if (requestId !== resourceRequestRef.current) return;
 				console.error("Failed to load agent resources:", error);
+				setResources(null);
+				setResourcesAgentId(null);
 				setLoadFailedFor(agentId);
 			});
 		return () => {
 			resourceRequestRef.current += 1;
 		};
-	}, [agentId, fetchMcpServers, open]);
+	}, [agentId, open]);
 
 	useEffect(() => clearPolling, [clearPolling]);
 
@@ -137,7 +135,7 @@ export function ConnectServersDialog({
 	);
 
 	const handleConnect = useCallback(
-		async (server: MCPServer) => {
+		async (server: AgentResourceMCPServer) => {
 			setConnectingId(server.id);
 
 			try {
@@ -191,13 +189,30 @@ export function ConnectServersDialog({
 		[clearPolling, markConnected],
 	);
 
+	const setResourceEnabled = (
+		type: ResourceTab,
+		resourceId: string,
+		enabled: boolean,
+	) => {
+		const disabledKey =
+			type === "servers" ? "disabledMcpServerIds" : "disabledSkillIds";
+		const disabledIds = resourceSettings[disabledKey];
+		onResourceSettingsChange({
+			...resourceSettings,
+			[disabledKey]: enabled
+				? disabledIds.filter((id) => id !== resourceId)
+				: [...new Set([...disabledIds, resourceId])],
+		});
+	};
+
 	return (
 		<Dialog open={open} onOpenChange={handleOpenChange}>
 			<DialogContent className="gap-4 sm:max-w-[540px]">
 				<DialogHeader>
-					<DialogTitle>Agent resources</DialogTitle>
+					<DialogTitle>Conversation resources</DialogTitle>
 					<DialogDescription>
-						Quick access to this agent&apos;s MCP servers and skills.
+						Choose which MCP servers and skills are available in this
+						conversation.
 					</DialogDescription>
 				</DialogHeader>
 
@@ -231,11 +246,11 @@ export function ConnectServersDialog({
 							>
 								<Icon className="size-3.5" />
 								{label}
-								{loadedResources && (
+								{resourcesAgentId === agentId && (
 									<span className="text-[10.5px] font-medium opacity-60">
 										{tab === "servers"
-											? loadedResources.serverIds.length
-											: loadedResources.skills.length}
+											? `${enabledServerCount}/${servers.length}`
+											: `${enabledSkillCount}/${skills.length}`}
 									</span>
 								)}
 							</button>
@@ -243,7 +258,7 @@ export function ConnectServersDialog({
 					})}
 				</div>
 
-				<div className="max-h-[420px] min-h-[180px] overflow-y-auto [scrollbar-width:thin]">
+				<div className="h-[480px] overflow-y-auto [scrollbar-width:thin]">
 					{isLoadingResources ? (
 						<div className="flex min-h-[180px] items-center justify-center gap-2 text-[13px] text-meta dark:text-panel-dim">
 							<LoaderIcon className="size-4 animate-spin" />
@@ -253,6 +268,7 @@ export function ConnectServersDialog({
 						servers.length > 0 ? (
 							<div className="flex flex-col gap-2">
 								{servers.map((server) => {
+									const isEnabled = !disabledServerIds.has(server.id);
 									const isDisconnected =
 										disconnectedIds.has(server.id) &&
 										!connectedIds.has(server.id);
@@ -274,7 +290,7 @@ export function ConnectServersDialog({
 											</p>
 											<div className="ml-auto flex shrink-0 items-center gap-2">
 												<ConnectionStatusBadge connected={!isDisconnected} />
-												{isDisconnected && (
+												{isEnabled && isDisconnected && (
 													<button
 														type="button"
 														disabled={connectingId !== null}
@@ -291,6 +307,14 @@ export function ConnectServersDialog({
 														{isConnecting ? "Waiting…" : "Connect"}
 													</button>
 												)}
+												<Switch
+													checked={isEnabled}
+													disabled={resourceSettingsSaving}
+													onCheckedChange={(checked) => {
+														setResourceEnabled("servers", server.id, checked);
+													}}
+													aria-label={`${isEnabled ? "Disable" : "Enable"} ${server.name} for this conversation`}
+												/>
 											</div>
 										</div>
 									);
@@ -305,35 +329,50 @@ export function ConnectServersDialog({
 						)
 					) : skills.length > 0 ? (
 						<div className="flex flex-col gap-2">
-							{skills.map((skill) => (
-								<Link
-									key={skill.id}
-									href={`/skills/${skill.id}`}
-									target="_blank"
-									rel="noreferrer"
-									className="group flex items-center gap-3 rounded-[10px] border border-hairline bg-sidebar p-3 transition-colors hover:border-border-hover hover:bg-hover dark:bg-white/5 dark:hover:bg-white/10"
-								>
-									<SkillAvatar
-										skillId={skill.id}
-										name={skill.name}
-										emoji={skill.emoji}
-										color={skill.color}
-										imageRevision={skill.imageRevision}
-										size="sm"
-									/>
-									<div className="min-w-0 flex-1">
-										<p className="truncate text-[13px] font-semibold text-ink dark:text-panel-button">
-											{skill.name}
-										</p>
-										{skill.description && (
-											<p className="mt-0.5 truncate text-[11.5px] text-meta dark:text-panel-dim">
-												{skill.description}
-											</p>
-										)}
+							{skills.map((skill) => {
+								const isEnabled = !disabledSkillIds.has(skill.id);
+								return (
+									<div
+										key={skill.id}
+										className="flex items-center gap-3 rounded-[10px] border border-hairline bg-sidebar p-3 dark:bg-white/5"
+									>
+										<Link
+											href={`/skills/${skill.id}`}
+											target="_blank"
+											rel="noreferrer"
+											className="group flex min-w-0 flex-1 items-center gap-3 rounded-md"
+										>
+											<SkillAvatar
+												skillId={skill.id}
+												name={skill.name}
+												emoji={skill.emoji}
+												color={skill.color}
+												imageRevision={skill.imageRevision}
+												size="sm"
+											/>
+											<div className="min-w-0 flex-1">
+												<p className="truncate text-[13px] font-semibold text-ink dark:text-panel-button">
+													{skill.name}
+												</p>
+												{skill.description && (
+													<p className="mt-0.5 truncate text-[11.5px] text-meta dark:text-panel-dim">
+														{skill.description}
+													</p>
+												)}
+											</div>
+											<ExternalLinkIcon className="size-3.5 shrink-0 text-meta transition-colors group-hover:text-petrol dark:text-panel-dim" />
+										</Link>
+										<Switch
+											checked={isEnabled}
+											disabled={resourceSettingsSaving}
+											onCheckedChange={(checked) => {
+												setResourceEnabled("skills", skill.id, checked);
+											}}
+											aria-label={`${isEnabled ? "Disable" : "Enable"} ${skill.name} for this conversation`}
+										/>
 									</div>
-									<ExternalLinkIcon className="size-3.5 shrink-0 text-meta transition-colors group-hover:text-petrol dark:text-panel-dim" />
-								</Link>
-							))}
+								);
+							})}
 						</div>
 					) : (
 						<EmptyState

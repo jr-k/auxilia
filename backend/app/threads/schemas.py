@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Literal
 from uuid import UUID
 
-from sqlmodel import SQLModel
+from sqlmodel import Field, SQLModel
 
 from app.runtime.runs.state import RunStatus
 from app.threads.models import ThreadBase
@@ -16,6 +16,8 @@ class ThreadCreate(SQLModel):
     # (400 on an undeclared value). None = the model's default.
     reasoning_effort: str | None = None
     first_message_content: str | None = None
+    disabled_mcp_server_ids: list[UUID] = Field(default_factory=list)
+    disabled_skill_ids: list[UUID] = Field(default_factory=list)
 
 
 class ThreadPatch(SQLModel):
@@ -24,6 +26,11 @@ class ThreadPatch(SQLModel):
     # callers set it to an arbitrary value would break later runs for the
     # thread ("Unknown model").
     first_message_content: str | None = None
+
+
+class ThreadResourcesPatch(SQLModel):
+    disabled_mcp_server_ids: list[UUID] = Field(default_factory=list)
+    disabled_skill_ids: list[UUID] = Field(default_factory=list)
 
 
 class ThreadResponse(ThreadBase):
@@ -46,6 +53,8 @@ class ThreadResponse(ThreadBase):
     # list endpoints leave the default (the composer only exists on the
     # thread page).
     model_available: bool = True
+    disabled_mcp_server_ids: list[UUID] = Field(default_factory=list)
+    disabled_skill_ids: list[UUID] = Field(default_factory=list)
 
 
 class AgentThreadResponse(ThreadResponse):

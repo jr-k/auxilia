@@ -475,7 +475,11 @@ class SkillRepository(BaseRepository[SkillDB]):
             stmt = stmt.where(SkillDB.workspace_id == self.workspace_id)
         return set((await self.db.execute(stmt)).scalars().all())
 
-    async def list_for_agents(self, agent_ids: Iterable[UUID]) -> list[SkillDB]:
+    async def list_for_agents(
+        self,
+        agent_ids: Iterable[UUID],
+        excluded_skill_ids: Iterable[UUID] = (),
+    ) -> list[SkillDB]:
         """The distinct skills enabled on any of the agents, by name — a
         supervisor and its subagents share one set at run time."""
         ids = list(agent_ids)
@@ -488,6 +492,9 @@ class SkillRepository(BaseRepository[SkillDB]):
             .distinct()
             .order_by(col(SkillDB.name), col(SkillDB.id))
         )
+        excluded_ids = list(excluded_skill_ids)
+        if excluded_ids:
+            stmt = stmt.where(col(SkillDB.id).not_in(excluded_ids))
         return list((await self.db.execute(stmt)).scalars().all())
 
     async def list_attached(self, agent_id: UUID):
@@ -508,8 +515,39 @@ class SkillRepository(BaseRepository[SkillDB]):
         )
         return (await self.db.execute(stmt)).all()
 
+    async def list_attached_for_agents(self, agent_ids: Iterable[UUID]):
+        """Distinct display summaries attached anywhere in an agent graph."""
+        ids = list(agent_ids)
+        if not ids:
+            return []
+        stmt = (
+            sa_select(
+                col(SkillDB.id),
+                col(SkillDB.name),
+                col(SkillDB.description),
+                col(SkillDB.emoji),
+                col(SkillDB.color),
+                col(SkillDB.image_revision),
+                json_script_count(SkillDB.files).label("script_count"),
+            )
+            .join(AgentSkillDB, col(AgentSkillDB.skill_id) == col(SkillDB.id))
+            .where(col(AgentSkillDB.agent_id).in_(ids))
+            .distinct()
+            .order_by(col(SkillDB.name), col(SkillDB.id))
+        )
+        return (await self.db.execute(stmt)).all()
+
     async def list_attached_ids(self, agent_id: UUID) -> set[UUID]:
         stmt = select(AgentSkillDB.skill_id).where(AgentSkillDB.agent_id == agent_id)
+        return set((await self.db.execute(stmt)).scalars().all())
+
+    async def list_attached_ids_for_agents(
+        self, agent_ids: Iterable[UUID]
+    ) -> set[UUID]:
+        ids = list(agent_ids)
+        if not ids:
+            return set()
+        stmt = select(AgentSkillDB.skill_id).where(col(AgentSkillDB.agent_id).in_(ids))
         return set((await self.db.execute(stmt)).scalars().all())
 
     async def is_attached(self, skill_id: UUID) -> bool:

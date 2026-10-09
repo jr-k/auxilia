@@ -21,6 +21,7 @@ from app.agents.schemas import (
     AgentPatch,
     AgentPermissionCreate,
     AgentPermissionResponse,
+    AgentResourcesResponse,
     AgentResponse,
     AgentSubagentResponse,
     AgentTeamsResponse,
@@ -98,6 +99,20 @@ _require_image_editor = require_agent_permission(
 _require_image_viewer = require_agent_permission(
     EffectivePermission.member, action="view this agent's image"
 )
+_require_resources_viewer = require_agent_permission(
+    EffectivePermission.member, action="view this agent's resources"
+)
+
+
+@router.get(
+    "/{agent_id}/resources",
+    dependencies=[Depends(_require_resources_viewer)],
+)
+async def get_agent_resources(
+    agent_id: UUID,
+    service: AgentService = Depends(get_agent_service),
+) -> AgentResourcesResponse:
+    return await service.get_resources(agent_id)
 
 
 @router.get(

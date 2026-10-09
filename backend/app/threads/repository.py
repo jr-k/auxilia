@@ -130,6 +130,24 @@ class ThreadRepository(BaseRepository[ThreadDB]):
             stmt = stmt.where(ThreadDB.workspace_id == self.workspace_id)
         await self.db.execute(stmt)
 
+    async def set_resources(
+        self,
+        thread_id: str,
+        disabled_mcp_server_ids: list[str],
+        disabled_skill_ids: list[str],
+    ) -> None:
+        stmt = (
+            update(ThreadDB)
+            .where(ThreadDB.id == thread_id)
+            .values(
+                disabled_mcp_server_ids=disabled_mcp_server_ids,
+                disabled_skill_ids=disabled_skill_ids,
+            )
+        )
+        if self.workspace_id is not None:
+            stmt = stmt.where(ThreadDB.workspace_id == self.workspace_id)
+        await self.db.execute(stmt)
+
     async def set_queue_edit_lease(
         self, thread_id: str, run_id: str, expires_at: datetime
     ) -> None:

@@ -39,6 +39,7 @@ import {
 import { SearchBar } from "@/components/ui/search-bar";
 import { getApiErrorMessage, toApiError } from "@/lib/api/errors";
 import type { QueuedPrompt } from "@/types/runs";
+import type { ThreadResourceSettings } from "@/types/threads";
 import { PromptQueue } from "./prompt-queue";
 
 // Petrol Mono composer pills: 34px tall, 999px radius, on the hover tint.
@@ -69,6 +70,9 @@ interface ChatPromptInputProps {
 	agentReady?: boolean | null;
 	disconnectedServers?: MCPServer[];
 	onAllConnected?: () => void;
+	resourceSettings: ThreadResourceSettings;
+	onResourceSettingsChange: (settings: ThreadResourceSettings) => void;
+	resourceSettingsSaving?: boolean;
 	queuedPrompts?: QueuedPrompt[];
 	onEnqueue?: (text: string) => Promise<void>;
 	onUpdateQueued?: (id: string, text: string) => Promise<void>;
@@ -121,6 +125,9 @@ const ChatPromptInput = ({
 	agentReady,
 	disconnectedServers = [],
 	onAllConnected,
+	resourceSettings,
+	onResourceSettingsChange,
+	resourceSettingsSaving = false,
 	queuedPrompts = [],
 	onEnqueue,
 	onUpdateQueued,
@@ -185,6 +192,10 @@ const ChatPromptInput = ({
 	// matching the old lookup-miss behavior.
 	const noAttachments =
 		selectedModelData !== undefined && !selectedModelData.multimodal;
+	const enabledDisconnectedServers = useMemo(() => {
+		const disabledIds = new Set(resourceSettings.disabledMcpServerIds);
+		return disconnectedServers.filter((server) => !disabledIds.has(server.id));
+	}, [disconnectedServers, resourceSettings.disabledMcpServerIds]);
 
 	// Editable composer only: normalize a stale selection in the parent state
 	// too (not just the display), so what's shown as Default/Auto is also what
@@ -242,11 +253,7 @@ const ChatPromptInput = ({
 	);
 
 	useEffect(() => {
-		if (
-			!initialFocusPendingRef.current ||
-			agentReady === false ||
-			queueLoading
-		) {
+		if (!initialFocusPendingRef.current || queueLoading) {
 			return;
 		}
 
@@ -257,7 +264,7 @@ const ChatPromptInput = ({
 		return () => {
 			cancelAnimationFrame(frame);
 		};
-	}, [agentReady, queueLoading]);
+	}, [queueLoading]);
 
 	const submitMessage = async (message: PromptInputMessage) => {
 		const hasText = Boolean("text" in message && message.text);
@@ -532,7 +539,7 @@ const ChatPromptInput = ({
 				<PromptInputBody>
 					<PromptInputTextarea
 						ref={textareaRef}
-						disabled={agentReady === false || queueLoading}
+						disabled={queueLoading}
 						onKeyDown={(event) => {
 							// Escape leaves edit mode without saving: the lease is
 							// released and the pre-edit draft comes back.
@@ -568,9 +575,7 @@ const ChatPromptInput = ({
 						) : (
 							<PromptInputAddAttachmentButton
 								disabled={
-									agentReady === false ||
-									queueMode ||
-									effectiveEditingId !== null
+									queueMode || effectiveEditingId !== null
 								}
 								className={cn(
 									composerPillClass,
@@ -728,18 +733,15 @@ const ChatPromptInput = ({
 					<div className="flex items-center gap-1.5">
 						<ConnectButton
 							allConnected={
-								agentReady === true && disconnectedServers.length === 0
+								agentReady === true &&
+								enabledDisconnectedServers.length === 0
 							}
 							onClick={() => {
 								setConnectDialogOpen(true);
 							}}
 						/>
-						{agentReady !== false && (
-							<>
-								{status === "streaming" && stop && <StopButton stop={stop} />}
-								<SubmitButton disabled={queueLoading} />
-							</>
-						)}
+						{status === "streaming" && stop && <StopButton stop={stop} />}
+						<SubmitButton disabled={queueLoading} />
 					</div>
 				</PromptInputFooter>
 				</PromptInput>
@@ -750,6 +752,9 @@ const ChatPromptInput = ({
 				agentId={agentId}
 				disconnectedServers={disconnectedServers}
 				onConnectionChange={() => onAllConnected?.()}
+				resourceSettings={resourceSettings}
+				onResourceSettingsChange={onResourceSettingsChange}
+				resourceSettingsSaving={resourceSettingsSaving}
 			/>
 		</>
 	);

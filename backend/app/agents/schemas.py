@@ -159,6 +159,20 @@ class AgentMCPServerResponse(AgentMCPServerBase):
     updated_at: datetime
 
 
+class AgentResourceMCPServerResponse(SQLModel):
+    id: UUID
+    name: str
+    icon_url: str | None = None
+    image_revision: UUID | None = None
+    description: str | None = None
+    configured: bool
+
+
+class AgentResourcesResponse(SQLModel):
+    mcp_servers: list[AgentResourceMCPServerResponse]
+    skills: list[AgentSkillResponse]
+
+
 class AgentSandboxResponse(SQLModel):
     """One agent↔sandbox binding, flattened with the sandbox's display
     fields so the editor never joins client-side."""

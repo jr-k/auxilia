@@ -7,17 +7,20 @@ from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.core.repository import AgentRepository
+from app.agents.run_spec import RunSpec
 from app.database import get_checkpointer, get_db
-from app.exceptions import NotFoundError
+from app.exceptions import DomainValidationError, NotFoundError
 from app.model_providers.service import ModelService
 from app.pagination import Page, PageParams
 from app.service import BaseService
+from app.skills.repository import SkillRepository
 from app.threads.models import ThreadDB, ThreadSource
 from app.threads.repository import ThreadRepository
 from app.threads.schemas import (
     AgentThreadResponse,
     ThreadCreate,
     ThreadPatch,
+    ThreadResourcesPatch,
     ThreadResponse,
 )
 from app.workspaces.dependencies import get_active_workspace_id
@@ -111,11 +114,19 @@ class ThreadService(BaseService[ThreadDB, ThreadRepository]):
         source: ThreadSource,
         trigger_id: UUID | None = None,
     ) -> ThreadResponse:
-        if (
-            await AgentRepository(self.db, self.workspace_id).get_scoped(data.agent_id)
-            is None
-        ):
+        spec = await AgentRepository(self.db, self.workspace_id).get_run_spec(
+            data.agent_id
+        )
+        if spec is None:
             raise NotFoundError("Agent not found")
+        (
+            disabled_mcp_server_ids,
+            disabled_skill_ids,
+        ) = await self._normalize_resource_ids(
+            spec,
+            data.disabled_mcp_server_ids,
+            data.disabled_skill_ids,
+        )
         # Strict at selection time (unlike model availability, which is only
         # flagged): an undeclared effort level is a client bug, and letting it
         # persist would silently degrade to the model default on every run.
@@ -130,11 +141,16 @@ class ThreadService(BaseService[ThreadDB, ThreadRepository]):
         # `trigger_id` is a keyword (not a ThreadCreate field) so API clients
         # can't attach arbitrary threads to a trigger — only the scanner sets it.
         thread = ThreadDB(
-            **data.model_dump(exclude_none=True),
+            **data.model_dump(
+                exclude_none=True,
+                exclude={"disabled_mcp_server_ids", "disabled_skill_ids"},
+            ),
             workspace_id=self.workspace_id,
             user_id=user_id,
             source=source,
             trigger_id=trigger_id,
+            disabled_mcp_server_ids=disabled_mcp_server_ids,
+            disabled_skill_ids=disabled_skill_ids,
         )
         self.db.add(thread)
         await self.db.flush()
@@ -155,6 +171,65 @@ class ThreadService(BaseService[ThreadDB, ThreadRepository]):
         thread = await self.get_or_404(thread_id)
         await self.repository.update(thread, data)
         return await self.get_with_agent(thread_id)
+
+    async def update_resources(
+        self, thread_id: str, data: ThreadResourcesPatch
+    ) -> ThreadResponse:
+        thread = await self.get_or_404(thread_id)
+        spec = await AgentRepository(self.db, self.workspace_id).get_run_spec(
+            thread.agent_id
+        )
+        if spec is None:
+            raise NotFoundError("Agent not found")
+        (
+            disabled_mcp_server_ids,
+            disabled_skill_ids,
+        ) = await self._normalize_resource_ids(
+            spec,
+            data.disabled_mcp_server_ids,
+            data.disabled_skill_ids,
+            tolerated_mcp_ids={
+                UUID(resource_id) for resource_id in thread.disabled_mcp_server_ids
+            },
+            tolerated_skill_ids={
+                UUID(resource_id) for resource_id in thread.disabled_skill_ids
+            },
+        )
+        await self.repository.set_resources(
+            thread_id,
+            disabled_mcp_server_ids,
+            disabled_skill_ids,
+        )
+        return await self.get_with_agent(thread_id)
+
+    async def _normalize_resource_ids(
+        self,
+        spec: RunSpec,
+        disabled_mcp_server_ids: list[UUID],
+        disabled_skill_ids: list[UUID],
+        *,
+        tolerated_mcp_ids: set[UUID] | None = None,
+        tolerated_skill_ids: set[UUID] | None = None,
+    ) -> tuple[list[str], list[str]]:
+        mcp_ids = list(dict.fromkeys(disabled_mcp_server_ids))
+        skill_ids = list(dict.fromkeys(disabled_skill_ids))
+        available_mcp_ids = {binding.mcp_server_id for binding in spec.all_mcp_bindings}
+        available_skill_ids = await SkillRepository(
+            self.db, self.workspace_id
+        ).list_attached_ids_for_agents(spec.all_agent_ids)
+        unknown_mcp_ids = (
+            set(mcp_ids) - available_mcp_ids - (tolerated_mcp_ids or set())
+        )
+        unknown_skill_ids = (
+            set(skill_ids) - available_skill_ids - (tolerated_skill_ids or set())
+        )
+        if unknown_mcp_ids or unknown_skill_ids:
+            raise DomainValidationError(
+                "Thread resources must belong to the agent or one of its subagents."
+            )
+        return [str(resource_id) for resource_id in mcp_ids], [
+            str(resource_id) for resource_id in skill_ids
+        ]
 
     async def delete(self, thread_id: str) -> ThreadDB:
         thread = await self.get_or_404(thread_id)

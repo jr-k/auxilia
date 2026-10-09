@@ -25,6 +25,8 @@ export interface Thread {
 	reasoningEffort?: string | null;
 	/** False once a workspace admin disabled the pinned model. */
 	modelAvailable?: boolean;
+	disabledMcpServerIds?: string[];
+	disabledSkillIds?: string[];
 	updatedAt?: string;
 }
 
@@ -50,6 +52,13 @@ export interface ThreadCreate {
 	modelId: string;
 	reasoningEffort: string | null;
 	firstMessageContent?: string;
+	disabledMcpServerIds?: string[];
+	disabledSkillIds?: string[];
+}
+
+export interface ThreadResourceSettings {
+	disabledMcpServerIds: string[];
+	disabledSkillIds: string[];
 }
 
 export interface AgentThread extends Thread {

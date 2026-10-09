@@ -29,6 +29,8 @@ from app.agents.schemas import (
     AgentOwnerInfo,
     AgentPatch,
     AgentPermissionCreate,
+    AgentResourceMCPServerResponse,
+    AgentResourcesResponse,
     AgentResponse,
     AgentSandboxConfig,
     AgentSandboxResponse,
@@ -93,6 +95,41 @@ class AgentService(BaseService[AgentDB, AgentRepository]):
         if image is None:
             raise NotFoundError("Agent image not found")
         return image
+
+    async def get_resources(self, agent_id: UUID) -> AgentResourcesResponse:
+        spec = await self.repository.get_run_spec(agent_id)
+        if spec is None:
+            raise NotFoundError(self.not_found_message)
+
+        server_ids = list(
+            dict.fromkeys(binding.mcp_server_id for binding in spec.all_mcp_bindings)
+        )
+        server_rows = {
+            server.id: server
+            for server in await self.mcp_servers.list_by_ids(server_ids)
+        }
+        configured_by_id = {
+            server_id: all(
+                binding.tools is not None
+                for binding in spec.all_mcp_bindings
+                if binding.mcp_server_id == server_id
+            )
+            for server_id in server_ids
+        }
+        mcp_servers = [
+            AgentResourceMCPServerResponse(
+                id=server.id,
+                name=server.name,
+                icon_url=server.icon_url,
+                image_revision=server.image_revision,
+                description=server.description,
+                configured=configured_by_id[server_id],
+            )
+            for server_id in server_ids
+            if (server := server_rows.get(server_id)) is not None
+        ]
+        skills = await self.skill_service.list_for_agents(spec.all_agent_ids)
+        return AgentResourcesResponse(mcp_servers=mcp_servers, skills=skills)
 
     async def set_image(self, agent_id: UUID, image: ProcessedImage) -> UUID:
         await self._get_scoped(agent_id)

@@ -1,7 +1,7 @@
 import asyncio
 import logging
 from contextlib import AsyncExitStack, asynccontextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime
 from typing import Any
 from uuid import UUID, uuid4
@@ -28,7 +28,7 @@ from langgraph.types import Command
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.core.repository import AgentRepository
-from app.agents.run_spec import AgentSpec
+from app.agents.run_spec import AgentSpec, RunSpec
 from app.database import AsyncSessionLocal, get_checkpointer
 from app.exceptions import DomainValidationError, NotFoundError
 from app.integrations.tracing import NoOpTracing, RunTracing, get_tracing
@@ -516,6 +516,25 @@ class Agent:
         if spec is None:
             raise NotFoundError("Agent not found")
 
+        disabled_mcp_server_ids = {
+            UUID(server_id) for server_id in thread.disabled_mcp_server_ids
+        }
+
+        def filter_mcp_bindings(agent_spec: AgentSpec) -> AgentSpec:
+            return replace(
+                agent_spec,
+                mcp_servers=[
+                    binding
+                    for binding in agent_spec.mcp_servers
+                    if binding.mcp_server_id not in disabled_mcp_server_ids
+                ],
+            )
+
+        spec = RunSpec(
+            agent=filter_mcp_bindings(spec.agent),
+            subagents=[filter_mcp_bindings(subagent) for subagent in spec.subagents],
+        )
+
         # Every MCP server the graph touches, in one query — the parent's and
         # each subagent's (design review §2.2 / P2-6).
         scope = await MCPResolutionScope.build(
@@ -555,7 +574,14 @@ class Agent:
 
         # One skill set per graph: every agent lists, reads and runs the union
         # of what the supervisor and its subagents have enabled.
-        skills = await resolve_run_skills(db, spec.all_agent_ids, thread.workspace_id)
+        skills = await resolve_run_skills(
+            db,
+            spec.all_agent_ids,
+            thread.workspace_id,
+            excluded_skill_ids={
+                UUID(skill_id) for skill_id in thread.disabled_skill_ids
+            },
+        )
         try:
             observability = await WorkspaceObservabilityService(db).get_runtime_config(
                 thread.workspace_id
