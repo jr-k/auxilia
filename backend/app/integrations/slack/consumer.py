@@ -259,14 +259,25 @@ class SlackRunConsumer(DeliveryConsumer):
             thread_ts,
         )
         marker_ts = await self._post_working_marker(channel_id, thread_ts)
+        run_finished = False
         try:
             try:
                 text_chars, status = await self._stream_to_slack(channel_id, thread_ts)
             except Exception:
                 logger.exception("Slack delivery crashed for run %s", self.record.id)
+                try:
+                    await RunService(self.redis).wait_for_terminal(self.record.id)
+                    run_finished = True
+                except Exception:
+                    logger.exception(
+                        "Could not wait for run %s after Slack delivery crashed",
+                        self.record.id,
+                    )
+                    return
                 await self._post_failure_notice(channel_id, thread_ts)
                 return
 
+            run_finished = status is not None
             logger.info(
                 "Slack delivery for run %s ended: status=%s text_chars=%s",
                 self.record.id,
@@ -288,7 +299,8 @@ class SlackRunConsumer(DeliveryConsumer):
             ) and not await self._post_reauth_prompt_if_gated(channel_id, thread_ts):
                 await self._post_failure_notice(channel_id, thread_ts)
         finally:
-            await self._remove_working_marker(channel_id, marker_ts)
+            if run_finished:
+                await self._remove_working_marker(channel_id, marker_ts)
 
     async def _post_working_marker(self, channel_id: str, thread_ts: str) -> str | None:
         """Post a temporary progress marker with a link to the conversation."""
