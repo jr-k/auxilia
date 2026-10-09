@@ -11,7 +11,6 @@ class AgentSlackBotDB(BaseDBModel, table=True):
 
     __tablename__ = "agent_slack_bots"
     __table_args__ = (
-        UniqueConstraint("agent_id", name="uq_agent_slack_bot_agent"),
         UniqueConstraint(
             "slack_team_id",
             "bot_user_id",

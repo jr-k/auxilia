@@ -1,7 +1,7 @@
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlmodel import select
+from sqlmodel import col, select
 
 from app.integrations.slack.db_models import AgentSlackBotDB, SlackThreadBindingDB
 from app.repository import BaseRepository
@@ -11,10 +11,25 @@ class AgentSlackBotRepository(BaseRepository[AgentSlackBotDB]):
     def __init__(self, db: AsyncSession):
         super().__init__(AgentSlackBotDB, db)
 
-    async def get_for_agent(
+    async def list_for_agent(
         self, workspace_id: UUID, agent_id: UUID
+    ) -> list[AgentSlackBotDB]:
+        stmt = (
+            select(AgentSlackBotDB)
+            .where(
+                AgentSlackBotDB.workspace_id == workspace_id,
+                AgentSlackBotDB.agent_id == agent_id,
+            )
+            .order_by(col(AgentSlackBotDB.created_at), col(AgentSlackBotDB.id))
+        )
+        result = await self.db.execute(stmt)
+        return list(result.scalars().all())
+
+    async def get_for_agent(
+        self, workspace_id: UUID, agent_id: UUID, bot_id: UUID
     ) -> AgentSlackBotDB | None:
         stmt = select(AgentSlackBotDB).where(
+            AgentSlackBotDB.id == bot_id,
             AgentSlackBotDB.workspace_id == workspace_id,
             AgentSlackBotDB.agent_id == agent_id,
         )

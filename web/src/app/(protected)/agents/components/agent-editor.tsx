@@ -740,6 +740,7 @@ export default function AgentEditor({
 						<AgentSlackBotCard
 							agentId={agent.id}
 							canManage={canManageAgent}
+							readOnly={readOnly}
 						/>
 					)}
 					{isAdmin && (

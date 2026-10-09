@@ -39,6 +39,7 @@ export const canConfigureAgent = (permission?: AgentPermission | null): boolean 
 
 /** Bot credentials remain server-side; this is the safe agent settings projection. */
 export interface AgentSlackBotSettings {
+	id: string | null;
 	workspaceEnabled: boolean;
 	enabled: boolean;
 	requireMentionInThreads: boolean;

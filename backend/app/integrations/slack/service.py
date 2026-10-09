@@ -108,15 +108,18 @@ class AgentSlackBotService:
             raise NotFoundError("Agent not found")
         return agent.name
 
-    async def get_response(self, agent_id: UUID) -> AgentSlackBotResponse:
-        if self.workspace_id is None:
-            raise RuntimeError("A workspace is required for agent Slack settings")
-        agent_name = await self._agent_name(self.workspace_id, agent_id)
-        row = await self.repository.get_for_agent(self.workspace_id, agent_id)
+    def _response(
+        self,
+        agent_id: UUID,
+        agent_name: str,
+        workspace_enabled: bool,
+        row: AgentSlackBotDB | None = None,
+    ) -> AgentSlackBotResponse:
         events_url, interactions_url = self._urls(agent_id)
         return AgentSlackBotResponse(
-            workspace_enabled=await self._workspace_enabled(self.workspace_id),
-            enabled=bool(row and row.enabled),
+            id=row.id if row else None,
+            workspace_enabled=workspace_enabled,
+            enabled=row.enabled if row else True,
             require_mention_in_threads=(
                 row.require_mention_in_threads if row else True
             ),
@@ -135,13 +138,97 @@ class AgentSlackBotService:
             manifest=self._manifest(agent_name, events_url, interactions_url),
         )
 
-    async def update(
+    async def get_setup(self, agent_id: UUID) -> AgentSlackBotResponse:
+        if self.workspace_id is None:
+            raise RuntimeError("A workspace is required for agent Slack settings")
+        agent_name = await self._agent_name(self.workspace_id, agent_id)
+        return self._response(
+            agent_id,
+            agent_name,
+            await self._workspace_enabled(self.workspace_id),
+        )
+
+    async def list_connections(self, agent_id: UUID) -> list[AgentSlackBotResponse]:
+        if self.workspace_id is None:
+            raise RuntimeError("A workspace is required for agent Slack settings")
+        agent_name = await self._agent_name(self.workspace_id, agent_id)
+        workspace_enabled = await self._workspace_enabled(self.workspace_id)
+        rows = await self.repository.list_for_agent(self.workspace_id, agent_id)
+        return [
+            self._response(agent_id, agent_name, workspace_enabled, row) for row in rows
+        ]
+
+    async def _validated_installation(
+        self,
+        token: str,
+        *,
+        current_id: UUID | None = None,
+    ) -> tuple[Any, str, str]:
+        try:
+            auth = await AsyncWebClient(token=token).auth_test()
+        except Exception as exc:
+            raise DomainValidationError(
+                "Could not validate the Slack bot token"
+            ) from exc
+        team_id = auth.get("team_id")
+        bot_user_id = auth.get("user_id")
+        if not isinstance(team_id, str) or not team_id:
+            raise DomainValidationError("Slack did not return a workspace id")
+        if not isinstance(bot_user_id, str) or not bot_user_id:
+            raise DomainValidationError("Slack did not return a bot user id")
+        existing = await self.repository.get_by_installation(team_id, bot_user_id)
+        if existing is not None and existing.id != current_id:
+            raise AlreadyExistsError(
+                "This Slack bot is already connected to another agent"
+            )
+        return auth, team_id, bot_user_id
+
+    async def create(
         self, agent_id: UUID, data: AgentSlackBotUpdate
     ) -> AgentSlackBotResponse:
         if self.workspace_id is None:
             raise RuntimeError("A workspace is required for agent Slack settings")
-        await self._agent_name(self.workspace_id, agent_id)
-        row = await self.repository.get_for_agent(self.workspace_id, agent_id)
+        agent_name = await self._agent_name(self.workspace_id, agent_id)
+        token = data.bot_token.strip() if data.bot_token is not None else None
+        secret = (
+            data.signing_secret.strip() if data.signing_secret is not None else None
+        )
+        if not token or not secret:
+            raise DomainValidationError(
+                "Slack credentials are required to connect this agent"
+            )
+        auth, team_id, bot_user_id = await self._validated_installation(token)
+        row = AgentSlackBotDB(
+            workspace_id=self.workspace_id,
+            agent_id=agent_id,
+            enabled=data.enabled,
+            require_mention_in_threads=data.require_mention_in_threads,
+            show_tool_callouts=data.show_tool_callouts,
+            bot_token_encrypted=encrypt_value(token),
+            signing_secret_encrypted=encrypt_value(secret),
+            slack_team_id=team_id,
+            slack_team_name=auth.get("team"),
+            bot_user_id=bot_user_id,
+            bot_name=auth.get("user"),
+        )
+        self.db.add(row)
+        await self.db.flush()
+        return self._response(
+            agent_id,
+            agent_name,
+            await self._workspace_enabled(self.workspace_id),
+            row,
+        )
+
+    async def update(
+        self, agent_id: UUID, bot_id: UUID, data: AgentSlackBotUpdate
+    ) -> AgentSlackBotResponse:
+        if self.workspace_id is None:
+            raise RuntimeError("A workspace is required for agent Slack settings")
+        agent_name = await self._agent_name(self.workspace_id, agent_id)
+        row = await self.repository.get_for_agent(self.workspace_id, agent_id, bot_id)
+        if row is None:
+            raise NotFoundError("Slack connection not found")
         token = data.bot_token.strip() if data.bot_token is not None else None
         secret = (
             data.signing_secret.strip() if data.signing_secret is not None else None
@@ -150,85 +237,54 @@ class AgentSlackBotService:
             raise DomainValidationError(
                 "Slack bot token and signing secret must be updated together"
             )
-        if token is not None and (not token or not secret):
-            raise DomainValidationError("Slack credentials cannot be empty")
-        if row is None and token is None:
-            raise DomainValidationError(
-                "Slack credentials are required to connect this agent"
-            )
-
         if token is not None and secret is not None:
-            try:
-                auth = await AsyncWebClient(token=token).auth_test()
-            except Exception as exc:
-                raise DomainValidationError(
-                    "Could not validate the Slack bot token"
-                ) from exc
-            team_id = auth.get("team_id")
-            bot_user_id = auth.get("user_id")
-            if not isinstance(team_id, str) or not team_id:
-                raise DomainValidationError("Slack did not return a workspace id")
-            if not isinstance(bot_user_id, str) or not bot_user_id:
-                raise DomainValidationError("Slack did not return a bot user id")
-            existing = await self.repository.get_by_installation(team_id, bot_user_id)
-            if existing is not None and (row is None or existing.id != row.id):
-                raise AlreadyExistsError(
-                    "This Slack bot is already connected to another agent"
-                )
-            if row is None:
-                row = AgentSlackBotDB(
-                    workspace_id=self.workspace_id,
-                    agent_id=agent_id,
-                    enabled=data.enabled,
-                    require_mention_in_threads=data.require_mention_in_threads,
-                    show_tool_callouts=data.show_tool_callouts,
-                    bot_token_encrypted=encrypt_value(token),
-                    signing_secret_encrypted=encrypt_value(secret),
-                    slack_team_id=team_id,
-                    slack_team_name=auth.get("team"),
-                    bot_user_id=bot_user_id,
-                    bot_name=auth.get("user"),
-                )
-            else:
-                row.bot_token_encrypted = encrypt_value(token)
-                row.signing_secret_encrypted = encrypt_value(secret)
-                row.slack_team_id = team_id
-                row.slack_team_name = auth.get("team")
-                row.bot_user_id = bot_user_id
-                row.bot_name = auth.get("user")
-
-        if row is None:
-            raise DomainValidationError(
-                "Slack credentials are required to connect this agent"
+            if not token or not secret:
+                raise DomainValidationError("Slack credentials cannot be empty")
+            auth, team_id, bot_user_id = await self._validated_installation(
+                token, current_id=row.id
             )
+            row.bot_token_encrypted = encrypt_value(token)
+            row.signing_secret_encrypted = encrypt_value(secret)
+            row.slack_team_id = team_id
+            row.slack_team_name = auth.get("team")
+            row.bot_user_id = bot_user_id
+            row.bot_name = auth.get("user")
         row.enabled = data.enabled
         row.require_mention_in_threads = data.require_mention_in_threads
         row.show_tool_callouts = data.show_tool_callouts
         self.db.add(row)
         await self.db.flush()
-        return await self.get_response(agent_id)
+        return self._response(
+            agent_id,
+            agent_name,
+            await self._workspace_enabled(self.workspace_id),
+            row,
+        )
 
-    async def delete(self, agent_id: UUID) -> AgentSlackBotResponse:
+    async def delete(self, agent_id: UUID, bot_id: UUID) -> None:
         if self.workspace_id is None:
             raise RuntimeError("A workspace is required for agent Slack settings")
-        row = await self.repository.get_for_agent(self.workspace_id, agent_id)
-        if row is not None:
-            await self.repository.delete(row)
-        return await self.get_response(agent_id)
+        await self._agent_name(self.workspace_id, agent_id)
+        row = await self.repository.get_for_agent(self.workspace_id, agent_id, bot_id)
+        if row is None:
+            raise NotFoundError("Slack connection not found")
+        await self.repository.delete(row)
 
-    async def get_for_verification(
+    async def list_for_verification(
         self, agent_id: UUID
-    ) -> AgentSlackRuntimeConfig | None:
+    ) -> list[AgentSlackRuntimeConfig]:
         stmt_workspace_id = self.workspace_id
         if stmt_workspace_id is None:
             agent = await AgentRepository(self.db).get(agent_id)
             if agent is None:
-                return None
+                return []
             stmt_workspace_id = agent.workspace_id
-        row = await self.repository.get_for_agent(stmt_workspace_id, agent_id)
-        if row is None:
-            return None
-        return await self._runtime_config(row)
+        rows = await self.repository.list_for_agent(stmt_workspace_id, agent_id)
+        workspace_enabled = await self._workspace_enabled(stmt_workspace_id)
+        return [
+            await self._runtime_config(row, workspace_enabled=workspace_enabled)
+            for row in rows
+        ]
 
     async def get_runtime(
         self, bot_id: UUID, *, require_active: bool = True
@@ -241,7 +297,12 @@ class AgentSlackBotService:
             return None
         return config
 
-    async def _runtime_config(self, row: AgentSlackBotDB) -> AgentSlackRuntimeConfig:
+    async def _runtime_config(
+        self,
+        row: AgentSlackBotDB,
+        *,
+        workspace_enabled: bool | None = None,
+    ) -> AgentSlackRuntimeConfig:
         return AgentSlackRuntimeConfig(
             id=row.id,
             workspace_id=row.workspace_id,
@@ -249,7 +310,11 @@ class AgentSlackBotService:
             enabled=row.enabled,
             require_mention_in_threads=row.require_mention_in_threads,
             show_tool_callouts=row.show_tool_callouts,
-            workspace_enabled=await self._workspace_enabled(row.workspace_id),
+            workspace_enabled=(
+                workspace_enabled
+                if workspace_enabled is not None
+                else await self._workspace_enabled(row.workspace_id)
+            ),
             bot_token=decrypt_value(row.bot_token_encrypted),
             signing_secret=decrypt_value(row.signing_secret_encrypted),
             slack_team_id=row.slack_team_id,

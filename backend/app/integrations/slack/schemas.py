@@ -1,4 +1,5 @@
 from typing import Any
+from uuid import UUID
 
 from pydantic import BaseModel, Field
 
@@ -12,6 +13,7 @@ class AgentSlackBotUpdate(BaseModel):
 
 
 class AgentSlackBotResponse(BaseModel):
+    id: UUID | None = None
     workspace_enabled: bool
     enabled: bool
     require_mention_in_threads: bool

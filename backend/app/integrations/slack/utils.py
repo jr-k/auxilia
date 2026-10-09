@@ -133,16 +133,28 @@ async def verify_agent_slack_signature(
     from app.integrations.slack.service import AgentSlackBotService
 
     async with AsyncSessionLocal() as db:
-        config = await AgentSlackBotService(db).get_for_verification(agent_id)
-    if config is None or (team_id is not None and config.slack_team_id != team_id):
+        configs = await AgentSlackBotService(db).list_for_verification(agent_id)
+    candidates = [
+        config
+        for config in configs
+        if team_id is None or config.slack_team_id == team_id
+    ]
+    if not candidates:
         raise HTTPException(status_code=403, detail="Slack bot is not configured")
-
-    if not _signature_matches(
-        config.signing_secret,
-        x_slack_request_timestamp,
-        body,
-        x_slack_signature,
-    ):
+    config = next(
+        (
+            candidate
+            for candidate in candidates
+            if _signature_matches(
+                candidate.signing_secret,
+                x_slack_request_timestamp,
+                body,
+                x_slack_signature,
+            )
+        ),
+        None,
+    )
+    if config is None:
         raise HTTPException(status_code=403, detail="Invalid signature")
 
     return VerifiedSlackRequest(

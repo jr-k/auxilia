@@ -9,6 +9,7 @@ import {
 	Check,
 	Copy,
 	MessageSquareText,
+	Unplug,
 } from "lucide-react";
 import {
 	Dialog,
@@ -35,6 +36,7 @@ interface Props {
 	saving: boolean;
 	error: string | null;
 	onSave: (update: AgentSlackBotSettingsUpdate) => Promise<void>;
+	onDisconnect?: () => Promise<void>;
 }
 
 const scopes = [
@@ -424,6 +426,7 @@ export default function AgentSlackBotDialog({
 	saving,
 	error,
 	onSave,
+	onDisconnect,
 }: Props) {
 	const [view, setView] = useState<"configuration" | "guide">("configuration");
 	const [enabled, setEnabled] = useState(settings.enabled);
@@ -492,12 +495,18 @@ export default function AgentSlackBotDialog({
 						)}
 						<div className="min-w-0">
 							<DialogTitle>
-								{view === "guide" ? "Create the Slack bot" : "Slack bot"}
+								{view === "guide"
+									? "Create the Slack bot"
+									: settings.isConfigured
+										? "Slack connection"
+										: "Add Slack Side-Channel"}
 							</DialogTitle>
 							<DialogDescription className="mt-0.5">
 								{view === "guide"
 									? "One Slack app represents this agent."
-									: "Give this agent its own identity in Slack."}
+									: settings.isConfigured
+										? `Connected to ${settings.slackTeamName ?? "a Slack workspace"}.`
+										: "Give this agent its own identity in a Slack workspace."}
 							</DialogDescription>
 						</div>
 					</div>
@@ -645,6 +654,19 @@ export default function AgentSlackBotDialog({
 							)}
 						</div>
 						<DialogFooter className="border-t border-border px-5 py-3.5 dark:border-white/10 sm:px-6">
+							{onDisconnect && (
+								<DialogButton
+									variant="destructive"
+									className="mr-auto"
+									disabled={saving}
+									onClick={() => {
+										void onDisconnect();
+									}}
+								>
+									<Unplug className="size-3.5" />
+									Disconnect
+								</DialogButton>
+							)}
 							<DialogButton
 								variant="outline"
 								disabled={saving}

@@ -137,21 +137,42 @@ export async function getAgentReadiness(agentId: string): Promise<AgentReadiness
 	return response.data;
 }
 
-export async function getAgentSlackBot(
+export async function listAgentSlackBots(
+	agentId: string,
+): Promise<AgentSlackBotSettings[]> {
+	const response = await api.get<AgentSlackBotSettings[]>(
+		`/agents/${agentId}/integrations/slack`,
+	);
+	return response.data;
+}
+
+export async function getAgentSlackBotSetup(
 	agentId: string,
 ): Promise<AgentSlackBotSettings> {
 	const response = await api.get<AgentSlackBotSettings>(
+		`/agents/${agentId}/integrations/slack/setup`,
+	);
+	return response.data;
+}
+
+export async function createAgentSlackBot(
+	agentId: string,
+	update: AgentSlackBotSettingsUpdate,
+): Promise<AgentSlackBotSettings> {
+	const response = await api.post<AgentSlackBotSettings>(
 		`/agents/${agentId}/integrations/slack`,
+		update,
 	);
 	return response.data;
 }
 
 export async function updateAgentSlackBot(
 	agentId: string,
+	botId: string,
 	update: AgentSlackBotSettingsUpdate,
 ): Promise<AgentSlackBotSettings> {
 	const response = await api.put<AgentSlackBotSettings>(
-		`/agents/${agentId}/integrations/slack`,
+		`/agents/${agentId}/integrations/slack/${botId}`,
 		update,
 	);
 	return response.data;
@@ -159,11 +180,9 @@ export async function updateAgentSlackBot(
 
 export async function deleteAgentSlackBot(
 	agentId: string,
-): Promise<AgentSlackBotSettings> {
-	const response = await api.delete<AgentSlackBotSettings>(
-		`/agents/${agentId}/integrations/slack`,
-	);
-	return response.data;
+	botId: string,
+): Promise<void> {
+	await api.delete(`/agents/${agentId}/integrations/slack/${botId}`);
 }
 
 export async function listAgentPermissions(agentId: string): Promise<AgentPermissionRow[]> {
