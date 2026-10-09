@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.28](https://github.com/jr-k/auxilia/compare/backend-v0.10.27...backend-v0.10.28) (2026-10-09)
+
+
+### Bug Fixes
+
+* **mcp:** disable GitHub form deferral ([29645f8](https://github.com/jr-k/auxilia/commit/29645f8bd98a2ec5971ce61fc15f0cf1428634a1))
+
 ## [0.10.27](https://github.com/jr-k/auxilia/compare/backend-v0.10.26...backend-v0.10.27) (2026-10-09)
 
 
