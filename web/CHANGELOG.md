@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.30](https://github.com/jr-k/auxilia/compare/web-v0.11.29...web-v0.11.30) (2026-10-09)
+
+
+### Bug Fixes
+
+* **web:** align MCP connection status ([9fba75f](https://github.com/jr-k/auxilia/commit/9fba75fa783b955227b719bbb3db5b11a2178905))
+
 ## [0.11.29](https://github.com/jr-k/auxilia/compare/web-v0.11.28...web-v0.11.29) (2026-10-09)
 
 
