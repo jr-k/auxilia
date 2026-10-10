@@ -9,8 +9,8 @@ import {
   HoverCardContent,
   HoverCardTrigger,
 } from "@/components/ui/hover-card";
+import { presentSideChannelMessage } from "@/lib/transcript/side-channel-context";
 import { cn } from "@/lib/utils";
-import { presentSlackMessage } from "@/lib/transcript/slack-context";
 
 type ThreadMapProps = {
   messages: BaseMessage[];
@@ -32,7 +32,7 @@ export const ThreadMap = memo(function ThreadMap({
     () =>
       messages.flatMap((message, messageIndex) => {
         if (!isHumanMessage(message) || message.name === "host") return [];
-        const text = presentSlackMessage(message.text).text;
+        const text = presentSideChannelMessage(message.text).text;
         return [
           {
             anchorId: threadMapAnchor(messageIndex),
