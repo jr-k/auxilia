@@ -43,7 +43,9 @@ const scopes = [
 	"app_mentions:read",
 	"channels:history",
 	"chat:write",
+	"commands",
 	"im:history",
+	"im:write",
 	"users:read",
 	"users:read.email",
 ];
@@ -229,6 +231,16 @@ function AgentSlackSetupGuide({
 					Open <strong>Settings → Socket Mode</strong> and turn it off. {appName}
 					uses public HTTP callback URLs; Slack hides the Request URL fields
 					while Socket Mode is enabled.
+				</p>
+			),
+		},
+		{
+			title: "Enable direct messages",
+			body: (
+				<p>
+					Open <strong>Features → App Home</strong>. Under{" "}
+					<strong>Show Tabs</strong>, enable <strong>Messages Tab</strong> and
+					allow users to send messages from it. Leave the Home tab disabled.
 				</p>
 			),
 		},

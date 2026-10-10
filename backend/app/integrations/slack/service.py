@@ -60,6 +60,11 @@ class AgentSlackBotService:
                 "background_color": "#16606E",
             },
             "features": {
+                "app_home": {
+                    "home_tab_enabled": False,
+                    "messages_tab_enabled": True,
+                    "messages_tab_read_only_enabled": False,
+                },
                 "bot_user": {
                     "display_name": display_name,
                     "always_online": False,
