@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.10.36](https://github.com/jr-k/auxilia/compare/backend-v0.10.35...backend-v0.10.36) (2026-10-10)
+
+
+### Features
+
+* **agents:** add native web search and MCP context ([#73](https://github.com/jr-k/auxilia/issues/73)) ([43857b9](https://github.com/jr-k/auxilia/commit/43857b908463e98ad0b51fd4afbe9e36166b86b9))
+* **slack:** enable direct messages in app manifests ([#75](https://github.com/jr-k/auxilia/issues/75)) ([2d21e85](https://github.com/jr-k/auxilia/commit/2d21e853bc6457c796719ceef6840b49109b4a03))
+
 ## [0.10.35](https://github.com/jr-k/auxilia/compare/backend-v0.10.34...backend-v0.10.35) (2026-10-10)
 
 
