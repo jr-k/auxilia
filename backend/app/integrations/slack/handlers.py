@@ -188,7 +188,10 @@ async def _load_slack_thread_context(
             exc_info=True,
         )
         return None, False
-    return _format_slack_transcript(messages), True
+    prior_messages = [
+        message for message in messages if message.get("ts") != current_ts
+    ]
+    return _format_slack_transcript(prior_messages), True
 
 
 def _question_with_slack_context(question: str, transcript: str | None) -> str:

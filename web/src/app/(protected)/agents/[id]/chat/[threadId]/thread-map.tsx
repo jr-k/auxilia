@@ -10,6 +10,7 @@ import {
   HoverCardTrigger,
 } from "@/components/ui/hover-card";
 import { cn } from "@/lib/utils";
+import { presentSlackMessage } from "@/lib/transcript/slack-context";
 
 type ThreadMapProps = {
   messages: BaseMessage[];
@@ -31,11 +32,12 @@ export const ThreadMap = memo(function ThreadMap({
     () =>
       messages.flatMap((message, messageIndex) => {
         if (!isHumanMessage(message) || message.name === "host") return [];
+        const text = presentSlackMessage(message.text).text;
         return [
           {
             anchorId: threadMapAnchor(messageIndex),
             index: messageIndex,
-            text: message.text.trim() || "Prompt with attachments",
+            text: text.trim() || "Prompt with attachments",
           },
         ];
       }),
