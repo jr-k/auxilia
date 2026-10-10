@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.33](https://github.com/jr-k/auxilia/compare/backend-v0.10.32...backend-v0.10.33) (2026-10-10)
+
+
+### Features
+
+* **slack:** invoke agents from private messages ([8d35e20](https://github.com/jr-k/auxilia/commit/8d35e20f79694c9c47f58d2f0880f97c16a29466))
+
 ## [0.10.32](https://github.com/jr-k/auxilia/compare/backend-v0.10.31...backend-v0.10.32) (2026-10-10)
 
 
