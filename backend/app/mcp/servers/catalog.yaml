@@ -599,6 +599,15 @@ servers:
       Run deterministic entailment, satisfiability, temporal-logic, and
       model-checking operations.
 
+  - name: "Frame.io"
+    url: "https://mcp.frame.io/v1/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/frame-io.ico"
+    supports_dcr: true
+    description: >-
+      Access Frame.io V4 projects, media, comments, and review workflows through
+      Adobe IMS OAuth. Requires a V4 account associated with an Adobe ID.
+
   - name: "Gem"
     url: "https://mcp.gem.com/mcp"
     auth_type: oauth2
@@ -1570,11 +1579,11 @@ servers:
     url: "https://api.salesforce.com/platform/mcp/v1/platform/headless-360"
     auth_type: oauth2
     icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/salesforce.svg"
-    supports_dcr: true
+    supports_dcr: false
     description: >-
       Salesforce's hosted Headless 360 MCP server gives AI assistants
-      user-scoped access to Salesforce data and metadata. It respects object,
-      field, and sharing permissions through the MCP API OAuth scope.
+      user-scoped access to Salesforce data and metadata. It requires an
+      admin-created External Client App with the MCP API OAuth scope.
 
   - name: "Savvly"
     url: "https://api.savvly.com/mcp"
@@ -1951,6 +1960,15 @@ servers:
     supports_dcr: true
     description: >-
       Manages Vendizap products, categories, inventory, orders, and discounts.
+
+  - name: "Vimeo"
+    url: "https://mcp.vimeo.com/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/vimeo.ico"
+    supports_dcr: true
+    description: >-
+      Access Vimeo videos, folders, showcases, analytics, uploads, and editing
+      workflows through the signed-in user's permissions.
 
   - name: "Virlo Social Media Brain"
     url: "https://dev.virlo.ai/api/mcp/mcp"
