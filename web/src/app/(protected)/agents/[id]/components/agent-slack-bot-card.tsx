@@ -204,11 +204,11 @@ export default function AgentSlackBotCard({ agentId, canManage, readOnly }: Prop
 											{connection.botName}
 										</span>
 									)}
-									<span className="rounded-[4px] bg-success-bg px-2 py-0.5 text-[9.5px] font-semibold text-success">
-										Connected
-									</span>
 								</div>
 							</div>
+							<span className="shrink-0 rounded-[4px] bg-success-bg px-2 py-0.5 text-[9.5px] font-semibold text-success">
+								Connected
+							</span>
 							{canManage && !readOnly && (
 								<button
 									type="button"
