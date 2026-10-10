@@ -182,10 +182,15 @@ export default function AddMCPServerPage() {
 			setForbiddenOpen(true);
 			return;
 		}
-		// Entries that need a credential can't be one-click added: non-DCR
-		// OAuth servers need a client ID/secret, api_key servers need the key.
+		// Entries that need a credential can't be one-click added: OAuth servers
+		// without DCR/CIMD need a client ID/secret, while API-key and custom-header
+		// servers need their secret value.
 		// Collect them in the custom form, pre-filled with the catalog entry.
-		if (requiresStaticOAuthCredentials(server) || server.authType === "api_key") {
+		if (
+			requiresStaticOAuthCredentials(server) ||
+			server.authType === "api_key" ||
+			server.authType === "custom_http"
+		) {
 			router.push(
 				`/mcp-servers/add/custom?official=${encodeURIComponent(server.url)}`,
 			);

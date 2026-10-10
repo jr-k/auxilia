@@ -193,8 +193,8 @@ export default function CustomMCPServerPage() {
 		runCandidateTest,
 	} = useConnectionTest();
 
-	// Arriving from a catalog card that needs static OAuth credentials: prefill
-	// the form with the official entry.
+	// Arriving from a catalog card that needs credentials: prefill the form with
+	// the official entry, including any vendor-defined custom header names.
 	useEffect(() => {
 		if (!officialUrl) return;
 		const controller = new AbortController();
@@ -228,7 +228,11 @@ export default function CustomMCPServerPage() {
 					serviceCredentialFields: {
 						...EMPTY_SERVICE_CREDENTIAL_FIELDS,
 					},
-					serviceHeaders: [{ name: "", value: "" }],
+					serviceHeaders:
+						official.customHttpHeaders?.map((name) => ({
+							name,
+							value: "",
+						})) ?? [{ name: "", value: "" }],
 					iconUrl: official.iconUrl ?? "",
 				});
 			} catch {

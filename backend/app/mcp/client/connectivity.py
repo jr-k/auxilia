@@ -32,6 +32,7 @@ from app.mcp.client.auth import (
     AUTH_METHOD_POST,
     WebOAuthClientProvider,
     build_oauth_client_metadata,
+    oauth_client_metadata_url,
 )
 from app.mcp.client.connection import ConnectionSpec, open_client
 from app.mcp.client.exceptions import OAuthAuthorizationRequired
@@ -134,6 +135,7 @@ def provider_with_credentials(
         storage=storage,
         client_id=client_id,
         client_secret=client_secret,
+        client_metadata_url=oauth_client_metadata_url(),
     )
 
 

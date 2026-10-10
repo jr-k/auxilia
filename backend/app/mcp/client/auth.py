@@ -27,7 +27,7 @@ from __future__ import annotations
 
 import logging
 import secrets
-from collections.abc import Mapping
+from collections.abc import AsyncGenerator, Mapping
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from urllib.parse import parse_qsl, urlencode, urljoin
@@ -97,6 +97,7 @@ sdk_oauth2.validate_metadata_issuer = _validate_metadata_issuer_tolerantly
 AUTH_METHOD_POST = "client_secret_post"
 AUTH_METHOD_BASIC = "client_secret_basic"
 AUTH_METHOD_NONE = "none"
+OAUTH_USER_AGENT = "auxilia"
 
 
 @dataclass(frozen=True)
@@ -257,6 +258,19 @@ def oauth_callback_url() -> str:
     return f"{frontend_url}/api/backend/mcp-servers/oauth/callback"
 
 
+def oauth_client_metadata_url() -> str | None:
+    """Public CIMD URL, or ``None`` when the deployment is not on HTTPS.
+
+    Client ID Metadata Documents use their own URL as the OAuth ``client_id``.
+    The SDK therefore requires an HTTPS URL with a non-root path. Local
+    development keeps falling back to DCR or static credentials.
+    """
+    frontend_url = auth_settings.FRONTEND_URL.rstrip("/")
+    if not frontend_url.startswith("https://"):
+        return None
+    return f"{frontend_url}/api/backend/mcp-servers/oauth/client-metadata.json"
+
+
 def build_oauth_client_metadata() -> OAuthClientMetadata:
     """Static OAuth client-registration metadata for auxilia.
 
@@ -281,6 +295,13 @@ def build_oauth_client_metadata() -> OAuthClientMetadata:
         token_endpoint_auth_method=AUTH_METHOD_POST,
         application_type="web",
     )
+
+
+def build_oauth_client_metadata_document() -> OAuthClientMetadata:
+    """Public-client metadata served at :func:`oauth_client_metadata_url`."""
+    metadata = build_oauth_client_metadata()
+    metadata.token_endpoint_auth_method = AUTH_METHOD_NONE
+    return metadata
 
 
 class _DropIntentionalAuthorizationErrors(logging.Filter):
@@ -311,6 +332,28 @@ class WebOAuthClientProvider(OAuthClientProvider):
         super().__init__(*args, **kwargs)
         self._client_id = client_id
         self._client_secret = client_secret
+
+    async def async_auth_flow(
+        self, request: httpx2.Request
+    ) -> AsyncGenerator[httpx2.Request, httpx2.Response]:
+        """Identify every SDK-built OAuth request.
+
+        ``httpx2`` does not apply client defaults to requests yielded by an auth
+        generator. Aircall's authorization server rejects requests with no
+        ``User-Agent``, including standards-based metadata discovery, so add one
+        without overriding a caller-supplied value.
+        """
+        flow = super().async_auth_flow(request)
+        try:
+            outgoing = await flow.__anext__()
+            while True:
+                outgoing.headers.setdefault("User-Agent", OAUTH_USER_AGENT)
+                response = yield outgoing
+                outgoing = await flow.asend(response)
+        except StopAsyncIteration:
+            return
+        finally:
+            await flow.aclose()
 
     def _issuer(self) -> AnyHttpUrl | None:
         metadata = self.context.oauth_metadata
@@ -426,6 +469,7 @@ class WebOAuthClientProvider(OAuthClientProvider):
 
         try:
             request = await self._refresh_token()
+            request.headers.setdefault("User-Agent", OAUTH_USER_AGENT)
             async with httpx2.AsyncClient() as client:
                 response = await client.send(request)
             if response.is_success:
@@ -608,7 +652,9 @@ class WebOAuthClientProvider(OAuthClientProvider):
                 timeout=10.0, follow_redirects=True
             ) as client:
                 for url in urls:
-                    response = await client.send(create_oauth_metadata_request(url))
+                    request = create_oauth_metadata_request(url)
+                    request.headers.setdefault("User-Agent", OAUTH_USER_AGENT)
+                    response = await client.send(request)
                     ok, asm = await handle_auth_metadata_response(response)
                     if ok and asm:
                         self.context.oauth_metadata = asm
@@ -715,6 +761,7 @@ class WebOAuthClientProvider(OAuthClientProvider):
             auth_code=code, code_verifier=verifier
         )
         token_request.headers["Accept"] = "application/json"
+        token_request.headers.setdefault("User-Agent", OAUTH_USER_AGENT)
 
         # The SDK's `_handle_token_response` accepts 200/201, validates scopes
         # and persists the token to storage.

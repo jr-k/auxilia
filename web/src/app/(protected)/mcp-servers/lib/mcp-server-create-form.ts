@@ -41,6 +41,7 @@ export function requiresStaticOAuthCredentials(
 ): boolean {
 	return (
 		officialServer?.supportsDcr === false &&
+		officialServer.supportsCimd !== true &&
 		officialServer.authType === "oauth2"
 	);
 }
@@ -179,6 +180,9 @@ export function validateServiceHeaders(
 	if (!headers || headers.length === 0) return "Add at least one HTTP header.";
 	if (headers.some((header) => !header.name.trim())) {
 		return "Every HTTP header needs a name.";
+	}
+	if (headers.some((header) => !header.value.trim())) {
+		return "Every HTTP header needs a value.";
 	}
 	const names = headers.map((header) => header.name.trim().toLowerCase());
 	if (new Set(names).size !== names.length) {
