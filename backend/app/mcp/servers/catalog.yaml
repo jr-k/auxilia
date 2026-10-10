@@ -634,10 +634,10 @@ servers:
     url: "https://mcp.gong.io/mcp"
     auth_type: oauth2
     icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/gong.png"
-    supports_dcr: false
+    supports_dcr: true
     description: >-
-      Access Gong conversation and revenue intelligence through an admin-created
-      manual OAuth integration.
+      Accesses Gong conversation and revenue intelligence after a Gong admin
+      enables an MCP integration with automatic client registration.
 
   - name: "Google Compute Engine"
     url: "https://compute.googleapis.com/mcp"
