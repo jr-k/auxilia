@@ -206,6 +206,9 @@ export function useConnectionTest() {
 			clearPolling();
 			const runId = ++runRef.current;
 			const isStale = () => runRef.current !== runId;
+			const usesServiceCredentials =
+				input.authType === "service_identity" ||
+				input.authType === "custom_http";
 			setStatus("testing");
 			setMessage(null);
 
@@ -218,15 +221,13 @@ export function useConnectionTest() {
 							? input.apiKey || undefined
 							: undefined,
 					serviceCredentialProvider:
-						input.authType === "service_identity"
+						usesServiceCredentials
 							? input.serviceCredentialProvider
 							: undefined,
 					serviceCredentialsJson:
-						input.authType === "service_identity"
-							? input.serviceCredentialsJson
-							: undefined,
+						usesServiceCredentials ? input.serviceCredentialsJson : undefined,
 					serviceCredentialScopes:
-						input.authType === "service_identity"
+						usesServiceCredentials
 							? input.serviceCredentialScopes
 							: undefined,
 				});
