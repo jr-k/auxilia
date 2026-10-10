@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.11.35](https://github.com/jr-k/auxilia/compare/web-v0.11.34...web-v0.11.35) (2026-10-10)
+
+
+### Features
+
+* **mcp:** support CIMD authentication ([#69](https://github.com/jr-k/auxilia/issues/69)) ([d051d69](https://github.com/jr-k/auxilia/commit/d051d6933d03999dd65bdcace47610d5cfcc07e4))
+
+
+### Code Refactoring
+
+* **chat:** generalize side-channel context ([#68](https://github.com/jr-k/auxilia/issues/68)) ([61f1cc3](https://github.com/jr-k/auxilia/commit/61f1cc3f34e68e176ab255c2708ee4d1aa004933))
+
 ## [0.11.34](https://github.com/jr-k/auxilia/compare/web-v0.11.33...web-v0.11.34) (2026-10-10)
 
 
