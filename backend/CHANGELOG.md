@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.32](https://github.com/jr-k/auxilia/compare/backend-v0.10.31...backend-v0.10.32) (2026-10-10)
+
+
+### Bug Fixes
+
+* **mcp:** enable dynamic registration for Gong ([ccc6272](https://github.com/jr-k/auxilia/commit/ccc62723d8446b43f22a816926742600fb7cf1ca))
+
 ## [0.10.31](https://github.com/jr-k/auxilia/compare/backend-v0.10.30...backend-v0.10.31) (2026-10-10)
 
 
