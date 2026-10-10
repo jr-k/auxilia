@@ -20,6 +20,7 @@ from langchain_core.messages import (
     AIMessage,
     BaseMessage,
     HumanMessage,
+    SystemMessage,
     convert_to_messages,
 )
 from langgraph.errors import GraphRecursionError
@@ -34,6 +35,7 @@ from app.exceptions import DomainValidationError, NotFoundError
 from app.integrations.tracing import NoOpTracing, RunTracing, get_tracing
 from app.model_providers.catalog import ChatModelFactory
 from app.model_providers.service import ModelService
+from app.model_providers.web_search import native_web_search_tool
 from app.observability.service import WorkspaceObservabilityService
 from app.runtime.checkpoints import checkpoint_thread_id, get_checkpoint_state
 from app.runtime.harness import (
@@ -150,11 +152,27 @@ async def get_regeneration_point(agent, config: dict) -> RegenerationPoint | Non
     return None
 
 
+def _append_system_prompt_context(system_prompt, context: str | None):
+    if not context:
+        return system_prompt
+    if not system_prompt:
+        return context
+    if isinstance(system_prompt, SystemMessage):
+        return SystemMessage(
+            content_blocks=[
+                *system_prompt.content_blocks,
+                {"type": "text", "text": f"\n\n{context}"},
+            ]
+        )
+    return f"{system_prompt}\n\n{context}"
+
+
 def build_runnable(
     *,
     model,
     tools,
     system_prompt,
+    mcp_context: str | None = None,
     sandbox_backend=None,
     skills: SkillsBackend | None = None,
     base_middleware=(),
@@ -209,6 +227,7 @@ def build_runnable(
     ``app.runtime.checkpoints.get_checkpoint_state``.
     """
     tools = list(tools)
+    system_prompt = _append_system_prompt_context(system_prompt, mcp_context)
     harness: list = []
 
     if sandbox_backend is not None:
@@ -218,6 +237,7 @@ def build_runnable(
             backend=sandbox_backend,
             subagents=subagents,
             skills=skills,
+            mcp_context=mcp_context,
         )
         system_prompt = harness_system_prompt(model, system_prompt)
         # The harness brings its own PatchToolCallsMiddleware and langchain
@@ -413,6 +433,7 @@ class ResolvedAgent:
         *,
         sandbox_backend=None,
         skills: SkillsBackend | None = None,
+        web_search_tool: dict | None = None,
     ) -> CompiledSubAgent:
         """Compile into a CompiledSubAgent runnable (for subagent use).
 
@@ -436,8 +457,12 @@ class ResolvedAgent:
         # the parent's turn-end persist covers what it wrote (issue #302).
         runnable = build_runnable(
             model=model,
-            tools=self.live.all,
+            tools=[
+                *self.live.all,
+                *([web_search_tool] if web_search_tool is not None else []),
+            ],
             system_prompt=self.config.instructions or "",
+            mcp_context=self.prepared.mcp_context_prompt,
             sandbox_backend=sandbox_backend if self.sandbox else None,
             skills=skills,
             base_middleware=build_agent_middleware(
@@ -462,6 +487,7 @@ class Agent:
         middleware: list,
         subagents: list[ResolvedAgent],
         provider: str | None = None,
+        web_search_supported: bool = False,
         skills: list[SkillBundle] = (),
         tracing: RunTracing | None = None,
     ):
@@ -472,6 +498,7 @@ class Agent:
         self.tracing = tracing if tracing is not None else NoOpTracing()
         self.subagents = subagents
         self.provider = provider
+        self.web_search_supported = web_search_supported
         # One skill set for the whole graph, frozen for this run.
         self.skills = list(skills)
         # The run's live sandbox, opened by `_setup` for the length of one run.
@@ -601,8 +628,18 @@ class Agent:
             tracing=get_tracing(observability),
             subagents=subagents,
             provider=resolved.provider,
+            web_search_supported=resolved.supports_web_search,
             skills=skills,
         )
+
+    def _web_search_tool(self, agent: ResolvedAgent) -> dict | None:
+        if (
+            not agent.config.web_search_enabled
+            or not self.web_search_supported
+            or self.provider is None
+        ):
+            return None
+        return native_web_search_tool(self.provider)
 
     def _build_agent(self, checkpointer, output_schema: dict | None = None):
         """Build the LangGraph agent (deep or standard) with the given checkpointer.
@@ -622,6 +659,7 @@ class Agent:
                     self.thread.created_at,
                     sandbox_backend=self._sandbox_for(s),
                     skills=skills,
+                    web_search_tool=self._web_search_tool(s),
                 )
                 for s in self.subagents
             ]
@@ -630,8 +668,16 @@ class Agent:
         )
         return build_runnable(
             model=self.model,
-            tools=self.agent.live.all,
+            tools=[
+                *self.agent.live.all,
+                *(
+                    [tool]
+                    if (tool := self._web_search_tool(self.agent)) is not None
+                    else []
+                ),
+            ],
             system_prompt=self.agent.config.instructions or "",
+            mcp_context=self.agent.prepared.mcp_context_prompt,
             sandbox_backend=self._sandbox_for(self.agent),
             skills=skills,
             base_middleware=self.middleware,

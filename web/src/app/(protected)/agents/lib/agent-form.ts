@@ -23,6 +23,7 @@ export interface AgentFormState {
 	instructions: string;
 	emoji: string;
 	color: string;
+	webSearchEnabled: boolean;
 	mcpServers: AgentMCPServerForm[];
 	/** At most one — list-shaped to match the API. */
 	sandboxes: AgentSandboxForm[];
@@ -41,6 +42,7 @@ export function defaultAgentForm(): AgentFormState {
 		instructions: "",
 		emoji: "🤖",
 		color: randomAgentColor(),
+		webSearchEnabled: false,
 		mcpServers: [],
 		sandboxes: [],
 		subagentIds: [],
@@ -58,6 +60,7 @@ export function fromAgent(agent: Agent): AgentFormState {
 		instructions: agent.instructions || "",
 		emoji: agent.emoji || "🤖",
 		color: agent.color || AGENT_COLORS[0],
+		webSearchEnabled: agent.webSearchEnabled ?? false,
 		mcpServers: (agent.mcpServers || []).map((server) => ({
 			mcpServerId: server.mcpServerId,
 			tools: server.tools ? { ...server.tools } : null,
@@ -97,6 +100,7 @@ export function toPayload(form: AgentFormState) {
 		teamIds: [...form.teamIds].sort(),
 		emoji: form.emoji || null,
 		color: form.color || null,
+		webSearchEnabled: form.webSearchEnabled,
 		mcpServers: [...form.mcpServers]
 			.sort((a, b) => a.mcpServerId.localeCompare(b.mcpServerId))
 			.map((server) => ({

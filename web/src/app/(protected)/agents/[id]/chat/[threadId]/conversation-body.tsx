@@ -13,6 +13,7 @@ import type { Interrupt } from "@langchain/langgraph-sdk";
 import {
   ChevronDownIcon,
   CopyIcon,
+  ExternalLinkIcon,
   MessagesSquareIcon,
   RefreshCcwIcon,
 } from "lucide-react";
@@ -193,6 +194,7 @@ export const ConversationBody = memo(function ConversationBody({
         if (!isAIMessage(message)) return null;
 
         const text = message.text;
+        const sources = getWebSearchSources(message);
         const chain = message.id ? chains.get(message.id) : undefined;
         const isLast = index === lastVisibleIndex;
 
@@ -222,6 +224,9 @@ export const ConversationBody = memo(function ConversationBody({
                 <Message from="assistant">
                   <MessageContent>
                     <MessageResponse>{text}</MessageResponse>
+                    {sources.length > 0 && (
+                      <WebSearchSources sources={sources} />
+                    )}
                   </MessageContent>
                 </Message>
                 {!isLoading && isLast && (
@@ -285,6 +290,86 @@ const HostNotice = ({ message }: { message: BaseMessage }) => (
     <p className="max-w-[80%] rounded-md border border-dashed border-border px-3 py-1.5 text-center text-[11.5px] leading-[1.5] text-muted-foreground">
       {message.text.replace(/^\[Host notice\]\s*/, "")}
     </p>
+  </div>
+);
+
+type WebSearchSource = {
+  url: string;
+  title: string;
+};
+
+const SOURCE_HINT = /(annotation|citation|grounding|search|source)/i;
+
+function getWebSearchSources(message: BaseMessage): WebSearchSource[] {
+  const sources = new Map<string, WebSearchSource>();
+  const seen = new WeakSet<object>();
+
+  const visit = (value: unknown, hinted = false) => {
+    if (Array.isArray(value)) {
+      value.forEach((item) => {
+        visit(item, hinted);
+      });
+      return;
+    }
+    if (value === null || typeof value !== "object") return;
+    if (seen.has(value)) return;
+    seen.add(value);
+
+    const record = value as Record<string, unknown>;
+    const typeHint =
+      typeof record.type === "string" && SOURCE_HINT.test(record.type);
+    const nextHint = hinted || typeHint;
+    const candidate =
+      typeof record.url === "string"
+        ? record.url
+        : typeof record.uri === "string"
+          ? record.uri
+          : null;
+
+    if (candidate && nextHint) {
+      try {
+        const url = new URL(candidate);
+        if (url.protocol === "https:" || url.protocol === "http:") {
+          const title =
+            typeof record.title === "string" && record.title.trim()
+              ? record.title.trim()
+              : url.hostname.replace(/^www\./, "");
+          sources.set(url.href, { url: url.href, title });
+        }
+      } catch {
+        // Ignore malformed provider metadata rather than rendering unsafe links.
+      }
+    }
+
+    for (const [key, child] of Object.entries(record)) {
+      visit(child, nextHint || SOURCE_HINT.test(key));
+    }
+  };
+
+  visit(message.content);
+  visit(message.additional_kwargs);
+  visit(message.response_metadata);
+  return [...sources.values()];
+}
+
+const WebSearchSources = ({ sources }: { sources: WebSearchSource[] }) => (
+  <div className="mt-1 flex flex-wrap items-center gap-1.5">
+    <span className="mr-0.5 text-[10.5px] font-medium text-meta dark:text-panel-dim">
+      Sources
+    </span>
+    {sources.map((source) => (
+      <a
+        key={source.url}
+        href={source.url}
+        target="_blank"
+        rel="noreferrer"
+        className="inline-flex max-w-52 items-center gap-1 truncate rounded-md border border-border/70 bg-card px-2 py-1 text-[10.5px] font-medium text-body transition-colors hover:border-border-hover hover:text-petrol dark:bg-panel dark:text-panel-body dark:hover:text-panel-terminal"
+        title={source.title}
+      >
+        <span className="truncate">{source.title}</span>
+        <ExternalLinkIcon className="size-2.5 shrink-0" />
+      </a>
+    ))}
   </div>
 );
 
@@ -376,7 +461,7 @@ const SideChannelContextDetails = ({
         <span className="font-semibold text-body dark:text-panel-body">
           {source === "slack" ? "Slack" : (source ?? "Side channel")}
         </span>
-        <span className="font-mono text-[10px] uppercase tracking-[0.06em]">
+        <span className="font-mono text-[10px]">
           context
         </span>
         <span className="font-mono text-[10.5px]">

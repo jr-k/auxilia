@@ -46,6 +46,7 @@ class AgentCreateDB(SQLModel):
     description: str | None = None
     group: str | None = None
     visibility: ResourceVisibility = ResourceVisibility.personal
+    web_search_enabled: bool = False
 
     @field_validator("color")
     @classmethod
@@ -61,6 +62,7 @@ class AgentPatch(SQLModel):
     description: str | None = None
     group: str | None = None
     visibility: ResourceVisibility | None = None
+    web_search_enabled: bool = False
 
     @field_validator("color")
     @classmethod
@@ -95,6 +97,7 @@ class AgentConfig(SQLModel):
     color: str | None = None
     group: str | None = None
     visibility: ResourceVisibility = ResourceVisibility.personal
+    web_search_enabled: bool = False
     team_ids: list[UUID] = []
     mcp_servers: list[AgentMCPServerConfig] = []
     sandboxes: list[AgentSandboxConfig] = []
@@ -250,6 +253,7 @@ class AgentListResponse(SQLModel):
     subagents: list[SubagentResponse] | None = None
     group: str | None = None
     visibility: ResourceVisibility = ResourceVisibility.personal
+    web_search_enabled: bool = False
     team_ids: list[UUID] = []
     owner: AgentOwnerInfo | None = None
     is_subagent: bool = False

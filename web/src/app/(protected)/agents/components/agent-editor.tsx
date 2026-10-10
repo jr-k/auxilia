@@ -4,7 +4,7 @@ import { useState, useMemo, useRef, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import EmojiPicker, { EmojiClickData, Theme } from "emoji-picker-react";
-import { ArchiveIcon, Copy, History, Pencil, Play } from "lucide-react";
+import { ArchiveIcon, Copy, Globe2, History, Pencil, Play } from "lucide-react";
 import { toast } from "sonner";
 import { AGENT_COLORS } from "@/lib/colors";
 import { useTheme } from "next-themes";
@@ -26,6 +26,7 @@ import { useUserStore } from "@/stores/user-store";
 import { useConfirmDialog } from "@/components/providers/dialog-provider";
 import { DropdownMenu } from "@/components/ui/dropdown-menu";
 import { UnderlineTabs } from "@/components/ui/underline-tabs";
+import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { groupOptions } from "@/lib/groups";
 import { useUnsavedChangesWarning } from "@/hooks/use-unsaved-changes-warning";
@@ -292,6 +293,7 @@ export default function AgentEditor({
 				emoji: source.emoji ?? null,
 				color: source.color ?? null,
 				visibility: source.visibility,
+				webSearchEnabled: source.webSearchEnabled ?? false,
 				teamIds: source.teamIds,
 				mcpServers: source.mcpServers.map((server) => ({
 					mcpServerId: server.mcpServerId,
@@ -766,6 +768,28 @@ export default function AgentEditor({
 							}
 						/>
 					)}
+					<div className="mt-5 flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3">
+						<div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-petrol/10 text-petrol dark:text-panel-terminal">
+							<Globe2 className="size-4" />
+						</div>
+						<div className="min-w-0 flex-1">
+							<p className="text-[13px] font-semibold text-foreground">
+								Web search
+							</p>
+							<p className="mt-0.5 text-[11.5px] leading-[1.45] text-meta dark:text-panel-dim">
+								Uses the selected model provider&apos;s native search when
+								available. No MCP server required.
+							</p>
+						</div>
+						<Switch
+							aria-label="Enable native web search"
+							checked={form.webSearchEnabled}
+							disabled={readOnly || !canEditAgent}
+							onCheckedChange={(checked) => {
+								setField("webSearchEnabled", checked);
+							}}
+						/>
+					</div>
 				</div>
 			</div>
 		</div>

@@ -56,6 +56,7 @@ class ResolvedModel(BaseModel):
     # entry's declared levels, else the entry's applied default. None = the
     # model declares no default — send nothing, provider default applies.
     reasoning_effort: str | None = None
+    supports_web_search: bool = False
 
 
 def _managed(entry: SupportedModel | None, row: ModelDB) -> ManagedModelResponse:
@@ -167,6 +168,7 @@ class ModelService(BaseService[ModelDB, ModelRepository]):
             model_id=entry.model_id,
             api_key=api_key,
             reasoning_effort=reasoning_effort,
+            supports_web_search=bool(entry.supports_web_search),
         )
 
     @staticmethod

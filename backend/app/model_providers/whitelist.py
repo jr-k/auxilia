@@ -16,6 +16,7 @@ from pydantic import BaseModel, field_validator, model_validator
 
 from app.exceptions import DomainValidationError
 from app.model_providers.settings import model_provider_settings
+from app.model_providers.web_search import NATIVE_WEB_SEARCH_PROVIDERS
 from app.utils.remote_catalog import RemoteCatalog
 
 
@@ -48,6 +49,10 @@ class SupportedModel(BaseModel):
     chef_slug: str | None = None
     multimodal: bool = False
     supports_structured_output: bool = False
+    # None keeps older remote catalogs compatible: providers whose native
+    # serving path supports server-side search inherit True. An entry may set
+    # False explicitly if one model on such a provider does not support it.
+    supports_web_search: bool | None = None
     # The reasoning-effort values a user may pick for this model (empty =
     # no effort knob, the picker doesn't render one). Values must be what the
     # serving endpoint actually accepts — silent coercion tiers don't count.
@@ -72,6 +77,8 @@ class SupportedModel(BaseModel):
             self.chef = self.provider.capitalize()
         if self.chef_slug is None:
             self.chef_slug = self.provider
+        if self.supports_web_search is None:
+            self.supports_web_search = self.provider in NATIVE_WEB_SEARCH_PROVIDERS
         return self
 
     @model_validator(mode="after")

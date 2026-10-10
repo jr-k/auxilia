@@ -124,7 +124,12 @@ def _base_harness_stack(model, backend, profile: HarnessProfile, skills=None) ->
 
 
 def _general_purpose_subagent(
-    model, tools: list, backend, profile: HarnessProfile, skills=None
+    model,
+    tools: list,
+    backend,
+    profile: HarnessProfile,
+    skills=None,
+    mcp_context: str | None = None,
 ) -> dict | None:
     """deepagents' default subagent: the parent's tools, its own harness stack.
 
@@ -158,11 +163,19 @@ def _general_purpose_subagent(
         spec["system_prompt"] = _apply_profile_prompt(
             profile, GENERAL_PURPOSE_SUBAGENT["system_prompt"]
         )
+    if mcp_context:
+        spec["system_prompt"] += f"\n\n{mcp_context}"
     return spec
 
 
 def harness_middleware(
-    *, model, tools: list, backend, subagents=None, skills=None
+    *,
+    model,
+    tools: list,
+    backend,
+    subagents=None,
+    skills=None,
+    mcp_context: str | None = None,
 ) -> list:
     """The harness middleware that runs *before* the caller's own stack.
 
@@ -179,7 +192,14 @@ def harness_middleware(
     if any(s["name"] == GENERAL_PURPOSE_SUBAGENT["name"] for s in supplied):
         specs = supplied
     else:
-        default = _general_purpose_subagent(model, tools, backend, profile, skills)
+        default = _general_purpose_subagent(
+            model,
+            tools,
+            backend,
+            profile,
+            skills,
+            mcp_context,
+        )
         specs = [default, *supplied] if default is not None else supplied
     middleware: list = [TodoListMiddleware()]
     if skills is not None:

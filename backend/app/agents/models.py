@@ -98,6 +98,10 @@ class AgentBase(SQLModel):
         default=None, max_length=255, sa_column=Column(String(255), nullable=True)
     )
     group: str | None = Field(default=None, max_length=255, nullable=True, index=True)
+    web_search_enabled: bool = Field(
+        default=False,
+        sa_column=Column(Boolean, nullable=False, server_default="false"),
+    )
 
 
 class AgentDB(AgentBase, BaseDBModel, table=True):

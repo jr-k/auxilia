@@ -143,10 +143,31 @@ class PreparedToolset:
     interrupt_on: dict[str, bool]  # sanitized tool name -> True
     apply_ui: bool
     disabled_tools: dict[str, set[str]] = field(default_factory=dict)
+    server_description_by_name: dict[str, str | None] = field(default_factory=dict)
 
     @property
     def server_names(self) -> list[str]:
         return list(self.connections)
+
+    @property
+    def mcp_context_prompt(self) -> str | None:
+        """One compact capability index for the model's system prompt."""
+        if not self.server_description_by_name:
+            return None
+
+        servers: list[str] = []
+        for name in self.connections:
+            description = self.server_description_by_name.get(name)
+            compact = " ".join(description.split()) if description else ""
+            servers.append(f"- {name}: {compact}" if compact else f"- {name}")
+
+        return (
+            "MCP servers available to this agent:\n"
+            + "\n".join(servers)
+            + "\nUse these descriptions to identify relevant tools. Before saying "
+            "that a capability or data source is unavailable, check whether one "
+            "of these servers provides it."
+        )
 
 
 def _assemble_agent_tools(
@@ -353,6 +374,9 @@ class Toolset:
         }
 
         server_id_by_name = {server.name: str(server.id) for server in mcp_servers}
+        server_description_by_name = {
+            server.name: server.description for server in mcp_servers
+        }
 
         # 4. Derive interrupt_on from the persisted tool map — the synced
         #    settings already hold every tool name, so no session is opened.
@@ -375,6 +399,7 @@ class Toolset:
             tool_settings=tool_settings,
             disabled_tools=disabled_tools,
             server_id_by_name=server_id_by_name,
+            server_description_by_name=server_description_by_name,
             interrupt_on=interrupt_on,
             apply_ui=apply_ui,
         )
@@ -429,6 +454,10 @@ class Toolset:
 
                 stack.push_async_exit(adapter)
                 for tool in lc_tools:
+                    original_description = tool.description.strip()
+                    tool.description = f"MCP server: {server_name}."
+                    if original_description:
+                        tool.description += f"\n\n{original_description}"
                     tool.name = f"{server_name}_{tool.name}"
                 tools_by_server.append((server_name, lc_tools))
 
