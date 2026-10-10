@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.30](https://github.com/jr-k/auxilia/compare/backend-v0.10.29...backend-v0.10.30) (2026-10-10)
+
+
+### Features
+
+* **slack:** include thread conversation context ([#58](https://github.com/jr-k/auxilia/issues/58)) ([f2be539](https://github.com/jr-k/auxilia/commit/f2be5395bd74ea0ffa02f70f04db00aec731dc0e))
+
 ## [0.10.29](https://github.com/jr-k/auxilia/compare/backend-v0.10.28...backend-v0.10.29) (2026-10-09)
 
 
