@@ -26,6 +26,7 @@ export interface AgentWrite {
 	emoji: string | null;
 	color: string | null;
 	visibility: ResourceVisibility;
+	webSearchEnabled?: boolean;
 	teamIds: string[];
 	mcpServers: { mcpServerId: string; tools: Record<string, string> | null }[];
 	sandboxes: { sandboxId: string; tools: Record<string, string> | null }[];

@@ -101,6 +101,7 @@ export interface Agent {
 	subagents: SubagentInfo[];
 	group?: string | null;
 	visibility: ResourceVisibility;
+	webSearchEnabled?: boolean;
 	teamIds: string[];
 	owner?: AgentOwner | null;
 	isSubagent: boolean;

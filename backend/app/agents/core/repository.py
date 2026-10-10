@@ -68,6 +68,7 @@ class AgentRepository(BaseRepository[AgentDB]):
         AgentDB.description,
         AgentDB.group,
         AgentDB.visibility,
+        AgentDB.web_search_enabled,
         AgentDB.is_archived,
         AgentDB.created_at,
         AgentDB.updated_at,
@@ -306,6 +307,7 @@ class AgentRepository(BaseRepository[AgentDB]):
                 name=agent.name,
                 instructions=agent.instructions,
                 description=agent.description,
+                web_search_enabled=agent.web_search_enabled,
                 mcp_servers=bindings_by_agent.get(agent.id, []),
                 sandbox=sandbox_by_agent.get(agent.id),
             )

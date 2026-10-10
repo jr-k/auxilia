@@ -44,6 +44,7 @@ class AgentSpec:
     description: str | None
     mcp_servers: list[AgentMCPServerDB]
     sandbox: SandboxSpec | None
+    web_search_enabled: bool = False
 
 
 @dataclass(frozen=True)

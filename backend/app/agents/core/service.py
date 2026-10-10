@@ -392,6 +392,7 @@ class AgentService(BaseService[AgentDB, AgentRepository]):
                 description=config.description,
                 group=config.group,
                 visibility=config.visibility,
+                web_search_enabled=config.web_search_enabled,
             )
         )
         validate_visibility(config.visibility, config.team_ids)
@@ -562,6 +563,7 @@ class AgentService(BaseService[AgentDB, AgentRepository]):
                 color=config.color,
                 group=config.group,
                 visibility=visibility,
+                web_search_enabled=config.web_search_enabled,
             ),
         )
         await self.mcp_server_service.set_for_agent(agent_id, config.mcp_servers)
