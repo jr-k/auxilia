@@ -10,7 +10,12 @@ import {
 } from "@langchain/core/messages";
 import type { AnyStream, SubagentDiscoverySnapshot } from "@langchain/react";
 import type { Interrupt } from "@langchain/langgraph-sdk";
-import { CopyIcon, RefreshCcwIcon } from "lucide-react";
+import {
+  ChevronDownIcon,
+  CopyIcon,
+  MessagesSquareIcon,
+  RefreshCcwIcon,
+} from "lucide-react";
 import {
   Message,
   MessageAction,
@@ -41,6 +46,11 @@ import {
 } from "@/components/ai-elements/attachments";
 import { TodoList } from "@/components/ai-elements/todo-list";
 import type { Todo } from "@/components/ai-elements/todo-list";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { useMcpServersStore } from "@/stores/mcp-servers-store";
 import { useAgentsStore } from "@/stores/agents-store";
 import type { HitlDecision, HitlResponse } from "@/hooks/use-hitl-approvals";
@@ -58,6 +68,10 @@ import {
   sanitizeToolIdentifier,
   claimsInterrupt,
 } from "@/lib/transcript";
+import {
+  presentSlackMessage,
+  type SlackContextMessage,
+} from "@/lib/transcript/slack-context";
 import {
   SubAgentCard,
   SubAgentProgress,
@@ -280,10 +294,10 @@ const UserTurn = ({
   message: BaseMessage;
   anchorId: string;
 }) => {
-  const text = message.text;
+  const { text, context } = presentSlackMessage(message.text);
   const attachments = getFileAttachments(message);
   return (
-    <div id={anchorId} className="flex flex-col gap-4">
+    <div id={anchorId} className="flex flex-col gap-2">
       {attachments.length > 0 && (
         <div className="flex justify-end">
           <Attachments variant="inline">
@@ -329,6 +343,7 @@ const UserTurn = ({
           </Attachments>
         </div>
       )}
+      {context.length > 0 && <SlackContextDetails messages={context} />}
       {text && (
         <Message from="user">
           <MessageContent>
@@ -339,6 +354,44 @@ const UserTurn = ({
     </div>
   );
 };
+
+const SlackContextDetails = ({
+  messages,
+}: {
+  messages: SlackContextMessage[];
+}) => (
+  <div className="flex justify-end">
+    <Collapsible className="group/slack-context w-fit max-w-[78%]">
+      <CollapsibleTrigger className="ml-auto flex cursor-pointer items-center gap-2 rounded-lg border border-border/70 bg-card px-2.5 py-1.5 text-left text-[11.5px] text-meta shadow-[0_1px_2px_rgba(0,0,0,0.03)] transition-colors hover:border-border-hover hover:text-foreground dark:bg-panel">
+        <MessagesSquareIcon className="size-3.5 text-petrol dark:text-panel-terminal" />
+        <span className="font-semibold text-body dark:text-panel-body">
+          Slack thread
+        </span>
+        <span className="font-mono text-[10.5px]">
+          {messages.length} message{messages.length === 1 ? "" : "s"}
+        </span>
+        <ChevronDownIcon className="size-3 shrink-0 -rotate-90 transition-transform duration-200 group-data-[state=open]/slack-context:rotate-0" />
+      </CollapsibleTrigger>
+      <CollapsibleContent className="data-[state=closed]:animate-collapsible-up data-[state=open]:animate-collapsible-down overflow-hidden">
+        <div className="mt-1.5 max-h-80 w-[min(34rem,72vw)] space-y-1 overflow-y-auto rounded-[10px] border border-border/70 bg-card p-2 shadow-sm dark:bg-panel">
+          {messages.map((message, index) => (
+            <div
+              key={`${message.userId}-${index}`}
+              className="rounded-md border-l-2 border-petrol/35 px-2.5 py-2"
+            >
+              <div className="mb-1 font-mono text-[10px] text-meta dark:text-panel-dim">
+                {message.userId}
+              </div>
+              <div className="whitespace-pre-wrap text-[12.5px] leading-[1.55] text-body dark:text-panel-body">
+                {message.text}
+              </div>
+            </div>
+          ))}
+        </div>
+      </CollapsibleContent>
+    </Collapsible>
+  </div>
+);
 
 type ChainProps = {
   steps: ChainStepData[];
