@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.33](https://github.com/jr-k/auxilia/compare/web-v0.11.32...web-v0.11.33) (2026-10-10)
+
+
+### Bug Fixes
+
+* **slack:** present thread context as metadata ([#60](https://github.com/jr-k/auxilia/issues/60)) ([afc575f](https://github.com/jr-k/auxilia/commit/afc575f3eca8fec1ab231d2239e1223283d6060e))
+
 ## [0.11.32](https://github.com/jr-k/auxilia/compare/web-v0.11.31...web-v0.11.32) (2026-10-09)
 
 
