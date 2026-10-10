@@ -74,3 +74,4 @@ class SlackThreadBindingDB(BaseDBModel, table=True):
     channel_id: str = Field(max_length=64, nullable=False)
     slack_thread_ts: str = Field(max_length=64, nullable=False)
     slack_user_id: str = Field(max_length=64, nullable=False)
+    last_context_ts: str | None = Field(default=None, max_length=64)

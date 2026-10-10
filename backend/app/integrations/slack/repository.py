@@ -73,3 +73,11 @@ class SlackThreadBindingRepository(BaseRepository[SlackThreadBindingDB]):
         )
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
+
+    async def mark_context_synced(self, binding_id: UUID, message_ts: str) -> None:
+        binding = await self.get(binding_id)
+        if binding is None:
+            return
+        binding.last_context_ts = message_ts
+        self.db.add(binding)
+        await self.db.flush()
