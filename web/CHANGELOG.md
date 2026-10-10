@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.34](https://github.com/jr-k/auxilia/compare/web-v0.11.33...web-v0.11.34) (2026-10-10)
+
+
+### Bug Fixes
+
+* **slack:** refine thread context bubbles ([f54029b](https://github.com/jr-k/auxilia/commit/f54029b15e2c3584f39c7083b02f661b500cacf7))
+
 ## [0.11.33](https://github.com/jr-k/auxilia/compare/web-v0.11.32...web-v0.11.33) (2026-10-10)
 
 
