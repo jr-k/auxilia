@@ -86,8 +86,24 @@ class SlackInteractionMessage(BaseModel):
     """The original message that contained the interactive component."""
 
     blocks: list[dict] = []
+    text: str | None = None
+    user: str | None = None
     thread_ts: str | None = None
     ts: str | None = None
+
+
+class SlackInteractionViewValue(BaseModel):
+    value: str | None = None
+
+
+class SlackInteractionViewState(BaseModel):
+    values: dict[str, dict[str, SlackInteractionViewValue]] = {}
+
+
+class SlackInteractionView(BaseModel):
+    callback_id: str | None = None
+    private_metadata: str = ""
+    state: SlackInteractionViewState = SlackInteractionViewState()
 
 
 class SlackInteractionPayload(BaseModel):
@@ -101,6 +117,9 @@ class SlackInteractionPayload(BaseModel):
     message: SlackInteractionMessage | None = None
     message_ts: str | None = None
     callback_id: str | None = None
+    trigger_id: str | None = None
+    response_url: str | None = None
+    view: SlackInteractionView | None = None
     api_app_id: str | None = None
     team: dict | None = None
 

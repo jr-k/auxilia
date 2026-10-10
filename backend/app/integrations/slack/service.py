@@ -63,7 +63,15 @@ class AgentSlackBotService:
                 "bot_user": {
                     "display_name": display_name,
                     "always_online": False,
-                }
+                },
+                "shortcuts": [
+                    {
+                        "name": "Ask agent about message",
+                        "type": "message",
+                        "callback_id": "agent_message_shortcut",
+                        "description": "Use this message as context for the agent",
+                    }
+                ],
             },
             "oauth_config": {
                 "scopes": {
@@ -71,7 +79,9 @@ class AgentSlackBotService:
                         "app_mentions:read",
                         "channels:history",
                         "chat:write",
+                        "commands",
                         "im:history",
+                        "im:write",
                         "users:read",
                         "users:read.email",
                     ]
