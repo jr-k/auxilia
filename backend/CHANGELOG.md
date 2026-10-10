@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.35](https://github.com/jr-k/auxilia/compare/backend-v0.10.34...backend-v0.10.35) (2026-10-10)
+
+
+### Features
+
+* **mcp:** add Frame.io and Vimeo servers ([#71](https://github.com/jr-k/auxilia/issues/71)) ([bb17f8b](https://github.com/jr-k/auxilia/commit/bb17f8b315dc0787bbb2a387f3a7091daf8158a8))
+
 ## [0.10.34](https://github.com/jr-k/auxilia/compare/backend-v0.10.33...backend-v0.10.34) (2026-10-10)
 
 
