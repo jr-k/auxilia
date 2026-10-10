@@ -116,6 +116,8 @@ export interface OfficialMCPServer {
 	isInstalled: boolean;
 	installedCount?: number;
 	supportsDcr: boolean | null;
+	supportsCimd?: boolean | null;
+	customHttpHeaders?: string[];
 	serviceCredentialProviders?: ServiceCredentialProvider[];
 }
 

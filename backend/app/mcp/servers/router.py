@@ -10,7 +10,10 @@ from app.agents.mcp_servers.service import (
 )
 from app.auth.dependencies import get_current_user, require_admin
 from app.database import get_db
-from app.mcp.client.auth import oauth_callback_url
+from app.mcp.client.auth import (
+    build_oauth_client_metadata_document,
+    oauth_callback_url,
+)
 from app.mcp.client.connectivity import is_authorized, probe_candidate, test_connection
 from app.mcp.servers.models import MCPServerDB
 from app.mcp.servers.schemas import (
@@ -87,6 +90,16 @@ async def get_oauth_callback_info(
     _current_user: UserDB = Depends(get_current_user),
 ) -> OAuthCallbackInfo:
     return OAuthCallbackInfo(callback_url=oauth_callback_url())
+
+
+@router.get("/oauth/client-metadata.json", include_in_schema=False)
+async def get_oauth_client_metadata() -> JSONResponse:
+    """Public OAuth Client ID Metadata Document used by CIMD-capable servers."""
+    metadata = build_oauth_client_metadata_document()
+    return JSONResponse(
+        content=metadata.model_dump(by_alias=True, mode="json", exclude_none=True),
+        headers={"Cache-Control": "public, max-age=3600"},
+    )
 
 
 @router.get("/{server_id}", response_model=MCPServerResponse)

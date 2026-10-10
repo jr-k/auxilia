@@ -12,6 +12,7 @@ release. Caching, fallback and admin-sync mechanics live in
 validation rules, and the bundled snapshot.
 """
 
+import re
 from pathlib import Path
 from typing import Literal
 from urllib.parse import urlparse
@@ -29,6 +30,7 @@ from app.utils.remote_catalog import RemoteCatalog
 # The single copy of the catalog: bundled into the image as the offline
 # fallback and uploaded as-is to the CDN (`MCP_CATALOG_URL`).
 _BUNDLED_PATH = Path(__file__).parent / "catalog.yaml"
+_HTTP_HEADER_NAME = re.compile(r"^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$")
 
 _KNOWN_SERVICE_CREDENTIAL_PROVIDERS: dict[str, list[ServiceCredentialProvider]] = {
     "https://bigquery.googleapis.com/mcp": [
@@ -53,6 +55,12 @@ class OfficialServer(BaseModel):
     # admin installing it must supply a static client_id/secret. Must be None
     # for non-OAuth servers (not applicable).
     supports_dcr: bool | None = None
+    # OAuth servers may accept this deployment's public Client ID Metadata
+    # Document instead of requiring DCR or admin-entered client credentials.
+    supports_cimd: bool | None = None
+    # Custom HTTP templates can prefill public header names while leaving their
+    # secret values for the workspace admin to enter.
+    custom_http_headers: list[str] = Field(default_factory=list)
     # Alternative machine identities explicitly supported by this endpoint.
     # An empty list means Service identity is not offered for the catalog
     # template; custom servers may choose any provider.
@@ -90,6 +98,29 @@ class OfficialServer(BaseModel):
         elif self.supports_dcr is not None:
             raise ValueError(
                 f"{self.name!r} is not an oauth2 server, so supports_dcr must be omitted"
+            )
+        elif self.supports_cimd is not None:
+            raise ValueError(
+                f"{self.name!r} is not an oauth2 server, so supports_cimd must be omitted"
+            )
+        if self.auth_type is MCPAuthType.custom_http:
+            if not self.custom_http_headers:
+                raise ValueError(
+                    f"{self.name!r} uses custom_http auth, so at least one "
+                    "custom_http_headers entry is required"
+                )
+            normalized_headers = [name.lower() for name in self.custom_http_headers]
+            if len(set(normalized_headers)) != len(normalized_headers):
+                raise ValueError(f"{self.name!r} has duplicate custom HTTP headers")
+            for name in self.custom_http_headers:
+                if not _HTTP_HEADER_NAME.fullmatch(name):
+                    raise ValueError(
+                        f"{self.name!r} has an invalid custom HTTP header name: {name!r}"
+                    )
+        elif self.custom_http_headers:
+            raise ValueError(
+                f"{self.name!r} is not a custom_http server, so "
+                "custom_http_headers must be omitted"
             )
         if (
             ServiceCredentialProvider.custom_http_headers

@@ -261,7 +261,12 @@ def _custom_headers(credentials_json: str) -> tuple[tuple[str, str], ...]:
             )
         if lowered in seen:
             raise DomainValidationError(f"Duplicate HTTP header: {name}")
-        if not isinstance(value, str) or "\r" in value or "\n" in value:
+        if (
+            not isinstance(value, str)
+            or not value.strip()
+            or "\r" in value
+            or "\n" in value
+        ):
             raise DomainValidationError(f"Invalid value for HTTP header '{name}'")
         seen.add(lowered)
         headers.append((name, value))
