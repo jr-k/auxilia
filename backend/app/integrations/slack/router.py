@@ -12,6 +12,8 @@ from redis.exceptions import RedisError
 from app.integrations.slack.commands.chat import handle_agent_selection
 from app.integrations.slack.handlers import (
     handle_agent_message,
+    handle_agent_message_shortcut,
+    handle_agent_message_shortcut_submission,
     handle_assistant_thread_started,
     handle_interaction,
     handle_message,
@@ -210,4 +212,24 @@ async def agent_slack_interactions(
                     agent_id=verified.agent_id,
                 )
             )
+    elif (
+        payload.type == "message_action"
+        and payload.callback_id == "agent_message_shortcut"
+    ):
+        _spawn(
+            handle_agent_message_shortcut(
+                payload,
+                verified.workspace_id,
+                slack_bot_id=verified.slack_bot_id,
+            )
+        )
+    elif payload.type == "view_submission":
+        _spawn(
+            handle_agent_message_shortcut_submission(
+                payload,
+                verified.workspace_id,
+                agent_id=verified.agent_id,
+                slack_bot_id=verified.slack_bot_id,
+            )
+        )
     return JSONResponse(content={"ok": True})
