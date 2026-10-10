@@ -16,6 +16,7 @@ import {
   MessagesSquareIcon,
   RefreshCcwIcon,
 } from "lucide-react";
+import { SlackLogo } from "@/components/slack-logo";
 import {
   Message,
   MessageAction,
@@ -69,9 +70,9 @@ import {
   claimsInterrupt,
 } from "@/lib/transcript";
 import {
-  presentSlackMessage,
-  type SlackContextMessage,
-} from "@/lib/transcript/slack-context";
+  presentSideChannelMessage,
+  type SideChannelContextMessage,
+} from "@/lib/transcript/side-channel-context";
 import {
   SubAgentCard,
   SubAgentProgress,
@@ -294,7 +295,7 @@ const UserTurn = ({
   message: BaseMessage;
   anchorId: string;
 }) => {
-  const { text, context } = presentSlackMessage(message.text);
+  const { text, context, source } = presentSideChannelMessage(message.text);
   const attachments = getFileAttachments(message);
   return (
     <div id={anchorId} className="flex flex-col gap-2">
@@ -343,7 +344,9 @@ const UserTurn = ({
           </Attachments>
         </div>
       )}
-      {context.length > 0 && <SlackContextDetails messages={context} />}
+      {context.length > 0 && (
+        <SideChannelContextDetails messages={context} source={source} />
+      )}
       {text && (
         <Message from="user">
           <MessageContent>
@@ -355,32 +358,41 @@ const UserTurn = ({
   );
 };
 
-const SlackContextDetails = ({
+const SideChannelContextDetails = ({
   messages,
+  source,
 }: {
-  messages: SlackContextMessage[];
+  messages: SideChannelContextMessage[];
+  source: string | null;
 }) => (
   <div className="flex justify-end">
-    <Collapsible className="group/slack-context flex w-fit max-w-[78%] flex-col items-end">
+    <Collapsible className="group/side-channel-context flex w-fit max-w-[78%] flex-col items-end">
       <CollapsibleTrigger className="ml-auto flex cursor-pointer items-center gap-2 rounded-lg border border-border/70 bg-card px-2.5 py-1.5 text-left text-[11.5px] text-meta shadow-[0_1px_2px_rgba(0,0,0,0.03)] transition-colors hover:border-border-hover hover:text-foreground dark:bg-panel">
-        <MessagesSquareIcon className="size-3.5 text-petrol dark:text-panel-terminal" />
+        {source === "slack" ? (
+          <SlackLogo className="size-4 rounded-[4px] border-0 shadow-none" />
+        ) : (
+          <MessagesSquareIcon className="size-3.5 text-petrol dark:text-panel-terminal" />
+        )}
         <span className="font-semibold text-body dark:text-panel-body">
-          Slack thread
+          {source === "slack" ? "Slack" : (source ?? "Side channel")}
+        </span>
+        <span className="font-mono text-[10px] uppercase tracking-[0.06em]">
+          context
         </span>
         <span className="font-mono text-[10.5px]">
           {messages.length} message{messages.length === 1 ? "" : "s"}
         </span>
-        <ChevronDownIcon className="size-3 shrink-0 -rotate-90 transition-transform duration-200 group-data-[state=open]/slack-context:rotate-0" />
+        <ChevronDownIcon className="size-3 shrink-0 -rotate-90 transition-transform duration-200 group-data-[state=open]/side-channel-context:rotate-0" />
       </CollapsibleTrigger>
       <CollapsibleContent className="data-[state=closed]:animate-collapsible-up data-[state=open]:animate-collapsible-down w-fit max-w-full overflow-hidden">
         <div className="mt-2 flex max-h-80 max-w-[min(34rem,72vw)] flex-col items-end gap-2.5 overflow-y-auto">
           {messages.map((message, index) => (
             <div
-              key={`${message.userId}-${index}`}
+                  key={`${message.participantId}-${index}`}
               className="w-fit max-w-full rounded-[12px_12px_3px_12px] border border-border/60 bg-white px-3 py-1.5 shadow-[0_1px_2px_rgba(0,0,0,0.035)] dark:bg-panel"
             >
               <div className="mb-0.5 font-mono text-[9.5px] leading-none text-meta dark:text-panel-dim">
-                {message.userId}
+                    {message.participantId}
               </div>
               <div className="whitespace-pre-wrap text-[12.5px] leading-[1.4] text-body dark:text-panel-body">
                 {message.text}
