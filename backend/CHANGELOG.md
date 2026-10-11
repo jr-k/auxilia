@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.41](https://github.com/jr-k/auxilia/compare/backend-v0.10.40...backend-v0.10.41) (2026-10-11)
+
+
+### Features
+
+* **mcp:** add OAuth authorization server ([25f58f3](https://github.com/jr-k/auxilia/commit/25f58f341acee0f08359217cba9a9ec6305e0806))
+
 ## [0.10.40](https://github.com/jr-k/auxilia/compare/backend-v0.10.39...backend-v0.10.40) (2026-10-11)
 
 
