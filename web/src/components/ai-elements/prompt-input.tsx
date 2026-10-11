@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/input-group";
 import { cn } from "@/lib/utils";
 import type { FileUIPart } from "./attachments";
-import { PaperclipIcon, PlusIcon, XIcon } from "lucide-react";
+import { PaperclipIcon, XIcon } from "lucide-react";
 import { nanoid } from "nanoid";
 import {
 	type ChangeEvent,
@@ -409,6 +409,7 @@ export type PromptInputAddAttachmentButtonProps = Omit<
 export const PromptInputAddAttachmentButton = ({
 	children,
 	disabled,
+	className,
 	...props
 }: PromptInputAddAttachmentButtonProps) => {
 	const attachments = usePromptInputAttachments();
@@ -418,9 +419,10 @@ export const PromptInputAddAttachmentButton = ({
 		<PromptInputButton
 			onClick={() => { attachments.openFileDialog(); }}
 			disabled={disabled || attachmentsDisabled}
+			className={cn("cursor-pointer", className)}
 			{...props}
 		>
-			{children ?? <PlusIcon className="size-4 cursor-pointer" />}
+			{children ?? <PaperclipIcon className="size-4" />}
 		</PromptInputButton>
 	);
 };

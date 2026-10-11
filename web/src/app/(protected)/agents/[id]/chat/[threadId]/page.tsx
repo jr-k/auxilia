@@ -256,7 +256,7 @@ const ChatPage = () => {
     <div className="h-full flex flex-col w-full overflow-hidden">
       <div className="h-full relative flex flex-1 flex-col min-h-0 w-full">
         <Conversation>
-          <ConversationContent className="max-w-4xl mx-auto w-full lg:px-10 sm:px-6 px-2">
+          <ConversationContent className="max-w-4xl mx-auto w-full pb-16 lg:px-10 sm:px-6 px-2">
             <ConversationBody
               messages={transcript.messages}
               toolCalls={transcript.toolCalls}

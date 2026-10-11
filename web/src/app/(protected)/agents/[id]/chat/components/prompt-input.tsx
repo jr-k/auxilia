@@ -623,7 +623,7 @@ const ChatPromptInput = ({
 								<DialogTrigger asChild>
 									<PromptInputButton
 										disabled={modelUpdatePending || modelChangeDisabled}
-										className={composerPillClass}
+										className={cn(composerPillClass, "cursor-pointer")}
 									>
 										{selectedModelData ? (
 											<>
@@ -745,7 +745,9 @@ const ChatPromptInput = ({
 											})),
 										]}
 										trigger={
-											<PromptInputButton className={composerPillClass}>
+											<PromptInputButton
+												className={cn(composerPillClass, "cursor-pointer")}
+											>
 												<BrainIcon className="size-3.5" />
 												<span className="truncate text-left">
 													{effortPillLabel}
@@ -850,7 +852,7 @@ const ConnectButton = ({
 				"flex h-[38px] cursor-pointer items-center justify-center gap-2 rounded-full transition-all",
 				"text-[14px] font-semibold",
 				allConnected
-					? "w-[38px] bg-hover px-0 text-meta hover:bg-petrol-tint hover:text-petrol dark:bg-white/5 dark:text-panel-dim dark:hover:bg-white/10"
+					? "w-[38px] border border-input bg-card px-0 text-foreground hover:border-border-hover hover:bg-hover dark:hover:bg-white/5"
 					: "bg-petrol px-4 text-white shadow-submit hover:opacity-90",
 			)}
 		>

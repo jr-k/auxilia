@@ -6,9 +6,7 @@ import { useRouter } from "next/navigation";
 import EmojiPicker, { EmojiClickData, Theme } from "emoji-picker-react";
 import {
 	ArchiveIcon,
-	BrainIcon,
 	Copy,
-	Globe2,
 	History,
 	Pencil,
 	Play,
@@ -53,7 +51,7 @@ import {
 	toPayload,
 } from "../lib/agent-form";
 
-type EditorTab = "instructions" | "permissions";
+type EditorTab = "instructions" | "options" | "permissions";
 
 const slugify = (name: string) =>
 	name.trim().toLowerCase().replace(/\s+/g, "-") || "…";
@@ -194,6 +192,7 @@ export default function AgentEditor({
 
 	const tabs: { key: EditorTab; label: string }[] = [
 		{ key: "instructions", label: "Instructions" },
+		{ key: "options", label: "Options" },
 		...(agent && canManageAgent
 			? [{ key: "permissions" as const, label: "Permissions" }]
 			: []),
@@ -686,8 +685,7 @@ export default function AgentEditor({
 						className="mt-6 border-b border-border"
 					/>
 
-					{/* Instructions fill the remaining panel height and scroll
-					    internally when the text exceeds it. */}
+					{/* The active tab fills the remaining panel height. */}
 					<div className="flex min-h-0 flex-1 flex-col pt-5">
 						{tab === "instructions" &&
 							(readOnly ? (
@@ -718,6 +716,194 @@ export default function AgentEditor({
 								ownerId={agent.ownerId}
 							/>
 						)}
+
+						{tab === "options" &&
+							(readOnly ? (
+								<div className="w-full max-w-2xl">
+									<h2 className="text-[14px] font-semibold text-foreground">
+										Conversation defaults
+									</h2>
+									<p className="mt-1 text-[11.5px] leading-relaxed text-meta dark:text-panel-dim">
+										Applied automatically when a conversation starts with
+										this agent.
+									</p>
+									<dl className="mt-4 overflow-hidden rounded-xl border border-border bg-card">
+										<div className="flex items-center gap-6 px-4 py-3.5">
+											<div className="min-w-0 flex-1">
+												<dt className="text-[12.5px] font-semibold text-foreground">
+													Default model
+													<span className="mt-0.5 block text-[10.5px] font-normal text-meta dark:text-panel-dim">
+														Used for new conversations.
+													</span>
+												</dt>
+											</div>
+											<dd className="max-w-[55%] truncate rounded-full bg-hover px-3 py-1.5 text-[11.5px] font-semibold text-foreground dark:bg-white/5">
+												{selectedDefaultModel?.name ??
+													form.defaultModelId ??
+													"Workspace default"}
+											</dd>
+										</div>
+										<div className="flex items-center gap-6 border-t border-hairline px-4 py-3.5 dark:border-white/5">
+											<div className="min-w-0 flex-1">
+												<dt className="text-[12.5px] font-semibold text-foreground">
+													Reasoning effort
+													<span className="mt-0.5 block text-[10.5px] font-normal text-meta dark:text-panel-dim">
+														Controls how deeply the model reasons.
+													</span>
+												</dt>
+											</div>
+											<dd className="max-w-[55%] truncate rounded-full bg-hover px-3 py-1.5 text-[11.5px] font-semibold text-foreground dark:bg-white/5">
+												{form.defaultModelId
+													? validatedDefaultEffort
+														? effortLabel(validatedDefaultEffort)
+														: defaultEffortLabel
+													: "Workspace default"}
+											</dd>
+										</div>
+										<div className="flex items-center gap-6 border-t border-hairline px-4 py-3.5 dark:border-white/5">
+											<div className="min-w-0 flex-1">
+												<dt className="text-[12.5px] font-semibold text-foreground">
+													Web search
+													<span className="mt-0.5 block text-[10.5px] font-normal text-meta dark:text-panel-dim">
+														Native search from the selected model provider.
+													</span>
+												</dt>
+											</div>
+											<dd
+												className={cn(
+													"rounded-full px-3 py-1.5 text-[11.5px] font-semibold",
+													form.webSearchEnabled
+														? "bg-success-bg text-success"
+														: "bg-hover text-meta dark:bg-white/5 dark:text-panel-dim",
+												)}
+											>
+												{form.webSearchEnabled ? "Enabled" : "Disabled"}
+											</dd>
+										</div>
+									</dl>
+								</div>
+							) : (
+						<div className="flex flex-col gap-3">
+						<div className="overflow-hidden rounded-xl border border-border bg-card">
+							<div className="flex items-start gap-3 px-4 py-3.5">
+								<div className="min-w-0 flex-1">
+									<p className="text-[13px] font-semibold text-foreground">
+										Default model
+									</p>
+									<p className="mt-0.5 text-[11.5px] leading-[1.45] text-meta dark:text-panel-dim">
+										Preselected when a conversation starts with this agent.
+									</p>
+								</div>
+								<div className="flex shrink-0 flex-col items-end gap-1.5">
+									<ModelPickerChip
+										value={form.defaultModelId}
+										disabled={readOnly || !canEditAgent}
+										emptyLabel="Workspace default"
+										onChange={(modelId) => {
+											setForm((current) =>
+												current.defaultModelId === modelId
+													? current
+													: {
+															...current,
+															defaultModelId: modelId,
+															defaultReasoningEffort: null,
+														},
+											);
+										}}
+									/>
+									{form.defaultModelId && !readOnly && canEditAgent && (
+										<button
+											type="button"
+											onClick={() => {
+												setForm((current) => ({
+													...current,
+													defaultModelId: null,
+													defaultReasoningEffort: null,
+												}));
+											}}
+											className="cursor-pointer px-1 text-[10.5px] font-medium text-meta transition-colors hover:text-petrol dark:text-panel-dim dark:hover:text-panel-terminal"
+										>
+											Use workspace default
+										</button>
+									)}
+								</div>
+							</div>
+							<div className="flex items-center gap-3 border-t border-hairline px-4 py-3 dark:border-white/5">
+								<div className="min-w-0 flex-1">
+									<p className="text-[12px] font-semibold text-foreground">
+										Reasoning effort
+									</p>
+									<p className="mt-0.5 text-[10.5px] text-meta dark:text-panel-dim">
+										Applied with the agent&apos;s default model.
+									</p>
+								</div>
+								{form.defaultModelId &&
+								effortLevels.length > 0 &&
+								!readOnly &&
+								canEditAgent ? (
+									<DropdownMenu
+										align="end"
+										side="top"
+										className="[&_[role=menuitem]+[role=menuitem]]:mt-0.5"
+										items={[
+											{
+												label: selectedDefaultModel?.reasoningEffortDefault
+													? `Default (${effortLabel(selectedDefaultModel.reasoningEffortDefault)})`
+													: "Auto",
+												active: !validatedDefaultEffort,
+												onClick: () => {
+													setField("defaultReasoningEffort", null);
+												},
+											},
+											...effortLevels.map((level) => ({
+												label: effortLabel(level),
+												active: validatedDefaultEffort === level,
+												onClick: () => {
+													setField("defaultReasoningEffort", level);
+												},
+											})),
+										]}
+										trigger={
+											<button
+												type="button"
+												className="inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-full bg-hover px-3 text-[12px] font-medium text-foreground transition-colors hover:bg-petrol-tint dark:bg-white/5 dark:hover:bg-white/10"
+											>
+												{defaultEffortLabel}
+											</button>
+										}
+									/>
+								) : (
+									<span className="inline-flex h-8 items-center rounded-full bg-hover px-3 text-[12px] font-medium text-meta dark:bg-white/5 dark:text-panel-dim">
+										{form.defaultModelId
+											? validatedDefaultEffort
+												? effortLabel(validatedDefaultEffort)
+												: defaultEffortLabel
+											: "Workspace default"}
+									</span>
+								)}
+							</div>
+						</div>
+						<div className="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3">
+							<div className="min-w-0 flex-1">
+								<p className="text-[13px] font-semibold text-foreground">
+									Web search
+								</p>
+								<p className="mt-0.5 text-[11.5px] leading-[1.45] text-meta dark:text-panel-dim">
+									Uses the selected model provider&apos;s native search when
+									available. No MCP server required.
+								</p>
+							</div>
+							<Switch
+								aria-label="Enable native web search"
+								checked={form.webSearchEnabled}
+								disabled={readOnly || !canEditAgent}
+								onCheckedChange={(checked) => {
+									setField("webSearchEnabled", checked);
+								}}
+							/>
+						</div>
+						</div>
+							))}
 					</div>
 				</div>
 
@@ -805,129 +991,6 @@ export default function AgentEditor({
 							}
 						/>
 					)}
-					<div className="mt-5 overflow-hidden rounded-xl border border-border bg-card">
-						<div className="flex items-start gap-3 px-4 py-3.5">
-							<div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-petrol/10 text-petrol dark:text-panel-terminal">
-								<BrainIcon className="size-4" />
-							</div>
-							<div className="min-w-0 flex-1">
-								<p className="text-[13px] font-semibold text-foreground">
-									Default model
-								</p>
-								<p className="mt-0.5 text-[11.5px] leading-[1.45] text-meta dark:text-panel-dim">
-									Preselected when a conversation starts with this agent.
-								</p>
-							</div>
-							<div className="flex shrink-0 flex-col items-end gap-1.5">
-								<ModelPickerChip
-									value={form.defaultModelId}
-									disabled={readOnly || !canEditAgent}
-									emptyLabel="Workspace default"
-									onChange={(modelId) => {
-										setForm((current) =>
-											current.defaultModelId === modelId
-												? current
-												: {
-														...current,
-														defaultModelId: modelId,
-														defaultReasoningEffort: null,
-													},
-										);
-									}}
-								/>
-								{form.defaultModelId && !readOnly && canEditAgent && (
-									<button
-										type="button"
-										onClick={() => {
-											setForm((current) => ({
-												...current,
-												defaultModelId: null,
-												defaultReasoningEffort: null,
-											}));
-										}}
-										className="cursor-pointer px-1 text-[10.5px] font-medium text-meta transition-colors hover:text-petrol dark:text-panel-dim dark:hover:text-panel-terminal"
-									>
-										Use workspace default
-									</button>
-								)}
-							</div>
-						</div>
-						<div className="flex items-center gap-3 border-t border-hairline px-4 py-3 dark:border-white/5">
-							<div className="min-w-0 flex-1">
-								<p className="text-[12px] font-semibold text-foreground">
-									Reasoning effort
-								</p>
-								<p className="mt-0.5 text-[10.5px] text-meta dark:text-panel-dim">
-									Applied with the agent&apos;s default model.
-								</p>
-							</div>
-							{form.defaultModelId &&
-							effortLevels.length > 0 &&
-							!readOnly &&
-							canEditAgent ? (
-								<DropdownMenu
-									align="end"
-									side="top"
-									items={[
-										{
-											label: selectedDefaultModel?.reasoningEffortDefault
-												? `Default (${effortLabel(selectedDefaultModel.reasoningEffortDefault)})`
-												: "Auto",
-											active: !validatedDefaultEffort,
-											onClick: () => {
-												setField("defaultReasoningEffort", null);
-											},
-										},
-										...effortLevels.map((level) => ({
-											label: effortLabel(level),
-											active: validatedDefaultEffort === level,
-											onClick: () => {
-												setField("defaultReasoningEffort", level);
-											},
-										})),
-									]}
-									trigger={
-										<button
-											type="button"
-											className="inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-full bg-hover px-3 text-[12px] font-medium text-foreground transition-colors hover:bg-petrol-tint dark:bg-white/5 dark:hover:bg-white/10"
-										>
-											{defaultEffortLabel}
-										</button>
-									}
-								/>
-							) : (
-								<span className="inline-flex h-8 items-center rounded-full bg-hover px-3 text-[12px] font-medium text-meta dark:bg-white/5 dark:text-panel-dim">
-									{form.defaultModelId
-										? validatedDefaultEffort
-											? effortLabel(validatedDefaultEffort)
-											: defaultEffortLabel
-										: "Workspace default"}
-								</span>
-							)}
-						</div>
-					</div>
-					<div className="mt-5 flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3">
-						<div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-petrol/10 text-petrol dark:text-panel-terminal">
-							<Globe2 className="size-4" />
-						</div>
-						<div className="min-w-0 flex-1">
-							<p className="text-[13px] font-semibold text-foreground">
-								Web search
-							</p>
-							<p className="mt-0.5 text-[11.5px] leading-[1.45] text-meta dark:text-panel-dim">
-								Uses the selected model provider&apos;s native search when
-								available. No MCP server required.
-							</p>
-						</div>
-						<Switch
-							aria-label="Enable native web search"
-							checked={form.webSearchEnabled}
-							disabled={readOnly || !canEditAgent}
-							onCheckedChange={(checked) => {
-								setField("webSearchEnabled", checked);
-							}}
-						/>
-					</div>
 				</div>
 			</div>
 		</div>

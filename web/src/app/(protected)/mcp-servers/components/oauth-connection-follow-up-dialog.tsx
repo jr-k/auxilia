@@ -1,6 +1,6 @@
 "use client";
 
-import { RefreshCw, ShieldCheck } from "lucide-react";
+import { RefreshCw } from "lucide-react";
 import {
 	Dialog,
 	DialogButton,
@@ -29,9 +29,6 @@ export function OAuthConnectionFollowUpDialog({
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
 			<DialogContent>
-				<div className="flex size-10 items-center justify-center rounded-[10px] bg-petrol/10 text-petrol dark:bg-petrol/20 dark:text-panel-terminal">
-					<ShieldCheck className="size-5" />
-				</div>
 				<DialogHeader>
 					<DialogTitle>Finished authorizing?</DialogTitle>
 					<DialogDescription>

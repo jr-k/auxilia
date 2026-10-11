@@ -35,7 +35,10 @@ from app.exceptions import DomainValidationError, NotFoundError
 from app.integrations.tracing import NoOpTracing, RunTracing, get_tracing
 from app.model_providers.catalog import ChatModelFactory
 from app.model_providers.service import ModelService
-from app.model_providers.web_search import native_web_search_tool
+from app.model_providers.web_search import (
+    compatible_reasoning_effort,
+    native_web_search_tool,
+)
 from app.observability.service import WorkspaceObservabilityService
 from app.runtime.checkpoints import checkpoint_thread_id, get_checkpoint_state
 from app.runtime.harness import (
@@ -581,11 +584,27 @@ class Agent:
         resolved = await ModelService(db, thread.workspace_id).ensure_available(
             thread.model_id, reasoning_effort=thread.reasoning_effort
         )
+        web_search_enabled = resolved.supports_web_search and any(
+            item.web_search_enabled for item in [spec.agent, *spec.subagents]
+        )
+        reasoning_effort = compatible_reasoning_effort(
+            resolved.provider,
+            resolved.reasoning_effort,
+            web_search_enabled=web_search_enabled,
+        )
+        if reasoning_effort != resolved.reasoning_effort:
+            logger.info(
+                "Adjusted reasoning effort from %s to %s for model %s because "
+                "native web search is enabled",
+                resolved.reasoning_effort,
+                reasoning_effort,
+                resolved.model_id,
+            )
         model = ChatModelFactory().create(
             resolved.provider,
             resolved.model_id,
             resolved.api_key,
-            reasoning_effort=resolved.reasoning_effort,
+            reasoning_effort=reasoning_effort,
         )
 
         middleware = build_parent_middleware(thread.created_at, agent.prepared)

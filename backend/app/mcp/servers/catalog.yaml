@@ -151,6 +151,18 @@ servers:
       Creates, previews, edits, and deploys full-stack web applications through
       Aurora's hosted builder.
 
+  - name: "Auxilia"
+    url: "https://your-auxilia.example.com/mcp"
+    auth_type: custom_http
+    custom_http_headers:
+      - Authorization
+      - X-Workspace-ID
+    requires_url_configuration: true
+    description: >-
+      Manages agents and skills, searches conversations, and configures an
+      Auxilia workspace. Set Authorization to "Bearer <personal access token>"
+      and X-Workspace-ID to the workspace UUID.
+
   - name: "AWS MCP"
     url: "https://aws-mcp.us-east-1.api.aws/mcp"
     auth_type: oauth2
