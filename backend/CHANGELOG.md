@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.39](https://github.com/jr-k/auxilia/compare/backend-v0.10.38...backend-v0.10.39) (2026-10-11)
+
+
+### Features
+
+* **agents:** add model defaults and improve chat flows ([ee33ebf](https://github.com/jr-k/auxilia/commit/ee33ebfe6274b3399742a9b07085af5af013ed62))
+
 ## [0.10.38](https://github.com/jr-k/auxilia/compare/backend-v0.10.37...backend-v0.10.38) (2026-10-11)
 
 

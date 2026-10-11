@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.42](https://github.com/jr-k/auxilia/compare/web-v0.11.41...web-v0.11.42) (2026-10-11)
+
+
+### Features
+
+* **agents:** add model defaults and improve chat flows ([ee33ebf](https://github.com/jr-k/auxilia/commit/ee33ebfe6274b3399742a9b07085af5af013ed62))
+
 ## [0.11.41](https://github.com/jr-k/auxilia/compare/web-v0.11.40...web-v0.11.41) (2026-10-11)
 
 
