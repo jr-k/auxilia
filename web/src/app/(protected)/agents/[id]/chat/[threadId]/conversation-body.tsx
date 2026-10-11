@@ -157,22 +157,24 @@ export const ConversationBody = memo(function ConversationBody({
     [messages, toolCalls],
   );
 
-  const last = messages.at(-1);
-  const assistantStreaming = isLoading && last != null && isAIMessage(last);
+  const lastVisibleIndex = messages.findLastIndex((m) => !isToolMessage(m));
+  const lastVisible =
+    lastVisibleIndex >= 0 ? messages[lastVisibleIndex] : undefined;
+  const assistantStreaming =
+    isLoading && lastVisible != null && isAIMessage(lastVisible);
   // The assistant has started a message but produced no text or tool call
   // yet: its reasoning is what's streaming.
   const preamble =
     assistantStreaming &&
-    last.text.length === 0 &&
-    !toolCalls.some((tc) => tc.messageId === last.id);
+    lastVisible.text.length === 0 &&
+    !toolCalls.some((tc) => tc.messageId === lastVisible.id);
   const reasoningStreamingId =
-    preamble && getReasoning(last) ? (last.id ?? null) : null;
+    preamble && getReasoning(lastVisible) ? (lastVisible.id ?? null) : null;
   // "Thinking…" until anything at all arrives.
   const showThinking =
     isLoading &&
-    last != null &&
-    (isHumanMessage(last) || (preamble && reasoningStreamingId == null));
-  const lastVisibleIndex = messages.findLastIndex((m) => !isToolMessage(m));
+    lastVisible != null &&
+    (isHumanMessage(lastVisible) || (preamble && reasoningStreamingId == null));
 
   return (
     <>
