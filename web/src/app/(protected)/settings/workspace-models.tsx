@@ -1,16 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ChevronDown, RefreshCw, Search, Star, Trash2 } from "lucide-react";
+import { Loader2, RefreshCw, Search, Star, Trash2 } from "lucide-react";
 import { ModelSelectorLogo } from "@/components/ai-elements/model-selector";
 import { HeaderButton } from "@/components/layout/subpage-header";
-import {
-	Collapsible,
-	CollapsibleContent,
-	CollapsibleTrigger,
-} from "@/components/ui/collapsible";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
+import { useQueryParamState } from "@/hooks/use-query-param-state";
 import * as modelsApi from "@/lib/api/resources/models";
 import { isApiError } from "@/lib/api/errors";
 import { useModelsStore } from "@/stores/models-store";
@@ -28,6 +24,7 @@ const PROVIDER_LABELS = new Map<string, string>([
 	["xiaomi", "Xiaomi"],
 	["openrouter", "OpenRouter"],
 	["meta", "Meta"],
+	["ollama", "Ollama"],
 ]);
 
 function providerLabel(provider: string): string {
@@ -112,12 +109,11 @@ export default function WorkspaceModels({
 	const [models, setModels] = useState<ManagedModel[]>([]);
 	const [providers, setProviders] = useState<ModelProviderConfig[]>([]);
 	const [searchQuery, setSearchQuery] = useState("");
-	const [openProviders, setOpenProviders] = useState<ReadonlySet<string>>(
-		new Set(),
-	);
+	const [selectedProvider, setSelectedProvider] = useQueryParamState("provider");
 	const [keyDrafts, setKeyDrafts] = useState<
 		Partial<Record<string, string>>
 	>({});
+	const [ollamaUrlDraft, setOllamaUrlDraft] = useState("");
 	const [pendingProviders, setPendingProviders] = useState<ReadonlySet<string>>(
 		new Set(),
 	);
@@ -161,7 +157,10 @@ export default function WorkspaceModels({
 		onCountChangeRef.current?.(
 			models.filter(
 				(model) =>
-					model.isEnabled && configuredProviders.has(model.provider),
+					model.isEnabled &&
+					model.isAvailable &&
+					model.supportsTools &&
+					configuredProviders.has(model.provider),
 			).length,
 		);
 	}, [models, providers]);
@@ -197,13 +196,24 @@ export default function WorkspaceModels({
 			]);
 			setModels(orderManagedModels(managed));
 			setProviders(providerConfigs);
-			setOpenProviders(
-				new Set(
-					providerConfigs
-						.filter((provider) => provider.isConfigured)
-						.map((provider) => provider.name),
-				),
+			const ollama = providerConfigs.find(
+				(provider) => provider.name === "ollama",
 			);
+			setOllamaUrlDraft((current) => current || ollama?.baseUrl || "");
+			const providerFromUrl = new URL(
+				window.location.href,
+			).searchParams.get("provider");
+			if (
+				!providerFromUrl ||
+				!providerConfigs.some(
+					(provider) => provider.name === providerFromUrl,
+				)
+			) {
+				const fallback =
+					providerConfigs.find((provider) => provider.isConfigured)?.name ??
+					providerConfigs[0]?.name;
+				if (fallback) setSelectedProvider(fallback);
+			}
 			// Only model state originating from a successful fetch reports a count;
 			// the initial empty array must not show a misleading "Models 0".
 			hasLoadedModelsRef.current = true;
@@ -219,7 +229,7 @@ export default function WorkspaceModels({
 		} finally {
 			setIsLoading(false);
 		}
-	}, [syncOnMount]);
+	}, [setSelectedProvider, syncOnMount]);
 
 	useEffect(() => {
 		const timeoutId = window.setTimeout(() => {
@@ -252,9 +262,15 @@ export default function WorkspaceModels({
 						.length,
 					totalCount: allProviderModels.length,
 				};
-			})
-			.filter(({ models: providerModels }) => !query || providerModels.length > 0);
+			});
 	}, [models, providers, searchQuery]);
+
+	const selectedGroup =
+		providerGroups.find(
+			({ provider }) => provider.name === selectedProvider,
+		) ??
+		providerGroups.find(({ provider }) => provider.isConfigured) ??
+		providerGroups[0];
 
 	const updateProvider = (updated: ModelProviderConfig) => {
 		setProviders((current) =>
@@ -340,6 +356,111 @@ export default function WorkspaceModels({
 			setPendingProviders((current) => {
 				const next = new Set(current);
 				next.delete(provider.name);
+				return next;
+			});
+		}
+	};
+
+	const refreshManagedModels = async () => {
+		const managed = await modelsApi.listManagedModels();
+		setModels((current) => preserveManagedModelOrder(current, managed));
+		await refreshModels().catch(() => {});
+	};
+
+	const handleOllamaConnect = async () => {
+		const baseUrl = ollamaUrlDraft.trim();
+		if (!baseUrl) return;
+		setPendingProviders((current) => new Set(current).add("ollama"));
+		setStatus(null);
+		try {
+			const result = await modelsApi.connectOllama(baseUrl);
+			updateProvider(result.config);
+			setOllamaUrlDraft(result.config.baseUrl ?? baseUrl);
+			await refreshManagedModels();
+			setStatus({
+				kind: "info",
+				text: `Ollama connected. ${result.discoveredCount} models discovered, ${result.availableCount} support tools.`,
+			});
+		} catch (error: unknown) {
+			if (isApiError(error) && error.status === 403) {
+				onForbidden();
+			} else {
+				setStatus({
+					kind: "error",
+					text:
+						apiErrorDetail(error) ??
+						"Could not connect to Ollama. Check that the URL is reachable from the backend.",
+				});
+			}
+		} finally {
+			setPendingProviders((current) => {
+				const next = new Set(current);
+				next.delete("ollama");
+				return next;
+			});
+		}
+	};
+
+	const handleOllamaDiscover = async () => {
+		setPendingProviders((current) => new Set(current).add("ollama"));
+		setStatus(null);
+		try {
+			const result = await modelsApi.discoverOllama();
+			updateProvider(result.config);
+			await refreshManagedModels();
+			setStatus({
+				kind: "info",
+				text: `Ollama refreshed. ${result.discoveredCount} models found, ${result.availableCount} support tools.`,
+			});
+		} catch (error: unknown) {
+			if (isApiError(error) && error.status === 403) {
+				onForbidden();
+			} else {
+				setStatus({
+					kind: "error",
+					text:
+						apiErrorDetail(error) ??
+						"Could not refresh models from Ollama.",
+				});
+			}
+		} finally {
+			setPendingProviders((current) => {
+				const next = new Set(current);
+				next.delete("ollama");
+				return next;
+			});
+		}
+	};
+
+	const handleOllamaDisconnect = async () => {
+		setPendingProviders((current) => new Set(current).add("ollama"));
+		setStatus(null);
+		try {
+			const updated = await modelsApi.disconnectOllama();
+			updateProvider(updated);
+			setOllamaUrlDraft("");
+			setModels((current) =>
+				current.map((model) =>
+					model.provider === "ollama"
+						? { ...model, isAvailable: false, isDefault: false }
+						: model,
+				),
+			);
+			await refreshModels().catch(() => {});
+			setStatus({ kind: "info", text: "Ollama disconnected." });
+		} catch (error: unknown) {
+			if (isApiError(error) && error.status === 403) {
+				onForbidden();
+			} else {
+				setStatus({
+					kind: "error",
+					text: apiErrorDetail(error) ?? "Could not disconnect Ollama.",
+				});
+			}
+		} finally {
+			setPendingProviders((current) => {
+				const next = new Set(current);
+				next.delete("ollama");
 				return next;
 			});
 		}
@@ -535,8 +656,9 @@ export default function WorkspaceModels({
 
 			<div className="overflow-hidden rounded-[10px] border border-border bg-card dark:border-white/10">
 				{isLoading ? (
-					<div className="px-4 py-12 text-center text-[14px] font-medium text-faint dark:text-muted-foreground">
-						Loading…
+					<div className="flex items-center justify-center gap-2 px-4 py-12 text-[14px] font-medium text-faint dark:text-muted-foreground">
+						<Loader2 className="size-4 animate-spin" aria-hidden="true" />
+						<span>Loading…</span>
 					</div>
 				) : loadFailed ? (
 					<div className="px-4 py-12 text-center">
@@ -554,235 +676,384 @@ export default function WorkspaceModels({
 					</div>
 				) : providerGroups.length === 0 ? (
 					<div className="px-4 py-12 text-center text-[14px] font-medium text-faint dark:text-muted-foreground">
-						No models match your search.
+						No model providers are available.
 					</div>
 				) : (
-					providerGroups.map(
-						({ provider, models: providerModels, enabledCount, totalCount }) => (
-							<Collapsible
-								key={provider.name}
-								open={
-									searchQuery.trim().length > 0 ||
-									openProviders.has(provider.name)
-								}
-								onOpenChange={(open) => {
-									setOpenProviders((current) => {
-										const next = new Set(current);
-										if (open) next.add(provider.name);
-										else next.delete(provider.name);
-										return next;
-									});
-								}}
-								className="border-b border-hairline last:border-b-0 dark:border-white/5"
-							>
-								<CollapsibleTrigger className="group flex w-full cursor-pointer items-center gap-3 bg-sidebar px-4 py-3 text-left transition-colors hover:bg-hover dark:bg-white/[0.03] dark:hover:bg-white/[0.06]">
-									<ChevronDown className="size-4 shrink-0 text-faint transition-transform group-data-[state=closed]:-rotate-90" />
-									<div className="min-w-0 flex-1">
-										<div className="flex items-center gap-2">
-											<span className="text-[13.5px] font-semibold text-foreground">
-												{providerLabel(provider.name)}
-											</span>
+					<div className="grid min-h-[430px] md:grid-cols-[190px_minmax(0,1fr)]">
+						<nav
+							aria-label="Model providers"
+							className="flex gap-1 overflow-x-auto border-b border-hairline bg-sidebar p-2 md:flex-col md:overflow-x-visible md:border-r md:border-b-0 md:p-2.5 dark:border-white/5 dark:bg-white/[0.025]"
+						>
+							{providerGroups.map(
+								({ provider, enabledCount, totalCount }) => {
+									const isSelected =
+										provider.name === selectedGroup?.provider.name;
+									return (
+										<button
+											key={provider.name}
+											type="button"
+											aria-current={isSelected ? "page" : undefined}
+											onClick={() => {
+												setSelectedProvider(provider.name);
+											}}
+											className={`group flex min-w-[165px] cursor-pointer items-center gap-2.5 rounded-[8px] px-3 py-2.5 text-left transition-colors md:min-w-0 ${
+												isSelected
+													? "bg-card shadow-[0_1px_2px_rgba(0,0,0,0.05)] ring-1 ring-border dark:bg-white/[0.08] dark:ring-white/10"
+													: "hover:bg-hover dark:hover:bg-white/[0.05]"
+											}`}
+										>
 											<span
-												className={`size-1.5 rounded-full ${
-													provider.isConfigured
-														? "bg-emerald-500"
-														: "bg-faint"
+												className={`flex size-7 shrink-0 items-center justify-center rounded-[7px] border ${
+													isSelected
+														? "border-border bg-background dark:border-white/10 dark:bg-black/15"
+														: "border-transparent bg-card dark:bg-white/[0.05]"
 												}`}
-											/>
+											>
+												<ModelSelectorLogo
+													provider={provider.name}
+													className="size-4"
+												/>
+											</span>
+											<span className="min-w-0 flex-1">
+												<span className="flex items-center gap-1.5">
+													<span className="truncate text-[12.5px] font-semibold text-foreground">
+														{providerLabel(provider.name)}
+													</span>
+													<span
+														className={`size-1.5 shrink-0 rounded-full ${
+															provider.isConfigured
+																? "bg-emerald-500"
+																: "bg-faint"
+														}`}
+													/>
+												</span>
+												<span className="mt-0.5 block font-mono text-[9.5px] text-meta dark:text-panel-dim">
+													{enabledCount}/{totalCount} enabled
+												</span>
+											</span>
+										</button>
+									);
+								},
+							)}
+						</nav>
+
+						{selectedGroup && (
+							<div className="min-w-0">
+								<div className="border-b border-hairline px-4 py-4 dark:border-white/5 sm:px-5">
+									<div className="mb-3 flex items-start justify-between gap-4">
+										<div className="min-w-0">
+											<div className="flex items-center gap-2">
+												<h2 className="text-[15px] font-semibold text-foreground">
+													{providerLabel(selectedGroup.provider.name)}
+												</h2>
+												<span
+													className={`size-1.5 rounded-full ${
+														selectedGroup.provider.isConfigured
+															? "bg-emerald-500"
+															: "bg-faint"
+													}`}
+												/>
+											</div>
+											<p className="mt-0.5 text-[11px] text-meta dark:text-panel-dim">
+												{selectedGroup.provider.configurationType ===
+												"base_url"
+													? selectedGroup.provider.baseUrl
+														? `Connected to ${selectedGroup.provider.baseUrl}`
+														: "Ollama endpoint not configured"
+													: selectedGroup.provider.source === "database"
+														? `API key configured${
+																selectedGroup.provider.last4
+																	? `, ending in ${selectedGroup.provider.last4}`
+																	: ""
+															}`
+														: selectedGroup.provider.source === "environment"
+															? "Using deployment environment key"
+															: selectedGroup.provider.source === "adc"
+																? "Using Google Application Default Credentials"
+																: "API key not configured"}
+											</p>
 										</div>
-										<span className="mt-0.5 block text-[11px] text-meta dark:text-panel-dim">
-											{provider.source === "database"
-												? `API key configured${
-														provider.last4 ? `, ending in ${provider.last4}` : ""
-													}`
-												: provider.source === "environment"
-													? "Using deployment environment key"
-													: provider.source === "adc"
-														? "Using Google Application Default Credentials"
-														: "API key not configured"}
+										<span className="shrink-0 pt-0.5 text-[10.5px] text-meta dark:text-panel-dim">
+											<span className="font-mono">
+												{selectedGroup.enabledCount}/{selectedGroup.totalCount}
+											</span>{" "}
+											enabled
 										</span>
 									</div>
-									<span className="shrink-0 text-[10.5px] text-meta dark:text-panel-dim">
-										<span className="font-mono">{enabledCount}/{totalCount}</span> enabled
-									</span>
-								</CollapsibleTrigger>
-								<CollapsibleContent className="data-[state=closed]:animate-collapsible-up data-[state=open]:animate-collapsible-down overflow-hidden">
-									<form
-										className="flex flex-col gap-2 border-b border-hairline bg-card px-4 py-3 sm:flex-row sm:items-center dark:border-white/5"
-										onSubmit={(event) => {
-											event.preventDefault();
-											void handleProviderKeySave(provider);
-										}}
-									>
-										<Input
-											type="password"
-											autoComplete="new-password"
-											value={keyDrafts[provider.name] ?? ""}
-											onChange={(event) => {
-												setKeyDrafts((current) => ({
-													...current,
-													[provider.name]: event.target.value,
-												}));
-											}}
-											placeholder={
-												provider.isConfigured
-													? "Enter a new API key to replace the current key"
-													: "Enter API key"
-											}
-											aria-label={`${providerLabel(provider.name)} API key`}
-											disabled={pendingProviders.has(provider.name)}
-											className="h-9 flex-1 font-mono text-[12px]"
-										/>
-										<div className="flex items-center gap-2">
-											<HeaderButton
-												type="submit"
-												accent
-												disabled={
-													pendingProviders.has(provider.name) ||
-													!(keyDrafts[provider.name]?.trim())
-												}
+									{selectedGroup.provider.configurationType ===
+									"base_url" ? (
+										<div>
+											<form
+												className="flex flex-col gap-2 sm:flex-row sm:items-center"
+												onSubmit={(event) => {
+													event.preventDefault();
+													void handleOllamaConnect();
+												}}
 											>
-												{pendingProviders.has(provider.name)
-													? "Saving…"
-													: provider.source === "database"
-														? "Replace key"
-														: "Save key"}
-											</HeaderButton>
-											{provider.source === "database" && (
-												<button
-													type="button"
-													aria-label={`Remove ${providerLabel(provider.name)} API key`}
-													title="Remove stored API key"
-													disabled={pendingProviders.has(provider.name)}
-													onClick={() => {
-														void handleProviderKeyDelete(provider);
+												<Input
+													type="url"
+													value={ollamaUrlDraft}
+													onChange={(event) => {
+														setOllamaUrlDraft(event.target.value);
 													}}
-													className="flex size-8 cursor-pointer items-center justify-center rounded-[7px] text-faint transition-colors hover:bg-destructive/10 hover:text-destructive disabled:cursor-default disabled:opacity-50"
-												>
-													<Trash2 className="size-3.5" />
-												</button>
-											)}
-										</div>
-									</form>
-									{providerModels.length === 0 ? (
-										<div className="px-4 py-8 text-center text-[13px] text-faint">
-											No models available for this provider.
+													placeholder="http://localhost:11434"
+													aria-label="Ollama base URL"
+													disabled={pendingProviders.has("ollama")}
+													className="h-9 flex-1 font-mono text-[12px]"
+												/>
+												<div className="flex items-center gap-2">
+													<HeaderButton
+														type="submit"
+														accent
+														disabled={
+															pendingProviders.has("ollama") ||
+															!ollamaUrlDraft.trim()
+														}
+													>
+														{pendingProviders.has("ollama")
+															? "Connecting…"
+															: selectedGroup.provider.isConfigured
+																? "Connect & refresh"
+																: "Connect & discover"}
+													</HeaderButton>
+													{selectedGroup.provider.isConfigured && (
+														<>
+															<HeaderButton
+																type="button"
+																disabled={pendingProviders.has("ollama")}
+																onClick={() => {
+																	void handleOllamaDiscover();
+																}}
+															>
+																<RefreshCw className="size-3.5" />
+																Refresh
+															</HeaderButton>
+															<button
+																type="button"
+																aria-label="Disconnect Ollama"
+																title="Disconnect Ollama"
+																disabled={pendingProviders.has("ollama")}
+																onClick={() => {
+																	void handleOllamaDisconnect();
+																}}
+																className="flex size-8 cursor-pointer items-center justify-center rounded-[7px] text-faint transition-colors hover:bg-destructive/10 hover:text-destructive disabled:cursor-default disabled:opacity-50"
+															>
+																<Trash2 className="size-3.5" />
+															</button>
+														</>
+													)}
+												</div>
+											</form>
+											<p className="mt-2 text-[10.5px] leading-relaxed text-meta dark:text-panel-dim">
+												Use{" "}
+												<span className="font-mono">localhost:11434</span>{" "}
+												when the backend runs on the host,{" "}
+												<span className="font-mono">
+													host.docker.internal:11434
+												</span>{" "}
+												from Docker, a service name on a shared network, or
+												any remote URL reachable by the backend.
+											</p>
 										</div>
 									) : (
-										providerModels.map((model) => {
-								const key = `${model.provider}/${model.modelId}`;
-								return (
-									<div
-										key={key}
-										className="flex items-center gap-3 border-b border-hairline px-4 py-3 transition-colors last:border-b-0 hover:bg-sidebar dark:border-white/5 dark:hover:bg-white/5"
-									>
-										<ModelSelectorLogo
-											provider={model.chefSlug}
-											className={
-												model.isEnabled
-													? "size-4 shrink-0"
-													: "size-4 shrink-0 opacity-45"
-											}
-										/>
-										<div className="min-w-0 flex-1">
-											<div className="flex flex-wrap items-center gap-2">
-												<span
-													className={`text-[13.5px] font-semibold ${
-														model.isEnabled
-															? "text-foreground"
-															: "text-meta dark:text-panel-dim"
-													}`}
+										<form
+											className="flex flex-col gap-2 sm:flex-row sm:items-center"
+											onSubmit={(event) => {
+												event.preventDefault();
+												void handleProviderKeySave(selectedGroup.provider);
+											}}
+										>
+											<Input
+												type="password"
+												autoComplete="new-password"
+												value={keyDrafts[selectedGroup.provider.name] ?? ""}
+												onChange={(event) => {
+													setKeyDrafts((current) => ({
+														...current,
+														[selectedGroup.provider.name]:
+															event.target.value,
+													}));
+												}}
+												placeholder={
+													selectedGroup.provider.isConfigured
+														? "Enter a new API key to replace the current key"
+														: "Enter API key"
+												}
+												aria-label={`${providerLabel(selectedGroup.provider.name)} API key`}
+												disabled={pendingProviders.has(
+													selectedGroup.provider.name,
+												)}
+												className="h-9 flex-1 font-mono text-[12px]"
+											/>
+											<div className="flex items-center gap-2">
+												<HeaderButton
+													type="submit"
+													accent
+													disabled={
+														pendingProviders.has(
+															selectedGroup.provider.name,
+														) ||
+														!keyDrafts[
+															selectedGroup.provider.name
+														]?.trim()
+													}
 												>
-													{model.displayName}
-												</span>
-												{model.isDefault && (
-													<ModelBadge tone="accent">Default</ModelBadge>
-												)}
-												{model.deprecated && (
-													<ModelBadge tone="destructive">
-														No longer supported
-													</ModelBadge>
-												)}
-												{model.multimodal && (
-													<ModelBadge tone="neutral">Multimodal</ModelBadge>
-												)}
-												{model.supportsStructuredOutput && (
-													<ModelBadge tone="neutral">
-														Structured output
-													</ModelBadge>
+													{pendingProviders.has(
+														selectedGroup.provider.name,
+													)
+														? "Saving…"
+														: selectedGroup.provider.source === "database"
+															? "Replace key"
+															: "Save key"}
+												</HeaderButton>
+												{selectedGroup.provider.source === "database" && (
+													<button
+														type="button"
+														aria-label={`Remove ${providerLabel(selectedGroup.provider.name)} API key`}
+														title="Remove stored API key"
+														disabled={pendingProviders.has(
+															selectedGroup.provider.name,
+														)}
+														onClick={() => {
+															void handleProviderKeyDelete(
+																selectedGroup.provider,
+															);
+														}}
+														className="flex size-8 cursor-pointer items-center justify-center rounded-[7px] text-faint transition-colors hover:bg-destructive/10 hover:text-destructive disabled:cursor-default disabled:opacity-50"
+													>
+														<Trash2 className="size-3.5" />
+													</button>
 												)}
 											</div>
-											<span
-												className={`mt-0.5 block truncate font-mono text-[10.5px] ${
-													model.isEnabled
-														? "text-meta dark:text-panel-dim"
-														: "text-faint dark:text-panel-dim/70"
-												}`}
-											>
-												{model.modelId}
-											</span>
-										</div>
-										<button
-											type="button"
-											aria-label={
-												model.isDefault
-													? `Unset ${model.displayName} as the workspace default`
-													: `Set ${model.displayName} as the workspace default`
-											}
-											title={
-												model.isDefault
-													? "Unset as default (back to automatic)"
-													: "Set as workspace default"
-											}
-											// Only an enabled, supported model can be the default;
-											// default changes are serialized (they rewrite every
-											// row's flag), so all stars lock while one is in flight.
-											disabled={
-												pendingKeys.has(key) ||
-												isSyncing ||
-												isDefaultUpdating ||
-												!model.isEnabled ||
-												!provider.isConfigured ||
-												model.deprecated
-											}
-											onClick={() => {
-												void handleSetDefault(model);
-											}}
-											className="flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-[7px] transition-colors hover:bg-hover disabled:cursor-default disabled:opacity-50 disabled:hover:bg-transparent dark:hover:bg-white/10"
-										>
-											<Star
-												className={
-													model.isDefault
-														? "size-[15px] fill-current text-ink dark:text-white"
-														: "size-[15px] text-faint"
-												}
-											/>
-										</button>
-										<Switch
-											checked={model.isEnabled}
-											aria-label={`Enable ${model.displayName} (${model.modelId})`}
-											// Deprecated rows can only be turned off; a sync in
-											// flight would overwrite concurrent toggles, so rows
-											// lock while it runs.
-											disabled={
-												pendingKeys.has(key) ||
-												isSyncing ||
-												(!provider.isConfigured && !model.isEnabled) ||
-												(model.deprecated && !model.isEnabled)
-											}
-											onCheckedChange={(checked) => {
-												void handleToggle(model, checked);
-											}}
-											className="cursor-pointer data-[state=checked]:bg-petrol"
-										/>
-									</div>
-								);
-										})
+										</form>
 									)}
-								</CollapsibleContent>
-							</Collapsible>
-						),
-					)
+								</div>
+
+								{selectedGroup.models.length === 0 ? (
+									<div className="px-4 py-12 text-center text-[13px] text-faint">
+										{searchQuery.trim()
+											? "No models match your search for this provider."
+											: "No models available for this provider."}
+									</div>
+								) : (
+									selectedGroup.models.map((model) => {
+										const key = `${model.provider}/${model.modelId}`;
+										return (
+											<div
+												key={key}
+												className="flex items-center gap-3 border-b border-hairline px-4 py-3 transition-colors last:border-b-0 hover:bg-sidebar sm:px-5 dark:border-white/5 dark:hover:bg-white/5"
+											>
+												<ModelSelectorLogo
+													provider={model.chefSlug}
+													className={
+														model.isEnabled
+															? "size-4 shrink-0"
+															: "size-4 shrink-0 opacity-45"
+													}
+												/>
+												<div className="min-w-0 flex-1">
+													<div className="flex flex-wrap items-center gap-2">
+														<span
+															className={`text-[13.5px] font-semibold ${
+																model.isEnabled
+																	? "text-foreground"
+																	: "text-meta dark:text-panel-dim"
+															}`}
+														>
+															{model.displayName}
+														</span>
+														{model.isDefault && (
+															<ModelBadge tone="accent">Default</ModelBadge>
+														)}
+														{model.deprecated && (
+															<ModelBadge tone="destructive">
+																{model.provider === "ollama"
+																	? "Not found on Ollama"
+																	: "No longer supported"}
+															</ModelBadge>
+														)}
+														{!model.supportsTools &&
+															model.isAvailable && (
+																<ModelBadge tone="destructive">
+																	No tool support
+																</ModelBadge>
+															)}
+														{model.multimodal && (
+															<ModelBadge tone="neutral">Multimodal</ModelBadge>
+														)}
+														{model.supportsStructuredOutput && (
+															<ModelBadge tone="neutral">
+																Structured output
+															</ModelBadge>
+														)}
+													</div>
+													<span
+														className={`mt-0.5 block truncate font-mono text-[10.5px] ${
+															model.isEnabled
+																? "text-meta dark:text-panel-dim"
+																: "text-faint dark:text-panel-dim/70"
+														}`}
+													>
+														{model.modelId}
+													</span>
+												</div>
+												<button
+													type="button"
+													aria-label={
+														model.isDefault
+															? `Unset ${model.displayName} as the workspace default`
+															: `Set ${model.displayName} as the workspace default`
+													}
+													title={
+														model.isDefault
+															? "Unset as default (back to automatic)"
+															: "Set as workspace default"
+													}
+													disabled={
+														pendingKeys.has(key) ||
+														isSyncing ||
+														isDefaultUpdating ||
+														!model.isEnabled ||
+														!selectedGroup.provider.isConfigured ||
+														!model.supportsTools ||
+														model.deprecated
+													}
+													onClick={() => {
+														void handleSetDefault(model);
+													}}
+													className="flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-[7px] transition-colors hover:bg-hover disabled:cursor-default disabled:opacity-50 disabled:hover:bg-transparent dark:hover:bg-white/10"
+												>
+													<Star
+														className={
+															model.isDefault
+																? "size-[15px] fill-current text-ink dark:text-white"
+																: "size-[15px] text-faint"
+														}
+													/>
+												</button>
+												<Switch
+													checked={model.isEnabled}
+													aria-label={`Enable ${model.displayName} (${model.modelId})`}
+													disabled={
+														pendingKeys.has(key) ||
+														isSyncing ||
+														(!selectedGroup.provider.isConfigured &&
+															!model.isEnabled) ||
+														(!model.supportsTools && !model.isEnabled) ||
+														(model.deprecated && !model.isEnabled)
+													}
+													onCheckedChange={(checked) => {
+														void handleToggle(model, checked);
+													}}
+													className="cursor-pointer data-[state=checked]:bg-petrol"
+												/>
+											</div>
+										);
+									})
+								)}
+							</div>
+						)}
+					</div>
 				)}
 			</div>
 		</div>

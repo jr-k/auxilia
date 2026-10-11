@@ -151,7 +151,7 @@ class TriggerService(BaseService[TriggerDB, TriggerRepository]):
         available = {m.model_id for m in await self.model_service.list_available()}
         names = {
             m.model_id: m.display_name
-            for m in await self.model_service.list_whitelisted()
+            for m in await self.model_service.list_catalog()
         }
         team_ids = await self.repository.list_team_ids_for_triggers(
             [

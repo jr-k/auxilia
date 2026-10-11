@@ -602,9 +602,10 @@ class Agent:
             )
         model = ChatModelFactory().create(
             resolved.provider,
-            resolved.model_id,
+            resolved.runtime_model_id,
             resolved.api_key,
             reasoning_effort=reasoning_effort,
+            base_url=resolved.base_url,
         )
 
         middleware = build_parent_middleware(thread.created_at, agent.prepared)

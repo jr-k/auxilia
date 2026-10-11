@@ -1,5 +1,7 @@
 "use client";
 
+import { Suspense } from "react";
+import { Loader2 } from "lucide-react";
 import WorkspaceModels from "@/app/(protected)/settings/workspace-models";
 import { AuthShell } from "@/components/auth/auth-shell";
 
@@ -12,7 +14,7 @@ export default function ModelOnboardingPage() {
 		<AuthShell
 			wide
 			title="Connect an LLM"
-			description="Add a provider API key, then choose which models your workspace can use. Keys are encrypted before they are stored."
+			description="Connect a provider with an API key or an Ollama endpoint, then choose which models your workspace can use. Keys are encrypted before they are stored."
 			footer={
 				<>
 					You can add or replace keys later in{" "}
@@ -20,11 +22,20 @@ export default function ModelOnboardingPage() {
 				</>
 			}
 		>
-			<WorkspaceModels
-				syncOnMount
-				showSyncControl={false}
-				onForbidden={continueToAgents}
-			/>
+			<Suspense
+				fallback={
+					<div className="flex items-center justify-center gap-2 px-4 py-12 text-[14px] font-medium text-faint dark:text-muted-foreground">
+						<Loader2 className="size-4 animate-spin" aria-hidden="true" />
+						<span>Loading…</span>
+					</div>
+				}
+			>
+				<WorkspaceModels
+					syncOnMount
+					showSyncControl={false}
+					onForbidden={continueToAgents}
+				/>
+			</Suspense>
 
 			<button
 				type="button"

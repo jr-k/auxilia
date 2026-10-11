@@ -11,6 +11,7 @@ import type {
 	ManagedModel,
 	Model,
 	ModelProviderConfig,
+	OllamaDiscoveryResult,
 	WhitelistSyncResult,
 } from "@/types/models";
 
@@ -54,6 +55,33 @@ export async function deleteProviderApiKey(
 ): Promise<ModelProviderConfig> {
 	const response = await api.delete<ModelProviderConfig>(
 		`/model-providers/manage/${encodeURIComponent(provider)}/api-key`,
+	);
+	return response.data;
+}
+
+/** Validate, store, and discover models from a workspace Ollama endpoint. */
+export async function connectOllama(
+	baseUrl: string,
+): Promise<OllamaDiscoveryResult> {
+	const response = await api.put<OllamaDiscoveryResult>(
+		"/model-providers/manage/ollama",
+		{ baseUrl },
+	);
+	return response.data;
+}
+
+/** Refresh models from the currently configured Ollama endpoint. */
+export async function discoverOllama(): Promise<OllamaDiscoveryResult> {
+	const response = await api.post<OllamaDiscoveryResult>(
+		"/model-providers/manage/ollama/discover",
+	);
+	return response.data;
+}
+
+/** Disconnect Ollama while retaining model enablement decisions for reconnect. */
+export async function disconnectOllama(): Promise<ModelProviderConfig> {
+	const response = await api.delete<ModelProviderConfig>(
+		"/model-providers/manage/ollama",
 	);
 	return response.data;
 }

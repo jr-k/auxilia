@@ -74,6 +74,10 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    extra_hosts:
+      # Lets the backend reach an Ollama process running on the Docker host
+      # on Linux; Docker Desktop already resolves the same hostname.
+      - "host.docker.internal:host-gateway"
     restart: unless-stopped
     healthcheck:
       test:

@@ -19,16 +19,33 @@ class ProviderCredentialSource(str, Enum):
     none = "none"
 
 
+class ProviderConfigurationType(str, Enum):
+    api_key = "api_key"
+    base_url = "base_url"
+
+
 class ModelProviderConfigResponse(BaseModel):
     name: ModelProviderType
     is_configured: bool
     source: ProviderCredentialSource
+    configuration_type: ProviderConfigurationType = ProviderConfigurationType.api_key
+    base_url: str | None = None
     last4: str | None = None
     key_length: int | None = None
 
 
 class ModelProviderAPIKeyUpdate(BaseModel):
     api_key: str = Field(min_length=1, max_length=4096)
+
+
+class OllamaConnectionUpdate(BaseModel):
+    base_url: str = Field(min_length=1, max_length=2048)
+
+
+class OllamaDiscoveryResponse(BaseModel):
+    config: ModelProviderConfigResponse
+    discovered_count: int
+    available_count: int
 
 
 class ModelResponse(BaseModel):
@@ -73,6 +90,8 @@ class ManagedModelResponse(BaseModel):
     chef_slug: str
     multimodal: bool = False
     supports_structured_output: bool = False
+    supports_tools: bool = True
+    is_available: bool = True
     is_enabled: bool
     # The explicit admin choice only — no fallback here, so the Settings UI
     # shows an unset default as unset.

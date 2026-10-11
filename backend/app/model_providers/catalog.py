@@ -81,8 +81,9 @@ class ChatModelFactory:
         self,
         provider: str,
         model_id: str,
-        api_key: str,
+        api_key: str | None,
         reasoning_effort: str | None = None,
+        base_url: str | None = None,
     ):
         # `reasoning_effort` is a value from the model's whitelist-declared
         # levels (ModelService.ensure_available resolves and clamps it) —
@@ -95,6 +96,8 @@ class ChatModelFactory:
         # AIMessage on exhaustion). Leaving the SDK layer's default retries on
         # would multiply the layers — one transient failure could cost up to
         # middleware_attempts × sdk_attempts provider requests.
+        if provider != "ollama" and not api_key:
+            raise ValueError(f"Provider {provider} requires an API key")
         match provider:
             case "openai":
                 # Use Responses for every native OpenAI model so newly added
@@ -221,6 +224,17 @@ class ChatModelFactory:
                     model=model_id,
                     api_key=api_key,
                     max_retries=0,
+                )
+            case "ollama":
+                if not base_url:
+                    raise ValueError("Provider ollama requires a base URL")
+                return ChatOpenAI(
+                    base_url=f"{base_url.rstrip('/')}/v1",
+                    model=model_id,
+                    api_key="ollama",
+                    max_retries=0,
+                    streaming=True,
+                    timeout=None,
                 )
             case _:
                 raise ValueError(f"Provider {provider} not supported")

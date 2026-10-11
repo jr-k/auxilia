@@ -10,6 +10,8 @@ from app.model_providers.schemas import (
     ModelProviderConfigResponse,
     ModelProviderResponse,
     ModelResponse,
+    OllamaConnectionUpdate,
+    OllamaDiscoveryResponse,
     WhitelistSyncResponse,
 )
 from app.model_providers.service import ModelService, get_model_service
@@ -37,6 +39,32 @@ async def list_model_provider_configs(
     service: ModelService = Depends(get_model_service),
 ) -> list[ModelProviderConfigResponse]:
     return await service.list_provider_configs()
+
+
+@router.put("/manage/ollama", response_model=OllamaDiscoveryResponse)
+async def connect_ollama(
+    update: OllamaConnectionUpdate,
+    _: UserDB = Depends(require_admin),
+    service: ModelService = Depends(get_model_service),
+) -> OllamaDiscoveryResponse:
+    """Validate an Ollama endpoint, store it, and discover its local models."""
+    return await service.connect_ollama(update.base_url)
+
+
+@router.post("/manage/ollama/discover", response_model=OllamaDiscoveryResponse)
+async def refresh_ollama_models(
+    _: UserDB = Depends(require_admin),
+    service: ModelService = Depends(get_model_service),
+) -> OllamaDiscoveryResponse:
+    return await service.refresh_ollama()
+
+
+@router.delete("/manage/ollama", response_model=ModelProviderConfigResponse)
+async def disconnect_ollama(
+    _: UserDB = Depends(require_admin),
+    service: ModelService = Depends(get_model_service),
+) -> ModelProviderConfigResponse:
+    return await service.disconnect_ollama()
 
 
 @router.put(

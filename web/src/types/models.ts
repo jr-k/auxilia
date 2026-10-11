@@ -28,6 +28,8 @@ export interface ManagedModel {
 	chefSlug: string;
 	multimodal: boolean;
 	supportsStructuredOutput: boolean;
+	supportsTools: boolean;
+	isAvailable: boolean;
 	isEnabled: boolean;
 	// The explicit admin choice only (no fallback) — unset shows as unset.
 	isDefault: boolean;
@@ -44,8 +46,16 @@ export interface ModelProviderConfig {
 	name: string;
 	isConfigured: boolean;
 	source: ModelProviderCredentialSource;
+	configurationType: "api_key" | "base_url";
+	baseUrl: string | null;
 	last4: string | null;
 	keyLength: number | null;
+}
+
+export interface OllamaDiscoveryResult {
+	config: ModelProviderConfig;
+	discoveredCount: number;
+	availableCount: number;
 }
 
 export interface WhitelistSyncResult {

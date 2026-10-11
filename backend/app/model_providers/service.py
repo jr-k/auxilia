@@ -22,8 +22,18 @@ from app.exceptions import (
     NotFoundError,
 )
 from app.model_providers.catalog import GOOGLE_ADC_SENTINEL, provider_api_keys
-from app.model_providers.models import ModelDB, ModelProviderType
+from app.model_providers.models import (
+    ModelDB,
+    ModelProviderCatalogEntryDB,
+    ModelProviderType,
+)
+from app.model_providers.ollama import (
+    DiscoveredOllamaModel,
+    discover_ollama_models,
+    validate_ollama_url,
+)
 from app.model_providers.repository import (
+    ModelProviderCatalogRepository,
     ModelProviderCredentialRepository,
     ModelRepository,
 )
@@ -31,6 +41,8 @@ from app.model_providers.schemas import (
     ManagedModelResponse,
     ModelCreateDB,
     ModelProviderConfigResponse,
+    OllamaDiscoveryResponse,
+    ProviderConfigurationType,
     ProviderCredentialSource,
     WhitelistSyncResponse,
 )
@@ -51,7 +63,9 @@ class ResolvedModel(BaseModel):
 
     provider: str
     model_id: str
-    api_key: str
+    runtime_model_id: str
+    api_key: str | None = None
+    base_url: str | None = None
     # The effort to send: the thread's choice clamped to the whitelist
     # entry's declared levels, else the entry's applied default. None = the
     # model declares no default — send nothing, provider default applies.
@@ -72,9 +86,30 @@ def _managed(entry: SupportedModel | None, row: ModelDB) -> ManagedModelResponse
         supports_structured_output=(
             entry.supports_structured_output if entry else False
         ),
+        supports_tools=entry.supports_tools if entry else False,
+        is_available=entry.is_available if entry else False,
         is_enabled=row.is_enabled,
         is_default=row.is_default,
-        deprecated=entry is None,
+        deprecated=entry is None or not entry.is_available,
+    )
+
+
+def _catalog_entry(row: ModelProviderCatalogEntryDB) -> SupportedModel:
+    # Early Ollama discovery stored Qwen under Alibaba's vendor slug. Keep
+    # existing rows visually correct without requiring a fresh discovery.
+    chef_slug = "qwen" if row.chef.lower() == "qwen" else row.chef_slug
+    return SupportedModel(
+        provider=row.provider,
+        model_id=row.model_id,
+        runtime_model_id=row.runtime_model_id,
+        display_name=row.display_name,
+        chef=row.chef,
+        chef_slug=chef_slug,
+        multimodal=row.multimodal,
+        supports_structured_output=row.supports_structured_output,
+        supports_tools=row.supports_tools,
+        is_available=row.is_available,
+        supports_web_search=False,
     )
 
 
@@ -85,6 +120,7 @@ class ModelService(BaseService[ModelDB, ModelRepository]):
         super().__init__(db, ModelRepository(db, workspace_id))
         self.workspace_id = workspace_id
         self.credential_repository = ModelProviderCredentialRepository(db, workspace_id)
+        self.catalog_repository = ModelProviderCatalogRepository(db, workspace_id)
 
     async def _provider_api_keys(self) -> dict[str, str]:
         """Resolve credentials with encrypted DB values taking precedence.
@@ -101,15 +137,33 @@ class ModelService(BaseService[ModelDB, ModelRepository]):
         rows = await self.repository.list_all()
         return {(r.provider, r.model_id) for r in rows if r.is_enabled}
 
+    async def _effective_catalog(self) -> list[SupportedModel]:
+        curated = await get_whitelist()
+        discovered = [
+            _catalog_entry(row) for row in await self.catalog_repository.list_all()
+        ]
+        return [*curated, *discovered]
+
+    async def _provider_connection(
+        self, provider: str
+    ) -> tuple[str | None, str | None]:
+        if provider == ModelProviderType.ollama.value:
+            return None, await self.credential_repository.get_base_url(provider)
+        return (await self._provider_api_keys()).get(provider), None
+
     async def list_available(self) -> list[SupportedModel]:
         """The models users may pick: whitelist ∧ provider key ∧ admin-enabled."""
-        whitelist = await get_whitelist()
+        catalog = await self._effective_catalog()
         keys = await self._provider_api_keys()
+        base_urls = await self.credential_repository.list_base_urls()
         enabled = await self._enabled_keys()
         return [
             m
-            for m in whitelist
-            if m.provider in keys and (m.provider, m.model_id) in enabled
+            for m in catalog
+            if m.is_available
+            and m.supports_tools
+            and (m.provider in keys or m.provider in base_urls)
+            and (m.provider, m.model_id) in enabled
         ]
 
     async def ensure_available(
@@ -129,17 +183,25 @@ class ModelService(BaseService[ModelDB, ModelRepository]):
         `validate_reasoning_effort`."""
         if not model_id:
             raise ModelUnavailableError("", "no model is set")
-        whitelist = await get_whitelist()
-        entry = next((m for m in whitelist if m.model_id == model_id), None)
+        catalog = await self._effective_catalog()
+        entry = next((m for m in catalog if m.model_id == model_id), None)
         if entry is None:
             raise ModelUnavailableError(
                 model_id, "it is not in the supported model catalog"
             )
-        api_key = (await self._provider_api_keys()).get(entry.provider)
-        if not api_key:
+        if not entry.is_available:
+            raise ModelUnavailableError(
+                model_id, "it is no longer available from its provider"
+            )
+        if not entry.supports_tools:
+            raise ModelUnavailableError(
+                model_id, "it does not advertise the tool support Auxilia requires"
+            )
+        api_key, base_url = await self._provider_connection(entry.provider)
+        if not api_key and not base_url:
             raise ModelUnavailableError(
                 model_id,
-                f"provider '{entry.provider}' has no API key configured",
+                f"provider '{entry.provider}' is not configured",
             )
         row = await self.repository.get_by_provider_and_model_id(
             entry.provider, entry.model_id
@@ -166,7 +228,9 @@ class ModelService(BaseService[ModelDB, ModelRepository]):
         return ResolvedModel(
             provider=entry.provider,
             model_id=entry.model_id,
+            runtime_model_id=entry.runtime_model_id or entry.model_id,
             api_key=api_key,
+            base_url=base_url,
             reasoning_effort=reasoning_effort,
             supports_web_search=bool(entry.supports_web_search),
         )
@@ -211,6 +275,10 @@ class ModelService(BaseService[ModelDB, ModelRepository]):
         nowhere; callers fall back to the raw id."""
         return await get_whitelist()
 
+    async def list_catalog(self) -> list[SupportedModel]:
+        """Curated models plus this workspace's discovered provider models."""
+        return await self._effective_catalog()
+
     async def is_available(self, model_id: str | None) -> bool:
         try:
             await self.ensure_available(model_id)
@@ -224,7 +292,7 @@ class ModelService(BaseService[ModelDB, ModelRepository]):
         Providers without credentials are included so Settings can always show
         the complete catalog and let an admin configure them.
         """
-        whitelist = await get_whitelist()
+        catalog = await self._effective_catalog()
         rows = {(r.provider, r.model_id): r for r in await self.repository.list_all()}
 
         managed = [
@@ -236,26 +304,29 @@ class ModelService(BaseService[ModelDB, ModelRepository]):
                 chef_slug=m.chef_slug,
                 multimodal=m.multimodal,
                 supports_structured_output=m.supports_structured_output,
+                supports_tools=m.supports_tools,
+                is_available=m.is_available,
                 is_enabled=(row := rows.get((m.provider, m.model_id))) is not None
                 and row.is_enabled,
                 is_default=row is not None and row.is_default,
+                deprecated=not m.is_available,
             )
-            for m in whitelist
+            for m in catalog
         ]
-        whitelisted = {(m.provider, m.model_id) for m in whitelist}
+        catalog_keys = {(m.provider, m.model_id) for m in catalog}
         managed.extend(
             _managed(None, row)
             for key, row in sorted(rows.items())
-            if key not in whitelisted
+            if key not in catalog_keys
         )
         return managed
 
     async def set_enabled(
         self, provider: str, model_id: str, is_enabled: bool
     ) -> ManagedModelResponse:
-        whitelist = await get_whitelist()
+        catalog = await self._effective_catalog()
         entry = next(
-            (m for m in whitelist if m.provider == provider and m.model_id == model_id),
+            (m for m in catalog if m.provider == provider and m.model_id == model_id),
             None,
         )
         if entry is None:
@@ -264,10 +335,20 @@ class ModelService(BaseService[ModelDB, ModelRepository]):
             row = await self.repository.get_by_provider_and_model_id(provider, model_id)
             if row is None or is_enabled:
                 raise NotFoundError("Model not found in the supported catalog")
-        if is_enabled and provider not in await self._provider_api_keys():
-            raise DomainValidationError(
-                f"Configure an API key for provider '{provider}' before enabling models."
-            )
+        if is_enabled:
+            if entry is not None and not entry.is_available:
+                raise DomainValidationError(
+                    "Refresh Ollama before enabling a model that is no longer present."
+                )
+            if entry is not None and not entry.supports_tools:
+                raise DomainValidationError(
+                    "This model does not advertise tool support, which Auxilia requires."
+                )
+            api_key, base_url = await self._provider_connection(provider)
+            if not api_key and not base_url:
+                raise DomainValidationError(
+                    f"Configure provider '{provider}' before enabling models."
+                )
         if not is_enabled:
             available = await self.list_available()
             target_is_available = any(
@@ -348,9 +429,9 @@ class ModelService(BaseService[ModelDB, ModelRepository]):
             await self.db.flush()
             await self.db.refresh(row)
 
-        whitelist = await get_whitelist()
+        catalog = await self._effective_catalog()
         entry = next(
-            (m for m in whitelist if m.provider == provider and m.model_id == model_id),
+            (m for m in catalog if m.provider == provider and m.model_id == model_id),
             None,
         )
         return _managed(entry, row)
@@ -393,9 +474,26 @@ class ModelService(BaseService[ModelDB, ModelRepository]):
     async def list_provider_configs(self) -> list[ModelProviderConfigResponse]:
         stored = await self.credential_repository.list_api_keys()
         fallback = provider_api_keys()
+        base_urls = await self.credential_repository.list_base_urls()
         configs: list[ModelProviderConfigResponse] = []
         for provider_type in ModelProviderType:
             provider = provider_type.value
+            if provider_type is ModelProviderType.ollama:
+                base_url = base_urls.get(provider)
+                configs.append(
+                    ModelProviderConfigResponse(
+                        name=provider_type,
+                        is_configured=bool(base_url),
+                        source=(
+                            ProviderCredentialSource.database
+                            if base_url
+                            else ProviderCredentialSource.none
+                        ),
+                        configuration_type=ProviderConfigurationType.base_url,
+                        base_url=base_url,
+                    )
+                )
+                continue
             key = stored.get(provider) or fallback.get(provider)
             if provider in stored:
                 source = ProviderCredentialSource.database
@@ -426,6 +524,8 @@ class ModelService(BaseService[ModelDB, ModelRepository]):
         self, provider: str, api_key: str
     ) -> ModelProviderConfigResponse:
         provider_type = self._provider_type(provider)
+        if provider_type is ModelProviderType.ollama:
+            raise DomainValidationError("Ollama is configured with a base URL")
         api_key = api_key.strip()
         if not api_key:
             raise DomainValidationError("API key cannot be empty")
@@ -444,6 +544,8 @@ class ModelService(BaseService[ModelDB, ModelRepository]):
         self, provider: str
     ) -> ModelProviderConfigResponse:
         provider_type = self._provider_type(provider)
+        if provider_type is ModelProviderType.ollama:
+            raise DomainValidationError("Ollama is configured with a base URL")
         await self.credential_repository.delete_api_key(provider_type.value)
         configs = await self.list_provider_configs()
         config = next(config for config in configs if config.name == provider_type)
@@ -454,6 +556,76 @@ class ModelService(BaseService[ModelDB, ModelRepository]):
                 self.db.add(default)
                 await self.db.flush()
         return config
+
+    async def connect_ollama(self, base_url: str) -> OllamaDiscoveryResponse:
+        if self.workspace_id is None:
+            raise RuntimeError("workspace_id is required to configure Ollama")
+        normalized = await validate_ollama_url(base_url)
+        discovered = await discover_ollama_models(normalized)
+        await self.credential_repository.set_base_url(
+            ModelProviderType.ollama.value, normalized
+        )
+        return await self._persist_ollama_discovery(normalized, discovered)
+
+    async def refresh_ollama(self) -> OllamaDiscoveryResponse:
+        base_url = await self.credential_repository.get_base_url(
+            ModelProviderType.ollama.value
+        )
+        if not base_url:
+            raise DomainValidationError("Configure the Ollama base URL first")
+        discovered = await discover_ollama_models(base_url)
+        return await self._persist_ollama_discovery(base_url, discovered)
+
+    async def _persist_ollama_discovery(
+        self, base_url: str, discovered: list[DiscoveredOllamaModel]
+    ) -> OllamaDiscoveryResponse:
+        provider = ModelProviderType.ollama.value
+        await self.catalog_repository.mark_all_unavailable(provider)
+        for model in discovered:
+            await self.catalog_repository.upsert(
+                provider=provider,
+                **model.model_dump(),
+            )
+        usable_model_ids = {
+            model.model_id for model in discovered if model.supports_tools
+        }
+        default = await self.repository.get_default(for_update=True)
+        if (
+            default is not None
+            and default.provider == provider
+            and default.model_id not in usable_model_ids
+        ):
+            default.is_default = False
+            self.db.add(default)
+            await self.db.flush()
+        config = ModelProviderConfigResponse(
+            name=ModelProviderType.ollama,
+            is_configured=True,
+            source=ProviderCredentialSource.database,
+            configuration_type=ProviderConfigurationType.base_url,
+            base_url=base_url,
+        )
+        return OllamaDiscoveryResponse(
+            config=config,
+            discovered_count=len(discovered),
+            available_count=sum(model.supports_tools for model in discovered),
+        )
+
+    async def disconnect_ollama(self) -> ModelProviderConfigResponse:
+        provider = ModelProviderType.ollama.value
+        await self.credential_repository.delete_provider_config(provider)
+        await self.catalog_repository.mark_all_unavailable(provider)
+        default = await self.repository.get_default(for_update=True)
+        if default is not None and default.provider == provider:
+            default.is_default = False
+            self.db.add(default)
+            await self.db.flush()
+        return ModelProviderConfigResponse(
+            name=ModelProviderType.ollama,
+            is_configured=False,
+            source=ProviderCredentialSource.none,
+            configuration_type=ProviderConfigurationType.base_url,
+        )
 
     @staticmethod
     async def sync() -> WhitelistSyncResponse:

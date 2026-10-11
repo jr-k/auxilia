@@ -1,7 +1,9 @@
+"use client";
+
 import Image from "next/image";
 
 import { cn } from "@/lib/utils";
-import type { ComponentProps } from "react";
+import { useState, type ComponentProps } from "react";
 
 export type ModelSelectorLogoProps = Omit<
 	ComponentProps<"img">,
@@ -72,15 +74,47 @@ export type ModelSelectorLogoProps = Omit<
 export const ModelSelectorLogo = ({
 	provider,
 	className,
+	onError,
 	...props
-}: ModelSelectorLogoProps) => (
-	<Image
-		{...props}
-		alt={`${provider} logo`}
-		className={cn("size-3", provider === "openai" && "dark:invert", className)}
-		height={12}
-		// src={`https://models.dev/logos/${provider}.svg`}
-		src={`https://pub-7a6e8912b3c448b8a8bfa47a0363f7bc.r2.dev/assets/icons/${provider}.png`}
-		width={12}
-	/>
-);
+}: ModelSelectorLogoProps) => {
+	const [failedSources, setFailedSources] = useState<Record<string, number>>({});
+	const sources =
+		provider === "ollama"
+			? ["/provider-icons/ollama.svg"]
+			: provider === "qwen"
+				? ["/provider-icons/qwen.svg"]
+			: [
+					`https://pub-7a6e8912b3c448b8a8bfa47a0363f7bc.r2.dev/assets/icons/${provider}.png`,
+					`https://models.dev/logos/${provider}.svg`,
+					"/provider-icons/ollama.svg",
+				];
+	const sourceIndex = Math.min(failedSources[provider] ?? 0, sources.length - 1);
+	const source = sources[sourceIndex];
+
+	return (
+		<Image
+			{...props}
+			alt={`${provider} logo`}
+			className={cn(
+				"size-3",
+				(provider === "openai" ||
+					(source.endsWith(".svg") && provider !== "qwen")) &&
+					"dark:invert",
+				className,
+			)}
+			height={12}
+			src={source}
+			unoptimized={source.endsWith(".svg")}
+			width={12}
+			onError={(event) => {
+				onError?.(event);
+				if (sourceIndex < sources.length - 1) {
+					setFailedSources((current) => ({
+						...current,
+						[provider]: sourceIndex + 1,
+					}));
+				}
+			}}
+		/>
+	);
+};

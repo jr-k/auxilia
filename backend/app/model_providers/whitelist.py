@@ -23,7 +23,16 @@ from app.utils.remote_catalog import RemoteCatalog
 # Providers ChatModelFactory can drive. A whitelist entry with any other
 # provider is a data-entry error and fails validation (all-or-nothing).
 SUPPORTED_PROVIDERS: frozenset[str] = frozenset(
-    {"openai", "deepseek", "anthropic", "google", "xiaomi", "openrouter", "meta"}
+    {
+        "openai",
+        "deepseek",
+        "anthropic",
+        "google",
+        "xiaomi",
+        "openrouter",
+        "meta",
+        "ollama",
+    }
 )
 
 # The canonical reasoning-effort ladder (the industry superset, ordered from
@@ -78,6 +87,9 @@ _BUNDLED_PATH = Path(__file__).parent / "whitelist.yaml"
 class SupportedModel(BaseModel):
     provider: str
     model_id: str
+    # Normally identical to model_id. Workspace-discovered providers namespace
+    # the persisted id while sending this provider-native value at runtime.
+    runtime_model_id: str | None = None
     display_name: str
     # Model creator shown in the picker (logo lookup by slug). Defaults to the
     # provider; only differs when the creator isn't the serving provider
@@ -86,6 +98,8 @@ class SupportedModel(BaseModel):
     chef_slug: str | None = None
     multimodal: bool = False
     supports_structured_output: bool = False
+    supports_tools: bool = True
+    is_available: bool = True
     # None keeps older remote catalogs compatible: providers whose native
     # serving path supports server-side search inherit True. An entry may set
     # False explicitly if one model on such a provider does not support it.

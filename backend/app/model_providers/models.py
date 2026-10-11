@@ -15,6 +15,7 @@ class ModelProviderType(str, Enum):
     xiaomi = "xiaomi"
     openrouter = "openrouter"
     meta = "meta"
+    ollama = "ollama"
 
 
 class ModelDB(BaseDBModel, table=True):
@@ -56,7 +57,7 @@ class ModelDB(BaseDBModel, table=True):
 
 
 class ModelProviderCredentialDB(BaseDBModel, table=True):
-    """One encrypted workspace-level API key per model provider."""
+    """Workspace-level connection settings for one model provider."""
 
     __tablename__ = "model_provider_credentials"
 
@@ -68,6 +69,41 @@ class ModelProviderCredentialDB(BaseDBModel, table=True):
         ),
     )
 
-    workspace_id: UUID = Field(foreign_key="workspaces.id", index=True)
+    workspace_id: UUID = Field(
+        foreign_key="workspaces.id", ondelete="CASCADE", index=True
+    )
     provider: str = Field(nullable=False, index=True)
-    api_key_encrypted: str = Field(sa_column=Column(Text, nullable=False))
+    api_key_encrypted: str | None = Field(
+        default=None, sa_column=Column(Text, nullable=True)
+    )
+    base_url: str | None = Field(default=None, sa_column=Column(Text, nullable=True))
+
+
+class ModelProviderCatalogEntryDB(BaseDBModel, table=True):
+    """A model discovered from a workspace-specific provider such as Ollama."""
+
+    __tablename__ = "model_provider_catalog_entries"
+    __table_args__ = (
+        UniqueConstraint(
+            "workspace_id",
+            "provider",
+            "model_id",
+            name="uq_model_provider_catalog_workspace_provider_model",
+        ),
+    )
+
+    workspace_id: UUID = Field(
+        foreign_key="workspaces.id", ondelete="CASCADE", index=True
+    )
+    provider: str = Field(nullable=False, index=True)
+    # Auxilia-facing, globally unique id persisted on agents/threads/triggers.
+    model_id: str = Field(nullable=False)
+    # Provider-native id sent over the wire (for example ``qwen3:8b``).
+    runtime_model_id: str = Field(nullable=False)
+    display_name: str = Field(nullable=False)
+    chef: str = Field(nullable=False)
+    chef_slug: str = Field(nullable=False)
+    multimodal: bool = Field(default=False, nullable=False)
+    supports_structured_output: bool = Field(default=False, nullable=False)
+    supports_tools: bool = Field(default=False, nullable=False)
+    is_available: bool = Field(default=True, nullable=False)
