@@ -10,6 +10,7 @@
  * trailing slash away and FastAPI would then match `/skills/{skill_id}`.
  */
 import { api } from "@/lib/api/client";
+import type { BoundAgent } from "@/types/agents";
 import type {
 	Skill,
 	SkillDiff,
@@ -49,8 +50,18 @@ export async function updateSkill(
 	return response.data;
 }
 
-export async function deleteSkill(skillId: string): Promise<void> {
-	await api.delete(`/skills/${skillId}`);
+export async function listSkillAgents(skillId: string): Promise<BoundAgent[]> {
+	const response = await api.get<BoundAgent[]>(`/skills/${skillId}/agents`);
+	return response.data;
+}
+
+export async function deleteSkill(
+	skillId: string,
+	options: { detachAgents?: boolean } = {},
+): Promise<void> {
+	await api.delete(`/skills/${skillId}`, {
+		params: options.detachAgents ? { detachAgents: true } : undefined,
+	});
 }
 
 export function skillImageUrl(skillId: string, revision: string): string {

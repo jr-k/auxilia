@@ -33,6 +33,7 @@ import {
 	type ResourceScopeFilter,
 } from "@/lib/resource-scope-filter";
 import { AuthTypeBadge } from "./auth-type-badge";
+import { OAuthConnectionFollowUpDialog } from "./oauth-connection-follow-up-dialog";
 import { ServerIconTile } from "./server-icon-tile";
 import { useConnectionTest } from "../lib/use-connection-test";
 
@@ -47,24 +48,49 @@ interface MCPServerTableProps {
 /** Row-scoped Test button: label reflects the last run, tooltip carries the
  * full result message. */
 function RowTestButton({ server }: { server: MCPServer }) {
-	const { status, message, runSavedTest } = useConnectionTest();
+	const {
+		status,
+		message,
+		oauthFollowUpOpen,
+		setOauthFollowUpOpen,
+		runSavedTest,
+		verifySavedConnection,
+	} = useConnectionTest();
+	const [isVerifying, setIsVerifying] = useState(false);
+
+	const handleVerify = async () => {
+		setIsVerifying(true);
+		await verifySavedConnection(server.id);
+		setIsVerifying(false);
+	};
 
 	return (
-		<button
-			type="button"
-			title={message ?? "Test the connection as you"}
-			disabled={status === "testing"}
-			onClick={() => {
-				void runSavedTest(server);
-			}}
-			className={`flex cursor-pointer items-center gap-1 rounded-[7px] border border-border px-[11px] py-[5px] text-[12px] font-semibold transition-colors hover:bg-sidebar disabled:cursor-default dark:hover:bg-white/5 ${
-				status === "error" ? "text-destructive" : "text-petrol"
-			}`}
-		>
-			{status === "success" && <Check className="size-3" />}
-			{status === "error" && <X className="size-3" />}
-			{status === "testing" ? "Testing…" : "Test"}
-		</button>
+		<>
+			<button
+				type="button"
+				title={message ?? "Test the connection as you"}
+				disabled={status === "testing"}
+				onClick={() => {
+					void runSavedTest(server);
+				}}
+				className={`flex cursor-pointer items-center gap-1 rounded-[7px] border border-border px-[11px] py-[5px] text-[12px] font-semibold transition-colors hover:bg-sidebar disabled:cursor-default dark:hover:bg-white/5 ${
+					status === "error" ? "text-destructive" : "text-petrol"
+				}`}
+			>
+				{status === "success" && <Check className="size-3" />}
+				{status === "error" && <X className="size-3" />}
+				{status === "testing" ? "Testing…" : "Test"}
+			</button>
+			<OAuthConnectionFollowUpDialog
+				open={oauthFollowUpOpen}
+				onOpenChange={setOauthFollowUpOpen}
+				onVerify={() => {
+					void handleVerify();
+				}}
+				isVerifying={isVerifying}
+				message={message === "Waiting for authentication…" ? null : message}
+			/>
+		</>
 	);
 }
 
@@ -379,7 +405,7 @@ export default function MCPServerTable({
 				resourceLabel="MCP server"
 				resourceName={deleteGuard?.server.name ?? null}
 				agents={deleteGuard?.agents ?? []}
-				consequence="they lose its tools"
+				consequence="access to its tools"
 				onConfirm={confirmDetachAndDelete}
 			/>
 			{actionError && (
@@ -395,6 +421,11 @@ export default function MCPServerTable({
 				items={bulkItems}
 				confirmLabel="Delete"
 				busyLabel="Deleting…"
+				acknowledgement={
+					bulkDetachIds.size > 0
+						? "I understand that these MCP servers will be removed from every agent using them and deleted permanently."
+						: undefined
+				}
 				onConfirm={async (items) => {
 					const results = await Promise.allSettled(
 						items.map((item) =>

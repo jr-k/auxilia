@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { AlertTriangle, Check, Trash2 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
 	Dialog,
 	DialogButton,
@@ -33,6 +34,7 @@ interface BulkConfirmDialogProps {
 	items: BulkConfirmItem[];
 	confirmLabel: string;
 	busyLabel?: string;
+	acknowledgement?: React.ReactNode;
 	onConfirm: (actionableItems: BulkConfirmItem[]) => Promise<BulkFailure[]>;
 }
 
@@ -44,10 +46,12 @@ export function BulkConfirmDialog({
 	items,
 	confirmLabel,
 	busyLabel = "Working…",
+	acknowledgement,
 	onConfirm,
 }: BulkConfirmDialogProps) {
 	const [isBusy, setIsBusy] = useState(false);
 	const [failures, setFailures] = useState<BulkFailure[]>([]);
+	const [acknowledged, setAcknowledged] = useState(false);
 	const actionable = useMemo(
 		() => items.filter((item) => !item.blockedReason),
 		[items],
@@ -58,11 +62,13 @@ export function BulkConfirmDialog({
 		if (!nextOpen) {
 			setIsBusy(false);
 			setFailures([]);
+			setAcknowledged(false);
 		}
 		onOpenChange(nextOpen);
 	};
 
 	const handleConfirm = async () => {
+		if (acknowledgement && !acknowledged) return;
 		setIsBusy(true);
 		setFailures([]);
 		try {
@@ -130,6 +136,25 @@ export function BulkConfirmDialog({
 							and will be left untouched.
 						</div>
 					)}
+					{acknowledgement && failures.length === 0 && (
+						<div className="flex items-start gap-3 rounded-[9px] border border-[#B04A3A]/20 bg-[#FBEFED]/70 px-3.5 py-3 dark:border-[#B04A3A]/25 dark:bg-[#B04A3A]/10">
+							<Checkbox
+								checked={acknowledged}
+								aria-label="Confirm destructive bulk action"
+								onCheckedChange={setAcknowledged}
+								className="mt-0.5 border-[#B04A3A]/45"
+							/>
+							<button
+								type="button"
+								onClick={() => {
+									setAcknowledged((current) => !current);
+								}}
+								className="cursor-pointer text-left text-[12px] leading-[1.5] text-[#86392F] dark:text-[#E7A69D]"
+							>
+								{acknowledgement}
+							</button>
+						</div>
+					)}
 					{failures.length > 0 && (
 						<div className="rounded-[9px] bg-[#FBEFED] px-3.5 py-2.5 text-[12px] leading-[1.45] text-[#B04A3A] dark:bg-[#B04A3A]/10">
 							<p className="font-semibold">
@@ -160,7 +185,7 @@ export function BulkConfirmDialog({
 					{failures.length === 0 && actionable.length > 0 && (
 						<DialogButton
 							variant="destructive"
-							disabled={isBusy}
+							disabled={isBusy || (!!acknowledgement && !acknowledged)}
 							onClick={() => {
 								void handleConfirm();
 							}}

@@ -233,13 +233,32 @@ class SkillService(BaseService[SkillDB, SkillRepository]):
         await self._editable(skill_id, user)
         await self.repository.delete_image(skill_id)
 
-    async def delete(self, skill_id: UUID, user: UserDB) -> None:
+    async def list_bound_agents(
+        self, skill_id: UUID, user: UserDB
+    ) -> list[SkillAgentRef]:
+        row = await self._editable(skill_id, user)
+        return [
+            SkillAgentRef(
+                id=agent.id,
+                name=agent.name,
+                emoji=agent.emoji,
+                color=agent.color,
+                image_revision=agent.image_revision,
+            )
+            for agent in await self.repository.list_bound_agents(row.id)
+        ]
+
+    async def delete(
+        self, skill_id: UUID, user: UserDB, *, detach_agents: bool = False
+    ) -> None:
         # Deleting is not editing: a sourced skill, detached or not, is
         # removed from the library here like any other. What the repository
         # owns is the *content* — nothing here can write it — and dropping a
         # row the repository still has is undone by a sync.
         row = await self._editable(skill_id, user)
-        if await self.repository.is_attached(row.id):
+        if detach_agents:
+            await self.repository.delete_links_for_skill(row.id)
+        elif await self.repository.is_attached(row.id):
             raise DomainValidationError(
                 "Disable this skill on every agent before deleting it"
             )

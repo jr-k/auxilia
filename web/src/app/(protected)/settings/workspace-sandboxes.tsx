@@ -11,6 +11,7 @@ import {
 	SANDBOX_PROVIDER_LABELS,
 } from "@/lib/sandbox-providers";
 import * as sandboxesApi from "@/lib/api/resources/sandboxes";
+import { useAgentsStore } from "@/stores/agents-store";
 import type { BoundAgent } from "@/types/agents";
 import type { Sandbox } from "@/types/sandboxes";
 import SandboxDialog from "./sandbox-dialog";
@@ -110,6 +111,7 @@ export default function WorkspaceSandboxes({
 			)
 				return;
 			await sandboxesApi.deleteSandbox(sandbox.id);
+			useAgentsStore.getState().removeSandboxBinding(sandbox.id);
 			setSandboxes((prev) => prev.filter((s) => s.id !== sandbox.id));
 		} catch (error: unknown) {
 			if (isForbidden(error)) {
@@ -134,6 +136,7 @@ export default function WorkspaceSandboxes({
 			}
 			throw error; // the dialog shows its own banner
 		}
+		useAgentsStore.getState().removeSandboxBinding(sandbox.id);
 		setSandboxes((prev) => prev.filter((s) => s.id !== sandbox.id));
 	};
 
@@ -162,7 +165,7 @@ export default function WorkspaceSandboxes({
 				resourceLabel="Sandbox"
 				resourceName={deleteTarget?.sandbox.name ?? null}
 				agents={deleteTarget?.agents ?? []}
-				consequence="they lose code execution"
+				consequence="code execution"
 				onConfirm={handleDetachAndDelete}
 			/>
 

@@ -169,6 +169,7 @@ export default function SkillsPage() {
 				}}
 				skillName={remove.guard?.skill.name ?? null}
 				agents={remove.guard?.agents ?? []}
+				onConfirm={remove.confirmDetachAndDelete}
 			/>
 			<ConfirmDialog
 				open={remove.pending !== null}
@@ -284,7 +285,7 @@ export default function SkillsPage() {
 					}}
 					onDelete={(skill) => {
 						setError(null);
-						remove.requestDelete(skill);
+						void remove.requestDelete(skill);
 					}}
 				/>
 				</>

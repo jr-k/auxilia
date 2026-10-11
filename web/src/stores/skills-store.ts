@@ -27,7 +27,7 @@ interface SkillsState {
 		patch: Partial<Omit<BoundAgent, "id">>,
 	) => void;
 	removeAgentUsage: (agentId: string) => void;
-	deleteSkill: (id: string) => Promise<void>;
+	deleteSkill: (id: string, options?: { detachAgents?: boolean }) => Promise<void>;
 	/** Sourced skills: what the newest synced version changes, and adopting it. */
 	getSkillDiff: (id: string) => Promise<SkillDiff>;
 	adoptSkill: (id: string) => Promise<Skill>;
@@ -145,8 +145,8 @@ export const useSkillsStore = create<SkillsState>((set, get) => ({
 			}),
 		}));
 	},
-	deleteSkill: async (id) => {
-		await skillsApi.deleteSkill(id);
+	deleteSkill: async (id, options) => {
+		await skillsApi.deleteSkill(id, options);
 		set((state) => ({
 			skills: state.skills.filter((skill) => skill.id !== id),
 		}));

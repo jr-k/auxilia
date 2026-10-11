@@ -230,8 +230,8 @@ class SkillImageDB(BaseDBModel, table=True):
 class AgentSkillDB(TimestampMixin, SQLModel, table=True):
     """A skill enabled on an agent. Cascades with either side: an agent's
     deletion drops its bindings, and a user's deletion drops their skills'
-    bindings on every agent. Deleting a skill *through the API* is refused
-    while any binding exists."""
+    bindings on every agent. The API requires an explicit detach option before
+    deleting a skill that still has bindings."""
 
     __tablename__ = "agent_skills"
 

@@ -1,6 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import Link from "next/link";
+import { ChevronRight } from "lucide-react";
+import { AgentAvatar } from "@/components/ui/agent-avatar";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
 	Dialog,
 	DialogButton,
@@ -37,21 +41,24 @@ export default function ResourceInUseDialog({
 }: ResourceInUseDialogProps) {
 	const [isDeleting, setIsDeleting] = useState(false);
 	const [error, setError] = useState<string | null>(null);
+	const [acknowledged, setAcknowledged] = useState(false);
 
-	// A failure from a previous confirm must not greet the next open.
-	useEffect(() => {
-		if (open) {
+	const handleOpenChange = (nextOpen: boolean) => {
+		if (!nextOpen) {
 			setError(null);
 			setIsDeleting(false);
+			setAcknowledged(false);
 		}
-	}, [open]);
+		onOpenChange(nextOpen);
+	};
 
 	const handleConfirm = async () => {
+		if (!acknowledged) return;
 		setIsDeleting(true);
 		setError(null);
 		try {
 			await onConfirm();
-			onOpenChange(false);
+			handleOpenChange(false);
 		} catch {
 			setError(`Could not delete the ${resourceLabel.toLowerCase()}. Please try again.`);
 		} finally {
@@ -62,13 +69,13 @@ export default function ResourceInUseDialog({
 	if (!resourceName) return null;
 
 	return (
-		<Dialog open={open} onOpenChange={onOpenChange}>
+		<Dialog open={open} onOpenChange={handleOpenChange}>
 			<DialogContent className="sm:max-w-[480px]">
 				<DialogHeader>
-					<DialogTitle>{resourceLabel} in use</DialogTitle>
+					<DialogTitle>{resourceLabel} assigned to agents</DialogTitle>
 					<DialogDescription>
-						&ldquo;{resourceName}&rdquo; can&apos;t be removed, it&apos;s
-						still enabled on {agents.length === 1 ? "this agent" : "these agents"}:
+						&ldquo;{resourceName}&rdquo; is still enabled on{" "}
+						{agents.length === 1 ? "this agent" : `these ${agents.length} agents`}.
 					</DialogDescription>
 				</DialogHeader>
 
@@ -80,41 +87,64 @@ export default function ResourceInUseDialog({
 
 				<div className="max-h-[240px] overflow-y-auto rounded-[10px] border border-hairline dark:border-white/10 [scrollbar-width:thin]">
 					{agents.map((agent) => (
-						<div
+						<Link
 							key={agent.id}
-							className="flex items-center gap-2.5 border-b border-hairline px-3.5 py-2.5 last:border-b-0 dark:border-white/5"
+							href={`/agents/${agent.id}`}
+							className="flex items-center gap-2.5 border-b border-hairline px-3.5 py-2.5 transition-colors last:border-b-0 hover:bg-sidebar dark:border-white/5 dark:hover:bg-white/5"
 						>
-							<span
-								className="flex size-[26px] shrink-0 items-center justify-center rounded-[6px] text-[13px]"
-								style={{ backgroundColor: `${agent.color ?? "#9E9E9E"}1A` }}
-							>
-								{agent.emoji ?? "🤖"}
-							</span>
-							<span className="truncate text-[13.5px] font-semibold text-foreground">
+							<AgentAvatar
+								agentId={agent.id}
+								name={agent.name}
+								imageRevision={agent.imageRevision}
+								color={agent.color}
+								emoji={agent.emoji}
+								size="xs"
+							/>
+							<span className="min-w-0 flex-1 truncate text-[13px] font-semibold text-petrol">
 								{agent.name}
 							</span>
-						</div>
+							<ChevronRight className="size-3.5 shrink-0 text-faint dark:text-panel-dim" />
+						</Link>
 					))}
 				</div>
 
 				<p className="text-[13px] leading-[1.55] text-subtle dark:text-panel-body">
-					Removing it will detach the {resourceLabel.toLowerCase()} from{" "}
-					{agents.length === 1 ? "this agent" : `these ${agents.length} agents`}{" "}
-					{consequence}. Threads are unaffected.
+					The {resourceLabel.toLowerCase()} will be detached automatically. The affected{" "}
+					{agents.length === 1 ? "agent" : "agents"} will lose {consequence}. Threads are unaffected.
 				</p>
+
+				<div className="flex items-start gap-3 rounded-[10px] border border-[#B04A3A]/20 bg-[#FBEFED]/70 px-3.5 py-3 dark:border-[#B04A3A]/25 dark:bg-[#B04A3A]/10">
+					<Checkbox
+						checked={acknowledged}
+						aria-label="Confirm detach and delete"
+						onCheckedChange={setAcknowledged}
+						className="mt-0.5 border-[#B04A3A]/45"
+					/>
+					<button
+						type="button"
+						onClick={() => {
+							setAcknowledged((current) => !current);
+						}}
+						className="cursor-pointer text-left text-[12.5px] leading-[1.5] text-[#86392F] dark:text-[#E7A69D]"
+					>
+						I understand that <span className="font-semibold">{resourceName}</span> will be
+						removed from {agents.length === 1 ? "1 agent" : `${agents.length} agents`} and
+						deleted permanently.
+					</button>
+				</div>
 
 				<DialogFooter>
 					<DialogButton
 						variant="outline"
 						onClick={() => {
-							onOpenChange(false);
+							handleOpenChange(false);
 						}}
 					>
 						Cancel
 					</DialogButton>
 					<button
 						type="button"
-						disabled={isDeleting}
+						disabled={isDeleting || !acknowledged}
 						onClick={() => {
 							void handleConfirm();
 						}}
