@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.11.40](https://github.com/jr-k/auxilia/compare/web-v0.11.39...web-v0.11.40) (2026-10-11)
+
+
+### Features
+
+* **mcp:** add Google Compute service credentials and refine copy ([#82](https://github.com/jr-k/auxilia/issues/82)) ([5171df7](https://github.com/jr-k/auxilia/commit/5171df798e34d851202c31e87d20d8690a60a76e))
+* **ui:** improve destructive resource and OAuth flows ([#80](https://github.com/jr-k/auxilia/issues/80)) ([1e255f8](https://github.com/jr-k/auxilia/commit/1e255f897f17e615a7260823072494131061d125))
+
 ## [0.11.39](https://github.com/jr-k/auxilia/compare/web-v0.11.38...web-v0.11.39) (2026-10-11)
 
 
