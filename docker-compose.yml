@@ -49,7 +49,9 @@ services:
       # Redis
       REDIS_HOST: redis
       REDIS_PORT: 6379
+      MCP_CATALOG_URL: ${MCP_CATALOG_URL-https://pub-fee562950db945e0af49322d187f2a02.r2.dev/mcp/catalog.yaml}
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+      BACKEND_URL: ${BACKEND_URL:-http://localhost:8000}
       BACKEND_JWT_SECRET_KEY: ${BACKEND_JWT_SECRET_KEY:-change-me-in-production}
       BACKEND_COOKIE_SECURE: ${BACKEND_COOKIE_SECURE:-false}
       BACKEND_ENCRYPTION_SALT: ${BACKEND_ENCRYPTION_SALT:-${MCP_API_KEY_ENCRYPTION_SALT:-changeme}}

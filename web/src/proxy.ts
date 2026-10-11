@@ -7,6 +7,32 @@ const PUBLIC_PATHS = ["/auth", "/setup", "/invite"];
 // the verify fetch throw on every request and bounces signed-in users to /auth.
 const BACKEND_URL = process.env.BACKEND_URL || "http://localhost:8000";
 
+function oauthReturnTo(value: string | null): string | null {
+	if (!value || !value.startsWith("/") || value.startsWith("//")) return null;
+	try {
+		const target = new URL(value, "http://auxilia.local");
+		if (
+			target.origin !== "http://auxilia.local" ||
+			target.pathname !== "/mcp/authorize"
+		) {
+			return null;
+		}
+		return `${target.pathname}${target.search}`;
+	} catch {
+		return null;
+	}
+}
+
+function authRedirect(request: NextRequest): NextResponse {
+	const target =
+		request.nextUrl.pathname === "/mcp/authorize"
+			? `${request.nextUrl.pathname}${request.nextUrl.search}`
+			: null;
+	const url = new URL("/auth", request.url);
+	if (target) url.searchParams.set("returnTo", target);
+	return NextResponse.redirect(url);
+}
+
 export async function proxy(request: NextRequest) {
 	const { pathname } = request.nextUrl;
 	const accessToken = request.cookies.get("access_token")?.value;
@@ -40,6 +66,12 @@ export async function proxy(request: NextRequest) {
 				// another workspace. Auth/setup pages are no longer useful once
 				// authenticated, but invite pages must remain reachable.
 				if (isPublicPath && !isInvitePath) {
+					const returnTo = oauthReturnTo(
+						request.nextUrl.searchParams.get("returnTo"),
+					);
+					if (returnTo) {
+						return NextResponse.redirect(new URL(returnTo, request.url));
+					}
 					return NextResponse.redirect(new URL("/agents", request.url));
 				}
 				return NextResponse.next();
@@ -57,14 +89,14 @@ export async function proxy(request: NextRequest) {
 
 		const response = isInvitePath
 			? NextResponse.next()
-			: NextResponse.redirect(new URL("/auth", request.url));
+			: authRedirect(request);
 		response.cookies.delete("access_token");
 		response.cookies.delete("active_workspace_id");
 		return response;
 	}
 
 	if (!isPublicPath) {
-		return NextResponse.redirect(new URL("/auth", request.url));
+		return authRedirect(request);
 	}
 
 	return NextResponse.next();

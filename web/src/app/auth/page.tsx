@@ -36,9 +36,26 @@ function GoogleIcon() {
 	);
 }
 
+function oauthReturnTo(value: string | null): string | null {
+	if (!value || !value.startsWith("/") || value.startsWith("//")) return null;
+	try {
+		const target = new URL(value, "http://auxilia.local");
+		if (
+			target.origin !== "http://auxilia.local" ||
+			target.pathname !== "/mcp/authorize"
+		) {
+			return null;
+		}
+		return `${target.pathname}${target.search}`;
+	} catch {
+		return null;
+	}
+}
+
 function AuthPageContent() {
 	const router = useRouter();
 	const searchParams = useSearchParams();
+	const returnTo = oauthReturnTo(searchParams.get("returnTo"));
 	const [isLoading, setIsLoading] = useState(false);
 	const [error, setError] = useState<string | null>(() =>
 		searchParams.get("error") === "no_invite"
@@ -80,7 +97,7 @@ function AuthPageContent() {
 				setTwoFactorRequired(true);
 				return;
 			}
-			router.push("/agents");
+			router.push(returnTo ?? "/agents");
 		} catch (err: unknown) {
 			setError(getApiErrorMessage(err, "An error occurred"));
 		} finally {
@@ -95,7 +112,7 @@ function AuthPageContent() {
 		setIsLoading(true);
 		try {
 			await authApi.verifyTwoFactorSignIn(twoFactorCode);
-			router.push("/agents");
+			router.push(returnTo ?? "/agents");
 		} catch (err: unknown) {
 			setError(getApiErrorMessage(err, "Invalid authentication code"));
 		} finally {
@@ -104,7 +121,9 @@ function AuthPageContent() {
 	};
 
 	const signInWithGoogle = () => {
-		window.location.href = "/api/backend/auth/google";
+		const target = new URL("/api/backend/auth/google", window.location.origin);
+		if (returnTo) target.searchParams.set("return_to", returnTo);
+		window.location.href = `${target.pathname}${target.search}`;
 	};
 
 	if (providers?.setupRequired) {
@@ -161,7 +180,11 @@ function AuthPageContent() {
 							setTwoFactorRequired(false);
 							setTwoFactorCode("");
 							setError(null);
-							router.replace("/auth");
+							router.replace(
+								returnTo
+									? `/auth?returnTo=${encodeURIComponent(returnTo)}`
+									: "/auth",
+							);
 						}}
 						className="cursor-pointer text-[12.5px] font-semibold text-meta hover:text-foreground"
 					>

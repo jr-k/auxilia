@@ -8,16 +8,17 @@ from typing import Any
 from uuid import UUID
 
 from mcp.server.auth.middleware.auth_context import get_access_token
-from mcp.server.auth.provider import AccessToken
-from mcp.server.auth.settings import AuthSettings
+from mcp.server.auth.settings import (
+    AuthSettings,
+    ClientRegistrationOptions,
+    RevocationOptions,
+)
 from mcp.server.mcpserver import Context, MCPServer
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.core.service import AgentService
 from app.agents.schemas import AgentConfig
-from app.auth.dependencies import ROLE_HIERARCHY, WORKSPACE_HEADER
-from app.auth.tokens.repository import PersonalAccessTokenRepository
-from app.auth.tokens.service import TOKEN_PREFIX
+from app.auth.dependencies import ROLE_HIERARCHY
 from app.database import AsyncSessionLocal
 from app.exceptions import (
     DomainValidationError,
@@ -25,11 +26,12 @@ from app.exceptions import (
     NotFoundError,
     PermissionDeniedError,
 )
+from app.mcp.oauth.provider import auxilia_oauth_provider
+from app.mcp.oauth.service import issuer_url, resource_url
 from app.mcp.servers.service import MCPServerService
 from app.model_providers.service import ModelService
 from app.pagination import PageParams
 from app.runtime.api.protocol_service import ProtocolService
-from app.settings import app_settings
 from app.skills.schemas import SkillSave
 from app.skills.service import SkillService
 from app.threads.service import ThreadService
@@ -37,38 +39,20 @@ from app.users.models import UserDB, WorkspaceRole
 from app.workspaces.repository import WorkspaceRepository
 
 
-class AuxiliaTokenVerifier:
-    """Authenticate MCP calls with the same PATs as the HTTP API."""
-
-    async def verify_token(self, token: str) -> AccessToken | None:
-        if not token.startswith(TOKEN_PREFIX):
-            return None
-        async with AsyncSessionLocal() as db:
-            pat = await PersonalAccessTokenRepository(db).get_by_token(token)
-            if pat is None:
-                return None
-            return AccessToken(
-                token=token,
-                client_id=str(pat.id),
-                subject=str(pat.user_id),
-                scopes=["auxilia"],
-            )
-
-
 @asynccontextmanager
 async def _tool_session(
-    ctx: Context,
+    _ctx: Context,
     *,
     minimum_role: WorkspaceRole | None = None,
 ) -> AsyncIterator[tuple[AsyncSession, UserDB, UUID]]:
-    """Open one transaction and hydrate the PAT's workspace identity."""
+    """Open one transaction and hydrate the OAuth grant's workspace identity."""
     access_token = get_access_token()
     if access_token is None or access_token.subject is None:
-        raise InvalidCredentialsError("A valid personal access token is required")
-    headers = ctx.headers or {}
-    workspace_value = headers.get(WORKSPACE_HEADER)
-    if workspace_value is None:
-        raise DomainValidationError(f"{WORKSPACE_HEADER} is required")
+        raise InvalidCredentialsError("A valid OAuth access token is required")
+    claims = access_token.claims or {}
+    workspace_value = claims.get("workspace_id")
+    if not isinstance(workspace_value, str):
+        raise InvalidCredentialsError("The OAuth token has no workspace")
     try:
         workspace_id = UUID(workspace_value)
         user_id = UUID(access_token.subject)
@@ -113,11 +97,18 @@ auxilia_mcp = MCPServer(
         "Manage an Auxilia workspace: agents, skills, conversations, models, "
         "and MCP server bindings."
     ),
-    token_verifier=AuxiliaTokenVerifier(),
+    auth_server_provider=auxilia_oauth_provider,
     auth=AuthSettings(
-        issuer_url=app_settings.backend_url,
-        resource_server_url=None,
+        issuer_url=issuer_url(),
+        resource_server_url=resource_url(),
+        validate_token_resource=True,
         required_scopes=["auxilia"],
+        client_registration_options=ClientRegistrationOptions(
+            enabled=True,
+            valid_scopes=["auxilia"],
+            default_scopes=["auxilia"],
+        ),
+        revocation_options=RevocationOptions(enabled=True),
     ),
 )
 

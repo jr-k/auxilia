@@ -23,6 +23,7 @@ from app.integrations.tracing import flush_tracing
 from app.invites.router import router as invites_router
 from app.logging_config import configure_logging
 from app.mcp.apps.router import router as mcp_apps_router
+from app.mcp.oauth.router import router as mcp_oauth_router
 from app.mcp.router import auxilia_mcp
 from app.mcp.servers.router import router as mcp_servers_router
 from app.model_providers.router import router as model_providers_router
@@ -244,6 +245,7 @@ app.include_router(user_runs_router)
 app.include_router(auth_router)
 app.include_router(tokens_router)
 app.include_router(mcp_apps_router)
+app.include_router(mcp_oauth_router)
 app.include_router(mcp_servers_router)
 app.include_router(threads_router)
 app.include_router(triggers_router)

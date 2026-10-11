@@ -1,3 +1,4 @@
+from urllib.parse import urlencode, urlsplit
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -39,6 +40,15 @@ from app.workspaces.service import WorkspaceService, get_workspace_service
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 TWO_FACTOR_CHALLENGE_COOKIE = "two_factor_challenge"
+
+
+def _oauth_return_to(value: str | None) -> str | None:
+    if value is None or not value.startswith("/") or value.startswith("//"):
+        return None
+    parsed = urlsplit(value)
+    if parsed.scheme or parsed.netloc or parsed.path != "/mcp/authorize":
+        return None
+    return value
 
 
 def _attach_auth_cookie(response: Response, token: str) -> None:
@@ -287,6 +297,7 @@ async def accept_invite(
 async def google_login(
     request: Request,
     invite_token: str | None = None,
+    return_to: str | None = None,
     service: AuthService = Depends(get_auth_service),
     authentication: WorkspaceAuthenticationService = Depends(
         get_workspace_authentication_service
@@ -319,6 +330,11 @@ async def google_login(
         request.session["invite_token"] = invite_token
     else:
         request.session.pop("invite_token", None)
+    safe_return_to = _oauth_return_to(return_to)
+    if safe_return_to is not None:
+        request.session["auth_return_to"] = safe_return_to
+    else:
+        request.session.pop("auth_return_to", None)
     request.session["oauth_workspace_id"] = str(workspace_id)
 
     client = oauth.create_client("google")
@@ -377,6 +393,7 @@ async def google_callback(
         )
 
     invite_token = request.session.pop("invite_token", None)
+    return_to = _oauth_return_to(request.session.pop("auth_return_to", None))
     request.session.pop("oauth_workspace_id", None)
 
     try:
@@ -390,15 +407,21 @@ async def google_callback(
             workspace_id=workspace_id,
         )
     except NoInviteError:
+        query = {"error": "no_invite"}
+        if return_to is not None:
+            query["returnTo"] = return_to
         return RedirectResponse(
-            url=f"{auth_settings.FRONTEND_URL}/auth?error=no_invite",
+            url=f"{auth_settings.FRONTEND_URL}/auth?{urlencode(query)}",
             status_code=302,
         )
 
     if user.two_factor_enabled:
         challenge = create_scoped_token(user.id, "two_factor_signin")
+        query = {"two_factor": "required"}
+        if return_to is not None:
+            query["returnTo"] = return_to
         response = RedirectResponse(
-            url=f"{auth_settings.FRONTEND_URL}/auth?two_factor=required",
+            url=f"{auth_settings.FRONTEND_URL}/auth?{urlencode(query)}",
             status_code=302,
         )
         _attach_two_factor_cookie(response, challenge)
@@ -407,7 +430,7 @@ async def google_callback(
         return response
 
     response = RedirectResponse(
-        url=f"{auth_settings.FRONTEND_URL}/agents",
+        url=f"{auth_settings.FRONTEND_URL}{return_to or '/agents'}",
         status_code=302,
     )
     _attach_auth_cookie(response, access_token)
