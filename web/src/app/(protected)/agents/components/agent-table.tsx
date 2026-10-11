@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Agent, AgentPermission } from "@/types/agents";
 import { agentColorBackground } from "@/lib/colors";
@@ -10,6 +11,11 @@ import ForbiddenErrorDialog from "@/components/forbidden-error-dialog";
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import { Checkbox } from "@/components/ui/checkbox";
 import { SelectableLeading } from "@/components/ui/selectable-leading";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { UserAvatar } from "@/components/ui/user-avatar";
 import { cn } from "@/lib/utils";
 import { AgentAvatar } from "@/components/ui/agent-avatar";
@@ -163,37 +169,59 @@ export default function AgentTable({
 				);
 				return (
 					<span className="flex gap-1.5">
-						{servers.slice(0, MAX_INLINE_AVATARS).map((server, i) => (
-							<span
-								key={`${server.name}-${i}`}
-								title={server.name}
-								className="flex size-6 shrink-0 items-center justify-center overflow-hidden rounded-[6px] border border-border bg-card"
-							>
-								{/* eslint-disable-next-line @next/next/no-img-element */}
-								<img
-									width={20}
-									height={20}
-									src={
-										(server.imageRevision
-											? mcpServerImageUrl(server.id, server.imageRevision)
-											: server.iconUrl) ??
-										"https://pub-7a6e8912b3c448b8a8bfa47a0363f7bc.r2.dev/assets/icons/mcp.png"
-									}
-									alt={server.name}
-									className="size-5 rounded-[4px] object-cover"
-								/>
-							</span>
+						{servers.slice(0, MAX_INLINE_AVATARS).map((server) => (
+							<Tooltip key={server.id} delayDuration={250}>
+								<TooltipTrigger asChild>
+									<Link
+										href={`/mcp-servers/${server.id}`}
+										aria-label={`Open MCP server ${server.name}`}
+										onClick={(event) => {
+											event.stopPropagation();
+										}}
+										className="flex size-6 shrink-0 items-center justify-center overflow-hidden rounded-[6px] border border-border bg-card transition-[border-color,transform] hover:-translate-y-0.5 hover:border-petrol/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-petrol"
+									>
+										{/* eslint-disable-next-line @next/next/no-img-element */}
+										<img
+											width={20}
+											height={20}
+											src={
+												(server.imageRevision
+													? mcpServerImageUrl(server.id, server.imageRevision)
+													: server.iconUrl) ??
+												"https://pub-7a6e8912b3c448b8a8bfa47a0363f7bc.r2.dev/assets/icons/mcp.png"
+											}
+											alt=""
+											className="size-5 rounded-[4px] object-cover"
+										/>
+									</Link>
+								</TooltipTrigger>
+								<TooltipContent
+									side="top"
+									sideOffset={6}
+									className="px-2 py-1 text-[10.5px] font-medium shadow-[0_6px_20px_rgba(12,20,17,0.18)]"
+								>
+									{server.name}
+								</TooltipContent>
+							</Tooltip>
 						))}
 						{servers.length > MAX_INLINE_AVATARS && (
-							<span
-								title={servers
-									.slice(MAX_INLINE_AVATARS)
-									.map((s) => s.name)
-									.join(", ")}
-								className="flex size-6 shrink-0 items-center justify-center rounded-[6px] border border-border bg-card font-mono text-[9px] font-semibold text-meta"
-							>
-								+{servers.length - MAX_INLINE_AVATARS}
-							</span>
+							<Tooltip delayDuration={250}>
+								<TooltipTrigger asChild>
+									<span className="flex size-6 shrink-0 items-center justify-center rounded-[6px] border border-border bg-card font-mono text-[9px] font-semibold text-meta">
+										+{servers.length - MAX_INLINE_AVATARS}
+									</span>
+								</TooltipTrigger>
+								<TooltipContent
+									side="top"
+									sideOffset={6}
+									className="max-w-52 px-2 py-1 text-[10.5px] font-medium shadow-[0_6px_20px_rgba(12,20,17,0.18)]"
+								>
+									{servers
+										.slice(MAX_INLINE_AVATARS)
+										.map((server) => server.name)
+										.join(", ")}
+								</TooltipContent>
+							</Tooltip>
 						)}
 					</span>
 				);
@@ -208,29 +236,51 @@ export default function AgentTable({
 				return (
 					<span className="flex gap-1">
 						{subagents.slice(0, MAX_INLINE_AVATARS).map((sub) => (
-							<span
-								key={sub.id}
-								title={sub.name}
-								style={
-									sub.color
-										? { background: agentColorBackground(sub.color) }
-										: undefined
-								}
-								className="flex size-[22px] shrink-0 items-center justify-center rounded-full border border-[rgba(16,24,32,0.06)] bg-hover text-[11px]"
-							>
-								{sub.emoji || "🤖"}
-							</span>
+							<Tooltip key={sub.id} delayDuration={250}>
+								<TooltipTrigger asChild>
+									<Link
+										href={`/agents/${sub.id}`}
+										aria-label={`Open agent ${sub.name}`}
+										onClick={(event) => {
+											event.stopPropagation();
+										}}
+										style={
+											sub.color
+												? { background: agentColorBackground(sub.color) }
+												: undefined
+										}
+										className="flex size-[22px] shrink-0 items-center justify-center rounded-full border border-[rgba(16,24,32,0.06)] bg-hover text-[11px] transition-[border-color,transform] hover:-translate-y-0.5 hover:border-petrol/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-petrol"
+									>
+										{sub.emoji || "🤖"}
+									</Link>
+								</TooltipTrigger>
+								<TooltipContent
+									side="top"
+									sideOffset={6}
+									className="px-2 py-1 text-[10.5px] font-medium shadow-[0_6px_20px_rgba(12,20,17,0.18)]"
+								>
+									{sub.name}
+								</TooltipContent>
+							</Tooltip>
 						))}
 						{subagents.length > MAX_INLINE_AVATARS && (
-							<span
-								title={subagents
-									.slice(MAX_INLINE_AVATARS)
-									.map((s) => s.name)
-									.join(", ")}
-								className="flex size-[22px] shrink-0 items-center justify-center rounded-full border border-[rgba(16,24,32,0.06)] bg-hover font-mono text-[9px] font-semibold text-meta"
-							>
-								+{subagents.length - MAX_INLINE_AVATARS}
-							</span>
+							<Tooltip delayDuration={250}>
+								<TooltipTrigger asChild>
+									<span className="flex size-[22px] shrink-0 items-center justify-center rounded-full border border-[rgba(16,24,32,0.06)] bg-hover font-mono text-[9px] font-semibold text-meta">
+										+{subagents.length - MAX_INLINE_AVATARS}
+									</span>
+								</TooltipTrigger>
+								<TooltipContent
+									side="top"
+									sideOffset={6}
+									className="max-w-52 px-2 py-1 text-[10.5px] font-medium shadow-[0_6px_20px_rgba(12,20,17,0.18)]"
+								>
+									{subagents
+										.slice(MAX_INLINE_AVATARS)
+										.map((subagent) => subagent.name)
+										.join(", ")}
+								</TooltipContent>
+							</Tooltip>
 						)}
 					</span>
 				);

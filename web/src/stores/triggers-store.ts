@@ -8,6 +8,7 @@ import {
 import { createOnce } from "@/lib/api/once";
 import * as triggersApi from "@/lib/api/resources/triggers";
 import { getWorkspaceGeneration, isCurrentWorkspaceGeneration } from "@/lib/workspace-generation";
+import { useTriggerRunsStore } from "@/stores/trigger-runs-store";
 
 interface TriggersState {
 	triggers: Trigger[];
@@ -18,6 +19,7 @@ interface TriggersState {
 	deleteTrigger: (id: string) => Promise<void>;
 	runTrigger: (id: string) => Promise<TriggerRun>;
 	upsertTrigger: (trigger: Trigger) => void;
+	removeTriggersForAgent: (agentId: string) => void;
 }
 
 export const useTriggersStore = create<TriggersState>((set, get) => {
@@ -33,7 +35,6 @@ export const useTriggersStore = create<TriggersState>((set, get) => {
 		} catch (error) {
 			if (!isCurrentWorkspaceGeneration(generation)) return;
 			console.error("Error fetching triggers:", error);
-			set({ isInitialized: true });
 			throw error;
 		}
 	});
@@ -77,6 +78,15 @@ export const useTriggersStore = create<TriggersState>((set, get) => {
 						: [trigger, ...state.triggers],
 				};
 			});
+		},
+		removeTriggersForAgent: (agentId) => {
+			const triggerIds = get()
+				.triggers.filter((trigger) => trigger.agentId === agentId)
+				.map((trigger) => trigger.id);
+			useTriggerRunsStore.getState().removeTriggers(triggerIds);
+			set((state) => ({
+				triggers: state.triggers.filter((trigger) => trigger.agentId !== agentId),
+			}));
 		},
 	};
 });

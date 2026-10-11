@@ -21,6 +21,7 @@ import {
 	useResponseSoundEnabled,
 	useShowShortcutsInMenu,
 } from "@/lib/user-preferences";
+import { useAgentsStore } from "@/stores/agents-store";
 import { useAppearanceStore } from "@/stores/appearance-store";
 import { useUserStore } from "@/stores/user-store";
 import type { CurrentUser } from "@/types/auth";
@@ -188,7 +189,15 @@ function IdentityCard({ user }: { user: CurrentUser }) {
 				await usersApi.deleteProfileImage();
 				imageRevision = null;
 			}
-			setUser({ ...updated, imageRevision });
+			const nextUser = { ...updated, imageRevision };
+			setUser(nextUser);
+			useAgentsStore.getState().updateOwnerSnapshot(nextUser.id, {
+				id: nextUser.id,
+				name: nextUser.name,
+				email: nextUser.email,
+				pictureUrl: nextUser.pictureUrl,
+				imageRevision: nextUser.imageRevision,
+			});
 			setImageFile(null);
 			setImageRemoved(false);
 			setSuccess("Profile updated.");

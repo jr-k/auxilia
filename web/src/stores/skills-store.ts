@@ -9,6 +9,7 @@ import {
 	SkillSyncPlan,
 	SkillSummary,
 } from "@/types/skills";
+import type { BoundAgent } from "@/types/agents";
 import * as skillsApi from "@/lib/api/resources/skills";
 import { getWorkspaceGeneration, isCurrentWorkspaceGeneration } from "@/lib/workspace-generation";
 
@@ -20,6 +21,12 @@ interface SkillsState {
 	createSkill: (payload: SkillSave) => Promise<Skill>;
 	updateSkill: (id: string, payload: SkillSave) => Promise<Skill>;
 	setSkillImageRevision: (id: string, revision: string | null) => void;
+	syncAgentUsage: (agent: BoundAgent, skillIds: string[]) => void;
+	updateAgentUsage: (
+		agentId: string,
+		patch: Partial<Omit<BoundAgent, "id">>,
+	) => void;
+	removeAgentUsage: (agentId: string) => void;
 	deleteSkill: (id: string) => Promise<void>;
 	/** Sourced skills: what the newest synced version changes, and adopting it. */
 	getSkillDiff: (id: string) => Promise<SkillDiff>;
@@ -100,6 +107,42 @@ export const useSkillsStore = create<SkillsState>((set, get) => ({
 			skills: state.skills.map((skill) =>
 				skill.id === id ? { ...skill, imageRevision: revision } : skill,
 			),
+		}));
+	},
+	syncAgentUsage: (agent, skillIds) => {
+		const enabled = new Set(skillIds);
+		set((state) => ({
+			skills: state.skills.map((skill) => {
+				const agents = skill.agents.filter((candidate) => candidate.id !== agent.id);
+				if (enabled.has(skill.id)) {
+					agents.push(agent);
+					agents.sort((left, right) => left.name.localeCompare(right.name));
+				}
+				return { ...skill, agents, agentCount: agents.length };
+			}),
+		}));
+	},
+	updateAgentUsage: (agentId, patch) => {
+		set((state) => ({
+			skills: state.skills.map((skill) => {
+				if (!skill.agents.some((agent) => agent.id === agentId)) return skill;
+				return {
+					...skill,
+					agents: skill.agents.map((agent) =>
+						agent.id === agentId ? { ...agent, ...patch } : agent,
+					),
+				};
+			}),
+		}));
+	},
+	removeAgentUsage: (agentId) => {
+		set((state) => ({
+			skills: state.skills.map((skill) => {
+				const agents = skill.agents.filter((agent) => agent.id !== agentId);
+				return agents.length === skill.agents.length
+					? skill
+					: { ...skill, agents, agentCount: agents.length };
+			}),
 		}));
 	},
 	deleteSkill: async (id) => {

@@ -10,6 +10,7 @@ interface TriggerRunsState {
 	fetchRuns: (triggerId: string) => Promise<void>;
 	addRun: (triggerId: string, run: TriggerThread) => void;
 	removeRun: (threadId: string) => void;
+	removeTriggers: (triggerIds: string[]) => void;
 	/** Stamp a run outcome observed by the active-runs poll (Failed marker). */
 	setRunStatus: (threadId: string, status: RunTerminalStatus) => void;
 }
@@ -44,6 +45,16 @@ export const useTriggerRunsStore = create<TriggerRunsState>((set) => ({
 					triggerId,
 					runs.filter((run) => run.id !== threadId),
 				]),
+			),
+		}));
+	},
+	removeTriggers: (triggerIds) => {
+		const removed = new Set(triggerIds);
+		set((state) => ({
+			runsByTrigger: Object.fromEntries(
+				Object.entries(state.runsByTrigger).filter(
+					([triggerId]) => !removed.has(triggerId),
+				),
 			),
 		}));
 	},

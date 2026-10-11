@@ -18,6 +18,11 @@ import { DropdownMenu } from "@/components/ui/dropdown-menu";
 import { GroupedCardTree } from "@/components/ui/grouped-card-tree";
 import { SelectableLeading } from "@/components/ui/selectable-leading";
 import { SkillAvatar } from "@/components/ui/skill-avatar";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipTrigger,
+} from "@/components/ui/tooltip";
 import type { ViewMode } from "@/components/ui/view-toggle";
 import { useRowSelection } from "@/hooks/use-row-selection";
 import { getApiErrorMessage, toApiError } from "@/lib/api/errors";
@@ -62,19 +67,25 @@ interface SkillTableProps {
  * which a bare "3 agents" never showed. Past four the rest become a count,
  * and every avatar carries its agent's name for anyone hovering.
  */
-function UsedByAvatars({ agents }: { agents: BoundAgent[] }) {
+function UsedByAvatars({
+	agents,
+	interactive = false,
+}: {
+	agents: BoundAgent[];
+	interactive?: boolean;
+}) {
 	if (agents.length === 0) {
 		return <span className="text-[11px] text-ghost dark:text-panel-dim">None</span>;
 	}
 	const shown = agents.slice(0, 4);
 	const rest = agents.length - shown.length;
 	return (
-		<span className="flex items-center" title={agents.map((a) => a.name).join(", ")}>
-			{shown.map((agent) => (
-				<span
-					key={agent.id}
-					className="-ml-1.5 rounded-[5px] ring-2 ring-card first:ml-0 dark:ring-[#12191C]"
-				>
+		<span
+			className="flex items-center"
+			title={interactive ? undefined : agents.map((a) => a.name).join(", ")}
+		>
+			{shown.map((agent) => {
+				const avatar = (
 					<AgentAvatar
 						agentId={agent.id}
 						name={agent.name}
@@ -83,12 +94,65 @@ function UsedByAvatars({ agents }: { agents: BoundAgent[] }) {
 						emoji={agent.emoji}
 						size="xs"
 					/>
-				</span>
-			))}
+				);
+				if (!interactive) {
+					return (
+						<span
+							key={agent.id}
+							className="-ml-1.5 rounded-[5px] ring-2 ring-card first:ml-0 dark:ring-[#12191C]"
+						>
+							{avatar}
+						</span>
+					);
+				}
+				return (
+					<Tooltip key={agent.id} delayDuration={250}>
+						<TooltipTrigger asChild>
+							<Link
+								href={`/agents/${agent.id}`}
+								aria-label={`Open agent ${agent.name}`}
+								onClick={(event) => {
+									event.stopPropagation();
+								}}
+								className="-ml-1.5 rounded-[5px] ring-2 ring-card transition-transform first:ml-0 hover:z-10 hover:-translate-y-0.5 focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-petrol dark:ring-[#12191C]"
+							>
+								{avatar}
+							</Link>
+						</TooltipTrigger>
+						<TooltipContent
+							side="top"
+							sideOffset={6}
+							className="px-2 py-1 text-[10.5px] font-medium shadow-[0_6px_20px_rgba(12,20,17,0.18)]"
+						>
+							{agent.name}
+						</TooltipContent>
+					</Tooltip>
+				);
+			})}
 			{rest > 0 && (
-				<span className="ml-1.5 font-mono text-[11px] text-meta dark:text-panel-dim">
-					+{rest}
-				</span>
+				interactive ? (
+					<Tooltip delayDuration={250}>
+						<TooltipTrigger asChild>
+							<span className="ml-1.5 font-mono text-[11px] text-meta dark:text-panel-dim">
+								+{rest}
+							</span>
+						</TooltipTrigger>
+						<TooltipContent
+							side="top"
+							sideOffset={6}
+							className="max-w-52 px-2 py-1 text-[10.5px] font-medium shadow-[0_6px_20px_rgba(12,20,17,0.18)]"
+						>
+							{agents
+								.slice(shown.length)
+								.map((agent) => agent.name)
+								.join(", ")}
+						</TooltipContent>
+					</Tooltip>
+				) : (
+					<span className="ml-1.5 font-mono text-[11px] text-meta dark:text-panel-dim">
+						+{rest}
+					</span>
+				)
 			)}
 		</span>
 	);
@@ -365,7 +429,7 @@ export default function SkillTable({
 			key: "used",
 			header: "Used by",
 			width: "110px",
-			cell: (skill) => <UsedByAvatars agents={skill.agents} />,
+			cell: (skill) => <UsedByAvatars agents={skill.agents} interactive />,
 		},
 		{
 			key: "updated",
