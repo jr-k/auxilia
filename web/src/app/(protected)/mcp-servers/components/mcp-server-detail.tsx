@@ -31,6 +31,7 @@ import { ConnectedUsersPanel } from "./connected-users-panel";
 import { ConnectionTestBanner } from "./connection-test-banner";
 import { MCPServerToolsPanel } from "./mcp-server-tools-panel";
 import { OAuthCallbackUrl } from "./oauth-callback-url";
+import { OAuthConnectionFollowUpDialog } from "./oauth-connection-follow-up-dialog";
 import { ServerIconTile } from "./server-icon-tile";
 import { ServiceIdentityFields } from "./service-identity-fields";
 import {
@@ -176,6 +177,8 @@ export default function MCPServerDetail({
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [isResetting, setIsResetting] = useState(false);
 	const [forbiddenOpen, setForbiddenOpen] = useState(false);
+	const [isOauthVerifying, setIsOauthVerifying] = useState(false);
+	const [toolsRefreshRequest, setToolsRefreshRequest] = useState(0);
 	const [showSecret, setShowSecret] = useState(false);
 	const [credentialFileName, setCredentialFileName] = useState<string | null>(
 		null,
@@ -198,8 +201,11 @@ export default function MCPServerDetail({
 	const {
 		status: testStatus,
 		message: testMessage,
+		oauthFollowUpOpen,
+		setOauthFollowUpOpen,
 		reset: resetTest,
 		runSavedTest,
+		verifySavedConnection,
 		runCandidateTest,
 	} = useConnectionTest();
 
@@ -349,6 +355,16 @@ export default function MCPServerDetail({
 				),
 			});
 		}
+	};
+
+	const handleOauthVerify = async () => {
+		setIsOauthVerifying(true);
+		const connected = await verifySavedConnection(server.id);
+		if (connected) {
+			setRightPanel("tools");
+			setToolsRefreshRequest((request) => request + 1);
+		}
+		setIsOauthVerifying(false);
 	};
 
 	const handleSave = async () => {
@@ -1228,6 +1244,7 @@ export default function MCPServerDetail({
 				<div className="flex min-w-0 flex-1 flex-col overflow-hidden bg-sidebar p-7 dark:bg-white/[0.02]">
 					{editing ? (
 						<MCPServerToolsPanel
+							key={`${server.id}-${toolsRefreshRequest}`}
 							serverId={server.id}
 							disabledTools={disabledTools}
 							onDisabledToolsChange={setDisabledTools}
@@ -1255,6 +1272,7 @@ export default function MCPServerDetail({
 							</div>
 							{rightPanel === "tools" ? (
 								<MCPServerToolsPanel
+									key={`${server.id}-${toolsRefreshRequest}`}
 									serverId={server.id}
 									disabledTools={server.disabledTools ?? []}
 									readOnly
@@ -1288,6 +1306,17 @@ export default function MCPServerDetail({
 				agents={deleteGuard?.agents ?? []}
 				consequence="they lose its tools"
 				onConfirm={confirmDetachAndDelete}
+			/>
+			<OAuthConnectionFollowUpDialog
+				open={oauthFollowUpOpen}
+				onOpenChange={setOauthFollowUpOpen}
+				onVerify={() => {
+					void handleOauthVerify();
+				}}
+				isVerifying={isOauthVerifying}
+				message={
+					testMessage === "Waiting for authentication…" ? null : testMessage
+				}
 			/>
 		</div>
 	);

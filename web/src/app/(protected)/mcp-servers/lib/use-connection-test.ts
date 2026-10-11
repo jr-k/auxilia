@@ -45,8 +45,10 @@ export interface CandidateTestInput {
 export function useConnectionTest() {
 	const [status, setStatus] = useState<ConnectionTestStatus>("idle");
 	const [message, setMessage] = useState<string | null>(null);
+	const [oauthFollowUpOpen, setOauthFollowUpOpen] = useState(false);
 	const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 	const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+	const followUpTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	// Monotonic id so a result from a superseded run (config changed mid-test)
 	// is ignored instead of overwriting the current state.
 	const runRef = useRef(0);
@@ -65,12 +67,21 @@ export function useConnectionTest() {
 		}
 	}, []);
 
+	const clearFollowUpTimer = useCallback(() => {
+		if (followUpTimerRef.current) {
+			clearTimeout(followUpTimerRef.current);
+			followUpTimerRef.current = null;
+		}
+	}, []);
+
 	const reset = useCallback(() => {
 		clearPolling();
+		clearFollowUpTimer();
 		runRef.current++; // invalidate any in-flight run
 		setStatus("idle");
 		setMessage(null);
-	}, [clearPolling]);
+		setOauthFollowUpOpen(false);
+	}, [clearFollowUpTimer, clearPolling]);
 
 	// Stop polling if the component unmounts mid-authentication, and
 	// invalidate the run so a late response can't restart timers afterwards.
@@ -80,10 +91,11 @@ export function useConnectionTest() {
 			runCounter.current++;
 			if (pollRef.current) clearInterval(pollRef.current);
 			if (timeoutRef.current) clearTimeout(timeoutRef.current);
+			if (followUpTimerRef.current) clearTimeout(followUpTimerRef.current);
 		};
 	}, []);
 
-	const applyResult = (data: ConnectionTestResult) => {
+	const applyResult = useCallback((data: ConnectionTestResult) => {
 		if (data.reachable) {
 			const count = data.toolCount ?? 0;
 			setStatus("success");
@@ -94,11 +106,13 @@ export function useConnectionTest() {
 			setStatus("error");
 			setMessage(data.error ?? "Could not connect to the server.");
 		}
-	};
+	}, []);
 
 	const runSavedTest = useCallback(
 		async (server: { id: string; authType: MCPAuthType }) => {
 			clearPolling();
+			clearFollowUpTimer();
+			setOauthFollowUpOpen(false);
 
 			// A saved OAuth server may require interactive authorization. Popups
 			// must be opened synchronously within the click to survive
@@ -137,6 +151,10 @@ export function useConnectionTest() {
 					}
 					if (popup) popup.location.href = safeAuthUrl;
 					setMessage("Waiting for authentication…");
+					followUpTimerRef.current = setTimeout(() => {
+						if (!isStale()) setOauthFollowUpOpen(true);
+						followUpTimerRef.current = null;
+					}, 1000);
 					pollBusyRef.current = false;
 					pollRef.current = setInterval(() => {
 						// Serialize probes: skip the tick while one is in flight.
@@ -198,7 +216,33 @@ export function useConnectionTest() {
 				setMessage(getApiErrorMessage(error, "Failed to test connection."));
 			}
 		},
-		[clearPolling],
+		[applyResult, clearFollowUpTimer, clearPolling],
+	);
+
+	const verifySavedConnection = useCallback(
+		async (serverId: string): Promise<boolean> => {
+			try {
+				const data = await mcpServersApi.testMcpServerConnection(serverId);
+				if (data.oauthRequired) {
+					setStatus("testing");
+					setMessage(
+						"Authorization has not been detected yet. Finish OAuth, then try again.",
+					);
+					return false;
+				}
+
+				clearPolling();
+				runRef.current++;
+				applyResult(data);
+				if (data.reachable) setOauthFollowUpOpen(false);
+				return data.reachable;
+			} catch (error) {
+				setStatus("error");
+				setMessage(getApiErrorMessage(error, "Failed to verify connection."));
+				return false;
+			}
+		},
+		[applyResult, clearPolling],
 	);
 
 	const runCandidateTest = useCallback(
@@ -239,8 +283,17 @@ export function useConnectionTest() {
 				setMessage(getApiErrorMessage(error, "Failed to test connection."));
 			}
 		},
-		[clearPolling],
+		[applyResult, clearPolling],
 	);
 
-	return { status, message, reset, runSavedTest, runCandidateTest };
+	return {
+		status,
+		message,
+		oauthFollowUpOpen,
+		setOauthFollowUpOpen,
+		reset,
+		runSavedTest,
+		verifySavedConnection,
+		runCandidateTest,
+	};
 }
