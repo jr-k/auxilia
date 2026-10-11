@@ -101,8 +101,9 @@ def validate_bundle(
                 Issue(
                     "W004",
                     "warning",
-                    f"description is {len(frontmatter.description)} characters — say what the "
-                    "skill does *and when to use it*; that sentence is how agents pick it",
+                    f"description is {len(frontmatter.description)} characters. Explain what "
+                    "the skill does *and when to use it* because that sentence is how agents "
+                    "pick it",
                 )
             )
         requirements = requirements_text(frontmatter)
@@ -220,8 +221,9 @@ def _script_escape_issues(bundle: Bundle) -> list[Issue]:
                     Issue(
                         "W002",
                         "warning",
-                        f"line {line_no} looks like it reaches outside the skill directory "
-                        "(heuristic — review before trusting the skill to run alone)",
+                        f"line {line_no} looks like it reaches outside the skill directory. "
+                        "This is a heuristic warning, so review the skill before trusting it "
+                        "to run alone",
                         path,
                     )
                 )

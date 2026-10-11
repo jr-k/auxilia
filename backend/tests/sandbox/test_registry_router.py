@@ -192,7 +192,7 @@ def test_delete_in_use_is_refused(
     client, sandbox_service, agent_service, thread_service, admin_user
 ):
     sandbox_service.delete.side_effect = DomainValidationError(
-        "Sandbox is used by agents — detach it first"
+        "This sandbox is used by agents; detach it first."
     )
 
     response = client.delete(f"/sandboxes/{uuid4()}")

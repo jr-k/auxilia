@@ -1338,7 +1338,7 @@ async def handle_interaction(
             thread_ts=thread_ts,
             text=(
                 "This approval card predates an update and can't be matched "
-                "to the pending request — please approve or reject it from "
+                "to the pending request. Please approve or reject it from "
                 f"{app_name}."
             ),
         )

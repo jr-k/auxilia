@@ -440,7 +440,7 @@ class SlackRunConsumer(DeliveryConsumer):
             channel=channel_id,
             thread_ts=thread_ts,
             text=(
-                "Sorry — something went wrong while generating a response. "
+                "Sorry, something went wrong while generating a response. "
                 "Please try again."
             ),
         )

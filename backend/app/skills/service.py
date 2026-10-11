@@ -606,7 +606,7 @@ def _reject_files(data: SkillSave) -> None:
 def _name_taken(name: str) -> AlreadyExistsError:
     return AlreadyExistsError(
         f"A skill named '{name}' is already in the library. Skill names are "
-        "unique across the workspace — agents address a skill by its name."
+        "unique across the workspace because agents address each skill by name."
     )
 
 
@@ -633,9 +633,10 @@ def _repository_owns(row: SkillDB) -> str:
     if _is_detached(row.source_revision, row.source_id):
         return (
             "This skill came from a repository that is no longer connected. "
-            "Connect it again to change it — or delete it from the library."
+            "Connect the repository again to change the skill. You can also "
+            "delete it from the library."
         )
-    return "This skill is synced from a repository — change it there, then sync"
+    return "This skill is synced from a repository. Change it there, then sync."
 
 
 def _columns(bundle: SkillBundle) -> dict:
