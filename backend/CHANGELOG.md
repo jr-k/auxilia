@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.42](https://github.com/jr-k/auxilia/compare/backend-v0.10.41...backend-v0.10.42) (2026-10-11)
+
+
+### Features
+
+* **mcp:** expand Auxilia workspace management ([1130235](https://github.com/jr-k/auxilia/commit/11302359af7a99dfd5760278f268cd0c518e4b03))
+
 ## [0.10.41](https://github.com/jr-k/auxilia/compare/backend-v0.10.40...backend-v0.10.41) (2026-10-11)
 
 

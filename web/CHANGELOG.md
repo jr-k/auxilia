@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.45](https://github.com/jr-k/auxilia/compare/web-v0.11.44...web-v0.11.45) (2026-10-11)
+
+
+### Bug Fixes
+
+* **chat:** preserve streaming state across tool messages ([dfcfe8a](https://github.com/jr-k/auxilia/commit/dfcfe8ab1723be0a2f41988c8cc8ce0705e87e1e))
+
 ## [0.11.44](https://github.com/jr-k/auxilia/compare/web-v0.11.43...web-v0.11.44) (2026-10-11)
 
 
