@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.43](https://github.com/jr-k/auxilia/compare/web-v0.11.42...web-v0.11.43) (2026-10-11)
+
+
+### Features
+
+* **mcp:** expose authenticated workspace management tools ([9c76fad](https://github.com/jr-k/auxilia/commit/9c76fad7da990612e67e4904f4b1fe3227e7e5a9))
+
 ## [0.11.42](https://github.com/jr-k/auxilia/compare/web-v0.11.41...web-v0.11.42) (2026-10-11)
 
 
