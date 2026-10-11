@@ -25,7 +25,6 @@ from app.auth.settings import auth_settings
 from app.exceptions import DomainValidationError
 from app.mcp.servers.models import MCPAuthType, ServiceCredentialProvider
 from app.mcp.servers.settings import mcp_server_settings
-from app.settings import app_settings
 from app.utils.remote_catalog import RemoteCatalog
 
 
@@ -198,13 +197,12 @@ def bundled_catalog() -> list[OfficialServer]:
 async def get_catalog() -> list[OfficialServer]:
     """The current catalog, through memo → Redis → CDN → last_good → bundled."""
     catalog = await _catalog.get()
-    self_url = f"{app_settings.backend_url.rstrip('/')}/mcp"
-    self_icon_url = f"{auth_settings.FRONTEND_URL.rstrip('/')}/logo.svg"
+    frontend_url = auth_settings.FRONTEND_URL.rstrip("/")
     return [
         entry.model_copy(
             update={
-                "url": self_url,
-                "icon_url": self_icon_url,
+                "url": f"{frontend_url}/mcp",
+                "icon_url": f"{frontend_url}/logo.svg",
                 "requires_url_configuration": False,
             }
         )

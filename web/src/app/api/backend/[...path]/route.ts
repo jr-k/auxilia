@@ -2,6 +2,14 @@ import { NextRequest } from "next/server";
 
 const getBackendUrl = () => process.env.BACKEND_URL || "http://localhost:8000";
 
+const EXACT_BACKEND_PATHS = new Set([
+	"mcp",
+	"register",
+	"authorize",
+	"token",
+	"revoke",
+]);
+
 async function proxyRequest(
 	request: NextRequest,
 	context: { params: Promise<{ path: string[] }> },
@@ -10,7 +18,11 @@ async function proxyRequest(
 	let pathSegment = Array.isArray(path) ? path.join("/") : path;
 	// FastAPI returns 307 for POST /mcp-servers → /mcp-servers/; avoid redirect by
 	// adding trailing slash for single-segment (collection) paths.
-	if (path.length === 1 && !pathSegment.endsWith("/")) {
+	if (
+		path.length === 1 &&
+		!pathSegment.endsWith("/") &&
+		!EXACT_BACKEND_PATHS.has(pathSegment)
+	) {
 		pathSegment += "/";
 	}
 	const url = `${getBackendUrl()}/${pathSegment}${request.nextUrl.search}`;

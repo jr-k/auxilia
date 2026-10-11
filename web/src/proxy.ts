@@ -2,6 +2,13 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 const PUBLIC_PATHS = ["/auth", "/setup", "/invite"];
+const PUBLIC_MCP_ENDPOINTS = new Set([
+	"/mcp",
+	"/register",
+	"/authorize",
+	"/token",
+	"/revoke",
+]);
 
 // Same default as lib/api/client.ts — without it, an unset BACKEND_URL makes
 // the verify fetch throw on every request and bounces signed-in users to /auth.
@@ -35,6 +42,12 @@ function authRedirect(request: NextRequest): NextResponse {
 
 export async function proxy(request: NextRequest) {
 	const { pathname } = request.nextUrl;
+	if (
+		PUBLIC_MCP_ENDPOINTS.has(pathname) ||
+		pathname.startsWith("/.well-known/")
+	) {
+		return NextResponse.next();
+	}
 	const accessToken = request.cookies.get("access_token")?.value;
 	const isPublicPath = PUBLIC_PATHS.some((path) => pathname.startsWith(path));
 	const isInvitePath = pathname.startsWith("/invite");

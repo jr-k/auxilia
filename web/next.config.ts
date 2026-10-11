@@ -12,7 +12,24 @@ const nextConfig: NextConfig = {
 				protocol: "https",
 				hostname: "pub-7a6e8912b3c448b8a8bfa47a0363f7bc.r2.dev",
 			},
+			{
+				protocol: "https",
+				hostname: "models.dev",
+			},
 		],
+	},
+	async rewrites() {
+		return [
+			{ source: "/mcp", destination: "/api/backend/mcp" },
+			{ source: "/register", destination: "/api/backend/register" },
+			{ source: "/authorize", destination: "/api/backend/authorize" },
+			{ source: "/token", destination: "/api/backend/token" },
+			{ source: "/revoke", destination: "/api/backend/revoke" },
+			{
+				source: "/.well-known/:path*",
+				destination: "/api/backend/.well-known/:path*",
+			},
+		];
 	},
 	async redirects() {
 		return [

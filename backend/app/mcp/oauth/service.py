@@ -35,7 +35,6 @@ from app.mcp.oauth.schemas import (
     MCPOAuthClientInfo,
     MCPOAuthRedirectResponse,
 )
-from app.settings import app_settings
 from app.users.models import UserDB
 from app.utils.encryption import decrypt_value, encrypt_value
 from app.workspaces.service import WorkspaceService
@@ -57,7 +56,7 @@ def _opaque_token() -> str:
 
 
 def issuer_url() -> str:
-    return app_settings.backend_url.rstrip("/")
+    return auth_settings.FRONTEND_URL.rstrip("/")
 
 
 def resource_url() -> str:
