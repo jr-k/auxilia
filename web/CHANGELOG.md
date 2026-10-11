@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.11.41](https://github.com/jr-k/auxilia/compare/web-v0.11.40...web-v0.11.41) (2026-10-11)
+
+
+### Features
+
+* **mcp:** add instance-specific servers and test dialog ([#85](https://github.com/jr-k/auxilia/issues/85)) ([a8017c8](https://github.com/jr-k/auxilia/commit/a8017c8dc53bee33ec14929a47c5abee10d443e6))
+
+
+### Bug Fixes
+
+* **ui:** correct MCP cancel navigation and switch styling ([#83](https://github.com/jr-k/auxilia/issues/83)) ([2eec3e6](https://github.com/jr-k/auxilia/commit/2eec3e6954a524a42836a84ea3bc4798df9e0ae1))
+
 ## [0.11.40](https://github.com/jr-k/auxilia/compare/web-v0.11.39...web-v0.11.40) (2026-10-11)
 
 
