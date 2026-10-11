@@ -32,6 +32,8 @@ interface AgentsState {
 	updateAgent: (agentId: string, agent: Partial<Agent>) => void;
 	removeAgent: (agentId: string) => void;
 	removeMcpServerBinding: (mcpServerId: string) => void;
+	removeSkillBinding: (skillId: string) => void;
+	removeSandboxBinding: (sandboxId: string) => void;
 	updateOwnerSnapshot: (userId: string, owner: AgentOwner) => void;
 }
 
@@ -138,6 +140,24 @@ export const useAgentsStore = create<AgentsState>((set, get) => {
 					...agent,
 					mcpServers: agent.mcpServers.filter(
 						(server) => server.mcpServerId !== mcpServerId,
+					),
+				})),
+			}));
+		},
+		removeSkillBinding: (skillId) => {
+			set((state) => ({
+				agents: state.agents.map((agent) => ({
+					...agent,
+					skills: agent.skills?.filter((skill) => skill.id !== skillId),
+				})),
+			}));
+		},
+		removeSandboxBinding: (sandboxId) => {
+			set((state) => ({
+				agents: state.agents.map((agent) => ({
+					...agent,
+					sandboxes: agent.sandboxes?.filter(
+						(sandbox) => sandbox.sandboxId !== sandboxId,
 					),
 				})),
 			}));

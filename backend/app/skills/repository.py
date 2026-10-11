@@ -558,6 +558,10 @@ class SkillRepository(BaseRepository[SkillDB]):
         )
         return (await self.db.execute(stmt)).scalar_one_or_none() is not None
 
+    async def delete_links_for_skill(self, skill_id: UUID) -> None:
+        stmt = delete(AgentSkillDB).where(col(AgentSkillDB.skill_id) == skill_id)
+        await self.db.execute(stmt)
+
     async def add_links(self, agent_id: UUID, skill_ids: Iterable[UUID]) -> None:
         for skill_id in skill_ids:
             self.db.add(AgentSkillDB(agent_id=agent_id, skill_id=skill_id))

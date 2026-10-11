@@ -419,7 +419,7 @@ export default function SkillEditor({
 											destructive: true,
 											onClick: () => {
 												setError(null);
-												remove.requestDelete(skill);
+												void remove.requestDelete(skill);
 											},
 										},
 									]
@@ -448,6 +448,7 @@ export default function SkillEditor({
 						}}
 						skillName={remove.guard?.skill.name ?? null}
 						agents={remove.guard?.agents ?? []}
+						onConfirm={remove.confirmDetachAndDelete}
 					/>
 					<ConfirmDialog
 						open={remove.pending !== null}

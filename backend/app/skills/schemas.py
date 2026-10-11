@@ -186,8 +186,8 @@ class SkillSummary(BaseModel):
 
     `script_count` is how many files sit under `scripts/`: zero means the
     skill runs on any agent, more means its scripts only run on an agent with
-    code execution. `agent_count` is how many agents have it enabled — a
-    skill in use cannot be deleted or renamed.
+    code execution. `agent_count` is how many visible agents have it enabled.
+    Deleting a used skill requires an explicit detach confirmation.
 
     Two provenances: an in-app skill (`source_id` None) is edited here and is
     live on the next run; a sourced skill is pinned to a content digest from

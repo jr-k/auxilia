@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { AgentAvatar } from "@/components/ui/agent-avatar";
 import {
 	BulkConfirmDialog,
+	type BulkConfirmItem,
 	type BulkFailure,
 } from "@/components/ui/bulk-confirm-dialog";
 import { BulkActionBar } from "@/components/ui/bulk-action-bar";
@@ -26,7 +27,9 @@ import {
 import type { ViewMode } from "@/components/ui/view-toggle";
 import { useRowSelection } from "@/hooks/use-row-selection";
 import { getApiErrorMessage, toApiError } from "@/lib/api/errors";
+import * as skillsApi from "@/lib/api/resources/skills";
 import { buildGroupTree, flattenGroupTree } from "@/lib/groups";
+import { useAgentsStore } from "@/stores/agents-store";
 import { useAppearanceStore } from "@/stores/appearance-store";
 import { useSkillsStore } from "@/stores/skills-store";
 import type { BoundAgent } from "@/types/agents";
@@ -240,10 +243,13 @@ export default function SkillTable({
 	const router = useRouter();
 	const groupTree = buildGroupTree(skills);
 	const deleteSkill = useSkillsStore((state) => state.deleteSkill);
+	const removeSkillBinding = useAgentsStore((state) => state.removeSkillBinding);
 	const getSkill = useSkillsStore((state) => state.getSkill);
 	const createSkill = useSkillsStore((state) => state.createSkill);
 	const workspaceSkills = useSkillsStore((state) => state.skills);
 	const [bulkOpen, setBulkOpen] = useState(false);
+	const [bulkItems, setBulkItems] = useState<BulkConfirmItem[]>([]);
+	const [bulkDetachesAgents, setBulkDetachesAgents] = useState(false);
 	const orderedSkills = flattenGroupTree(groupTree);
 	const selection = useRowSelection({
 		orderedIds: orderedSkills.map((skill) => skill.id),
@@ -254,14 +260,36 @@ export default function SkillTable({
 	const selectedSkills = orderedSkills.filter((skill) =>
 		selection.selectedIds.has(skill.id),
 	);
-	const bulkItems = selectedSkills.map((skill) => ({
-		id: skill.id,
-		name: skill.name,
-		blockedReason:
-			skill.agentCount > 0
-				? `Used by ${skill.agentCount} agent${skill.agentCount === 1 ? "" : "s"}.`
-				: undefined,
-	}));
+	const prepareBulkDelete = async () => {
+		const checks = await Promise.allSettled(
+			selectedSkills.map((skill) => skillsApi.listSkillAgents(skill.id)),
+		);
+		let hasAssignments = false;
+		setBulkItems(
+			selectedSkills.map((skill, index) => {
+				const result = checks.at(index);
+				if (!result || result.status === "rejected") {
+					return {
+						id: skill.id,
+						name: skill.name,
+						blockedReason: "Could not verify its agent assignments.",
+					};
+				}
+				const count = result.value.length;
+				if (count > 0) hasAssignments = true;
+				return {
+					id: skill.id,
+					name: skill.name,
+					note:
+						count > 0
+							? `Will be detached from ${count} agent${count === 1 ? "" : "s"}.`
+							: undefined,
+				};
+			}),
+		);
+		setBulkDetachesAgents(hasAssignments);
+		setBulkOpen(true);
+	};
 
 	const duplicateSkill = async (skill: SkillSummary) => {
 		try {
@@ -542,7 +570,7 @@ export default function SkillTable({
 					onClear={selection.clear}
 					actionLabel="Delete"
 					onAction={() => {
-						setBulkOpen(true);
+						void prepareBulkDelete();
 					}}
 					showWhenEmpty
 				/>
@@ -695,13 +723,20 @@ export default function SkillTable({
 					open={bulkOpen}
 					onOpenChange={setBulkOpen}
 					title="Delete selected skills?"
-					description="Available skills will be removed permanently. Skills currently used by agents stay untouched."
+					description="The selected skills will be removed permanently. Agent assignments will be detached automatically."
 					items={bulkItems}
 					confirmLabel="Delete"
 					busyLabel="Deleting…"
+					acknowledgement={
+						bulkDetachesAgents
+							? "I understand that these skills will be removed from every agent using them and deleted permanently."
+							: undefined
+					}
 					onConfirm={async (items) => {
 						const results = await Promise.allSettled(
-							items.map((item) => deleteSkill(item.id)),
+							items.map((item) =>
+								deleteSkill(item.id, { detachAgents: true }),
+							),
 						);
 						const succeeded: string[] = [];
 						const failures: BulkFailure[] = [];
@@ -716,6 +751,7 @@ export default function SkillTable({
 									message: getApiErrorMessage(result.reason, "Delete failed."),
 								});
 						});
+						succeeded.forEach(removeSkillBinding);
 						selection.remove(succeeded);
 						return failures;
 					}}
@@ -735,7 +771,7 @@ export default function SkillTable({
 				onClear={selection.clear}
 				actionLabel="Delete"
 				onAction={() => {
-					setBulkOpen(true);
+					void prepareBulkDelete();
 				}}
 			/>
 			<DataTable
@@ -780,13 +816,20 @@ export default function SkillTable({
 				open={bulkOpen}
 				onOpenChange={setBulkOpen}
 				title="Delete selected skills?"
-				description="Available skills will be removed permanently. Skills currently used by agents stay untouched."
+				description="The selected skills will be removed permanently. Agent assignments will be detached automatically."
 				items={bulkItems}
 				confirmLabel="Delete"
 				busyLabel="Deleting…"
+				acknowledgement={
+					bulkDetachesAgents
+						? "I understand that these skills will be removed from every agent using them and deleted permanently."
+						: undefined
+				}
 				onConfirm={async (items) => {
 					const results = await Promise.allSettled(
-						items.map((item) => deleteSkill(item.id)),
+						items.map((item) =>
+							deleteSkill(item.id, { detachAgents: true }),
+						),
 					);
 					const succeeded: string[] = [];
 					const failures: BulkFailure[] = [];
@@ -801,6 +844,7 @@ export default function SkillTable({
 								message: getApiErrorMessage(result.reason, "Delete failed."),
 							});
 					});
+					succeeded.forEach(removeSkillBinding);
 					selection.remove(succeeded);
 					return failures;
 				}}
