@@ -614,12 +614,8 @@ class ModelService(BaseService[ModelDB, ModelRepository]):
     async def disconnect_ollama(self) -> ModelProviderConfigResponse:
         provider = ModelProviderType.ollama.value
         await self.credential_repository.delete_provider_config(provider)
-        await self.catalog_repository.mark_all_unavailable(provider)
-        default = await self.repository.get_default(for_update=True)
-        if default is not None and default.provider == provider:
-            default.is_default = False
-            self.db.add(default)
-            await self.db.flush()
+        await self.catalog_repository.delete_by_provider(provider)
+        await self.repository.delete_by_provider(provider)
         return ModelProviderConfigResponse(
             name=ModelProviderType.ollama,
             is_configured=False,

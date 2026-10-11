@@ -440,11 +440,7 @@ export default function WorkspaceModels({
 			updateProvider(updated);
 			setOllamaUrlDraft("");
 			setModels((current) =>
-				current.map((model) =>
-					model.provider === "ollama"
-						? { ...model, isAvailable: false, isDefault: false }
-						: model,
-				),
+				current.filter((model) => model.provider !== "ollama"),
 			);
 			await refreshModels().catch(() => {});
 			setStatus({ kind: "info", text: "Ollama disconnected." });
@@ -484,13 +480,31 @@ export default function WorkspaceModels({
 			// Every open model picker reflects the change without a reload.
 			await refreshModels().catch(() => {});
 		} catch (error: unknown) {
-			setModels((prev) =>
-				prev.map((m) =>
-					m.provider === model.provider && m.modelId === model.modelId
-						? { ...m, isEnabled: !isEnabled, isDefault: model.isDefault }
-						: m,
-				),
-			);
+			// A connection can fail after the backend has committed the change.
+			// Reconcile before reporting an error so the UI reflects persisted state.
+			let persisted = false;
+			try {
+				const managed = await modelsApi.listManagedModels();
+				persisted =
+					managed.find(
+						(item) =>
+							item.provider === model.provider &&
+							item.modelId === model.modelId,
+					)?.isEnabled === isEnabled;
+				setModels((current) => preserveManagedModelOrder(current, managed));
+			} catch {
+				setModels((prev) =>
+					prev.map((m) =>
+						m.provider === model.provider && m.modelId === model.modelId
+							? { ...m, isEnabled: !isEnabled, isDefault: model.isDefault }
+							: m,
+					),
+				);
+			}
+			if (persisted) {
+				await refreshModels().catch(() => {});
+				return;
+			}
 			if (isApiError(error) && error.status === 403) {
 				onForbidden();
 			} else {

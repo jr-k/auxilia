@@ -49,6 +49,16 @@ class ModelRepository(BaseRepository[ModelDB]):
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
+    async def delete_by_provider(self, provider: str) -> None:
+        if self.workspace_id is None:
+            raise RuntimeError("workspace_id is required to delete provider models")
+        stmt = delete(ModelDB).where(
+            ModelDB.workspace_id == self.workspace_id,  # type: ignore[arg-type]
+            ModelDB.provider == provider,  # type: ignore[arg-type]
+        )
+        await self.db.execute(stmt)
+        await self.db.flush()
+
 
 class ModelProviderCredentialRepository:
     def __init__(self, db: AsyncSession, workspace_id: UUID | None = None):
@@ -218,6 +228,16 @@ class ModelProviderCatalogRepository:
             .values(is_available=False)
         )
         await self.db.execute(stmt)
+
+    async def delete_by_provider(self, provider: str) -> None:
+        if self.workspace_id is None:
+            raise RuntimeError("workspace_id is required to delete provider models")
+        stmt = delete(ModelProviderCatalogEntryDB).where(
+            ModelProviderCatalogEntryDB.workspace_id == self.workspace_id,  # type: ignore[arg-type]
+            ModelProviderCatalogEntryDB.provider == provider,  # type: ignore[arg-type]
+        )
+        await self.db.execute(stmt)
+        await self.db.flush()
 
     async def upsert(
         self,
