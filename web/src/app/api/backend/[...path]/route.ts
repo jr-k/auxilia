@@ -27,7 +27,14 @@ async function proxyRequest(
 	}
 	const url = `${getBackendUrl()}/${pathSegment}${request.nextUrl.search}`;
 	const headers = new Headers(request.headers);
-	headers.delete("host");
+	if (pathSegment === "mcp") {
+		// FastMCP validates Host to prevent DNS rebinding. Preserve the public
+		// MCP host instead of letting fetch replace it with the Docker service
+		// name (backend:8000), which the transport correctly rejects.
+		headers.set("host", request.nextUrl.host);
+	} else {
+		headers.delete("host");
+	}
 
 	let response: Response;
 	try {
