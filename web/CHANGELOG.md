@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.39](https://github.com/jr-k/auxilia/compare/web-v0.11.38...web-v0.11.39) (2026-10-11)
+
+
+### Features
+
+* **ui:** improve related resource navigation and state sync ([#78](https://github.com/jr-k/auxilia/issues/78)) ([e12e748](https://github.com/jr-k/auxilia/commit/e12e7481988c95709df4bbd1e3c155d1e15df514))
+
 ## [0.11.38](https://github.com/jr-k/auxilia/compare/web-v0.11.37...web-v0.11.38) (2026-10-11)
 
 
