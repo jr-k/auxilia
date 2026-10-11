@@ -359,7 +359,7 @@ export default function CustomMCPServerPage() {
 				<HeaderButton
 					disabled={isSubmitting}
 					onClick={() => {
-						router.push("/mcp-servers");
+						router.push("/mcp-servers/add");
 					}}
 				>
 					Cancel
