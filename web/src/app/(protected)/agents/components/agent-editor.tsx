@@ -20,7 +20,6 @@ import AgentPermissionsPanel from "./agent-permissions-panel";
 import { MessageResponse } from "@/components/ai-elements/message";
 import { getApiErrorMessage } from "@/lib/api/errors";
 import { useAgentsStore } from "@/stores/agents-store";
-import { useThreadsStore } from "@/stores/threads-store";
 import { useSkillsStore } from "@/stores/skills-store";
 import { useUserStore } from "@/stores/user-store";
 import { useConfirmDialog } from "@/components/providers/dialog-provider";
@@ -77,7 +76,6 @@ export default function AgentEditor({
 	const refreshAgent = useAgentsStore((state) => state.refreshAgent);
 	const archiveAgent = useAgentsStore((state) => state.archiveAgent);
 	const workspaceAgents = useAgentsStore((state) => state.agents);
-	const markAgentArchived = useThreadsStore((state) => state.markAgentArchived);
 	const user = useUserStore((state) => state.user);
 	const isAdmin = user?.role === "admin";
 	const librarySkills = useSkillsStore((state) => state.skills);
@@ -262,7 +260,6 @@ export default function AgentEditor({
 		}
 		try {
 			await archiveAgent(agent.id);
-			markAgentArchived(agent.id);
 			router.push("/agents");
 		} catch (err) {
 			console.error("Error archiving agent:", err);

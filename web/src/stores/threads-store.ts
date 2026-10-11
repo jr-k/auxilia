@@ -20,8 +20,10 @@ interface ThreadsState {
 	loadMoreThreads: () => Promise<void>;
 	addThread: (thread: Thread) => void;
 	removeThread: (threadId: string) => void;
+	removeThreadsForAgent: (agentId: string) => string[];
 	renameThread: (threadId: string, firstMessageContent: string) => void;
 	markAgentArchived: (agentId: string) => void;
+	markAgentRestored: (agentId: string, agentName: string) => void;
 	/** Stamp a run outcome observed by the active-runs poll (sidebar badge). */
 	setLastRunStatus: (threadId: string, status: RunTerminalStatus) => void;
 }
@@ -106,6 +108,20 @@ export const useThreadsStore = create<ThreadsState>((set, get) => ({
 			return { threads, total: Math.max(0, state.total - removed) };
 		});
 	},
+	removeThreadsForAgent: (agentId) => {
+		const threadIds = get()
+			.threads.filter((thread) => thread.agentId === agentId)
+			.map((thread) => thread.id);
+		for (const threadId of threadIds) {
+			useTriggerRunsStore.getState().removeRun(threadId);
+		}
+		set((state) => {
+			const threads = state.threads.filter((thread) => thread.agentId !== agentId);
+			const removed = state.threads.length - threads.length;
+			return { threads, total: Math.max(0, state.total - removed) };
+		});
+		return threadIds;
+	},
 	renameThread: (threadId, firstMessageContent) => {
 		set((state) => ({
 			threads: state.threads.map((thread) =>
@@ -118,6 +134,15 @@ export const useThreadsStore = create<ThreadsState>((set, get) => ({
 			threads: state.threads.map((thread) =>
 				thread.agentId === agentId
 					? { ...thread, agentArchived: true, agentName: null }
+					: thread,
+			),
+		}));
+	},
+	markAgentRestored: (agentId, agentName) => {
+		set((state) => ({
+			threads: state.threads.map((thread) =>
+				thread.agentId === agentId
+					? { ...thread, agentArchived: false, agentName }
 					: thread,
 			),
 		}));

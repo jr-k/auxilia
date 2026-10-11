@@ -7,6 +7,7 @@ import {
 import { createOnce } from "@/lib/api/once";
 import * as mcpServersApi from "@/lib/api/resources/mcp-servers";
 import { getWorkspaceGeneration, isCurrentWorkspaceGeneration } from "@/lib/workspace-generation";
+import { useAgentsStore } from "@/stores/agents-store";
 
 interface McpServersState {
 	mcpServers: MCPServer[];
@@ -31,7 +32,6 @@ export const useMcpServersStore = create<McpServersState>((set, get) => {
 		} catch (error) {
 			if (!isCurrentWorkspaceGeneration(generation)) return;
 			console.error("Error fetching MCP servers:", error);
-			set({ isInitialized: true });
 			throw error;
 		}
 	});
@@ -71,6 +71,7 @@ export const useMcpServersStore = create<McpServersState>((set, get) => {
 			set((state) => ({
 				mcpServers: state.mcpServers.filter((server) => server.id !== id),
 			}));
+			useAgentsStore.getState().removeMcpServerBinding(id);
 		},
 		resetMcpServerConnections: async (id) => {
 			await mcpServersApi.resetMcpServerConnections(id);
