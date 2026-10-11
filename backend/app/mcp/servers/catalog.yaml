@@ -64,6 +64,7 @@ servers:
   - name: "Aircall"
     url: "https://mcp.aircall.io/mcp"
     auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/aircall.svg"
     supports_dcr: false
     supports_cimd: true
     description: >-
@@ -73,6 +74,7 @@ servers:
   - name: "Aiven MCP"
     url: "https://mcp.aiven.live/mcp"
     auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/aiven.svg"
     supports_dcr: true
     description: >-
       Provisions and manages Aiven projects and managed data services including

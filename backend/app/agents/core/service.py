@@ -46,6 +46,7 @@ from app.exceptions import (
 )
 from app.mcp.client.connectivity import probe_authorization
 from app.mcp.servers.repository import MCPServerRepository
+from app.model_providers.service import ModelService
 from app.sandbox.provider import ensure_sandboxes_available
 from app.sandbox.repository import SandboxRepository
 from app.sandbox.schemas import SandboxAgentResponse
@@ -82,6 +83,20 @@ class AgentService(BaseService[AgentDB, AgentRepository]):
         self.sandboxes = SandboxRepository(db)
         self.workspaces = WorkspaceRepository(db)
         self.teams = TeamRepository(db)
+
+    async def _validate_model_defaults(
+        self, model_id: str | None, reasoning_effort: str | None
+    ) -> None:
+        if model_id is None:
+            if reasoning_effort is not None:
+                raise DomainValidationError(
+                    "A default reasoning effort requires a default model."
+                )
+            return
+        if self.workspace_id is None:
+            raise RuntimeError("workspace_id is required to validate model defaults")
+        await ModelService(self.db, self.workspace_id).ensure_available(model_id)
+        await ModelService.validate_reasoning_effort(model_id, reasoning_effort)
 
     async def _get_scoped(self, agent_id: UUID) -> AgentDB:
         row = await self.repository.get_scoped(agent_id)
@@ -381,6 +396,9 @@ class AgentService(BaseService[AgentDB, AgentRepository]):
         binding is invalid, so a failed draft never leaves a stray agent."""
         if self.workspace_id is None:
             raise RuntimeError("workspace_id is required to create an agent")
+        await self._validate_model_defaults(
+            config.default_model_id, config.default_reasoning_effort
+        )
         agent = await self.repository.create(
             AgentCreateDB(
                 workspace_id=self.workspace_id,
@@ -393,6 +411,8 @@ class AgentService(BaseService[AgentDB, AgentRepository]):
                 group=config.group,
                 visibility=config.visibility,
                 web_search_enabled=config.web_search_enabled,
+                default_model_id=config.default_model_id,
+                default_reasoning_effort=config.default_reasoning_effort,
             )
         )
         validate_visibility(config.visibility, config.team_ids)
@@ -493,6 +513,23 @@ class AgentService(BaseService[AgentDB, AgentRepository]):
             user_role=user_role,
             user_team_id=user_team_id,
         )
+        if {
+            "default_model_id",
+            "default_reasoning_effort",
+        } & data.model_fields_set:
+            current = await self._get_scoped(agent_id)
+            await self._validate_model_defaults(
+                (
+                    data.default_model_id
+                    if "default_model_id" in data.model_fields_set
+                    else current.default_model_id
+                ),
+                (
+                    data.default_reasoning_effort
+                    if "default_reasoning_effort" in data.model_fields_set
+                    else current.default_reasoning_effort
+                ),
+            )
         await self.repository.update_by_id(agent_id, data)
         return await self.get(
             agent_id, user_id=user_id, user_role=user_role, user_team_id=user_team_id
@@ -507,8 +544,8 @@ class AgentService(BaseService[AgentDB, AgentRepository]):
         user_team_id: UUID | None = None,
     ) -> AgentResponse:
         """Atomic whole-config replace: scalars, MCP bindings, subagents and
-        skills in one request transaction. Performs zero network calls — the client
-        already carries the complete per-tool maps (or None = never synced)."""
+        skills in one request transaction. The client carries complete per-tool
+        maps (or None = never synced); model defaults are validated centrally."""
         await self.require_permission(
             agent_id,
             at_least=EffectivePermission.editor,
@@ -516,6 +553,9 @@ class AgentService(BaseService[AgentDB, AgentRepository]):
             user_id=user_id,
             user_role=user_role,
             user_team_id=user_team_id,
+        )
+        await self._validate_model_defaults(
+            config.default_model_id, config.default_reasoning_effort
         )
         current_agent = await self.repository.get_scoped_for_update(agent_id)
         if not isinstance(current_agent, AgentDB):
@@ -564,6 +604,8 @@ class AgentService(BaseService[AgentDB, AgentRepository]):
                 group=config.group,
                 visibility=visibility,
                 web_search_enabled=config.web_search_enabled,
+                default_model_id=config.default_model_id,
+                default_reasoning_effort=config.default_reasoning_effort,
             ),
         )
         await self.mcp_server_service.set_for_agent(agent_id, config.mcp_servers)

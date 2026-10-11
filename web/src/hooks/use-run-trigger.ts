@@ -37,6 +37,7 @@ export function useRunTrigger() {
 			agentName: agent?.name ?? null,
 			agentEmoji: agent?.emoji ?? null,
 			agentColor: agent?.color ?? null,
+			agentImageRevision: agent?.imageRevision ?? null,
 			agentArchived: false,
 			source: "trigger",
 			triggerId: trigger.id,

@@ -322,7 +322,7 @@ export function DataTable<T>({
 				? onRowSelectionClick
 				: undefined;
 		const selectedClass = selected
-			? "bg-petrol/[0.055] shadow-[inset_3px_0_0_0_var(--color-petrol)] dark:bg-petrol/10"
+			? "bg-petrol/[0.055] dark:bg-petrol/10"
 			: "";
 		if (getRowHref) {
 			if (selectRow) {

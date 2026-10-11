@@ -3,7 +3,7 @@ from datetime import datetime
 from uuid import UUID
 
 from pydantic import field_validator
-from sqlmodel import SQLModel
+from sqlmodel import Field, SQLModel
 
 from app.agents.models import (
     AgentMCPServerBase,
@@ -47,6 +47,8 @@ class AgentCreateDB(SQLModel):
     group: str | None = None
     visibility: ResourceVisibility = ResourceVisibility.personal
     web_search_enabled: bool = False
+    default_model_id: str | None = Field(default=None, max_length=255)
+    default_reasoning_effort: str | None = Field(default=None, max_length=32)
 
     @field_validator("color")
     @classmethod
@@ -63,6 +65,8 @@ class AgentPatch(SQLModel):
     group: str | None = None
     visibility: ResourceVisibility | None = None
     web_search_enabled: bool = False
+    default_model_id: str | None = Field(default=None, max_length=255)
+    default_reasoning_effort: str | None = Field(default=None, max_length=32)
 
     @field_validator("color")
     @classmethod
@@ -98,6 +102,8 @@ class AgentConfig(SQLModel):
     group: str | None = None
     visibility: ResourceVisibility = ResourceVisibility.personal
     web_search_enabled: bool = False
+    default_model_id: str | None = Field(default=None, max_length=255)
+    default_reasoning_effort: str | None = Field(default=None, max_length=32)
     team_ids: list[UUID] = []
     mcp_servers: list[AgentMCPServerConfig] = []
     sandboxes: list[AgentSandboxConfig] = []
@@ -262,6 +268,8 @@ class AgentListResponse(SQLModel):
 
 class AgentResponse(AgentListResponse):
     instructions: str
+    default_model_id: str | None = None
+    default_reasoning_effort: str | None = None
     mcp_servers: list[AgentMCPServerResponse] | None = None
     # Sandboxes ride only on the full response: the runtime and the agent
     # editor consume the binding; list rows never render it.

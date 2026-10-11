@@ -57,6 +57,16 @@ export async function renameThread(
 	await api.patch(`/threads/${threadId}`, { firstMessageContent });
 }
 
+export async function updateThreadModel(
+	threadId: string,
+	modelId: string,
+): Promise<Thread> {
+	const response = await api.put<Thread>(`/threads/${threadId}/model`, {
+		modelId,
+	});
+	return response.data;
+}
+
 export async function updateThreadResources(
 	threadId: string,
 	settings: ThreadResourceSettings,

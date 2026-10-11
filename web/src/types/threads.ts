@@ -19,11 +19,11 @@ export interface Thread {
 	 * comes from the active-runs poll, never from this field. */
 	lastRunStatus?: RunTerminalStatus | null;
 	createdAt: string;
-	/** Pinned at creation, never patched. Present on a full thread read;
-	 * optional because sidebar rows built client-side (a trigger firing) omit them. */
+	/** Present on a full thread read; optional because sidebar rows built
+	 * client-side (a trigger firing) omit model settings. */
 	modelId?: string | null;
 	reasoningEffort?: string | null;
-	/** False once a workspace admin disabled the pinned model. */
+	/** False once the thread's current model is no longer available. */
 	modelAvailable?: boolean;
 	disabledMcpServerIds?: string[];
 	disabledSkillIds?: string[];
@@ -45,10 +45,8 @@ export interface ThreadRead {
 export interface ThreadCreate {
 	id?: string;
 	agentId: string;
-	/** Required: `POST /threads` persists what it is given and does not fall
-	 * back to the workspace default, so a thread created without a model fails
-	 * its first run ("no model is set"). The starter page resolves the default
-	 * before calling. */
+	/** The starter page resolves the agent/workspace default before calling so
+	 * the selected value is explicit in the newly created conversation. */
 	modelId: string;
 	reasoningEffort: string | null;
 	firstMessageContent?: string;

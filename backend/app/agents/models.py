@@ -102,6 +102,13 @@ class AgentBase(SQLModel):
         default=False,
         sa_column=Column(Boolean, nullable=False, server_default="false"),
     )
+    # Optional per-agent defaults for new threads. NULL inherits the
+    # workspace default model; effort is only meaningful with an explicit
+    # model and NULL means that model's catalog default.
+    default_model_id: str | None = Field(default=None, max_length=255, nullable=True)
+    default_reasoning_effort: str | None = Field(
+        default=None, max_length=32, nullable=True
+    )
 
 
 class AgentDB(AgentBase, BaseDBModel, table=True):

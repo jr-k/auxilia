@@ -43,10 +43,9 @@ class ThreadBase(SQLModel):
     user_id: UUID = Field(foreign_key="users.id", nullable=False)
     agent_id: UUID = Field(foreign_key="agents.id", nullable=False)
     model_id: str | None = Field(default=None, nullable=True)
-    # The user's reasoning-effort choice for the pinned model, one of the
+    # The user's reasoning-effort choice for the current model, one of the
     # whitelist entry's declared levels. NULL = no explicit choice — the
-    # model runs on its default path. Pinned like model_id: set at creation,
-    # never patched.
+    # model runs on its default path. Changing model resets this choice.
     reasoning_effort: str | None = Field(default=None, nullable=True)
     first_message_content: str | None = Field(
         default=None, sa_column=Column(Text, nullable=True)

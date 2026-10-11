@@ -19,6 +19,7 @@ from app.threads.repository import ThreadRepository
 from app.threads.schemas import (
     AgentThreadResponse,
     ThreadCreate,
+    ThreadModelUpdate,
     ThreadPatch,
     ThreadResourcesPatch,
     ThreadResponse,
@@ -80,6 +81,22 @@ class ThreadService(BaseService[ThreadDB, ThreadRepository]):
     async def get(self, thread_id: str) -> ThreadDB:
         return await self.get_or_404(thread_id)
 
+    async def _resolve_agent_defaults(
+        self,
+        model_id: str | None,
+        reasoning_effort: str | None,
+    ) -> tuple[str | None, str | None]:
+        model_service = ModelService(self.db, self.workspace_id)
+        if model_id is not None and await model_service.is_available(model_id):
+            if reasoning_effort is not None and not (
+                await ModelService.is_reasoning_effort_declared(
+                    model_id, reasoning_effort
+                )
+            ):
+                reasoning_effort = None
+            return model_id, reasoning_effort
+        return await model_service.get_default_model_id(), None
+
     async def get_with_agent(self, thread_id: str) -> ThreadResponse:
         row = await self.repository.get_with_agent(thread_id)
         if not row:
@@ -119,6 +136,27 @@ class ThreadService(BaseService[ThreadDB, ThreadRepository]):
         )
         if spec is None:
             raise NotFoundError("Agent not found")
+        model_id = data.model_id
+        reasoning_effort = data.reasoning_effort
+        if model_id is None:
+            model_id, default_effort = await self._resolve_agent_defaults(
+                spec.agent.default_model_id,
+                spec.agent.default_reasoning_effort,
+            )
+            if reasoning_effort is None:
+                reasoning_effort = default_effort
+        elif (
+            model_id == spec.agent.default_model_id
+            and reasoning_effort is None
+            and "reasoning_effort" not in data.model_fields_set
+        ):
+            default_effort = spec.agent.default_reasoning_effort
+            if default_effort is None or (
+                await ModelService.is_reasoning_effort_declared(
+                    model_id, default_effort
+                )
+            ):
+                reasoning_effort = default_effort
         (
             disabled_mcp_server_ids,
             disabled_skill_ids,
@@ -134,17 +172,24 @@ class ThreadService(BaseService[ThreadDB, ThreadRepository]):
         # trigger was saved, and a later catalog edit must skip nothing worse
         # than the effort (ensure_available clamps it at run time), not the
         # whole scheduled firing.
-        if data.reasoning_effort is not None and source != ThreadSource.trigger:
+        if reasoning_effort is not None and source != ThreadSource.trigger:
             await ModelService.validate_reasoning_effort(
-                data.model_id, data.reasoning_effort
+                model_id, reasoning_effort
             )
         # `trigger_id` is a keyword (not a ThreadCreate field) so API clients
         # can't attach arbitrary threads to a trigger — only the scanner sets it.
         thread = ThreadDB(
             **data.model_dump(
                 exclude_none=True,
-                exclude={"disabled_mcp_server_ids", "disabled_skill_ids"},
+                exclude={
+                    "model_id",
+                    "reasoning_effort",
+                    "disabled_mcp_server_ids",
+                    "disabled_skill_ids",
+                },
             ),
+            model_id=model_id,
+            reasoning_effort=reasoning_effort,
             workspace_id=self.workspace_id,
             user_id=user_id,
             source=source,
@@ -170,6 +215,14 @@ class ThreadService(BaseService[ThreadDB, ThreadRepository]):
     async def update(self, thread_id: str, data: ThreadPatch) -> ThreadResponse:
         thread = await self.get_or_404(thread_id)
         await self.repository.update(thread, data)
+        return await self.get_with_agent(thread_id)
+
+    async def update_model(
+        self, thread_id: str, data: ThreadModelUpdate
+    ) -> ThreadResponse:
+        await self.get_or_404(thread_id)
+        await ModelService(self.db, self.workspace_id).ensure_available(data.model_id)
+        await self.repository.set_model(thread_id, data.model_id)
         return await self.get_with_agent(thread_id)
 
     async def update_resources(
@@ -286,22 +339,23 @@ class ThreadService(BaseService[ThreadDB, ThreadRepository]):
         """
         thread = await self.repository.get(ts)
         if thread is None:
-            if (
-                await AgentRepository(self.db, self.workspace_id).get_scoped(
-                    UUID(agent_id)
-                )
-                is None
-            ):
+            agent = await AgentRepository(self.db, self.workspace_id).get_scoped(
+                UUID(agent_id)
+            )
+            if agent is None:
                 raise NotFoundError("Agent not found")
             # Slack has no model picker — new threads start on the workspace
-            # default (admin-flagged model, else the first available one).
+            # default unless the agent defines an available override.
+            model_id, reasoning_effort = await self._resolve_agent_defaults(
+                agent.default_model_id,
+                agent.default_reasoning_effort,
+            )
             thread = ThreadDB(
                 id=ts,
                 workspace_id=self.workspace_id,
                 agent_id=agent_id,
-                model_id=await ModelService(
-                    self.db, self.workspace_id
-                ).get_default_model_id(),
+                model_id=model_id,
+                reasoning_effort=reasoning_effort,
                 first_message_content=question,
                 user_id=user_id,
                 source=ThreadSource.slack,

@@ -247,7 +247,7 @@ class RunService:
     @staticmethod
     async def _ensure_runnable_thread(db: AsyncSession, thread_id: str) -> ThreadDB:
         """The availability gates behind `create`: the thread must exist, its
-        pinned model must resolve (whitelist ∧ provider key ∧ admin-enabled),
+        current model must resolve (whitelist ∧ provider key ∧ admin-enabled),
         else ModelUnavailableError; and every sandbox its agent graph binds
         must answer a probe, else SandboxUnavailableError — a provider outage
         is a 409 here, not a failed run the model gets to reason about."""

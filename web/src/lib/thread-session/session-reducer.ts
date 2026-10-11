@@ -14,7 +14,7 @@ export type SessionMeta = {
 	status: "loading" | "ready" | "error";
 	thread: Thread | null;
 	viewerRole: ViewerRole | null;
-	/** False once a workspace admin disabled the thread's pinned model. */
+	/** False once the thread's current model is no longer available. */
 	modelAvailable: boolean;
 	/** The backend's reason once a run 409'd because the agent's sandbox
 	 *  provider is down; null while it is fine. Unlike `modelAvailable` this
@@ -43,6 +43,7 @@ export type SessionEvent =
 	| { type: "last-run-error-loaded"; threadId: string; error: string }
 	| { type: "user-acted" }
 	| { type: "model-unavailable"; threadId: string }
+	| { type: "thread-updated"; threadId: string; thread: Thread }
 	| { type: "model-rechecked"; threadId: string; available: boolean }
 	| { type: "sandbox-unavailable"; threadId: string; detail: string }
 	| { type: "sandbox-rechecked"; threadId: string };
@@ -102,6 +103,16 @@ export function sessionReducer(
 			return state.meta.modelAvailable
 				? { ...state, meta: { ...state.meta, modelAvailable: false } }
 				: state;
+		case "thread-updated":
+			return {
+				...state,
+				meta: {
+					...state.meta,
+					thread: event.thread,
+					modelAvailable: event.thread.modelAvailable !== false,
+					agentArchived: event.thread.agentArchived,
+				},
+			};
 		case "model-rechecked":
 			return state.meta.modelAvailable === event.available
 				? state

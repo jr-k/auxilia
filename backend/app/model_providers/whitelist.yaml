@@ -51,7 +51,7 @@ models:
     chef_slug: openai
     multimodal: true
     supports_structured_output: true
-    reasoning_effort_levels: [none, low, medium, high, xhigh]
+    reasoning_effort_levels: [minimal, low, medium, high]
   - provider: openai
     model_id: gpt-5-mini
     display_name: GPT-5 mini
@@ -59,7 +59,7 @@ models:
     chef_slug: openai
     multimodal: true
     supports_structured_output: true
-    reasoning_effort_levels: [none, low, medium, high, xhigh]
+    reasoning_effort_levels: [minimal, low, medium, high]
   - provider: openai
     model_id: gpt-5-nano
     display_name: GPT-5 nano
@@ -67,7 +67,7 @@ models:
     chef_slug: openai
     multimodal: true
     supports_structured_output: true
-    reasoning_effort_levels: [none, low, medium, high, xhigh]
+    reasoning_effort_levels: [minimal, low, medium, high]
   - provider: openai
     model_id: gpt-5.1
     display_name: GPT-5.1
@@ -75,7 +75,7 @@ models:
     chef_slug: openai
     multimodal: true
     supports_structured_output: true
-    reasoning_effort_levels: [none, low, medium, high, xhigh]
+    reasoning_effort_levels: [none, low, medium, high]
   - provider: openai
     model_id: gpt-5.2
     display_name: GPT-5.2

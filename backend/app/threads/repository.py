@@ -148,6 +148,16 @@ class ThreadRepository(BaseRepository[ThreadDB]):
             stmt = stmt.where(ThreadDB.workspace_id == self.workspace_id)
         await self.db.execute(stmt)
 
+    async def set_model(self, thread_id: str, model_id: str) -> None:
+        stmt = (
+            update(ThreadDB)
+            .where(ThreadDB.id == thread_id)
+            .values(model_id=model_id, reasoning_effort=None)
+        )
+        if self.workspace_id is not None:
+            stmt = stmt.where(ThreadDB.workspace_id == self.workspace_id)
+        await self.db.execute(stmt)
+
     async def set_queue_edit_lease(
         self, thread_id: str, run_id: str, expires_at: datetime
     ) -> None:

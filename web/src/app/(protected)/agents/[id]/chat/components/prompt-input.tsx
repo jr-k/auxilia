@@ -60,11 +60,12 @@ interface ChatPromptInputProps {
 	queueMode?: boolean;
 	className?: string;
 	stop?: () => void;
-	onModelChange?: (modelId: string) => void;
+	onModelChange?: (modelId: string) => void | Promise<void>;
 	selectedModel?: string;
 	readOnlyModel?: boolean;
-	// Reasoning-effort choice for the selected model; null = the model's
-	// default. Pinned with the model on existing threads (readOnlyModel).
+	modelChangeDisabled?: boolean;
+	readOnlyEffort?: boolean;
+	// Reasoning-effort choice for the selected model; null = the model's default.
 	selectedEffort?: string | null;
 	onEffortChange?: (effort: string | null) => void;
 	agentReady?: boolean | null;
@@ -82,6 +83,7 @@ interface ChatPromptInputProps {
 	onReorderQueued?: (orderedIds: string[]) => Promise<void>;
 	queueLoading?: boolean;
 	onQueueAuthorizationRequired?: () => void;
+	submissionDisabled?: boolean;
 }
 
 // Human labels for the canonical effort ladder ("none" reads as Off — it
@@ -120,6 +122,8 @@ const ChatPromptInput = ({
 	onModelChange,
 	selectedModel: externalSelectedModel,
 	readOnlyModel = false,
+	modelChangeDisabled = false,
+	readOnlyEffort = readOnlyModel,
 	selectedEffort = null,
 	onEffortChange,
 	agentReady,
@@ -137,6 +141,7 @@ const ChatPromptInput = ({
 	onReorderQueued,
 	queueLoading = false,
 	onQueueAuthorizationRequired,
+	submissionDisabled = false,
 }: ChatPromptInputProps) => {
 	const [connectDialogOpen, setConnectDialogOpen] = useState(false);
 	const models = useModelsStore((state) => state.models);
@@ -145,6 +150,7 @@ const ChatPromptInput = ({
 	const [model, setModel] = useState<string | undefined>(undefined);
 	const [modelSelectorOpen, setModelSelectorOpen] = useState(false);
 	const [modelSearch, setModelSearch] = useState("");
+	const [modelUpdatePending, setModelUpdatePending] = useState(false);
 	const textareaRef = useRef<HTMLTextAreaElement>(null);
 	const initialFocusPendingRef = useRef(true);
 	const controller = usePromptInputController();
@@ -188,7 +194,7 @@ const ChatPromptInput = ({
 			: "Auto";
 	// Text-only models can't take image attachments. Per model, not per chef:
 	// e.g. GLM 5.3 Flash accepts images while plain GLM 5.3 does not. Unknown
-	// model (not in the picker list, e.g. a disabled pinned model) → allow,
+	// model (not in the picker list, e.g. the current model was disabled) → allow,
 	// matching the old lookup-miss behavior.
 	const noAttachments =
 		selectedModelData !== undefined && !selectedModelData.multimodal;
@@ -203,18 +209,33 @@ const ChatPromptInput = ({
 	// clamps it at run time.
 	useEffect(() => {
 		if (
-			!readOnlyModel &&
+			!readOnlyEffort &&
 			selectedEffort &&
 			selectedModelData !== undefined &&
 			!selectedModelData.reasoningEffortLevels.includes(selectedEffort)
 		) {
 			onEffortChange?.(null);
 		}
-	}, [readOnlyModel, selectedEffort, selectedModelData, onEffortChange]);
+	}, [readOnlyEffort, selectedEffort, selectedModelData, onEffortChange]);
 
-	const handleModelChange = (modelId: string) => {
-		setModel(modelId);
-		onModelChange?.(modelId);
+	const handleModelChange = async (modelId: string) => {
+		if (modelChangeDisabled) return;
+		if (modelId === currentModel) {
+			handleModelSelectorOpenChange(false);
+			return;
+		}
+		setModelUpdatePending(true);
+		try {
+			await onModelChange?.(modelId);
+			setModel(modelId);
+			handleModelSelectorOpenChange(false);
+		} catch (error) {
+			toast.error(
+				getApiErrorMessage(error, "The conversation model could not be changed."),
+			);
+		} finally {
+			setModelUpdatePending(false);
+		}
 	};
 
 	const groupedModels = useMemo(() => {
@@ -353,7 +374,7 @@ const ChatPromptInput = ({
 	};
 
 	const handleSubmit = (message: PromptInputMessage) => {
-		if (!message || queueLoading) return;
+		if (!message || queueLoading || submissionDisabled || modelUpdatePending) return;
 		const hasText = Boolean("text" in message && message.text);
 		const hasAttachments = Boolean("files" in message && message.files?.length);
 		if (!(hasText || hasAttachments)) return;
@@ -600,7 +621,10 @@ const ChatPromptInput = ({
 								onOpenChange={handleModelSelectorOpenChange}
 							>
 								<DialogTrigger asChild>
-									<PromptInputButton className={composerPillClass}>
+									<PromptInputButton
+										disabled={modelUpdatePending || modelChangeDisabled}
+										className={composerPillClass}
+									>
 										{selectedModelData ? (
 											<>
 												<ModelSelectorLogo
@@ -652,9 +676,11 @@ const ChatPromptInput = ({
 																	<button
 																		key={m.id}
 																		type="button"
+																		disabled={
+																			modelUpdatePending || modelChangeDisabled
+																		}
 																		onClick={() => {
-																			handleModelChange(m.id);
-																			handleModelSelectorOpenChange(false);
+																			void handleModelChange(m.id);
 																		}}
 																		className={cn(
 																			"flex w-full items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer transition-colors text-left outline-none",
@@ -686,9 +712,8 @@ const ChatPromptInput = ({
 								</DialogContent>
 							</Dialog>
 						)}
-						{readOnlyModel
-							? // Existing threads pin the effort with the model, show it
-								// only when one was explicitly chosen (and still declared).
+						{readOnlyEffort
+							? // Show a stored explicit effort while keeping it immutable.
 								validatedEffort && (
 									<PromptInputButton disabled className={composerPillClass}>
 										<BrainIcon className="size-3.5" />
@@ -741,7 +766,11 @@ const ChatPromptInput = ({
 							}}
 						/>
 						{status === "streaming" && stop && <StopButton stop={stop} />}
-						<SubmitButton disabled={queueLoading} />
+						<SubmitButton
+							disabled={
+								queueLoading || submissionDisabled || modelUpdatePending
+							}
+						/>
 					</div>
 				</PromptInputFooter>
 				</PromptInput>

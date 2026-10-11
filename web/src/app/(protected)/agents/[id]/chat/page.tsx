@@ -56,6 +56,7 @@ const StarterChatPage = () => {
 	const [loadedAgentId, setLoadedAgentId] = useState<string | null>(null);
 	const [isAgentDialogOpen, setIsAgentDialogOpen] = useState(false);
 	const agentRequestIdRef = useRef(0);
+	const defaultsAppliedAgentIdRef = useRef<string | null>(null);
 	const currentAgent = loadedAgentId === agentId ? agent : null;
 	const {
 		ready: agentReady,
@@ -116,6 +117,7 @@ const StarterChatPage = () => {
 				agentName: submittedAgent?.name ?? null,
 				agentEmoji: submittedAgent?.emoji ?? null,
 				agentColor: submittedAgent?.color ?? null,
+				agentImageRevision: submittedAgent?.imageRevision ?? null,
 			};
 
 			addThread(thread);
@@ -136,15 +138,38 @@ const StarterChatPage = () => {
 	}, [fetchModels, models.length]);
 
 	useEffect(() => {
-		if (selectedModel) {
+		if (
+			currentAgent === null ||
+			models.length === 0 ||
+			defaultsAppliedAgentIdRef.current === agentId
+		) {
 			return;
 		}
+		const configuredModel = currentAgent.defaultModelId
+			? models.find((model) => model.id === currentAgent.defaultModelId)
+			: undefined;
+		const modelId = configuredModel?.id ?? getDefaultModel(models);
+		if (!modelId) return;
 
-		const defaultModel = getDefaultModel(models);
-		if (defaultModel) {
-			setSelectedModel(defaultModel);
-		}
-	}, [models, selectedModel, setSelectedModel]);
+		defaultsAppliedAgentIdRef.current = agentId;
+		let cancelled = false;
+		queueMicrotask(() => {
+			if (cancelled) return;
+			setSelectedModel(modelId);
+			setReasoningEffort(
+				configuredModel &&
+					currentAgent.defaultReasoningEffort &&
+					configuredModel.reasoningEffortLevels.includes(
+						currentAgent.defaultReasoningEffort,
+					)
+					? currentAgent.defaultReasoningEffort
+					: null,
+			);
+		});
+		return () => {
+			cancelled = true;
+		};
+	}, [agentId, currentAgent, models, setSelectedModel]);
 
 	useEffect(() => {
 		const requestId = ++agentRequestIdRef.current;

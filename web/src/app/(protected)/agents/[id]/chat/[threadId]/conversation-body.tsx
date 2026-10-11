@@ -25,6 +25,7 @@ import {
   MessageContent,
   MessageResponse,
 } from "@/components/ai-elements/message";
+import { Loader } from "@/components/ai-elements/loader";
 import {
   ChainOfThought,
   ChainReasoningStep,
@@ -104,6 +105,8 @@ export type ConversationBodyProps = {
   respond: (response: HitlResponse, interruptId: string | null) => void;
   modelUnavailable: boolean;
   onRegenerate: () => void;
+  /** A claimed queued prompt waiting for its server-authored message event. */
+  optimisticPrompt: string | null;
   error: unknown;
   rehydratedError: string | null;
 };
@@ -128,6 +131,7 @@ export const ConversationBody = memo(function ConversationBody({
   respond,
   modelUnavailable,
   onRegenerate,
+  optimisticPrompt,
   error,
   rehydratedError,
 }: ConversationBodyProps) {
@@ -251,6 +255,8 @@ export const ConversationBody = memo(function ConversationBody({
           </Fragment>
         );
       })}
+
+      {optimisticPrompt && <OptimisticUserTurn text={optimisticPrompt} />}
 
       {showThinking && <ChainThinking />}
 
@@ -442,6 +448,25 @@ const UserTurn = ({
     </div>
   );
 };
+
+const OptimisticUserTurn = ({ text }: { text: string }) => (
+  <Message from="user">
+    <div
+      className="ml-auto flex max-w-[82%] items-center justify-end gap-2"
+      role="status"
+      aria-label="Sending queued message"
+    >
+      <Loader
+        size={14}
+        className="shrink-0 text-meta motion-reduce:animate-none dark:text-panel-dim"
+        aria-hidden="true"
+      />
+      <MessageContent className="group-[.is-user]:ml-0 group-[.is-user]:max-w-full">
+        <MessageResponse>{text}</MessageResponse>
+      </MessageContent>
+    </div>
+  </Message>
+);
 
 const SideChannelContextDetails = ({
   messages,

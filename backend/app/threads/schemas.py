@@ -22,10 +22,12 @@ class ThreadCreate(SQLModel):
 
 class ThreadPatch(SQLModel):
     # Rename only: the PATCH endpoint is a cosmetic rename of the thread's
-    # display title. `model_id` is deliberately not patchable here — letting
-    # callers set it to an arbitrary value would break later runs for the
-    # thread ("Unknown model").
+    # display title. Model changes use their own validated endpoint.
     first_message_content: str | None = None
+
+
+class ThreadModelUpdate(SQLModel):
+    model_id: str = Field(max_length=255)
 
 
 class ThreadResourcesPatch(SQLModel):
@@ -47,7 +49,7 @@ class ThreadResponse(ThreadBase):
     agent_color: str | None = None
     agent_image_revision: UUID | None = None
     agent_archived: bool = False
-    # Whether the thread's pinned model can run right now (whitelist ∧
+    # Whether the thread's current model can run right now (whitelist ∧
     # provider key ∧ admin-enabled). Server-computed on the single-thread GET
     # so the frontend can disable the composer without re-deriving the rule;
     # list endpoints leave the default (the composer only exists on the

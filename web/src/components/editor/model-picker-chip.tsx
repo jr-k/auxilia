@@ -29,6 +29,8 @@ interface ModelPickerChipProps {
 	 * inference, which is only a fallback (wrong while the catalog is loading
 	 * and unknowable if its fetch failed). */
 	unavailable?: boolean;
+	/** Placeholder when no model is selected. */
+	emptyLabel?: string;
 }
 
 /** Small pill showing the selected model; opens the model catalog dialog. */
@@ -38,6 +40,7 @@ export function ModelPickerChip({
 	disabled,
 	unavailableLabel,
 	unavailable,
+	emptyLabel = "Select model",
 }: ModelPickerChipProps) {
 	const models = useModelsStore((state) => state.models);
 	const isCatalogLoaded = useModelsStore((state) => state.isInitialized);
@@ -108,7 +111,7 @@ export function ModelPickerChip({
 			) : value ? (
 				<span className="truncate">{unavailableLabel ?? value}</span>
 			) : (
-				<span className="text-meta dark:text-white/40">Select model</span>
+				<span className="text-meta dark:text-white/40">{emptyLabel}</span>
 			)}
 			{!disabled && (
 				<ChevronDown className="size-[15px] shrink-0 text-faint" />

@@ -136,7 +136,41 @@ const ChatPage = () => {
     },
     [threadId],
   );
-  const promptQueue = usePromptQueue(threadId, run.status !== "idle");
+  const userMessageCount = transcript.messages.filter(
+    (message) => isHumanMessage(message) && message.name !== "host",
+  ).length;
+  const promptQueue = usePromptQueue(
+    threadId,
+    run.status !== "idle",
+    userMessageCount,
+  );
+  const {
+    acknowledgeClaimedPrompt,
+    claimedPrompt,
+    claimedPromptBaseline,
+  } = promptQueue;
+  const optimisticPrompt =
+    claimedPrompt &&
+    (claimedPromptBaseline === null ||
+      userMessageCount <= claimedPromptBaseline)
+      ? claimedPrompt.text
+      : null;
+
+  useEffect(() => {
+    if (
+      claimedPrompt == null ||
+      claimedPromptBaseline === null ||
+      userMessageCount <= claimedPromptBaseline
+    ) {
+      return;
+    }
+    acknowledgeClaimedPrompt(claimedPrompt.id);
+  }, [
+    acknowledgeClaimedPrompt,
+    claimedPromptBaseline,
+    claimedPrompt,
+    userMessageCount,
+  ]);
   const thread = meta.thread;
   const resourceSettings =
     resourceSettingsOverride?.threadId === threadId
@@ -241,6 +275,7 @@ const ChatPage = () => {
                 acknowledgeCurrentResponse();
                 actions.regenerate();
               }}
+              optimisticPrompt={optimisticPrompt}
               error={run.error}
               rehydratedError={run.rehydratedError}
             />
@@ -251,6 +286,32 @@ const ChatPage = () => {
         <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-background to-transparent z-10" />
       </div>
       <div className="w-full shrink-0 bg-background">
+        {meta.status === "ready" &&
+          meta.viewerRole !== "admin" &&
+          !meta.agentArchived &&
+          !meta.modelAvailable && (
+            <div className="w-full max-w-4xl mx-auto lg:px-10 sm:px-6 px-3 pt-6">
+              <div className="flex items-center gap-3 rounded-lg border border-border bg-muted/50 px-4 py-3">
+                <CircleSlash className="size-5 shrink-0 text-muted-foreground" />
+                <p className="flex-1 text-sm text-muted-foreground">
+                  The model used by this conversation
+                  {thread?.modelId ? ` (${thread.modelId})` : ""} is no longer
+                  available in this workspace. Choose another model below, or
+                  ask a workspace admin to restore it.
+                </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="shrink-0 cursor-pointer"
+                  onClick={() => {
+                    void actions.recheckModel();
+                  }}
+                >
+                  Check again
+                </Button>
+              </div>
+            </div>
+          )}
         {meta.status === "error" ? (
           <div className="w-full max-w-4xl mx-auto lg:px-10 sm:px-6 px-3 py-6">
             <div className="flex items-center gap-3 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3">
@@ -292,28 +353,6 @@ const ChatPage = () => {
               </p>
             </div>
           </div>
-        ) : !meta.modelAvailable ? (
-          <div className="w-full max-w-4xl mx-auto lg:px-10 sm:px-6 px-3 py-6">
-            <div className="flex items-center gap-3 rounded-lg border border-border bg-muted/50 px-4 py-3">
-              <CircleSlash className="size-5 shrink-0 text-muted-foreground" />
-              <p className="flex-1 text-sm text-muted-foreground">
-                The model used by this conversation
-                {thread?.modelId ? ` (${thread.modelId})` : ""} is no longer
-                available in this workspace. Ask a workspace admin to restore
-                it, or start a new conversation.
-              </p>
-              <Button
-                variant="outline"
-                size="sm"
-                className="shrink-0 cursor-pointer"
-                onClick={() => {
-                  void actions.recheckModel();
-                }}
-              >
-                Check again
-              </Button>
-            </div>
-          </div>
         ) : meta.status !== "ready" ? (
           // Metadata still loading (first open, or a Retry in flight): no
           // composer yet, so nothing can be sent alongside a parked message.
@@ -351,10 +390,15 @@ const ChatPage = () => {
             }}
             status={run.isLoading ? "streaming" : "ready"}
             queueMode={run.status === "streaming"}
+            submissionDisabled={!meta.modelAvailable}
             className="w-full max-w-4xl mx-auto lg:px-10 sm:px-6 px-3 py-4"
             stop={actions.stop}
             selectedModel={thread?.modelId ?? undefined}
-            readOnlyModel={true}
+            onModelChange={actions.changeModel}
+            modelChangeDisabled={
+              run.status !== "idle" || promptQueue.runStarting
+            }
+            readOnlyEffort={true}
             selectedEffort={thread?.reasoningEffort ?? null}
             agentReady={agentReady}
             disconnectedServers={disconnectedMcpServers}

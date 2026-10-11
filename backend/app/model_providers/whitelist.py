@@ -33,6 +33,43 @@ SUPPORTED_PROVIDERS: frozenset[str] = frozenset(
 # model's levels means its thinking can be turned off entirely.
 ReasoningEffort = Literal["none", "minimal", "low", "medium", "high", "xhigh", "max"]
 
+# Provider-verified upper bounds for every effort-enabled model in the bundled
+# catalog. A remote catalog may expose a narrower subset, but it cannot add a
+# value the serving endpoint rejects. Unknown/new models still go through the
+# canonical-ladder validation below until their provider matrix is audited.
+KNOWN_REASONING_EFFORT_LEVELS: dict[str, frozenset[ReasoningEffort]] = {
+    "gpt-5": frozenset({"minimal", "low", "medium", "high"}),
+    "gpt-5-mini": frozenset({"minimal", "low", "medium", "high"}),
+    "gpt-5-nano": frozenset({"minimal", "low", "medium", "high"}),
+    "gpt-5.1": frozenset({"none", "low", "medium", "high"}),
+    "gpt-5.2": frozenset({"none", "low", "medium", "high", "xhigh"}),
+    "gpt-5.4": frozenset({"none", "low", "medium", "high", "xhigh"}),
+    "gpt-5.5": frozenset({"none", "low", "medium", "high", "xhigh"}),
+    "gpt-5.6-luna": frozenset({"none", "low", "medium", "high", "xhigh", "max"}),
+    "gpt-5.6-sol": frozenset({"none", "low", "medium", "high", "xhigh", "max"}),
+    "gpt-5.6-terra": frozenset({"none", "low", "medium", "high", "xhigh", "max"}),
+    "claude-sonnet-4-6": frozenset({"low", "medium", "high", "max"}),
+    "claude-sonnet-5": frozenset({"low", "medium", "high", "xhigh", "max"}),
+    "claude-opus-4-6": frozenset({"low", "medium", "high", "max"}),
+    "claude-opus-4-8": frozenset({"low", "medium", "high", "xhigh", "max"}),
+    "claude-opus-5": frozenset({"low", "medium", "high", "xhigh", "max"}),
+    "deepseek-v4-flash": frozenset({"none", "low", "high", "max"}),
+    "deepseek-v4-flash-vision-exp": frozenset({"none", "low", "high", "max"}),
+    "deepseek-v4-pro": frozenset({"none", "low", "high", "max"}),
+    "gemini-3-flash-preview": frozenset({"minimal", "low", "medium", "high"}),
+    "gemini-3-pro-preview": frozenset({"low", "high"}),
+    "gemini-3.5-flash": frozenset({"minimal", "low", "medium", "high"}),
+    "gemini-3.6-flash": frozenset({"minimal", "low", "medium", "high"}),
+    "gemini-3.7-flash": frozenset({"low", "medium", "high"}),
+    "gemini-3.8-flash": frozenset({"low", "medium", "high"}),
+    "z-ai/glm-5.2": frozenset({"high", "max"}),
+    "z-ai/glm-5.3": frozenset({"low", "high", "max"}),
+    "z-ai/glm-5.3-flash": frozenset({"low", "high", "max"}),
+    "qwen/qwen3.8-max": frozenset({"low", "xhigh"}),
+    "qwen/qwen3.8-27b": frozenset({"low", "xhigh"}),
+    "qwen/qwen3.8-flash": frozenset({"low", "xhigh"}),
+}
+
 # The single copy of the whitelist: bundled into the image as the offline
 # fallback and uploaded as-is to the CDN (`MODEL_WHITELIST_URL`).
 _BUNDLED_PATH = Path(__file__).parent / "whitelist.yaml"
@@ -83,6 +120,17 @@ class SupportedModel(BaseModel):
 
     @model_validator(mode="after")
     def reasoning_effort_is_coherent(self) -> "SupportedModel":
+        ladder = get_args(ReasoningEffort)
+        allowed = KNOWN_REASONING_EFFORT_LEVELS.get(self.model_id)
+        unsupported = (
+            set() if allowed is None else set(self.reasoning_effort_levels) - allowed
+        )
+        if allowed is not None and unsupported:
+            raise ValueError(
+                f"model {self.model_id!r} declares unsupported reasoning effort "
+                f"levels: {', '.join(sorted(unsupported))} "
+                f"(accepted: {', '.join(level for level in ladder if level in allowed)})"
+            )
         if len(set(self.reasoning_effort_levels)) != len(self.reasoning_effort_levels):
             raise ValueError(
                 f"model {self.model_id!r} has duplicate reasoning_effort_levels"
@@ -90,7 +138,6 @@ class SupportedModel(BaseModel):
         # Levels must follow the canonical ladder order — the picker renders
         # the list as-is, so an out-of-order file would show `high` above
         # `low`. Reject it like any other data-entry error.
-        ladder = get_args(ReasoningEffort)
         positions = [ladder.index(level) for level in self.reasoning_effort_levels]
         if positions != sorted(positions):
             raise ValueError(

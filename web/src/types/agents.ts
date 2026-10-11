@@ -102,6 +102,9 @@ export interface Agent {
 	group?: string | null;
 	visibility: ResourceVisibility;
 	webSearchEnabled?: boolean;
+	/** Detail responses only. Null inherits the workspace default model. */
+	defaultModelId?: string | null;
+	defaultReasoningEffort?: string | null;
 	teamIds: string[];
 	owner?: AgentOwner | null;
 	isSubagent: boolean;

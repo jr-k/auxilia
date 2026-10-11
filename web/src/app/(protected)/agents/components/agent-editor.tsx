@@ -4,7 +4,15 @@ import { useState, useMemo, useRef, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import EmojiPicker, { EmojiClickData, Theme } from "emoji-picker-react";
-import { ArchiveIcon, Copy, Globe2, History, Pencil, Play } from "lucide-react";
+import {
+	ArchiveIcon,
+	BrainIcon,
+	Copy,
+	Globe2,
+	History,
+	Pencil,
+	Play,
+} from "lucide-react";
 import { toast } from "sonner";
 import { AGENT_COLORS } from "@/lib/colors";
 import { useTheme } from "next-themes";
@@ -22,6 +30,7 @@ import { getApiErrorMessage } from "@/lib/api/errors";
 import { useAgentsStore } from "@/stores/agents-store";
 import { useSkillsStore } from "@/stores/skills-store";
 import { useUserStore } from "@/stores/user-store";
+import { useModelsStore } from "@/stores/models-store";
 import { useConfirmDialog } from "@/components/providers/dialog-provider";
 import { DropdownMenu } from "@/components/ui/dropdown-menu";
 import { UnderlineTabs } from "@/components/ui/underline-tabs";
@@ -31,6 +40,7 @@ import { groupOptions } from "@/lib/groups";
 import { useUnsavedChangesWarning } from "@/hooks/use-unsaved-changes-warning";
 import * as agentsApi from "@/lib/api/resources/agents";
 import { AgentAvatar } from "@/components/ui/agent-avatar";
+import { ModelPickerChip } from "@/components/editor/model-picker-chip";
 import {
 	ImageFilePreview,
 	ImageUpload,
@@ -47,6 +57,18 @@ type EditorTab = "instructions" | "permissions";
 
 const slugify = (name: string) =>
 	name.trim().toLowerCase().replace(/\s+/g, "-") || "…";
+
+const EFFORT_LABELS = new Map<string, string>([
+	["none", "Off"],
+	["minimal", "Minimal"],
+	["low", "Low"],
+	["medium", "Medium"],
+	["high", "High"],
+	["xhigh", "Extra high"],
+	["max", "Max"],
+]);
+
+const effortLabel = (effort: string) => EFFORT_LABELS.get(effort) ?? effort;
 
 interface AgentEditorProps {
 	/** Undefined = create mode (`/agents/new` draft). */
@@ -77,6 +99,7 @@ export default function AgentEditor({
 	const archiveAgent = useAgentsStore((state) => state.archiveAgent);
 	const workspaceAgents = useAgentsStore((state) => state.agents);
 	const user = useUserStore((state) => state.user);
+	const models = useModelsStore((state) => state.models);
 	const isAdmin = user?.role === "admin";
 	const librarySkills = useSkillsStore((state) => state.skills);
 
@@ -96,6 +119,21 @@ export default function AgentEditor({
 		[agent],
 	);
 	const [form, setForm] = useState<AgentFormState>(initialForm);
+	const selectedDefaultModel = models.find(
+		(model) => model.id === form.defaultModelId,
+	);
+	const effortLevels = selectedDefaultModel?.reasoningEffortLevels ?? [];
+	const validatedDefaultEffort =
+		form.defaultReasoningEffort &&
+		(selectedDefaultModel === undefined ||
+			effortLevels.includes(form.defaultReasoningEffort))
+			? form.defaultReasoningEffort
+			: null;
+	const defaultEffortLabel = validatedDefaultEffort
+		? effortLabel(validatedDefaultEffort)
+		: selectedDefaultModel?.reasoningEffortDefault
+			? `Default (${effortLabel(selectedDefaultModel.reasoningEffortDefault)})`
+			: "Auto";
 	const availableGroups = useMemo(
 		() => groupOptions(workspaceAgents),
 		[workspaceAgents],
@@ -291,6 +329,8 @@ export default function AgentEditor({
 				color: source.color ?? null,
 				visibility: source.visibility,
 				webSearchEnabled: source.webSearchEnabled ?? false,
+				defaultModelId: source.defaultModelId ?? null,
+				defaultReasoningEffort: source.defaultReasoningEffort ?? null,
 				teamIds: source.teamIds,
 				mcpServers: source.mcpServers.map((server) => ({
 					mcpServerId: server.mcpServerId,
@@ -765,6 +805,107 @@ export default function AgentEditor({
 							}
 						/>
 					)}
+					<div className="mt-5 overflow-hidden rounded-xl border border-border bg-card">
+						<div className="flex items-start gap-3 px-4 py-3.5">
+							<div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-petrol/10 text-petrol dark:text-panel-terminal">
+								<BrainIcon className="size-4" />
+							</div>
+							<div className="min-w-0 flex-1">
+								<p className="text-[13px] font-semibold text-foreground">
+									Default model
+								</p>
+								<p className="mt-0.5 text-[11.5px] leading-[1.45] text-meta dark:text-panel-dim">
+									Preselected when a conversation starts with this agent.
+								</p>
+							</div>
+							<div className="flex shrink-0 flex-col items-end gap-1.5">
+								<ModelPickerChip
+									value={form.defaultModelId}
+									disabled={readOnly || !canEditAgent}
+									emptyLabel="Workspace default"
+									onChange={(modelId) => {
+										setForm((current) =>
+											current.defaultModelId === modelId
+												? current
+												: {
+														...current,
+														defaultModelId: modelId,
+														defaultReasoningEffort: null,
+													},
+										);
+									}}
+								/>
+								{form.defaultModelId && !readOnly && canEditAgent && (
+									<button
+										type="button"
+										onClick={() => {
+											setForm((current) => ({
+												...current,
+												defaultModelId: null,
+												defaultReasoningEffort: null,
+											}));
+										}}
+										className="cursor-pointer px-1 text-[10.5px] font-medium text-meta transition-colors hover:text-petrol dark:text-panel-dim dark:hover:text-panel-terminal"
+									>
+										Use workspace default
+									</button>
+								)}
+							</div>
+						</div>
+						<div className="flex items-center gap-3 border-t border-hairline px-4 py-3 dark:border-white/5">
+							<div className="min-w-0 flex-1">
+								<p className="text-[12px] font-semibold text-foreground">
+									Reasoning effort
+								</p>
+								<p className="mt-0.5 text-[10.5px] text-meta dark:text-panel-dim">
+									Applied with the agent&apos;s default model.
+								</p>
+							</div>
+							{form.defaultModelId &&
+							effortLevels.length > 0 &&
+							!readOnly &&
+							canEditAgent ? (
+								<DropdownMenu
+									align="end"
+									side="top"
+									items={[
+										{
+											label: selectedDefaultModel?.reasoningEffortDefault
+												? `Default (${effortLabel(selectedDefaultModel.reasoningEffortDefault)})`
+												: "Auto",
+											active: !validatedDefaultEffort,
+											onClick: () => {
+												setField("defaultReasoningEffort", null);
+											},
+										},
+										...effortLevels.map((level) => ({
+											label: effortLabel(level),
+											active: validatedDefaultEffort === level,
+											onClick: () => {
+												setField("defaultReasoningEffort", level);
+											},
+										})),
+									]}
+									trigger={
+										<button
+											type="button"
+											className="inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-full bg-hover px-3 text-[12px] font-medium text-foreground transition-colors hover:bg-petrol-tint dark:bg-white/5 dark:hover:bg-white/10"
+										>
+											{defaultEffortLabel}
+										</button>
+									}
+								/>
+							) : (
+								<span className="inline-flex h-8 items-center rounded-full bg-hover px-3 text-[12px] font-medium text-meta dark:bg-white/5 dark:text-panel-dim">
+									{form.defaultModelId
+										? validatedDefaultEffort
+											? effortLabel(validatedDefaultEffort)
+											: defaultEffortLabel
+										: "Workspace default"}
+								</span>
+							)}
+						</div>
+					</div>
 					<div className="mt-5 flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3">
 						<div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-petrol/10 text-petrol dark:text-panel-terminal">
 							<Globe2 className="size-4" />

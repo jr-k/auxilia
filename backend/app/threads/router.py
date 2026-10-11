@@ -13,6 +13,7 @@ from app.threads.dependencies import resolve_viewer_role
 from app.threads.models import ThreadSource
 from app.threads.schemas import (
     ThreadCreate,
+    ThreadModelUpdate,
     ThreadPatch,
     ThreadResourcesPatch,
     ThreadResponse,
@@ -92,6 +93,19 @@ async def update_thread(
     if thread.user_id != current_user.id:
         raise PermissionDeniedError("Not authorized to edit this thread")
     return await service.update(thread_id, data)
+
+
+@router.put("/{thread_id}/model")
+async def update_thread_model(
+    thread_id: str,
+    data: ThreadModelUpdate,
+    current_user: UserDB = Depends(get_current_user),
+    service: ThreadService = Depends(get_thread_service),
+) -> ThreadResponse:
+    thread = await service.get(thread_id)
+    if thread.user_id != current_user.id:
+        raise PermissionDeniedError("Not authorized to edit this thread")
+    return await service.update_model(thread_id, data)
 
 
 @router.put("/{thread_id}/resources")

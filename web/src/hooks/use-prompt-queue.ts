@@ -9,11 +9,17 @@ const POLL_MS = 1000;
 /** How long a claimed item counts as "a run is starting" when the stream
  * never reports it (worker crashed before emitting a lifecycle event). */
 const CLAIM_GRACE_MS = 5000;
+/** Safety net for the optimistic bubble if a claimed run never emits input. */
+const CLAIMED_PROMPT_GRACE_MS = 15_000;
 
 const byPosition = (a: QueuedPrompt, b: QueuedPrompt) =>
 	a.position - b.position || a.id.localeCompare(b.id);
 
-export function usePromptQueue(threadId: string, runActive: boolean) {
+export function usePromptQueue(
+	threadId: string,
+	runActive: boolean,
+	userMessageCount: number,
+) {
 	const [items, setItems] = useState<QueuedPrompt[]>([]);
 	const [isLoading, setIsLoading] = useState(true);
 	const [loadedThreadId, setLoadedThreadId] = useState<string | null>(null);
@@ -23,7 +29,21 @@ export function usePromptQueue(threadId: string, runActive: boolean) {
 	// must keep queueing through that gap, or a fast Enter starts a direct
 	// `submit` that the server parks in the queue anyway — and the prompt
 	// shows up both in the conversation and in the queue.
-	const [claimedAt, setClaimedAt] = useState<number | null>(null);
+	const [claimedRunStart, setClaimedRunStart] = useState<{
+		threadId: string;
+		claimedAt: number;
+	} | null>(null);
+	const [claimedPrompt, setClaimedPrompt] = useState<{
+		threadId: string;
+		item: QueuedPrompt;
+		claimedAt: number;
+		baselineUserMessageCount: number;
+	} | null>(null);
+	const userMessageCountRef = useRef(userMessageCount);
+	const promptBaselines = useRef(new Map<string, number>());
+	useEffect(() => {
+		userMessageCountRef.current = userMessageCount;
+	}, [userMessageCount]);
 	const itemsRef = useRef(items);
 	useEffect(() => {
 		itemsRef.current = items;
@@ -48,26 +68,53 @@ export function usePromptQueue(threadId: string, runActive: boolean) {
 		threadIdRef.current = threadId;
 		requestVersion.current += 1;
 		removedIds.current.clear();
-		setClaimedAt(null);
+		promptBaselines.current.clear();
 	}, [threadId]);
 
 	// The stream confirmed the run (or its end): the claim did its job.
 	useEffect(() => {
-		if (runActive) setClaimedAt(null);
-	}, [runActive]);
+		if (!runActive) return;
+		// This state mirrors an external stream transition, so clearing it in
+		// the transition effect is intentional.
+		// eslint-disable-next-line react-hooks/set-state-in-effect
+		setClaimedRunStart((current) =>
+			current?.threadId === threadId ? null : current,
+		);
+	}, [runActive, threadId]);
 	useEffect(() => {
-		if (claimedAt == null) return;
-		const remaining = claimedAt + CLAIM_GRACE_MS - Date.now();
+		if (claimedRunStart == null) return;
+		const remaining =
+			claimedRunStart.claimedAt + CLAIM_GRACE_MS - Date.now();
 		const timer = window.setTimeout(
 			() => {
-				setClaimedAt((current) => (current === claimedAt ? null : current));
+				setClaimedRunStart((current) =>
+					current?.claimedAt === claimedRunStart.claimedAt
+						? null
+						: current,
+				);
 			},
 			Math.max(0, remaining),
 		);
 		return () => {
 			window.clearTimeout(timer);
 		};
-	}, [claimedAt]);
+	}, [claimedRunStart]);
+	useEffect(() => {
+		if (claimedPrompt == null) return;
+		const remaining =
+			claimedPrompt.claimedAt + CLAIMED_PROMPT_GRACE_MS - Date.now();
+		const timer = window.setTimeout(
+			() => {
+				setClaimedPrompt((current) =>
+					current?.claimedAt === claimedPrompt.claimedAt ? null : current,
+				);
+			},
+			Math.max(0, remaining),
+		);
+		return () => {
+			window.clearTimeout(timer);
+		};
+	}, [claimedPrompt]);
 
 	const refresh = useCallback((): Promise<void> => {
 		if (refreshInFlight.current?.threadId === threadId) {
@@ -87,12 +134,36 @@ export function usePromptQueue(threadId: string, runActive: boolean) {
 				}
 				if (enqueueInFlight.current === 0) {
 					const present = new Set(next.map((item) => item.id));
-					const claimed = itemsRef.current.some(
+					const claimed = itemsRef.current.find(
 						(item) => !present.has(item.id) && !removedIds.current.has(item.id),
 					);
-					if (claimed) setClaimedAt(Date.now());
+					if (claimed) {
+						const now = Date.now();
+						setClaimedRunStart({ threadId, claimedAt: now });
+						setClaimedPrompt({
+							threadId,
+							item: claimed,
+							claimedAt: now,
+							baselineUserMessageCount:
+								promptBaselines.current.get(claimed.id) ??
+								userMessageCountRef.current,
+						});
+						promptBaselines.current.delete(claimed.id);
+					}
+					for (const item of next) {
+						// The server just confirmed this item is still waiting.
+						// Its eventual optimistic bubble should only outlive a
+						// user message added after this confirmed queue state.
+						promptBaselines.current.set(
+							item.id,
+							userMessageCountRef.current,
+						);
+					}
 					for (const id of removedIds.current) {
-						if (!present.has(id)) removedIds.current.delete(id);
+						if (!present.has(id)) {
+							removedIds.current.delete(id);
+							promptBaselines.current.delete(id);
+						}
 					}
 					setItems(next.sort(byPosition));
 				}
@@ -150,6 +221,7 @@ export function usePromptQueue(threadId: string, runActive: boolean) {
 					) {
 						return item;
 					}
+					promptBaselines.current.set(item.id, userMessageCountRef.current);
 					setItems((current) =>
 						loadedThreadId === threadId
 							? [
@@ -227,6 +299,7 @@ export function usePromptQueue(threadId: string, runActive: boolean) {
 			const version = requestVersion.current;
 			const previous = items;
 			removedIds.current.add(id);
+			promptBaselines.current.delete(id);
 			setItems((current) => current.filter((item) => item.id !== id));
 			try {
 				await threadsApi.removeQueuedPrompt(threadId, id);
@@ -281,11 +354,25 @@ export function usePromptQueue(threadId: string, runActive: boolean) {
 		[items, refresh, threadId],
 	);
 
+	const acknowledgeClaimedPrompt = useCallback((id: string) => {
+		setClaimedPrompt((current) =>
+			current?.item.id === id ? null : current,
+		);
+	}, []);
+
 	return {
 		items: loadedThreadId === threadId ? items : [],
 		isLoading: isLoading || loadedThreadId !== threadId,
 		/** A queued prompt was just claimed; the stream hasn't confirmed yet. */
-		runStarting: claimedAt != null,
+		runStarting: claimedRunStart?.threadId === threadId,
+		/** Prompt claimed by the worker but not necessarily in the transcript yet. */
+		claimedPrompt:
+			claimedPrompt?.threadId === threadId ? claimedPrompt.item : null,
+		claimedPromptBaseline:
+			claimedPrompt?.threadId === threadId
+				? claimedPrompt.baselineUserMessageCount
+				: null,
+		acknowledgeClaimedPrompt,
 		enqueue,
 		update,
 		beginEdit,

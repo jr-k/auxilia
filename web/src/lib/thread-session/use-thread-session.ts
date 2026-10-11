@@ -49,11 +49,13 @@ export type ThreadSessionTransport = {
 	fetch?: typeof fetch;
 	readThread: (threadId: string) => Promise<ThreadRead>;
 	listThreadRuns: (threadId: string) => Promise<Run[]>;
+	updateThreadModel?: (threadId: string, modelId: string) => Promise<ThreadRead["thread"]>;
 };
 
 export const defaultTransport: ThreadSessionTransport = {
 	readThread: threadsApi.readThread,
 	listThreadRuns: threadsApi.listThreadRuns,
+	updateThreadModel: threadsApi.updateThreadModel,
 };
 
 export type ThreadSessionOptions = {
@@ -103,6 +105,7 @@ export type ThreadSession = {
 		regenerate: () => void;
 		stop: () => void;
 		respond: (response: HitlResponse, interruptId: string | null) => void;
+		changeModel: (modelId: string) => Promise<void>;
 		recheckModel: () => Promise<void>;
 		/** Clear the mid-session sandbox gate so the composer comes back; the
 		 * page re-polls readiness alongside it. */
@@ -249,6 +252,16 @@ export function useThreadSession({
 		dispatch({ type: "sandbox-rechecked", threadId });
 	}, [threadId]);
 
+	const changeModel = useCallback(
+		async (modelId: string) => {
+			const thread = await (
+				transport.updateThreadModel ?? threadsApi.updateThreadModel
+			)(threadId, modelId);
+			dispatch({ type: "thread-updated", threadId, thread });
+		},
+		[threadId, transport],
+	);
+
 	const recheckModel = useCallback(async () => {
 		const forThread = threadId;
 		try {
@@ -370,6 +383,15 @@ export function useThreadSession({
 			decisions,
 			recordDecision,
 		},
-		actions: { send, regenerate, stop, respond, recheckModel, recheckSandbox, reopen },
+		actions: {
+			send,
+			regenerate,
+			stop,
+			respond,
+			changeModel,
+			recheckModel,
+			recheckSandbox,
+			reopen,
+		},
 	};
 }

@@ -22,8 +22,26 @@ export function AppearanceInitializer() {
 	}, [fetchAppearance]);
 
 	useEffect(() => {
-		document.title = appearance.appName;
+		const applyTitle = () => {
+			if (document.title !== appearance.appName) {
+				document.title = appearance.appName;
+			}
+		};
 
+		applyTitle();
+		const observer = new MutationObserver(applyTitle);
+		observer.observe(document.head, {
+			childList: true,
+			subtree: true,
+			characterData: true,
+		});
+
+		return () => {
+			observer.disconnect();
+		};
+	}, [appearance.appName]);
+
+	useEffect(() => {
 		let favicon = document.querySelector<HTMLLinkElement>(
 			'link[data-workspace-favicon="true"]',
 		);
@@ -36,7 +54,7 @@ export function AppearanceInitializer() {
 		favicon.href = appearance.logoRevision
 			? appearanceLogoUrl(appearance.logoRevision)
 			: "/pwa-icon.svg";
-	}, [appearance]);
+	}, [appearance.logoRevision]);
 
 	return null;
 }
