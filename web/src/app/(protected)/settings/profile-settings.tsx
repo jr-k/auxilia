@@ -651,7 +651,7 @@ function PreferencesCard() {
 	const showShortcutsInMenu = useShowShortcutsInMenu();
 
 	return (
-		<>
+		<div className="flex flex-col gap-4">
 			<section className="rounded-[12px] border border-border bg-card p-5">
 				<SectionHeading
 					icon={<Menu className="size-4" />}
@@ -699,7 +699,7 @@ function PreferencesCard() {
 					/>
 				</div>
 			</section>
-		</>
+		</div>
 	);
 }
 
