@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.38](https://github.com/jr-k/auxilia/compare/web-v0.11.37...web-v0.11.38) (2026-10-11)
+
+
+### Bug Fixes
+
+* **ui:** harmonize switch accent color ([#76](https://github.com/jr-k/auxilia/issues/76)) ([539061e](https://github.com/jr-k/auxilia/commit/539061e6d5163d73d23d84963596b843b0af1df9))
+
 ## [0.11.37](https://github.com/jr-k/auxilia/compare/web-v0.11.36...web-v0.11.37) (2026-10-10)
 
 
