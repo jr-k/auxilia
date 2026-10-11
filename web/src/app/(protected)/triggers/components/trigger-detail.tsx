@@ -204,7 +204,6 @@ export default function TriggerDetail({ trigger }: TriggerDetailProps) {
 									checked={liveTrigger.isActive}
 									onCheckedChange={handleToggleActive}
 									disabled={!liveTrigger.canManage}
-									className="data-[state=checked]:bg-success enabled:cursor-pointer"
 								/>
 								<span
 									className={`text-[13px] font-semibold ${
