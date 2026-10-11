@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.11.46](https://github.com/jr-k/auxilia/compare/web-v0.11.45...web-v0.11.46) (2026-10-11)
+
+
+### Features
+
+* **models:** add Ollama model provider ([ca709fb](https://github.com/jr-k/auxilia/commit/ca709fb45db354b9d4cff2ee402a5fd4228726e7))
+
+
+### Bug Fixes
+
+* **mcp:** expose OAuth endpoints through frontend ([41f3429](https://github.com/jr-k/auxilia/commit/41f3429b953b0817926a906abf6cb155ab1c2ce1))
+
 ## [0.11.45](https://github.com/jr-k/auxilia/compare/web-v0.11.44...web-v0.11.45) (2026-10-11)
 
 
