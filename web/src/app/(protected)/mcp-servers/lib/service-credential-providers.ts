@@ -85,6 +85,7 @@ const KNOWN_SERVICE_PROVIDERS_BY_URL: Record<
 > = {
 	"https://bigquery.googleapis.com/mcp": ["google_service_account"],
 	"https://logging.googleapis.com/mcp": ["google_service_account"],
+	"https://compute.googleapis.com/mcp": ["google_service_account"],
 	"https://api.githubcopilot.com/mcp": ["github_app"],
 };
 

@@ -669,6 +669,8 @@ servers:
   - name: "Google Compute Engine"
     url: "https://compute.googleapis.com/mcp"
     auth_type: oauth2
+    service_credential_providers:
+      - google_service_account
     icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/google-compute-engine.png"
     supports_dcr: false
     description: >-

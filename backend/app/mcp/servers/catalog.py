@@ -39,6 +39,9 @@ _KNOWN_SERVICE_CREDENTIAL_PROVIDERS: dict[str, list[ServiceCredentialProvider]] 
     "https://logging.googleapis.com/mcp": [
         ServiceCredentialProvider.google_service_account
     ],
+    "https://compute.googleapis.com/mcp": [
+        ServiceCredentialProvider.google_service_account
+    ],
     "https://api.githubcopilot.com/mcp": [ServiceCredentialProvider.github_app],
 }
 
