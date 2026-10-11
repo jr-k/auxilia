@@ -56,6 +56,12 @@ export function validateMCPServerCreateForm(
 
 	if (!form.name.trim()) errors.name = "Name is required.";
 	if (!form.url.trim()) errors.url = "Server address is required.";
+	if (
+		officialServer?.requiresUrlConfiguration &&
+		form.url.trim() === officialServer.url
+	) {
+		errors.url = "Replace the example address with your MCP server URL.";
+	}
 	if (form.visibility === "teams" && (form.teamIds?.length ?? 0) === 0) {
 		errors.teamIds = "Select at least one team.";
 	}

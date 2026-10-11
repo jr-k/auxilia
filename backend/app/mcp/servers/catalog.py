@@ -54,6 +54,10 @@ class OfficialServer(BaseModel):
     auth_type: MCPAuthType = MCPAuthType.none
     icon_url: str | None = None
     description: str | None = None
+    # Some products expose one MCP endpoint per customer instance. Their
+    # catalog URL is an example that the admin must replace before creating the
+    # workspace server.
+    requires_url_configuration: bool = False
     # OAuth servers only: False means no dynamic client registration, so the
     # admin installing it must supply a static client_id/secret. Must be None
     # for non-OAuth servers (not applicable).
