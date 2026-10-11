@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.38](https://github.com/jr-k/auxilia/compare/backend-v0.10.37...backend-v0.10.38) (2026-10-11)
+
+
+### Features
+
+* **mcp:** add instance-specific servers and test dialog ([#85](https://github.com/jr-k/auxilia/issues/85)) ([a8017c8](https://github.com/jr-k/auxilia/commit/a8017c8dc53bee33ec14929a47c5abee10d443e6))
+
 ## [0.10.37](https://github.com/jr-k/auxilia/compare/backend-v0.10.36...backend-v0.10.37) (2026-10-11)
 
 
