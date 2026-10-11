@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.11.47](https://github.com/jr-k/auxilia/compare/web-v0.11.46...web-v0.11.47) (2026-10-11)
+
+
+### Bug Fixes
+
+* **mcp:** preserve public host through proxy ([f9d3d85](https://github.com/jr-k/auxilia/commit/f9d3d85b22e36430d8c36d9fd8277e3eba39ea92))
+* **models:** clean up disconnected Ollama models ([91ec638](https://github.com/jr-k/auxilia/commit/91ec6384d2658b0170a196d20f4e3c6c38b22e5a))
+
 ## [0.11.46](https://github.com/jr-k/auxilia/compare/web-v0.11.45...web-v0.11.46) (2026-10-11)
 
 

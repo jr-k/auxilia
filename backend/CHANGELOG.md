@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.44](https://github.com/jr-k/auxilia/compare/backend-v0.10.43...backend-v0.10.44) (2026-10-11)
+
+
+### Bug Fixes
+
+* **models:** clean up disconnected Ollama models ([91ec638](https://github.com/jr-k/auxilia/commit/91ec6384d2658b0170a196d20f4e3c6c38b22e5a))
+
 ## [0.10.43](https://github.com/jr-k/auxilia/compare/backend-v0.10.42...backend-v0.10.43) (2026-10-11)
 
 
