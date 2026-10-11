@@ -21,9 +21,11 @@ import httpx
 import yaml
 from pydantic import BaseModel, Field, model_validator
 
+from app.auth.settings import auth_settings
 from app.exceptions import DomainValidationError
 from app.mcp.servers.models import MCPAuthType, ServiceCredentialProvider
 from app.mcp.servers.settings import mcp_server_settings
+from app.settings import app_settings
 from app.utils.remote_catalog import RemoteCatalog
 
 
@@ -31,6 +33,7 @@ from app.utils.remote_catalog import RemoteCatalog
 # fallback and uploaded as-is to the CDN (`MCP_CATALOG_URL`).
 _BUNDLED_PATH = Path(__file__).parent / "catalog.yaml"
 _HTTP_HEADER_NAME = re.compile(r"^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$")
+_AUXILIA_TEMPLATE_URL = "https://your-auxilia.example.com/mcp"
 
 _KNOWN_SERVICE_CREDENTIAL_PROVIDERS: dict[str, list[ServiceCredentialProvider]] = {
     "https://bigquery.googleapis.com/mcp": [
@@ -194,7 +197,21 @@ def bundled_catalog() -> list[OfficialServer]:
 
 async def get_catalog() -> list[OfficialServer]:
     """The current catalog, through memo → Redis → CDN → last_good → bundled."""
-    return await _catalog.get()
+    catalog = await _catalog.get()
+    self_url = f"{app_settings.backend_url.rstrip('/')}/mcp"
+    self_icon_url = f"{auth_settings.FRONTEND_URL.rstrip('/')}/logo.svg"
+    return [
+        entry.model_copy(
+            update={
+                "url": self_url,
+                "icon_url": self_icon_url,
+                "requires_url_configuration": False,
+            }
+        )
+        if entry.url == _AUXILIA_TEMPLATE_URL
+        else entry
+        for entry in catalog
+    ]
 
 
 async def sync_catalog() -> dict:
