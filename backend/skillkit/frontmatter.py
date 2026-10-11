@@ -71,7 +71,7 @@ def parse(content: str) -> tuple[Frontmatter | None, list[Issue]]:
                 "error",
                 "Unknown frontmatter key(s): "
                 + ", ".join(unknown)
-                + " — the Agent Skills spec allows only "
+                + ". The Agent Skills spec allows only "
                 + ", ".join(sorted(KNOWN_KEYS)),
             )
         )

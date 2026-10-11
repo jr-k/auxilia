@@ -617,7 +617,9 @@ export default function AgentSlackBotDialog({
 										}}
 										placeholder={
 											settings.isConfigured
-												? `****${settings.botTokenLast4 ?? "—"}`
+												? settings.botTokenLast4
+													? `****${settings.botTokenLast4}`
+													: "Token configured"
 												: "xoxb-…"
 										}
 									/>

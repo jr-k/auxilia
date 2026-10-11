@@ -31,8 +31,8 @@ export function SkillDeleteDescription({ skill }: { skill: SkillSummary | null }
 						<span className="font-semibold">
 							It is still in {repo}, so the next sync brings it back
 						</span>{" "}
-						— as a new skill, enabled on nothing. To remove it for good, remove it from the
-						repository first, or disconnect the repository.
+						as a new skill with no agents enabled. To remove it for good, remove it from
+						the repository first, or disconnect the repository.
 					</>
 				))}
 		</>

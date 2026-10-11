@@ -46,7 +46,9 @@ class SandboxService(BaseService[SandboxDB, SandboxRepository]):
             first = exc.errors()[0]
             field = ".".join(str(loc) for loc in first["loc"] if loc != "provider")
             detail = f"{field}: {first['msg']}" if field else first["msg"]
-            raise DomainValidationError(f"Invalid sandbox config — {detail}") from exc
+            raise DomainValidationError(
+                f"The sandbox configuration is invalid because {detail}"
+            ) from exc
 
     @staticmethod
     def to_response(row: SandboxDB) -> SandboxResponse:
@@ -119,7 +121,7 @@ class SandboxService(BaseService[SandboxDB, SandboxRepository]):
             await self.repository.delete(row)
         except IntegrityError as exc:
             raise DomainValidationError(
-                "Sandbox is used by agents — detach it first"
+                "This sandbox is used by agents; detach it first."
             ) from exc
 
     async def get_secret_hint(self, sandbox_id: UUID) -> SandboxSecretHint:

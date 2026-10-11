@@ -96,7 +96,7 @@ def test_delete_in_use_is_refused(
     client, mcp_server_service, binding_service, admin_user
 ):
     mcp_server_service.delete.side_effect = DomainValidationError(
-        "MCP server is used by agents — detach it first"
+        "This MCP server is used by agents; detach it first."
     )
 
     response = client.delete(f"/mcp-servers/{uuid4()}")

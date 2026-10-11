@@ -93,7 +93,7 @@ class GatewayTransport:
             if len(import_tar) > _MAX_RESTORE_BYTES:
                 raise RuntimeError(
                     f"Snapshot for {sandbox_id} is "
-                    f"{len(import_tar) // (1024 * 1024)}MiB — larger than the "
+                    f"{len(import_tar) // (1024 * 1024)}MiB, which is larger than the "
                     "gateway restore limit (Cloud Run caps HTTP/1 requests at "
                     "32MiB). The sandbox state cannot be restored; create a "
                     "new sandbox instead."

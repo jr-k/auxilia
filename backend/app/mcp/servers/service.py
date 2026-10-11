@@ -560,7 +560,7 @@ class MCPServerService(BaseService[MCPServerDB, MCPServerRepository]):
             await self.repository.delete(server)
         except IntegrityError as exc:
             raise DomainValidationError(
-                "MCP server is used by agents — detach it first"
+                "This MCP server is used by agents; detach it first."
             ) from exc
 
     async def list_official(self) -> list[OfficialMCPServerResponse]:

@@ -500,7 +500,7 @@ class SkillSourceService(BaseService[SkillSourceDB, SkillSourceRepository]):
 
 
 _EMPTY_HINT = (
-    "Push a skill to it first — supported layouts are "
+    "Push a skill to it first. Supported layouts are "
     "skills/<name>/SKILL.md, a category folder one level deeper, or a "
     "SKILL.md at the root."
 )
@@ -733,8 +733,8 @@ _NAME_TAKEN = SkillIssue(
     code="W004",
     severity="warning",
     message=(
-        "a different skill in the library already has this name — rename it "
-        "here or remove the other one, then sync again"
+        "a different skill in the library already has this name. Rename this "
+        "skill here or remove the other one, then sync again"
     ),
 )
 
