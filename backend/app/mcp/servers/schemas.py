@@ -110,6 +110,7 @@ class OfficialMCPServerResponse(SQLModel):
     installed_count: int = Field(default=0, ge=0)
     supports_dcr: bool | None = Field(default=None)
     supports_cimd: bool | None = Field(default=None)
+    requires_url_configuration: bool = Field(default=False)
     custom_http_headers: list[str] = Field(default_factory=list)
     service_credential_providers: list[ServiceCredentialProvider] = Field(
         default_factory=list

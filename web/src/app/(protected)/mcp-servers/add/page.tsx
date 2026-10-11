@@ -187,6 +187,7 @@ export default function AddMCPServerPage() {
 		// servers need their secret value.
 		// Collect them in the custom form, pre-filled with the catalog entry.
 		if (
+			server.requiresUrlConfiguration ||
 			requiresStaticOAuthCredentials(server) ||
 			server.authType === "api_key" ||
 			server.authType === "custom_http"

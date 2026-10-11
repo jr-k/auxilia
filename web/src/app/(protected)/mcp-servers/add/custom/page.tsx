@@ -16,7 +16,7 @@ import { useAppearanceStore } from "@/stores/appearance-store";
 import { useMcpServersStore } from "@/stores/mcp-servers-store";
 import { MCPAuthType, OfficialMCPServer } from "@/types/mcp-servers";
 import { groupOptions } from "@/lib/groups";
-import { ConnectionTestBanner } from "../../components/connection-test-banner";
+import { ConnectionTestDialog } from "../../components/connection-test-dialog";
 import { ServiceIdentityFields } from "../../components/service-identity-fields";
 import { OAuthCallbackUrl } from "../../components/oauth-callback-url";
 import {
@@ -390,9 +390,11 @@ export default function CustomMCPServerPage() {
 					<p className="mt-2 text-[14px] leading-[1.6] text-body dark:text-panel-body text-pretty">
 						{/* Gate on the ACTIVE auth method — the catalog hint must not
 						    outlive a switch to another method. */}
-						{isNonDcrOAuth && form.authType === "oauth2"
-							? "This server requires OAuth credentials from the provider's developer console."
-							: selectedOfficial?.authType === "api_key" &&
+						{selectedOfficial?.requiresUrlConfiguration
+							? `Paste the MCP Server URL for your ${selectedOfficial.name} instance.`
+							: isNonDcrOAuth && form.authType === "oauth2"
+								? "This server requires OAuth credentials from the provider's developer console."
+								: selectedOfficial?.authType === "api_key" &&
 								  form.authType === "api_key"
 								? "This server requires an API key shared by the whole workspace."
 								: "Connect any remote server that speaks the Model Context Protocol over HTTP."}
@@ -834,8 +836,6 @@ export default function CustomMCPServerPage() {
 							</HeaderButton>
 						</div>
 
-						<ConnectionTestBanner status={testStatus} message={testMessage} />
-
 						{submitError && (
 							<Alert key={submitError} variant="error" message={submitError} />
 						)}
@@ -848,6 +848,11 @@ export default function CustomMCPServerPage() {
 				onOpenChange={setForbiddenOpen}
 				title="Insufficient privileges"
 				message="You need admin permissions to add MCP servers."
+			/>
+			<ConnectionTestDialog
+				status={testStatus}
+				message={testMessage}
+				onClose={resetTest}
 			/>
 		</div>
 	);

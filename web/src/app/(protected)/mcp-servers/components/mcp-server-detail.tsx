@@ -28,7 +28,7 @@ import {
 import { AuthTypeBadge } from "./auth-type-badge";
 import type { ResourceVisibility } from "@/types/visibility";
 import { ConnectedUsersPanel } from "./connected-users-panel";
-import { ConnectionTestBanner } from "./connection-test-banner";
+import { ConnectionTestDialog } from "./connection-test-dialog";
 import { MCPServerToolsPanel } from "./mcp-server-tools-panel";
 import { OAuthCallbackUrl } from "./oauth-callback-url";
 import { OAuthConnectionFollowUpDialog } from "./oauth-connection-follow-up-dialog";
@@ -686,16 +686,13 @@ export default function MCPServerDetail({
 						</div>
 					</div>
 
-					{(testStatus !== "idle" || submitError) && (
-						<div className="mt-5 flex flex-col gap-2.5">
-							<ConnectionTestBanner status={testStatus} message={testMessage} />
-							{submitError && (
-								<Alert
-									key={submitError}
-									variant="error"
-									message={submitError}
-								/>
-							)}
+					{submitError && (
+						<div className="mt-5">
+							<Alert
+								key={submitError}
+								variant="error"
+								message={submitError}
+							/>
 						</div>
 					)}
 
@@ -1317,6 +1314,11 @@ export default function MCPServerDetail({
 				message={
 					testMessage === "Waiting for authentication…" ? null : testMessage
 				}
+			/>
+			<ConnectionTestDialog
+				status={testStatus}
+				message={testMessage}
+				onClose={resetTest}
 			/>
 		</div>
 	);
