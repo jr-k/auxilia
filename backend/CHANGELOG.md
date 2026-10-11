@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.10.43](https://github.com/jr-k/auxilia/compare/backend-v0.10.42...backend-v0.10.43) (2026-10-11)
+
+
+### Features
+
+* **models:** add Ollama model provider ([ca709fb](https://github.com/jr-k/auxilia/commit/ca709fb45db354b9d4cff2ee402a5fd4228726e7))
+
+
+### Bug Fixes
+
+* **mcp:** expose OAuth endpoints through frontend ([41f3429](https://github.com/jr-k/auxilia/commit/41f3429b953b0817926a906abf6cb155ab1c2ce1))
+
 ## [0.10.42](https://github.com/jr-k/auxilia/compare/backend-v0.10.41...backend-v0.10.42) (2026-10-11)
 
 
