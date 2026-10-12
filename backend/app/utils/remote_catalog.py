@@ -206,13 +206,30 @@ class RemoteCatalog(Generic[T]):
             try:
                 cached = await redis.get(self.cache_key)
                 if cached:
-                    items = self._loads(cached)
-                else:
+                    try:
+                        items = self._loads(cached)
+                    except Exception:  # noqa: BLE001 — stale data may no longer match the current schema
+                        logger.warning(
+                            "%s cached payload is invalid; refreshing from %s",
+                            self.prefix,
+                            url,
+                            exc_info=True,
+                        )
+                        await redis.delete(self.cache_key)
+                if items is None:
                     items = await self._refresh(redis, url)
                     if items is None:
                         last_good = await redis.get(self.last_good_key)
                         if last_good:
-                            items = self._loads(last_good)
+                            try:
+                                items = self._loads(last_good)
+                            except Exception:  # noqa: BLE001 — stale data may no longer match the current schema
+                                logger.warning(
+                                    "%s last-good payload is invalid; using bundled snapshot",
+                                    self.prefix,
+                                    exc_info=True,
+                                )
+                                await redis.delete(self.last_good_key)
             except Exception:  # noqa: BLE001 — any Redis failure falls back to the bundled snapshot
                 logger.warning(
                     "%s read from Redis failed; using bundled snapshot",
