@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.55](https://github.com/jr-k/auxilia/compare/web-v0.11.54...web-v0.11.55) (2026-10-12)
+
+
+### Bug Fixes
+
+* **slack:** surface MCP failures in private message runs ([5a2e44b](https://github.com/jr-k/auxilia/commit/5a2e44bbd5403147c00b0cba561e95e9fb8165e6))
+
 ## [0.11.54](https://github.com/jr-k/auxilia/compare/web-v0.11.53...web-v0.11.54) (2026-10-12)
 
 
