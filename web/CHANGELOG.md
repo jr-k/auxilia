@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.58](https://github.com/jr-k/auxilia/compare/web-v0.11.57...web-v0.11.58) (2026-10-12)
+
+
+### Features
+
+* add managed databases and notification delivery ([3327902](https://github.com/jr-k/auxilia/commit/3327902158d09f5b896468a057ca45e5fe6eb32c))
+
 ## [0.11.57](https://github.com/jr-k/auxilia/compare/web-v0.11.56...web-v0.11.57) (2026-10-12)
 
 
