@@ -92,8 +92,9 @@ export async function setModelEnabled(
 	modelId: string,
 	isEnabled: boolean,
 ): Promise<void> {
+	const modelPath = modelId.split("/").map(encodeURIComponent).join("/");
 	await api.put(
-		`/model-providers/models/${encodeURIComponent(provider)}/${encodeURIComponent(modelId)}`,
+		`/model-providers/models/${encodeURIComponent(provider)}/${modelPath}`,
 		{ isEnabled },
 	);
 }
