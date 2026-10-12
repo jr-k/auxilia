@@ -1,6 +1,5 @@
 import json
 from dataclasses import dataclass
-from typing import Any
 from uuid import UUID
 
 from redis.asyncio import Redis
@@ -12,8 +11,6 @@ from app.redis_client import get_redis
 _KIND = "kind"
 _TARGET_USER_ID = "target_user_id"
 _THREAD_ID = "thread_id"
-_PAYLOAD = "payload"
-_EVENT_KEY = "event_key"
 _MAX_EVENTS = 10_000
 _TTL_SECONDS = 24 * 60 * 60
 
@@ -25,18 +22,14 @@ def workspace_events_key(workspace_id: UUID) -> str:
 @dataclass(frozen=True)
 class WorkspaceEvent:
     id: str
-    event_key: str
     kind: str
     target_user_id: str | None
     thread_id: str | None
-    payload: dict | None
 
     def sse(self) -> str:
-        data: dict[str, Any] = {"kind": self.kind, "eventKey": self.event_key}
+        data = {"kind": self.kind}
         if self.thread_id is not None:
             data["threadId"] = self.thread_id
-        if self.payload is not None:
-            data["payload"] = self.payload
         return (
             f"id: {self.id}\n"
             "event: invalidate\n"
@@ -61,12 +54,6 @@ class WorkspaceEventStream:
                         else ""
                     ),
                     _THREAD_ID: row.thread_id or "",
-                    _EVENT_KEY: str(row.id),
-                    _PAYLOAD: (
-                        json.dumps(row.payload, separators=(",", ":"))
-                        if row.payload is not None
-                        else ""
-                    ),
                 },
                 maxlen=_MAX_EVENTS,
                 approximate=True,
@@ -99,13 +86,9 @@ class WorkspaceEventStream:
             events.append(
                 WorkspaceEvent(
                     id=event_id,
-                    event_key=fields.get(_EVENT_KEY) or event_id,
                     kind=fields[_KIND],
                     target_user_id=fields.get(_TARGET_USER_ID) or None,
                     thread_id=fields.get(_THREAD_ID) or None,
-                    payload=(
-                        json.loads(fields[_PAYLOAD]) if fields.get(_PAYLOAD) else None
-                    ),
                 )
             )
         return cursor, events

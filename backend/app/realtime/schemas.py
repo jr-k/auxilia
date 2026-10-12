@@ -10,4 +10,3 @@ class WorkspaceEventKind(str, Enum):
     runs = "runs"
     prompt_queue = "prompt_queue"
     trigger_history = "trigger_history"
-    notifications = "notifications"

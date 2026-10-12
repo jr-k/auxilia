@@ -165,18 +165,11 @@ class RunService:
         thread = await self._ensure_runnable_thread(db, thread_id)
         if thread.user_id != UUID(user_id):
             raise NotFoundError("Thread not found")
-        repository = RunRepository(db)
         if command is not None and not _command_prepared:
             command = await self._canonical_command(
                 checkpoint_thread_id(thread.workspace_id, thread_id), command
             )
-        if command is not None and delivery is None:
-            interrupted = await repository.get_latest_interrupted_for_thread(thread_id)
-            if interrupted is not None:
-                # A resume is the continuation of the interrupted turn. Preserve
-                # its push destination so a scheduled notification still sends
-                # the final answer after the user approves the gated tool.
-                delivery = interrupted.delivery
+        repository = RunRepository(db)
         if multitask_strategy == "reject":
             await repository.lock_thread_runs(thread_id)
             if await repository.get_active_for_thread(thread_id) is not None:

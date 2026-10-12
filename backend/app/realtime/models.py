@@ -2,8 +2,7 @@
 
 from uuid import UUID
 
-from sqlalchemy import JSON, Column, Index
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy import Column, Index
 from sqlmodel import Field, String
 
 from app.models import BaseDBModel
@@ -32,11 +31,4 @@ class WorkspaceEventOutboxDB(BaseDBModel, table=True):
     thread_id: str | None = Field(
         default=None,
         sa_column=Column(String, nullable=True),
-    )
-    payload: dict | None = Field(
-        default=None,
-        sa_column=Column(
-            JSON().with_variant(JSONB(), "postgresql"),
-            nullable=True,
-        ),
     )

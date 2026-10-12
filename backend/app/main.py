@@ -30,7 +30,6 @@ from app.mcp.oauth.router import router as mcp_oauth_router
 from app.mcp.router import auxilia_mcp, transport_security_settings
 from app.mcp.servers.router import router as mcp_servers_router
 from app.model_providers.router import router as model_providers_router
-from app.notifications.delivery import build_notification_run_consumer
 from app.notifications.router import router as notifications_router
 from app.observability.router import router as observability_router
 from app.realtime.relay import WorkspaceEventRelay
@@ -56,10 +55,6 @@ from app.workspaces.router import router as workspaces_router
 
 configure_logging()
 logger = logging.getLogger("app")
-
-
-def _build_run_delivery_consumer(record):
-    return build_slack_run_consumer(record) or build_notification_run_consumer(record)
 
 
 def _log_background_crash(task: asyncio.Task) -> None:
@@ -95,7 +90,7 @@ async def lifespan(app: FastAPI):
             asyncio.create_task(dbhub_reconciler.run(), name="dbhub-reconciler")
         )
     if run_settings.dispatcher_enabled:
-        dispatcher = RunDispatcher(delivery_factory=_build_run_delivery_consumer)
+        dispatcher = RunDispatcher(delivery_factory=build_slack_run_consumer)
         reaper = RunReaper()
         event_relay = WorkspaceEventRelay()
         background.extend(

@@ -17,7 +17,6 @@ async def stage_workspace_event(
     kind: WorkspaceEventKind,
     target_user_id: UUID | None = None,
     thread_id: str | None = None,
-    payload: dict | None = None,
 ) -> None:
     """Add an invalidation to the caller's transaction.
 
@@ -29,7 +28,6 @@ async def stage_workspace_event(
         kind=kind.value,
         target_user_id=target_user_id,
         thread_id=thread_id,
-        payload=payload,
     )
 
 

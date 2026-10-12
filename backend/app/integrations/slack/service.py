@@ -312,29 +312,6 @@ class AgentSlackBotService:
             return None
         return config
 
-    async def get_delivery_runtime(
-        self, agent_id: UUID
-    ) -> AgentSlackRuntimeConfig | None:
-        """Return the first active Slack bot that may speak for an agent."""
-        configs = await self.list_delivery_runtimes(agent_id)
-        return configs[0] if configs else None
-
-    async def list_delivery_runtimes(
-        self, agent_id: UUID
-    ) -> list[AgentSlackRuntimeConfig]:
-        """Return every active Slack bot that may speak for an agent."""
-        if self.workspace_id is None:
-            raise RuntimeError("A workspace is required for agent Slack delivery")
-        workspace_enabled = await self._workspace_enabled(self.workspace_id)
-        if not workspace_enabled:
-            return []
-        rows = await self.repository.list_for_agent(self.workspace_id, agent_id)
-        return [
-            await self._runtime_config(row, workspace_enabled=workspace_enabled)
-            for row in rows
-            if row.enabled
-        ]
-
     async def _runtime_config(
         self,
         row: AgentSlackBotDB,

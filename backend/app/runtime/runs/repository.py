@@ -256,21 +256,6 @@ class RunRepository(BaseRepository[RunDB]):
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
-    async def get_latest_interrupted_for_thread(self, thread_id: str) -> RunDB | None:
-        """The interrupted turn a resume command continues, newest first."""
-        stmt = (
-            select(RunDB)
-            .where(
-                RunDB.thread_id == thread_id,
-                RunDB.status == RunStatus.interrupted,
-            )
-            .order_by(RunDB.created_at.desc(), RunDB.id.desc())
-            .limit(1)
-        )
-        stmt = self._scope(stmt)
-        result = await self.db.execute(stmt)
-        return result.scalar_one_or_none()
-
     async def list_active_for_user(
         self, user_id: UUID, *, finished_after: datetime | None = None
     ) -> list[RunDB]:

@@ -40,10 +40,6 @@ from app.model_providers.web_search import (
     compatible_reasoning_effort,
     native_web_search_tool,
 )
-from app.notifications.tools import (
-    NOTIFICATION_SYSTEM_PROMPT,
-    build_notification_tools,
-)
 from app.observability.service import WorkspaceObservabilityService
 from app.runtime.checkpoints import checkpoint_thread_id, get_checkpoint_state
 from app.runtime.harness import (
@@ -764,10 +760,6 @@ class Agent:
         # Read-only and shared by every agent of the graph; None means no
         # skills middleware and no prompt fragment at all.
         skills = SkillsBackend(self.skills) if self.skills else None
-        notification_tools = build_notification_tools(
-            self.thread,
-            reserved_names={tool.name for tool in self.agent.live.all},
-        )
         compiled = (
             [
                 s.compile(
@@ -787,17 +779,13 @@ class Agent:
             model=self.model,
             tools=[
                 *self.agent.live.all,
-                *notification_tools,
                 *(
                     [tool]
                     if (tool := self._web_search_tool(self.agent)) is not None
                     else []
                 ),
             ],
-            system_prompt=_append_system_prompt_context(
-                self.agent.config.instructions or "",
-                NOTIFICATION_SYSTEM_PROMPT,
-            ),
+            system_prompt=self.agent.config.instructions or "",
             mcp_context=self.agent.prepared.mcp_context_prompt,
             sandbox_backend=self._sandbox_for(self.agent),
             skills=skills,
