@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.53](https://github.com/jr-k/auxilia/compare/backend-v0.10.52...backend-v0.10.53) (2026-10-12)
+
+
+### Features
+
+* add managed databases and notification delivery ([3327902](https://github.com/jr-k/auxilia/commit/3327902158d09f5b896468a057ca45e5fe6eb32c))
+
 ## [0.10.52](https://github.com/jr-k/auxilia/compare/backend-v0.10.51...backend-v0.10.52) (2026-10-12)
 
 
