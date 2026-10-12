@@ -424,7 +424,7 @@ wheels = [
 
 [[package]]
 name = "backend"
-version = "0.10.50"
+version = "0.10.51"
 source = { virtual = "." }
 dependencies = [
     { name = "aiohttp" },

@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.51](https://github.com/jr-k/auxilia/compare/backend-v0.10.50...backend-v0.10.51) (2026-10-12)
+
+
+### Bug Fixes
+
+* **runtime:** tolerate unavailable MCP servers ([810b795](https://github.com/jr-k/auxilia/commit/810b79542e75c35adf1cd61f082666b89de1fb7e))
+
 ## [0.10.50](https://github.com/jr-k/auxilia/compare/backend-v0.10.49...backend-v0.10.50) (2026-10-12)
 
 
