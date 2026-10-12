@@ -8,8 +8,8 @@ services:
     ports:
       - "3000:3000"
     environment:
-      # Backend URL for API proxy (use Docker service name from inside the container)
       BACKEND_URL: http://backend:8000
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
     depends_on:
       backend:
         condition: service_healthy

@@ -2,6 +2,11 @@ import { NextRequest } from "next/server";
 
 const getBackendUrl = () => process.env.BACKEND_URL || "http://localhost:8000";
 
+const getPublicHost = (request: NextRequest) => {
+	const frontendUrl = process.env.FRONTEND_URL;
+	return frontendUrl ? new URL(frontendUrl).host : request.nextUrl.host;
+};
+
 const EXACT_BACKEND_PATHS = new Set([
 	"mcp",
 	"register",
@@ -31,7 +36,7 @@ async function proxyRequest(
 		// FastMCP validates Host to prevent DNS rebinding. Preserve the public
 		// MCP host instead of letting fetch replace it with the Docker service
 		// name (backend:8000), which the transport correctly rejects.
-		headers.set("host", request.nextUrl.host);
+		headers.set("host", getPublicHost(request));
 	} else {
 		headers.delete("host");
 	}
