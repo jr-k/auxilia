@@ -33,7 +33,7 @@ from app.agents.run_spec import AgentSpec, RunSpec
 from app.database import AsyncSessionLocal, get_checkpointer
 from app.exceptions import DomainValidationError, NotFoundError
 from app.integrations.tracing import NoOpTracing, RunTracing, get_tracing
-from app.model_providers.catalog import ChatModelFactory
+from app.model_providers.catalog import ChatModelFactory, ResponsesChatOpenAI
 from app.model_providers.service import ModelService
 from app.model_providers.web_search import (
     compatible_reasoning_effort,
@@ -48,6 +48,7 @@ from app.runtime.harness import (
     harness_trailing_middleware,
 )
 from app.runtime.middleware.current_date import CurrentDateMiddleware
+from app.runtime.middleware.incomplete_response import IncompleteResponseMiddleware
 from app.runtime.middleware.structured_output import (
     FORMAT_TOOL,
     PROVIDER_FORMAT_MODES,
@@ -58,6 +59,7 @@ from app.runtime.middleware.tool_errors import (
     RepairInvalidToolCallsMiddleware,
     ToolErrorMiddleware,
 )
+from app.runtime.middleware.tool_selection import LenientLLMToolSelectorMiddleware
 from app.runtime.protocol.emit import ProtocolEmitter
 from app.runtime.settings import agent_settings
 from app.runtime.toolset import (
@@ -86,6 +88,9 @@ from app.threads.repository import ThreadRepository
 
 logger = logging.getLogger(__name__)
 
+
+OPENAI_TOOL_SELECTION_THRESHOLD = 128
+OPENAI_TOOL_SELECTION_LIMIT = 32
 
 RECURSION_LIMIT_MESSAGE = (
     "I reached my step limit for this turn. Send any follow-up message "
@@ -252,6 +257,19 @@ def build_runnable(
         harness += skills_read_middleware(skills)
 
     middleware = [*harness, *base_middleware]
+    if (
+        isinstance(model, ResponsesChatOpenAI)
+        and len(tools) > OPENAI_TOOL_SELECTION_THRESHOLD
+    ):
+        # Large MCP graphs can put hundreds of complete JSON schemas into one
+        # Responses request. GPT-5 nano returns an empty `incomplete` response
+        # before processing such a request. Select from the compact tool-name
+        # enum first, then expose only the relevant schemas to the main call.
+        middleware.append(
+            LenientLLMToolSelectorMiddleware(
+                model=model, max_tools=OPENAI_TOOL_SELECTION_LIMIT
+            )
+        )
     if sandbox_backend is None and subagents:
         # On the far side of the caller's stack, where the plain path has
         # always put it — the harness wires its own SubAgentMiddleware *before*
@@ -331,6 +349,7 @@ def build_agent_middleware(
         ToolCallLimitMiddleware(
             run_limit=(recursion_limit - 1) // 2, exit_behavior="end"
         ),
+        IncompleteResponseMiddleware(),
         RepairInvalidToolCallsMiddleware(),
         *(
             [
