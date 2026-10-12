@@ -19,6 +19,7 @@ import type { BaseMessage } from "@langchain/core/messages";
 import {
 	isAIMessage,
 	isHumanMessage,
+	isToolMessage,
 } from "@langchain/core/messages";
 import {
 	BrainIcon,
@@ -228,10 +229,22 @@ const ChatPromptInput = ({
 		let cachedInputTokens = 0;
 		let reasoningTokens = 0;
 		let hasUsage = false;
+		let hasToolResultSinceLastModelCall = false;
+		const calls: {
+			number: number;
+			phase: "initial" | "follow-up" | "after-tools";
+			inputTokens: number;
+			outputTokens: number;
+			totalTokens: number;
+		}[] = [];
 
 		for (const message of conversationMessages) {
 			if (isHumanMessage(message) && message.name !== "host") {
 				userMessages += 1;
+				continue;
+			}
+			if (isToolMessage(message)) {
+				hasToolResultSinceLastModelCall = true;
 				continue;
 			}
 			if (!isAIMessage(message)) continue;
@@ -239,17 +252,35 @@ const ChatPromptInput = ({
 			if (message.text.trim()) assistantMessages += 1;
 
 			const usage = message.usage_metadata;
-			if (!usage) continue;
+			if (!usage) {
+				hasToolResultSinceLastModelCall = false;
+				continue;
+			}
 			hasUsage = true;
 			const input = usage.input_tokens ?? 0;
 			const output = usage.output_tokens ?? 0;
+			const total = usage.total_tokens ?? input + output;
 			inputTokens += input;
 			outputTokens += output;
-			totalTokens += usage.total_tokens ?? input + output;
+			totalTokens += total;
 			cachedInputTokens += usage.input_token_details?.cache_read ?? 0;
 			reasoningTokens += usage.output_token_details?.reasoning ?? 0;
+			calls.push({
+				number: modelCalls,
+				phase:
+					calls.length === 0
+						? "initial"
+						: hasToolResultSinceLastModelCall
+							? "after-tools"
+							: "follow-up",
+				inputTokens: input,
+				outputTokens: output,
+				totalTokens: total,
+			});
+			hasToolResultSinceLastModelCall = false;
 		}
 
+		const initialInputTokens = calls[0]?.inputTokens ?? 0;
 		return {
 			userMessages,
 			assistantMessages,
@@ -262,6 +293,12 @@ const ChatPromptInput = ({
 			cachedInputTokens,
 			reasoningTokens,
 			hasUsage,
+			initialInputTokens,
+			laterInputTokens: Math.max(0, inputTokens - initialInputTokens),
+			afterToolInputTokens: calls
+				.filter((call) => call.phase === "after-tools")
+				.reduce((sum, call) => sum + call.inputTokens, 0),
+			calls,
 		};
 	}, [conversationMessages, conversationToolCallCount]);
 
@@ -680,10 +717,11 @@ const ChatPromptInput = ({
 										<ChartNoAxesColumnIncreasingIcon className="size-3.5" />
 									</PromptInputButton>
 								</DialogTrigger>
-								<DialogContent className="gap-0 sm:max-w-[520px]">
+								<DialogContent className="max-h-[85vh] gap-0 overflow-y-auto sm:max-w-[600px]">
 									<DialogTitle>Conversation stats</DialogTitle>
 									<DialogDescription className="mt-1.5">
-										Usage accumulated across every model call in this thread.
+										Provider-reported usage accumulated across every model call
+										in this thread.
 									</DialogDescription>
 
 									<div className="mt-5 grid grid-cols-3 gap-2.5">
@@ -713,6 +751,65 @@ const ChatPromptInput = ({
 											}
 										/>
 									</div>
+
+									{conversationStats.hasUsage && (
+										<>
+											<div className="mt-5">
+												<h3 className="text-[12px] font-semibold text-foreground">
+													Context loading
+												</h3>
+												<p className="mt-1 text-[11.5px] leading-[1.5] text-meta dark:text-panel-dim">
+													Initial input is the first model request. Later input
+													is the sum of every subsequent request, including
+													context sent again.
+												</p>
+											</div>
+											<div className="mt-3 grid grid-cols-3 gap-2.5">
+												<ConversationStat
+													label="Initial input"
+													value={conversationStats.initialInputTokens}
+												/>
+												<ConversationStat
+													label="Later input"
+													value={conversationStats.laterInputTokens}
+												/>
+												<ConversationStat
+													label="Input after tools"
+													value={conversationStats.afterToolInputTokens}
+												/>
+											</div>
+
+											<div className="mt-4 rounded-[8px] bg-hover px-3 py-2.5 text-[11.5px] leading-[1.55] text-meta dark:bg-white/5 dark:text-panel-dim">
+												<span className="font-semibold text-body dark:text-panel-body">
+													How tools are counted:
+												</span>{" "}
+												tool schemas are part of model input, tool-call arguments
+												are model output, and tool results become model input on a
+												later call. Tool execution itself does not use model
+												tokens. Providers do not report an exact token breakdown
+												by source.
+											</div>
+
+											<div className="mt-5">
+												<h3 className="text-[12px] font-semibold text-foreground">
+													Model input by call
+												</h3>
+												<p className="mt-1 text-[11.5px] leading-[1.5] text-meta dark:text-panel-dim">
+													Each row is the full context sent for that call, not
+													only the new tokens added since the previous call.
+												</p>
+											</div>
+											<div className="mt-3 max-h-52 overflow-y-auto rounded-[10px] border border-border">
+												{conversationStats.calls.map((call, index) => (
+													<ConversationTokenCallRow
+														key={call.number}
+														call={call}
+														last={index === conversationStats.calls.length - 1}
+													/>
+												))}
+											</div>
+										</>
+									)}
 
 									<div className="mt-5 overflow-hidden rounded-[10px] border border-border">
 										<ConversationStatRow
@@ -1008,6 +1105,52 @@ const ConversationStatRow = ({
 		</span>
 	</div>
 );
+
+const ConversationTokenCallRow = ({
+	call,
+	last = false,
+}: {
+	call: {
+		number: number;
+		phase: "initial" | "follow-up" | "after-tools";
+		inputTokens: number;
+		outputTokens: number;
+		totalTokens: number;
+	};
+	last?: boolean;
+}) => {
+	const phaseLabel = {
+		initial: "Initial load",
+		"follow-up": "Follow-up",
+		"after-tools": "After tool results",
+	}[call.phase];
+
+	return (
+		<div
+			className={cn(
+				"flex items-center justify-between gap-4 px-3.5 py-2.5",
+				!last && "border-b border-hairline dark:border-white/5",
+			)}
+		>
+			<div className="min-w-0">
+				<div className="text-[12.5px] font-medium text-body dark:text-panel-body">
+					Call {call.number}
+				</div>
+				<div className="mt-0.5 text-[10.5px] text-meta dark:text-panel-dim">
+					{phaseLabel}
+				</div>
+			</div>
+			<div className="shrink-0 text-right">
+				<div className="font-mono text-[12px] font-semibold text-foreground">
+					{formatStat(call.inputTokens)} in
+				</div>
+				<div className="mt-0.5 font-mono text-[10.5px] text-meta dark:text-panel-dim">
+					{formatStat(call.outputTokens)} out · {formatStat(call.totalTokens)} total
+				</div>
+			</div>
+		</div>
+	);
+};
 
 const SubmitButton = ({ disabled = false }: { disabled?: boolean }) => {
 	const controller = usePromptInputController();

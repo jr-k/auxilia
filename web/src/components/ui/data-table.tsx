@@ -175,7 +175,7 @@ function pageItems(pageCount: number, current: number): (number | null)[] {
 
 /** Below-container footer: mono range count left, numbered pager right
  * (design 7a — active page is a filled petrol square). */
-function PaginationFooter({
+export function DataTablePaginationFooter({
 	total,
 	limit,
 	offset,
@@ -505,7 +505,7 @@ export function DataTable<T>({
 			</div>
 
 			{pagination && pagination.total > 0 && (
-				<PaginationFooter {...pagination} />
+				<DataTablePaginationFooter {...pagination} />
 			)}
 		</div>
 	);

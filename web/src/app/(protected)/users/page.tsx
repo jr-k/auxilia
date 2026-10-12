@@ -22,15 +22,21 @@ import {
 	WorkspaceTopBarButton,
 } from "@/components/layout/workspace-page";
 import { UserAvatar } from "@/components/ui/user-avatar";
-import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
+import {
+	DataTable,
+	DataTablePaginationFooter,
+	type DataTableColumn,
+} from "@/components/ui/data-table";
 import { DropdownMenu } from "@/components/ui/dropdown-menu";
 import { Switch } from "@/components/ui/switch";
+import { ViewToggle } from "@/components/ui/view-toggle";
 import * as invitesApi from "@/lib/api/resources/invites";
 import * as teamsApi from "@/lib/api/resources/teams";
 import * as usersApi from "@/lib/api/resources/users";
 import { useUserStore } from "@/stores/user-store";
 import { useWorkspacesStore } from "@/stores/workspaces-store";
 import { useQueryParamState } from "@/hooks/use-query-param-state";
+import { usePersistedViewMode } from "@/hooks/use-persisted-view-mode";
 import type { Invite, RoleCounts, User, WorkspaceRole } from "@/types/users";
 
 type Role = WorkspaceRole;
@@ -92,6 +98,7 @@ export default function UsersPage() {
 	const [invites, setInvites] = useState<Invite[]>([]);
 	const [teams, setTeams] = useState<Team[]>([]);
 	const [search, setSearch] = useQueryParamState("q");
+	const [viewMode, setViewMode] = usePersistedViewMode("users:view-mode");
 	// Seed the debounced value from the restored search so back navigation
 	// doesn't flash an unfiltered page before the debounce settles.
 	const [debouncedSearch, setDebouncedSearch] = useState(search.trim());
@@ -386,6 +393,142 @@ export default function UsersPage() {
 		}
 	};
 
+	const renderRoleControl = (user: User) => {
+		const isCurrentUser = user.id === currentUser?.id;
+		return isCurrentUser || !isAdmin ? (
+			<span className="inline-flex items-center gap-[7px] px-2.5 py-[5px] text-[12.5px] font-medium text-subtle dark:text-muted-foreground">
+				<span
+					className="size-1.5 rounded-full"
+					style={{ background: ROLE_DOT[user.role] }}
+				/>
+				{ROLE_LABELS[user.role]}
+			</span>
+		) : (
+			<DropdownMenu
+				trigger={
+					<button className={CHIP_CLASS}>
+						<span
+							className="size-1.5 rounded-full"
+							style={{ background: ROLE_DOT[user.role] }}
+						/>
+						{ROLE_LABELS[user.role]}
+						<ChevronDown className="size-3.5 text-meta" />
+					</button>
+				}
+				items={[
+					{
+						label: "Admin",
+						onClick: () => {
+							void handleRoleChange(user.id, "admin");
+						},
+						active: user.role === "admin",
+					},
+					{
+						label: "Editor",
+						onClick: () => {
+							void handleRoleChange(user.id, "editor");
+						},
+						active: user.role === "editor",
+					},
+					{
+						label: "Member",
+						onClick: () => {
+							void handleRoleChange(user.id, "member");
+						},
+						active: user.role === "member",
+					},
+				]}
+			/>
+		);
+	};
+
+	const renderWorkspaceCreationControl = (user: User) => (
+		<div className="flex items-center gap-2">
+			<Switch
+				checked={user.isInstanceOwner || user.canCreateWorkspace}
+				disabled={user.isInstanceOwner || currentUser?.role !== "admin"}
+				onCheckedChange={(checked) => {
+					void handleWorkspaceCreationChange(user.id, checked);
+				}}
+				aria-label={`Allow ${user.name ?? user.email ?? "user"} to create workspaces`}
+			/>
+			<span className="text-[11px] text-meta">
+				{user.isInstanceOwner
+					? "Owner"
+					: user.canCreateWorkspace
+						? "Allowed"
+						: "No"}
+			</span>
+		</div>
+	);
+
+	const renderTeamControl = (user: User) => {
+		const team = user.teamId ? teamsById.get(user.teamId) : undefined;
+		if (!isAdmin) {
+			return (
+				<span className="text-[12.5px] font-medium text-subtle dark:text-muted-foreground">
+					{team?.name ?? "No team"}
+				</span>
+			);
+		}
+		return (
+			<DropdownMenu
+				align="start"
+				trigger={
+					team ? (
+						<button className={`${CHIP_CLASS} max-w-full`}>
+							<span
+								className="size-1.5 shrink-0 rounded-full"
+								style={{ background: team.color ?? "#9E9E9E" }}
+							/>
+							<span className="truncate">{team.name}</span>
+							<ChevronDown className="size-3.5 shrink-0 text-meta" />
+						</button>
+					) : (
+						<button className="inline-flex cursor-pointer items-center gap-[7px] rounded-[7px] border border-dashed border-input bg-transparent px-2.5 py-[5px] text-[12.5px] font-medium text-meta transition-colors hover:border-border-hover hover:text-subtle dark:border-white/15">
+							<span className="size-1.5 shrink-0 rounded-full border border-faint dark:border-white/20" />
+							No team
+							<ChevronDown className="size-3.5 shrink-0 text-meta" />
+						</button>
+					)
+				}
+				items={[
+					{
+						label: "No team",
+						icon: (
+							<span className="block size-2 rounded-full border border-[#c3d2cb] dark:border-white/25" />
+						),
+						onClick: () => {
+							void handleTeamChange(user.id, null);
+						},
+						active: !user.teamId,
+					},
+					...teams.map((candidate) => ({
+						label: candidate.name,
+						icon: (
+							<span
+								className="block size-2 rounded-full"
+								style={{ background: candidate.color ?? "#9E9E9E" }}
+							/>
+						),
+						onClick: () => {
+							void handleTeamChange(user.id, candidate.id);
+						},
+						active: user.teamId === candidate.id,
+					})),
+					{ separator: true as const },
+					{
+						label: "New team",
+						icon: <Plus />,
+						onClick: () => {
+							handleOpenNewTeam(user.id);
+						},
+					},
+				]}
+			/>
+		);
+	};
+
 	const columns: DataTableColumn<User>[] = [
 		{
 			key: "name",
@@ -433,132 +576,20 @@ export default function UsersPage() {
 			header: "Role",
 			width: "130px",
 			mobileWidth: "auto",
-			cell: (user) => {
-				const isCurrentUser = user.id === currentUser?.id;
-				return isCurrentUser || !isAdmin ? (
-					<span className="inline-flex items-center gap-[7px] px-2.5 py-[5px] text-[12.5px] font-medium text-subtle dark:text-muted-foreground">
-						<span
-							className="size-1.5 rounded-full"
-							style={{ background: ROLE_DOT[user.role] }}
-						/>
-						{ROLE_LABELS[user.role]}
-					</span>
-				) : (
-					<DropdownMenu
-						trigger={
-							<button className={CHIP_CLASS}>
-								<span
-									className="size-1.5 rounded-full"
-									style={{ background: ROLE_DOT[user.role] }}
-								/>
-								{ROLE_LABELS[user.role]}
-								<ChevronDown className="size-3.5 text-meta" />
-							</button>
-						}
-						items={[
-							{ label: "Admin", onClick: () => { void handleRoleChange(user.id, "admin"); }, active: user.role === "admin" },
-							{ label: "Editor", onClick: () => { void handleRoleChange(user.id, "editor"); }, active: user.role === "editor" },
-							{ label: "Member", onClick: () => { void handleRoleChange(user.id, "member"); }, active: user.role === "member" },
-						]}
-					/>
-				);
-			},
+			cell: renderRoleControl,
 		},
 		{
 			key: "can-create-workspace",
 			header: "Create workspaces",
 			width: "150px",
 			mobileWidth: "auto",
-			cell: (user) => (
-				<div className="flex items-center gap-2">
-					<Switch
-						checked={user.isInstanceOwner || user.canCreateWorkspace}
-						disabled={
-							user.isInstanceOwner || currentUser?.role !== "admin"
-						}
-						onCheckedChange={(checked) => {
-							void handleWorkspaceCreationChange(user.id, checked);
-						}}
-						aria-label={`Allow ${user.name ?? user.email ?? "user"} to create workspaces`}
-					/>
-					<span className="text-[11px] text-meta">
-						{user.isInstanceOwner
-							? "Owner"
-							: user.canCreateWorkspace
-								? "Allowed"
-								: "No"}
-					</span>
-				</div>
-			),
+			cell: renderWorkspaceCreationControl,
 		},
 		{
 			key: "team",
 			header: "Team",
 			width: "160px",
-			cell: (user) => {
-				const team = user.teamId ? teamsById.get(user.teamId) : undefined;
-				if (!isAdmin) {
-					return (
-						<span className="text-[12.5px] font-medium text-subtle dark:text-muted-foreground">
-							{team?.name ?? "No team"}
-						</span>
-					);
-				}
-				return (
-					<DropdownMenu
-						align="start"
-						trigger={
-							team ? (
-								<button className={`${CHIP_CLASS} max-w-full`}>
-									<span
-										className="size-1.5 shrink-0 rounded-full"
-										style={{ background: team.color ?? "#9E9E9E" }}
-									/>
-									<span className="truncate">{team.name}</span>
-									<ChevronDown className="size-3.5 shrink-0 text-meta" />
-								</button>
-							) : (
-								<button className="inline-flex cursor-pointer items-center gap-[7px] rounded-[7px] border border-dashed border-input bg-transparent px-2.5 py-[5px] text-[12.5px] font-medium text-meta transition-colors hover:border-border-hover hover:text-subtle dark:border-white/15">
-									<span className="size-1.5 shrink-0 rounded-full border border-faint dark:border-white/20" />
-									No team
-									<ChevronDown className="size-3.5 shrink-0 text-meta" />
-								</button>
-							)
-						}
-						items={[
-							{
-								label: "No team",
-								icon: (
-									<span className="block size-2 rounded-full border border-[#c3d2cb] dark:border-white/25" />
-								),
-								onClick: () => {
-									void handleTeamChange(user.id, null);
-								},
-								active: !user.teamId,
-							},
-							...teams.map((t) => ({
-								label: t.name,
-								icon: (
-									<span
-										className="block size-2 rounded-full"
-										style={{ background: t.color ?? "#9E9E9E" }}
-									/>
-								),
-								onClick: () => {
-									void handleTeamChange(user.id, t.id);
-								},
-								active: user.teamId === t.id,
-							})),
-							{ separator: true as const },
-							{
-								label: "New team",
-								icon: <Plus />,
-								onClick: () => { handleOpenNewTeam(user.id); },
-							},
-						]}
-					/>
-				);
-			},
+			cell: renderTeamControl,
 		},
 		{
 			key: "actions",
@@ -687,30 +718,134 @@ export default function UsersPage() {
 						<X className="size-3.5 opacity-70" />
 					</button>
 				)}
+				<ViewToggle
+					value={viewMode}
+					onChange={setViewMode}
+					className="ml-auto"
+				/>
 			</div>
 
 			{/* Member list */}
 			<div ref={membersTableRef} className="scroll-mt-4">
-				<DataTable
-					columns={columns}
-					rows={users}
-					rowKey={(user) => user.id}
-					isLoading={isLoading}
-					minTableWidth="1050px"
-					bleedOnNarrow
-					emptyMessage={
-						debouncedSearch || roleFilter !== "all" || teamFilterId
+				{viewMode === "table" ? (
+					<DataTable
+						columns={columns}
+						rows={users}
+						rowKey={(user) => user.id}
+						isLoading={isLoading}
+						minTableWidth="1050px"
+						bleedOnNarrow
+						emptyMessage={
+							debouncedSearch || roleFilter !== "all" || teamFilterId
+								? "No users match your filters."
+								: "No members in this workspace."
+						}
+						pagination={{
+							total,
+							limit: PAGE_SIZE,
+							offset,
+							onOffsetChange: setOffset,
+							itemLabel: total === 1 ? "user" : "users",
+						}}
+					/>
+				) : isLoading && users.length === 0 ? (
+					<div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+						{Array.from({ length: 6 }, (_, index) => (
+							<div
+								key={index}
+								className="h-[220px] animate-pulse rounded-xl border border-border bg-card dark:border-white/10"
+							/>
+						))}
+					</div>
+				) : users.length === 0 ? (
+					<div className="flex min-h-48 items-center justify-center rounded-[10px] border border-dashed border-border px-6 text-center text-[13px] text-subtle">
+						{debouncedSearch || roleFilter !== "all" || teamFilterId
 							? "No users match your filters."
-							: "No members in this workspace."
-					}
-					pagination={{
-						total,
-						limit: PAGE_SIZE,
-						offset,
-						onOffsetChange: setOffset,
-						itemLabel: total === 1 ? "user" : "users",
-					}}
-				/>
+							: "No members in this workspace."}
+					</div>
+				) : (
+					<>
+						<div
+							className={`grid grid-cols-1 gap-3 transition-opacity sm:grid-cols-2 xl:grid-cols-3 ${
+								isLoading ? "opacity-60" : ""
+							}`}
+						>
+							{users.map((user) => {
+								const isCurrentUser = user.id === currentUser?.id;
+								return (
+									<article
+										key={user.id}
+										className="group flex min-h-[220px] flex-col rounded-xl border border-[#e1ebe6] bg-card p-4 transition-[border-color,box-shadow] hover:border-[#cfe0d8] hover:shadow-[0_3px_10px_rgba(30,45,40,0.06)] dark:border-white/10 dark:hover:border-white/20"
+									>
+										<div className="flex min-w-0 items-start gap-3">
+											<UserAvatar
+												name={user.name}
+												pictureUrl={user.pictureUrl}
+												userId={user.id}
+												imageRevision={user.imageRevision}
+												className="shrink-0"
+											/>
+											<div className="min-w-0 flex-1">
+												<div className="flex min-w-0 items-center gap-2">
+													<h2 className="truncate text-[13.5px] font-semibold text-foreground">
+														{user.name || "Unnamed"}
+													</h2>
+													{isCurrentUser && (
+														<span className="shrink-0 rounded-[4px] bg-petrol-tint px-1.5 py-0.5 text-[9px] font-bold text-petrol dark:bg-white/10 dark:text-panel-terminal">
+															You
+														</span>
+													)}
+												</div>
+												<p className="mt-0.5 truncate font-mono text-[11.5px] text-subtle dark:text-muted-foreground">
+													{user.email}
+												</p>
+											</div>
+											{isAdmin && !isCurrentUser && (
+												<button
+													type="button"
+													aria-label={`Remove ${user.name || user.email || "user"}`}
+													className="flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-[7px] text-ghost transition-colors hover:bg-[#FBEFED] hover:text-[#B04A3A] dark:hover:bg-rose-950"
+													onClick={() => {
+														void handleRemoveUser(user.id, user.name);
+													}}
+												>
+													<X className="size-[15px]" />
+												</button>
+											)}
+										</div>
+										<div className="mt-5 grid grid-cols-2 gap-x-3 gap-y-4">
+											<div className="min-w-0">
+												<p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-meta">
+													Role
+												</p>
+												{renderRoleControl(user)}
+											</div>
+											<div className="min-w-0">
+												<p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-meta">
+													Team
+												</p>
+												{renderTeamControl(user)}
+											</div>
+											<div className="col-span-2 mt-auto border-t border-hairline pt-3 dark:border-white/5">
+												<p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-meta">
+													Create workspaces
+												</p>
+												{renderWorkspaceCreationControl(user)}
+											</div>
+										</div>
+									</article>
+								);
+							})}
+						</div>
+						<DataTablePaginationFooter
+							total={total}
+							limit={PAGE_SIZE}
+							offset={offset}
+							onOffsetChange={setOffset}
+							itemLabel={total === 1 ? "user" : "users"}
+						/>
+					</>
+				)}
 			</div>
 
 			{/* Teams */}
