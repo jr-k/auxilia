@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.50](https://github.com/jr-k/auxilia/compare/backend-v0.10.49...backend-v0.10.50) (2026-10-12)
+
+
+### Bug Fixes
+
+* **slack:** surface MCP failures in private message runs ([5a2e44b](https://github.com/jr-k/auxilia/commit/5a2e44bbd5403147c00b0cba561e95e9fb8165e6))
+
 ## [0.10.49](https://github.com/jr-k/auxilia/compare/backend-v0.10.48...backend-v0.10.49) (2026-10-12)
 
 
