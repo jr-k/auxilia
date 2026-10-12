@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.11.57](https://github.com/jr-k/auxilia/compare/web-v0.11.56...web-v0.11.57) (2026-10-12)
+
+
+### Features
+
+* **chat:** send queued prompts immediately ([1dfeff1](https://github.com/jr-k/auxilia/commit/1dfeff1aa00366381dc0b161c68843abf9bc115d))
+* **realtime:** sync workspace resources across sessions ([8a68f06](https://github.com/jr-k/auxilia/commit/8a68f0627bd3bf9784882633aa81485cfd3b2563))
+
+
+### Bug Fixes
+
+* **chat:** preserve pending submission state ([33e3254](https://github.com/jr-k/auxilia/commit/33e3254228e2c747d115044af59cfe8685ef598e))
+
 ## [0.11.56](https://github.com/jr-k/auxilia/compare/web-v0.11.55...web-v0.11.56) (2026-10-12)
 
 

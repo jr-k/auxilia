@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.10.52](https://github.com/jr-k/auxilia/compare/backend-v0.10.51...backend-v0.10.52) (2026-10-12)
+
+
+### Features
+
+* **chat:** send queued prompts immediately ([1dfeff1](https://github.com/jr-k/auxilia/commit/1dfeff1aa00366381dc0b161c68843abf9bc115d))
+* **realtime:** sync workspace resources across sessions ([8a68f06](https://github.com/jr-k/auxilia/commit/8a68f0627bd3bf9784882633aa81485cfd3b2563))
+
 ## [0.10.51](https://github.com/jr-k/auxilia/compare/backend-v0.10.50...backend-v0.10.51) (2026-10-12)
 
 
