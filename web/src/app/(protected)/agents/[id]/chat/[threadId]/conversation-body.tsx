@@ -94,6 +94,8 @@ export type ConversationBodyProps = {
   stream: AnyStream;
   supervisorTodos: Todo[];
   isLoading: boolean;
+  /** Local submit sent, before the server stream reports the active run. */
+  isStarting: boolean;
   isInterrupted: boolean;
   hitlToolNames: Set<string> | null;
   decisions: Partial<Record<string, HitlDecision>>;
@@ -123,6 +125,7 @@ export const ConversationBody = memo(function ConversationBody({
   stream,
   supervisorTodos,
   isLoading,
+  isStarting,
   isInterrupted,
   hitlToolNames,
   decisions,
@@ -173,8 +176,16 @@ export const ConversationBody = memo(function ConversationBody({
   // "Thinking…" until anything at all arrives.
   const showThinking =
     isLoading &&
-    lastVisible != null &&
-    (isHumanMessage(lastVisible) || (preamble && reasoningStreamingId == null));
+    (isStarting ||
+      (lastVisible != null &&
+        (isHumanMessage(lastVisible) ||
+          (preamble && reasoningStreamingId == null))));
+  const pendingUserIndex =
+    showThinking && optimisticPrompt == null
+      ? messages.findLastIndex(
+          (message) => isHumanMessage(message) && !isHostNotice(message),
+        )
+      : -1;
 
   return (
     <>
@@ -194,6 +205,7 @@ export const ConversationBody = memo(function ConversationBody({
               key={key}
               message={message}
               anchorId={threadMapAnchor(index)}
+              sending={index === pendingUserIndex}
             />
           );
         }
@@ -260,9 +272,9 @@ export const ConversationBody = memo(function ConversationBody({
 
       {optimisticPrompt && <OptimisticUserTurn text={optimisticPrompt} />}
 
-      {optimisticPrompt && !showThinking && <OptimisticAssistantTurn />}
-
-      {showThinking && <ChainThinking />}
+      {showThinking && pendingUserIndex < 0 && optimisticPrompt == null && (
+        <ChainThinking />
+      )}
 
       {(error != null || rehydratedError != null) && (
         <Error>
@@ -386,16 +398,25 @@ const WebSearchSources = ({ sources }: { sources: WebSearchSource[] }) => (
 const UserTurn = ({
   message,
   anchorId,
+  sending,
 }: {
   message: BaseMessage;
   anchorId: string;
+  sending: boolean;
 }) => {
   const { text, context, source } = presentSideChannelMessage(message.text);
   const attachments = getFileAttachments(message);
   return (
     <div id={anchorId} className="flex flex-col gap-2">
       {attachments.length > 0 && (
-        <div className="flex justify-end">
+        <div className="flex items-center justify-end gap-2">
+          {sending && !text && (
+            <Loader
+              size={14}
+              className="shrink-0 text-meta motion-reduce:animate-none dark:text-panel-dim"
+              aria-hidden="true"
+            />
+          )}
           <Attachments variant="inline">
             {attachments.map((attachment) => {
               const label = getAttachmentLabel(attachment);
@@ -444,9 +465,30 @@ const UserTurn = ({
       )}
       {text && (
         <Message from="user">
-          <MessageContent>
-            <MessageResponse>{text}</MessageResponse>
-          </MessageContent>
+          <div
+            className={
+              sending
+                ? "ml-auto flex max-w-[82%] items-center justify-end gap-2"
+                : "contents"
+            }
+          >
+            {sending && (
+              <Loader
+                size={14}
+                className="shrink-0 text-meta motion-reduce:animate-none dark:text-panel-dim"
+                aria-hidden="true"
+              />
+            )}
+            <MessageContent
+              className={
+                sending
+                  ? "group-[.is-user]:ml-0 group-[.is-user]:max-w-full"
+                  : undefined
+              }
+            >
+              <MessageResponse>{text}</MessageResponse>
+            </MessageContent>
+          </div>
         </Message>
       )}
     </div>
@@ -468,22 +510,6 @@ const OptimisticUserTurn = ({ text }: { text: string }) => (
       <MessageContent className="group-[.is-user]:ml-0 group-[.is-user]:max-w-full">
         <MessageResponse>{text}</MessageResponse>
       </MessageContent>
-    </div>
-  </Message>
-);
-
-const OptimisticAssistantTurn = () => (
-  <Message from="assistant">
-    <div
-      className="flex items-center py-0.5"
-      role="status"
-      aria-label="Waiting for assistant response"
-    >
-      <Loader
-        size={14}
-        className="shrink-0 text-meta motion-reduce:animate-none dark:text-panel-dim"
-        aria-hidden="true"
-      />
     </div>
   </Message>
 );

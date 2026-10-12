@@ -45,6 +45,16 @@ interface MCPServerTableProps {
 	onClearSearch: () => void;
 }
 
+function serverHref(server: MCPServer): string {
+	return `/mcp-servers/${server.id}`;
+}
+
+function serverEditHref(server: MCPServer): string {
+	return server.managedBy === "dbhub" && server.managedResourceId
+		? `/mcp-servers/database/${server.managedResourceId}`
+		: `${serverHref(server)}?edit=1`;
+}
+
 /** Row-scoped Test button: label reflects the last run, tooltip carries the
  * full result message. */
 function RowTestButton({ server }: { server: MCPServer }) {
@@ -155,9 +165,18 @@ export default function MCPServerTable({
 	}, [filterTeamIds, mcpServers, scope, search]);
 	const groupTree = useMemo(() => buildGroupTree(filtered), [filtered]);
 	const orderedServers = useMemo(() => flattenGroupTree(groupTree), [groupTree]);
+	const selectableServerIds = useMemo(
+		() =>
+			isAdmin
+				? orderedServers
+						.filter((server) => server.managedBy !== "dbhub")
+						.map((server) => server.id)
+				: [],
+		[isAdmin, orderedServers],
+	);
 	const selection = useRowSelection({
 		orderedIds: orderedServers.map((server) => server.id),
-		eligibleIds: isAdmin ? orderedServers.map((server) => server.id) : [],
+		eligibleIds: selectableServerIds,
 	});
 
 	const prepareBulkDelete = async () => {
@@ -257,13 +276,13 @@ export default function MCPServerTable({
 				<span className="flex items-center gap-3">
 					<Checkbox
 						checked={false}
-						aria-label="Select all MCP servers"
-						disabled={!isAdmin}
+						aria-label="Select all deletable MCP servers"
+						disabled={selectableServerIds.length === 0}
 						onCheckedChange={selection.toggleAll}
 					/>
 					<button
 						type="button"
-						disabled={!isAdmin}
+						disabled={selectableServerIds.length === 0}
 						onClick={selection.toggleAll}
 						className="cursor-pointer text-[12px]! font-semibold text-foreground hover:text-petrol disabled:cursor-not-allowed disabled:opacity-35"
 					>
@@ -277,7 +296,7 @@ export default function MCPServerTable({
 					<SelectableLeading
 						selected={selection.isSelected(server.id)}
 						selectionMode={selection.selectionMode}
-						disabled={!isAdmin}
+						disabled={!isAdmin || server.managedBy === "dbhub"}
 						label={`Select ${server.name}`}
 						onToggle={(shiftKey) => {
 							selection.toggle(server.id, shiftKey);
@@ -296,6 +315,11 @@ export default function MCPServerTable({
 						<div className="truncate text-[13.5px] font-semibold text-foreground">
 							{server.name}
 						</div>
+						{server.managedBy === "dbhub" ? (
+							<span className="mt-1 inline-flex rounded-full bg-petrol-tint px-2 py-0.5 text-[10px] font-semibold text-petrol">
+								Managed database
+							</span>
+						) : null}
 						<div className="mt-px truncate text-[12px] text-subtle dark:text-muted-foreground">
 							{server.description || "No description provided."}
 						</div>
@@ -309,7 +333,7 @@ export default function MCPServerTable({
 			width: "220px",
 			cell: (server) => (
 				<span className="block truncate font-mono text-[11px] text-subtle dark:text-muted-foreground">
-					{server.url}
+					{server.managedBy === "dbhub" ? "Managed by DBHub" : server.url}
 				</span>
 			),
 		},
@@ -347,33 +371,35 @@ export default function MCPServerTable({
 							<button
 								type="button"
 								onClick={() => {
-									router.push(`/mcp-servers/${server.id}?edit=1`);
+									router.push(serverEditHref(server));
 								}}
 								className="cursor-pointer rounded-[7px] border border-border px-[11px] py-[5px] text-[12px] font-medium text-body transition-colors hover:bg-sidebar dark:text-panel-body dark:hover:bg-white/5"
 							>
 								Edit
 							</button>
-							<DropdownMenu
-								items={[
-									...(server.authType === "oauth2"
-										? [
-												{
-													label: "Reset connections",
-													onClick: () => {
-														void handleReset(server);
+							{server.managedBy !== "dbhub" ? (
+								<DropdownMenu
+									items={[
+										...(server.authType === "oauth2"
+											? [
+													{
+														label: "Reset connections",
+														onClick: () => {
+															void handleReset(server);
+														},
 													},
-												},
-											]
-										: []),
-									{
-										label: "Delete server",
-										destructive: true,
-										onClick: () => {
-											void handleDelete(server);
+												]
+											: []),
+										{
+											label: "Delete server",
+											destructive: true,
+											onClick: () => {
+												void handleDelete(server);
+											},
 										},
-									},
-								]}
-							/>
+									]}
+								/>
+							) : null}
 						</>
 					)}
 				</div>
@@ -453,7 +479,7 @@ export default function MCPServerTable({
 			/>
 			<BulkActionBar
 				selectedCount={selection.selectedCount}
-				totalCount={isAdmin ? orderedServers.length : 0}
+				totalCount={selectableServerIds.length}
 				allSelected={selection.allSelected}
 				someSelected={selection.someSelected}
 				onToggleAll={selection.toggleAll}
@@ -502,9 +528,14 @@ export default function MCPServerTable({
 								}}
 							>
 								<Link
-									href={`/mcp-servers/${server.id}`}
+									href={serverHref(server)}
 									onClick={(event) => {
-										if (!selection.selectionMode || !isAdmin) return;
+										if (
+											!selection.selectionMode ||
+											!isAdmin ||
+											server.managedBy === "dbhub"
+										)
+											return;
 										event.preventDefault();
 										selection.toggle(server.id, event.shiftKey);
 									}}
@@ -516,7 +547,7 @@ export default function MCPServerTable({
 									<SelectableLeading
 										selected={selection.isSelected(server.id)}
 										selectionMode={selection.selectionMode}
-										disabled={!isAdmin}
+										disabled={!isAdmin || server.managedBy === "dbhub"}
 										label={`Select ${server.name}`}
 										onToggle={(shiftKey) => {
 											selection.toggle(server.id, shiftKey);
@@ -538,6 +569,11 @@ export default function MCPServerTable({
 										<div className="mt-1 flex flex-wrap items-center gap-1.5">
 											<AuthTypeBadge authType={server.authType} />
 											<VisibilityBadge visibility={server.visibility ?? "workspace"} />
+											{server.managedBy === "dbhub" ? (
+												<span className="rounded-full bg-petrol-tint px-2 py-0.5 text-[9px] font-semibold text-petrol">
+													Managed database
+												</span>
+											) : null}
 										</div>
 									</div>
 								</div>
@@ -545,7 +581,9 @@ export default function MCPServerTable({
 									{server.description || "No description provided."}
 								</p>
 								<p className="pointer-events-none mt-3 truncate border-t border-[#edf2ef] pt-3 font-mono text-[10.5px] text-meta dark:border-white/5 dark:text-panel-dim">
-									{server.url}
+									{server.managedBy === "dbhub"
+										? "Managed by DBHub"
+										: server.url}
 								</p>
 								<div className="relative z-10 mt-3 flex flex-wrap items-center justify-end gap-1.5">
 									<RowTestButton server={server} />
@@ -554,33 +592,35 @@ export default function MCPServerTable({
 											<button
 												type="button"
 												onClick={() => {
-													router.push(`/mcp-servers/${server.id}?edit=1`);
+													router.push(serverEditHref(server));
 												}}
 												className="cursor-pointer rounded-[7px] border border-border px-[11px] py-[5px] text-[12px] font-medium text-body transition-colors hover:bg-sidebar dark:text-panel-body dark:hover:bg-white/5"
 											>
 												Edit
 											</button>
-											<DropdownMenu
-												items={[
-													...(server.authType === "oauth2"
-														? [
-																{
-																	label: "Reset connections",
-																	onClick: () => {
-																		void handleReset(server);
+											{server.managedBy !== "dbhub" ? (
+												<DropdownMenu
+													items={[
+														...(server.authType === "oauth2"
+															? [
+																	{
+																		label: "Reset connections",
+																		onClick: () => {
+																			void handleReset(server);
+																		},
 																	},
-																},
-															]
-														: []),
-													{
-														label: "Delete server",
-														destructive: true,
-														onClick: () => {
-															void handleDelete(server);
+																]
+															: []),
+														{
+															label: "Delete server",
+															destructive: true,
+															onClick: () => {
+																void handleDelete(server);
+															},
 														},
-													},
-												]}
-											/>
+													]}
+												/>
+											) : null}
 										</>
 									)}
 								</div>
@@ -598,6 +638,9 @@ export default function MCPServerTable({
 					onRowSelectionClick={(server, shiftKey) => {
 						selection.toggle(server.id, shiftKey);
 					}}
+					isRowSelectable={(server) =>
+						isAdmin && server.managedBy !== "dbhub"
+					}
 					isLoading={isLoading}
 					scrollBody
 					minTableWidth="950px"
@@ -609,7 +652,7 @@ export default function MCPServerTable({
 					// Rows navigate via onRowClick, not a Link — the action buttons
 					// live inside the row, and interactive elements can't nest in <a>.
 					onRowClick={(server) => {
-						router.push(`/mcp-servers/${server.id}`);
+						router.push(serverHref(server));
 					}}
 					emptyMessage={
 						search && mcpServers.length > 0 ? (

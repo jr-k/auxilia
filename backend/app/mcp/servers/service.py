@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.core.repository import AgentRepository
 from app.database import get_db
+from app.database_connections.tools import filter_managed_tools
 from app.exceptions import (
     DomainValidationError,
     NotFoundError,
@@ -344,10 +345,21 @@ class MCPServerService(BaseService[MCPServerDB, MCPServerRepository]):
             )
         ]
 
-    async def update(self, server_id: UUID, data: MCPServerPatch) -> MCPServerDB:
+    async def update(
+        self,
+        server_id: UUID,
+        data: MCPServerPatch,
+        *,
+        _managed_by: str | None = None,
+    ) -> MCPServerDB:
         server = await self.repository.get_scoped_for_update(server_id)
         if server is None:
             raise NotFoundError(self.not_found_message)
+        if server.managed_by is not None and server.managed_by != _managed_by:
+            raise DomainValidationError(
+                f"This MCP server is managed by {server.managed_by}; "
+                "edit it through its control plane."
+            )
         next_visibility = data.visibility or server.visibility
         next_team_ids = (
             data.team_ids
@@ -564,13 +576,18 @@ class MCPServerService(BaseService[MCPServerDB, MCPServerRepository]):
                 exc_info=True,
             )
 
-    async def delete(self, server_id: UUID) -> None:
+    async def delete(self, server_id: UUID, *, _managed_by: str | None = None) -> None:
         """Delete the server row. Refused while agents are bound: the binding
         FK has no cascade, so the flush fails and surfaces as a clean 400.
         Detaching first is the agents module's job — the router composes
         `AgentMCPServerService.detach_server` before this when the dialog's
         explicit confirm asks for it (#369)."""
         server = await self.get_scoped_for_update(server_id)
+        if server.managed_by is not None and server.managed_by != _managed_by:
+            raise DomainValidationError(
+                f"This MCP server is managed by {server.managed_by}; "
+                "delete it through its control plane."
+            )
         try:
             await self.repository.delete(server)
         except IntegrityError as exc:
@@ -738,7 +755,7 @@ class MCPServerService(BaseService[MCPServerDB, MCPServerRepository]):
             async with connect_to_server(
                 server, user_id, self.workspace_id, self.db
             ) as client:
-                tools = await client.list_tools()
+                tools = filter_managed_tools(server, await client.list_tools())
                 return ToolsListed(
                     tools=[
                         MCPToolInfo(name=tool.name, description=tool.description)

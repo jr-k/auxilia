@@ -1,4 +1,47 @@
 services:
+  dbhub:
+    image: bytebase/dbhub:1.5.0
+    container_name: auxilia-dbhub
+    init: true
+    user: "1000:1000"
+    environment:
+      DBHUB_AUTH_TOKEN: ${DBHUB_AUTH_TOKEN:-change-me-in-development}
+      DBHUB_ALLOWED_HOSTS: dbhub,dbhub:8080,localhost,localhost:8080,127.0.0.1,127.0.0.1:8080
+    entrypoint: ["node", "/opt/auxilia/dbhub-reloader.mjs"]
+    command:
+      [
+        "--transport",
+        "http",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "8080",
+        "--config",
+        "/tmp/dbhub.toml",
+      ]
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - ./.runtime/dbhub:/input:ro
+      - ./docker/dbhub-reloader.mjs:/opt/auxilia/dbhub-reloader.mjs:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:8080/healthz').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+      start_period: 10s
+    networks:
+      - auxilia-network
+
   redis:
     image: redis:7-alpine
     container_name: auxilia-redis

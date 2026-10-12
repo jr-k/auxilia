@@ -40,6 +40,10 @@ from app.model_providers.web_search import (
     compatible_reasoning_effort,
     native_web_search_tool,
 )
+from app.notifications.tools import (
+    NOTIFICATION_SYSTEM_PROMPT,
+    build_notification_tools,
+)
 from app.observability.service import WorkspaceObservabilityService
 from app.runtime.checkpoints import checkpoint_thread_id, get_checkpoint_state
 from app.runtime.harness import (
@@ -61,12 +65,14 @@ from app.runtime.middleware.tool_errors import (
     ToolErrorMiddleware,
 )
 from app.runtime.middleware.tool_selection import (
+    LOCAL_DISCOVERY_CANDIDATES_KEY,
     LOCAL_DISCOVERY_STATE_KEY,
     discovery_interrupt_on,
     tool_discovery_middleware,
 )
 from app.runtime.protocol.emit import ProtocolEmitter
 from app.runtime.settings import agent_settings
+from app.runtime.tool_catalog import ToolCatalog
 from app.runtime.toolset import (
     MCPResolutionScope,
     PreparedToolset,
@@ -245,8 +251,18 @@ def build_runnable(
     if not isinstance(tool_discovery_mode, ToolDiscoveryMode):
         tool_discovery_mode = ToolDiscoveryMode.disabled
     private_state_keys = (
-        frozenset({LOCAL_DISCOVERY_STATE_KEY})
+        frozenset(
+            {
+                LOCAL_DISCOVERY_STATE_KEY,
+                LOCAL_DISCOVERY_CANDIDATES_KEY,
+            }
+        )
         if tool_discovery_mode is ToolDiscoveryMode.local
+        else None
+    )
+    catalog = (
+        ToolCatalog(searchable_tools)
+        if tool_discovery_mode is ToolDiscoveryMode.local and searchable_tools
         else None
     )
     system_prompt = _append_system_prompt_context(system_prompt, mcp_context)
@@ -258,6 +274,8 @@ def build_runnable(
             searchable_tools=searchable_tools,
             mode=tool_discovery_mode,
             provider_native=supports_tool_search,
+            catalog=catalog,
+            server_context=mcp_context,
         )
         harness += harness_middleware(
             model=model,
@@ -273,8 +291,6 @@ def build_runnable(
                 discovery_interrupt_on(
                     general_purpose_interrupt_on, tool_discovery_mode
                 )
-                if tool_discovery_mode is ToolDiscoveryMode.local
-                else None
             ),
             private_state_keys=private_state_keys,
         )
@@ -287,15 +303,22 @@ def build_runnable(
     elif skills is not None:
         harness += skills_read_middleware(skills)
 
-    middleware = [*harness, *base_middleware]
     discovery = tool_discovery_middleware(
         model=model,
         searchable_tools=searchable_tools,
         mode=tool_discovery_mode,
         provider_native=supports_tool_search,
+        catalog=catalog,
+        server_context=mcp_context,
     )
-    if discovery is not None:
-        middleware.append(discovery)
+    # Discovery wraps the harness so hidden schemas are removed before
+    # summarization counts the request. The same ordering also keeps provider
+    # deferral and fallback selection out of the summarizer's token estimate.
+    middleware = [
+        *([discovery] if discovery is not None else []),
+        *harness,
+        *base_middleware,
+    ]
     if sandbox_backend is None and subagents:
         # On the far side of the caller's stack, where the plain path has
         # always put it — the harness wires its own SubAgentMiddleware *before*
@@ -741,6 +764,10 @@ class Agent:
         # Read-only and shared by every agent of the graph; None means no
         # skills middleware and no prompt fragment at all.
         skills = SkillsBackend(self.skills) if self.skills else None
+        notification_tools = build_notification_tools(
+            self.thread,
+            reserved_names={tool.name for tool in self.agent.live.all},
+        )
         compiled = (
             [
                 s.compile(
@@ -760,13 +787,17 @@ class Agent:
             model=self.model,
             tools=[
                 *self.agent.live.all,
+                *notification_tools,
                 *(
                     [tool]
                     if (tool := self._web_search_tool(self.agent)) is not None
                     else []
                 ),
             ],
-            system_prompt=self.agent.config.instructions or "",
+            system_prompt=_append_system_prompt_context(
+                self.agent.config.instructions or "",
+                NOTIFICATION_SYSTEM_PROMPT,
+            ),
             mcp_context=self.agent.prepared.mcp_context_prompt,
             sandbox_backend=self._sandbox_for(self.agent),
             skills=skills,

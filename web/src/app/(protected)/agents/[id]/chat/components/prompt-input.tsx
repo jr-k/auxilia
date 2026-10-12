@@ -92,6 +92,7 @@ interface ChatPromptInputProps {
 	onBeginQueuedEdit?: (id: string) => Promise<void>;
 	onEndQueuedEdit?: (id: string) => Promise<void>;
 	onSendQueuedNow?: (id: string) => Promise<void>;
+	sendQueuedNowDisabled?: boolean;
 	onRemoveQueued?: (id: string) => Promise<void>;
 	onReorderQueued?: (orderedIds: string[]) => Promise<void>;
 	queueLoading?: boolean;
@@ -153,6 +154,7 @@ const ChatPromptInput = ({
 	onBeginQueuedEdit,
 	onEndQueuedEdit,
 	onSendQueuedNow,
+	sendQueuedNowDisabled = false,
 	onRemoveQueued,
 	onReorderQueued,
 	queueLoading = false,
@@ -488,8 +490,10 @@ const ChatPromptInput = ({
 
 	const finishEditingLocally = () => {
 		setEditingId(null);
-		controller.textInput.setInput(draftRef.current ?? "");
-		draftRef.current = null;
+		if (draftRef.current !== null) {
+			controller.textInput.setInput(draftRef.current);
+			draftRef.current = null;
+		}
 	};
 
 	const beginEdit = (item: QueuedPrompt) => {
@@ -621,6 +625,7 @@ const ChatPromptInput = ({
 					busyId={busyId}
 					onEdit={beginEdit}
 					onSendNow={sendQueuedNow}
+					sendNowDisabled={sendQueuedNowDisabled}
 					onRemove={removeQueued}
 					onReorder={reorderQueued}
 				/>
@@ -737,8 +742,8 @@ const ChatPromptInput = ({
 								<DialogContent className="max-h-[85vh] gap-0 overflow-y-auto sm:max-w-[600px]">
 									<DialogTitle>Conversation stats</DialogTitle>
 									<DialogDescription className="mt-1.5">
-										Provider-reported usage accumulated across every model call
-										in this thread.
+										Provider-reported usage from model responses stored in
+										this thread. Internal routing calls are not included.
 									</DialogDescription>
 
 									<div className="mt-5 grid grid-cols-3 gap-2.5">

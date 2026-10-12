@@ -11,6 +11,7 @@ import InstanceAppearanceSettings from "./workspace-appearance";
 import WorkspaceAuthentication from "./workspace-authentication";
 import WorkspaceMessaging from "./workspace-notifications";
 import WorkspaceObservability from "./workspace-observability";
+import ProfileNotifications from "./profile-notifications";
 import ProfileSettings, { type ProfileSection } from "./profile-settings";
 import ProfileThreads from "./profile-threads";
 import { SubpageHeader } from "@/components/layout/subpage-header";
@@ -113,13 +114,18 @@ function isAdminSettingsTab(
 	);
 }
 
-type ProfilePageSection = ProfileSection | "threads" | "tokens";
+type ProfilePageSection =
+	| ProfileSection
+	| "notifications"
+	| "threads"
+	| "tokens";
 
 function isProfileSection(value: string): value is ProfilePageSection {
 	return (
 		value === "information" ||
 		value === "security" ||
 		value === "preferences" ||
+		value === "notifications" ||
 		value === "threads" ||
 		value === "tokens"
 	);
@@ -341,6 +347,16 @@ export default function SettingsPage() {
 								</button>
 								<button
 									type="button"
+									aria-pressed={profileSection === "notifications"}
+									className={railTabClass(profileSection === "notifications")}
+									onClick={() => {
+										setProfileSection("notifications");
+									}}
+								>
+									Notifications
+								</button>
+								<button
+									type="button"
 									aria-pressed={profileSection === "threads"}
 									className={railTabClass(profileSection === "threads")}
 									onClick={() => {
@@ -469,7 +485,8 @@ export default function SettingsPage() {
 							className={
 								tab === "profile" &&
 								profileSection !== "tokens" &&
-								profileSection !== "threads"
+								profileSection !== "threads" &&
+								profileSection !== "notifications"
 									? ""
 									: "hidden"
 							}
@@ -479,13 +496,26 @@ export default function SettingsPage() {
 									user={user}
 									section={
 										profileSection === "tokens" ||
-										profileSection === "threads"
+										profileSection === "threads" ||
+										profileSection === "notifications"
 											? "information"
 											: profileSection
 									}
 								/>
 							) : (
 								<div className="h-40 animate-pulse rounded-[12px] border border-border bg-card" />
+							)}
+						</section>
+
+						<section
+							className={
+								tab === "profile" && profileSection === "notifications"
+									? ""
+									: "hidden"
+							}
+						>
+							{tab === "profile" && profileSection === "notifications" && (
+								<ProfileNotifications />
 							)}
 						</section>
 

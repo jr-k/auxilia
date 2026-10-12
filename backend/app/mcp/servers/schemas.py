@@ -85,6 +85,8 @@ class MCPServerResponse(SQLModel):
     visibility: ResourceVisibility = ResourceVisibility.workspace
     team_ids: list[UUID] = Field(default_factory=list)
     disabled_tools: list[str] = Field(default_factory=list)
+    managed_by: str | None = None
+    managed_resource_id: UUID | None = None
     created_at: datetime
     updated_at: datetime
     # Static OAuth client_id when configured (public identifier, not a secret);

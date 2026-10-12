@@ -48,6 +48,20 @@ class MCPServerRepository(BaseRepository[MCPServerDB]):
         result = await self.db.execute(stmt)
         return list(result.scalars().all())
 
+    async def mark_managed(
+        self,
+        server: MCPServerDB,
+        *,
+        managed_by: str,
+        resource_id: UUID,
+    ) -> MCPServerDB:
+        server.managed_by = managed_by
+        server.managed_resource_id = resource_id
+        self.db.add(server)
+        await self.db.flush()
+        await self.db.refresh(server)
+        return server
+
     async def list_by_ids(self, server_ids: Collection[UUID]) -> list[MCPServerDB]:
         """The servers behind a set of agent bindings, in one `IN` query.
 

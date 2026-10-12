@@ -64,6 +64,10 @@ class MCPServerDB(MCPServerBase, BaseDBModel, table=True):
             server_default=sa.text("'[]'"),
         ),
     )
+    # Managed servers are materialized by an internal control plane. Their
+    # transport/auth fields cannot be edited through the generic MCP routes.
+    managed_by: str | None = Field(default=None, max_length=50, index=True)
+    managed_resource_id: UUID | None = Field(default=None, index=True)
 
 
 class MCPServerTeamDB(BaseDBModel, table=True):

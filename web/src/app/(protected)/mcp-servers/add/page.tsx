@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChevronRight, Loader2, Plus, RefreshCw } from "lucide-react";
+import { ChevronRight, Database, Loader2, Plus, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import ForbiddenErrorDialog from "@/components/forbidden-error-dialog";
 import { SearchBar } from "@/components/ui/search-bar";
@@ -278,8 +278,20 @@ export default function AddMCPServerPage() {
 							className="w-full md:max-w-[420px] [&_input]:h-10"
 						/>
 						<Link
+							href="/mcp-servers/add/database"
+							className="group flex h-10 w-full items-center gap-2.5 rounded-[7px] border border-dashed border-input px-2.5 transition-colors hover:border-petrol hover:bg-sidebar md:ml-auto md:max-w-[240px] dark:border-white/15 dark:hover:bg-white/5"
+						>
+							<span className="flex size-[26px] shrink-0 items-center justify-center rounded-[7px] bg-petrol-tint text-petrol">
+								<Database className="size-[14px]" />
+							</span>
+							<span className="min-w-0 flex-1 truncate text-[13px] font-bold tracking-[-0.01em] text-foreground">
+								Connect a database
+							</span>
+							<ChevronRight className="size-4 text-meta transition-colors group-hover:text-foreground" />
+						</Link>
+						<Link
 							href="/mcp-servers/add/custom"
-							className="group flex h-10 w-full items-center gap-2.5 rounded-[7px] border border-dashed border-input px-2.5 transition-colors hover:border-petrol hover:bg-sidebar md:ml-auto md:max-w-[420px] dark:border-white/15 dark:hover:bg-white/5"
+							className="group flex h-10 w-full items-center gap-2.5 rounded-[7px] border border-dashed border-input px-2.5 transition-colors hover:border-petrol hover:bg-sidebar md:max-w-[230px] dark:border-white/15 dark:hover:bg-white/5"
 						>
 							<span className="flex size-[26px] shrink-0 items-center justify-center rounded-[7px] bg-petrol-tint text-petrol">
 								<Plus className="size-[14px]" />

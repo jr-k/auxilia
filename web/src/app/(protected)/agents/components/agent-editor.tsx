@@ -72,7 +72,7 @@ const effortLabel = (effort: string) => EFFORT_LABELS.get(effort) ?? effort;
 const TOOL_DISCOVERY_LABELS: Record<ToolDiscoveryMode, string> = {
 	disabled: "Eager",
 	automatic: "Automatic",
-	local: "Local",
+	local: "Auxilia Search",
 };
 
 interface AgentEditorProps {
@@ -1040,14 +1040,14 @@ export default function AgentEditor({
 										},
 									},
 									{
-										label: "Automatic: From AI provider",
+										label: "Automatic: Provider-native when available",
 										active: form.toolDiscoveryMode === "automatic",
 										onClick: () => {
 											setField("toolDiscoveryMode", "automatic");
 										},
 									},
 									{
-										label: "Local: Auxilia search algorithm",
+										label: "Auxilia Search: Adaptive retrieval",
 										active: form.toolDiscoveryMode === "local",
 										onClick: () => {
 											setField("toolDiscoveryMode", "local");

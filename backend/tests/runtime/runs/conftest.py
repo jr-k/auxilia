@@ -8,6 +8,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlmodel import SQLModel
 
 import app.runtime.runs.service as service_mod
+from app.realtime.models import WorkspaceEventOutboxDB
 from app.runtime.runs.models import RunDB
 from app.threads.models import ThreadDB
 
@@ -46,7 +47,14 @@ async def run_db(tmp_path, monkeypatch):
     engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'runs.db'}")
 
     def _create(conn):
-        SQLModel.metadata.create_all(conn, tables=[ThreadDB.__table__, RunDB.__table__])
+        SQLModel.metadata.create_all(
+            conn,
+            tables=[
+                ThreadDB.__table__,
+                RunDB.__table__,
+                WorkspaceEventOutboxDB.__table__,
+            ],
+        )
 
     async with engine.begin() as conn:
         await conn.run_sync(_create)

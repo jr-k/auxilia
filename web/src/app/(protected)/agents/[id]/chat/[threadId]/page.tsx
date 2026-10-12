@@ -264,6 +264,7 @@ const ChatPage = () => {
               stream={transcript.stream}
               supervisorTodos={transcript.todos}
               isLoading={run.isLoading}
+              isStarting={run.isStarting}
               isInterrupted={run.status === "interrupted"}
               hitlToolNames={hitl.hitlToolNames}
               decisions={hitl.decisions}
@@ -422,6 +423,7 @@ const ChatPage = () => {
             onBeginQueuedEdit={promptQueue.beginEdit}
             onEndQueuedEdit={promptQueue.endEdit}
             onSendQueuedNow={promptQueue.sendNow}
+            sendQueuedNowDisabled={run.status === "interrupted"}
             onRemoveQueued={promptQueue.remove}
             onReorderQueued={promptQueue.reorder}
           />

@@ -18,6 +18,8 @@ from app.exceptions import (
     PermissionDeniedError,
 )
 from app.model_providers.service import ModelService
+from app.notifications.descriptor import build_notification_delivery
+from app.notifications.repository import TriggerNotificationRepository
 from app.realtime.schemas import WorkspaceEventKind
 from app.realtime.service import stage_workspace_event
 from app.runtime.runs.service import RunService
@@ -449,11 +451,13 @@ class TriggerService(BaseService[TriggerDB, TriggerRepository]):
         # thread behind.
         await self.model_service.ensure_available(trigger.model_id)
         thread = await self._create_fire_thread(trigger)
+        delivery = await self._notification_delivery(trigger)
         await self.db.commit()
         record = await RunService().create(
             thread_id=thread.id,
             user_id=str(trigger.owner_id),
             input={"messages": [{"type": "human", "content": trigger.instructions}]},
+            delivery=delivery,
         )
         return TriggerRunResponse(thread_id=thread.id, run_id=record.id)
 
@@ -539,6 +543,19 @@ class TriggerService(BaseService[TriggerDB, TriggerRepository]):
             trigger_id=trigger.id,
         )
 
+    async def _notification_delivery(self, trigger: TriggerDB) -> dict | None:
+        binding = await TriggerNotificationRepository(self.db).get_for_trigger(
+            trigger.id
+        )
+        if binding is None:
+            return None
+        return build_notification_delivery(
+            workspace_id=trigger.workspace_id,
+            user_id=trigger.owner_id,
+            title=trigger.name,
+            channel_ids=binding.channel_ids,
+        )
+
     # ------------------------------------------------------------------
     # Scanner entrypoint
     # ------------------------------------------------------------------
@@ -566,7 +583,10 @@ class TriggerService(BaseService[TriggerDB, TriggerRepository]):
         claimed = await self.repository.claim_due(
             now, limit=trigger_settings.claim_batch_size
         )
-        launches: list[tuple[str, str, str]] = []  # (thread_id, owner_id, message)
+        notification_bindings = await TriggerNotificationRepository(
+            self.db
+        ).list_for_triggers([trigger.id for trigger in claimed])
+        launches: list[tuple[str, str, str, dict | None]] = []
         for trigger in claimed:
             try:
                 owner = await self._get_owner(trigger)
@@ -627,17 +647,36 @@ class TriggerService(BaseService[TriggerDB, TriggerRepository]):
             trigger.last_run_at = now
             self.db.add(trigger)
             thread = await self._create_fire_thread(trigger)
-            launches.append((thread.id, str(trigger.owner_id), trigger.instructions))
+            binding = notification_bindings.get(trigger.id)
+            delivery = (
+                build_notification_delivery(
+                    workspace_id=trigger.workspace_id,
+                    user_id=trigger.owner_id,
+                    title=trigger.name,
+                    channel_ids=binding.channel_ids,
+                )
+                if binding is not None
+                else None
+            )
+            launches.append(
+                (
+                    thread.id,
+                    str(trigger.owner_id),
+                    trigger.instructions,
+                    delivery,
+                )
+            )
         await self.db.commit()  # finish the claim, release the row locks
 
         run_service = RunService()
         run_ids: list[str] = []
-        for thread_id, owner_id, message in launches:
+        for thread_id, owner_id, message, delivery in launches:
             try:
                 record = await run_service.create(
                     thread_id=thread_id,
                     user_id=owner_id,
                     input={"messages": [{"type": "human", "content": message}]},
+                    delivery=delivery,
                 )
             except Exception:
                 logger.exception("Failed to enqueue run for thread %s", thread_id)

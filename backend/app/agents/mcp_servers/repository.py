@@ -40,6 +40,13 @@ class AgentMCPServerRepository(BaseRepository[AgentMCPServerDB]):
         result = await self.db.execute(stmt)
         return list(result.scalars().all())
 
+    async def list_for_server(self, server_id: UUID) -> list[AgentMCPServerDB]:
+        stmt = select(AgentMCPServerDB).where(
+            AgentMCPServerDB.mcp_server_id == server_id
+        )
+        result = await self.db.execute(stmt)
+        return list(result.scalars().all())
+
     async def delete_all_for_server(self, server_id: UUID) -> None:
         stmt = delete(AgentMCPServerDB).where(
             AgentMCPServerDB.mcp_server_id == server_id

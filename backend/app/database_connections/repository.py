@@ -1,0 +1,113 @@
+from uuid import UUID
+
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel import select
+
+from app.database_connections.models import (
+    DatabaseConnectionCredentialDB,
+    DatabaseConnectionDB,
+    DBHubControlStateDB,
+)
+from app.repository import BaseRepository
+from app.utils.encryption import decrypt_value, encrypt_value
+
+
+class DatabaseConnectionRepository(BaseRepository[DatabaseConnectionDB]):
+    def __init__(self, db: AsyncSession, workspace_id: UUID | None = None):
+        super().__init__(DatabaseConnectionDB, db)
+        self.workspace_id = workspace_id
+
+    def _scope(self, stmt):
+        if self.workspace_id is not None:
+            return stmt.where(DatabaseConnectionDB.workspace_id == self.workspace_id)
+        return stmt
+
+    async def list_scoped(self) -> list[DatabaseConnectionDB]:
+        stmt = self._scope(select(DatabaseConnectionDB)).order_by(
+            DatabaseConnectionDB.created_at
+        )
+        result = await self.db.execute(stmt)
+        return list(result.scalars().all())
+
+    async def list_all(self) -> list[DatabaseConnectionDB]:
+        stmt = select(DatabaseConnectionDB).order_by(DatabaseConnectionDB.source_id)
+        result = await self.db.execute(stmt)
+        return list(result.scalars().all())
+
+    async def exists_in_workspace(self, workspace_id: UUID) -> bool:
+        stmt = (
+            select(DatabaseConnectionDB.id)
+            .where(DatabaseConnectionDB.workspace_id == workspace_id)
+            .limit(1)
+        )
+        result = await self.db.execute(stmt)
+        return result.scalar_one_or_none() is not None
+
+    async def get_scoped(
+        self, connection_id: UUID, *, for_update: bool = False
+    ) -> DatabaseConnectionDB | None:
+        stmt = self._scope(
+            select(DatabaseConnectionDB).where(DatabaseConnectionDB.id == connection_id)
+        )
+        if for_update:
+            stmt = stmt.with_for_update()
+        result = await self.db.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def get_by_mcp_server(
+        self, mcp_server_id: UUID
+    ) -> DatabaseConnectionDB | None:
+        stmt = self._scope(
+            select(DatabaseConnectionDB).where(
+                DatabaseConnectionDB.mcp_server_id == mcp_server_id
+            )
+        )
+        result = await self.db.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def set_password(self, connection_id: UUID, password: str) -> None:
+        stmt = select(DatabaseConnectionCredentialDB).where(
+            DatabaseConnectionCredentialDB.database_connection_id == connection_id
+        )
+        result = await self.db.execute(stmt)
+        credential = result.scalar_one_or_none()
+        encrypted = encrypt_value(password)
+        if credential is None:
+            credential = DatabaseConnectionCredentialDB(
+                database_connection_id=connection_id,
+                password_encrypted=encrypted,
+            )
+        else:
+            credential.password_encrypted = encrypted
+        self.db.add(credential)
+        await self.db.flush()
+
+    async def get_password(self, connection_id: UUID) -> str:
+        stmt = select(DatabaseConnectionCredentialDB.password_encrypted).where(
+            DatabaseConnectionCredentialDB.database_connection_id == connection_id
+        )
+        result = await self.db.execute(stmt)
+        encrypted = result.scalar_one()
+        return decrypt_value(encrypted)
+
+    async def get_control_state(
+        self, *, for_update: bool = False
+    ) -> DBHubControlStateDB:
+        stmt = select(DBHubControlStateDB).where(DBHubControlStateDB.key == "global")
+        if for_update:
+            stmt = stmt.with_for_update()
+        result = await self.db.execute(stmt)
+        state = result.scalar_one_or_none()
+        if state is None:
+            state = DBHubControlStateDB(key="global")
+            self.db.add(state)
+            await self.db.flush()
+        return state
+
+    async def bump_desired_revision(self) -> int:
+        state = await self.get_control_state(for_update=True)
+        state.desired_revision += 1
+        state.last_error = None
+        self.db.add(state)
+        await self.db.flush()
+        return state.desired_revision

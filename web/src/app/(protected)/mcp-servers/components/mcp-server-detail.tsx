@@ -160,6 +160,10 @@ export default function MCPServerDetail({
 	} = useMcpServersStore();
 
 	const [server, setServer] = useState<MCPServer>(initialServer);
+	const managedDatabaseHref =
+		server.managedBy === "dbhub" && server.managedResourceId
+			? `/mcp-servers/database/${server.managedResourceId}`
+			: null;
 	const [isEditing, setIsEditing] = useState(initialEdit);
 	const [disabledTools, setDisabledTools] = useState(
 		initialServer.disabledTools ?? [],
@@ -173,7 +177,7 @@ export default function MCPServerDetail({
 	const isMobile = useIsMobile();
 	// ?edit=1 must not expose the editor to non-admins — the backend would
 	// 403 the save, but the destructive controls shouldn't render at all.
-	const editing = isEditing && isAdmin;
+	const editing = isEditing && isAdmin && managedDatabaseHref === null;
 	const [form, setForm] = useState<EditFormValues>(
 		formFromServer(initialServer),
 	);
@@ -682,30 +686,40 @@ export default function MCPServerDetail({
 					</>
 				) : (
 					isAdmin && (
-						<>
-							<HeaderButton onClick={startEdit}>Edit server</HeaderButton>
-							<DropdownMenu
-								items={[
-									...(isOauth
-										? [
-												{
-													label: "Reset connections",
-													onClick: () => {
-														void handleReset();
+						managedDatabaseHref ? (
+							<HeaderButton
+								onClick={() => {
+									router.push(managedDatabaseHref);
+								}}
+							>
+								Manage database
+							</HeaderButton>
+						) : (
+							<>
+								<HeaderButton onClick={startEdit}>Edit server</HeaderButton>
+								<DropdownMenu
+									items={[
+										...(isOauth
+											? [
+													{
+														label: "Reset connections",
+														onClick: () => {
+															void handleReset();
+														},
 													},
-												},
-											]
-										: []),
-									{
-										label: "Delete server",
-										destructive: true,
-										onClick: () => {
-											void handleDelete();
+												]
+											: []),
+										{
+											label: "Delete server",
+											destructive: true,
+											onClick: () => {
+												void handleDelete();
+											},
 										},
-									},
-								]}
-							/>
-						</>
+									]}
+								/>
+							</>
+						)
 					)
 				)}
 			</SubpageHeader>
@@ -734,7 +748,7 @@ export default function MCPServerDetail({
 								)}
 							</div>
 							<div className="mt-1 truncate font-mono text-[11.5px] text-meta dark:text-panel-dim">
-								{server.url}
+								{managedDatabaseHref ? "Managed by DBHub" : server.url}
 							</div>
 						</div>
 					</div>
@@ -779,7 +793,7 @@ export default function MCPServerDetail({
 							</ConfigRow>
 							<ConfigRow label="Remote server address">
 								<span className="break-all font-mono text-[12px] text-foreground">
-									{server.url}
+									{managedDatabaseHref ? "Managed by DBHub" : server.url}
 								</span>
 							</ConfigRow>
 							<ConfigRow label="Description">

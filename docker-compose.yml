@@ -69,6 +69,13 @@ services:
       AGENT_RECURSION_LIMIT: ${AGENT_RECURSION_LIMIT:-100}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       LOG_FORMAT: ${LOG_FORMAT:-console}
+      # DBHub is an internal MCP data plane. The backend owns and reconciles
+      # its generated config through the shared volume below.
+      DBHUB_ENABLED: ${DBHUB_ENABLED:-true}
+      DBHUB_URL: http://dbhub:8080
+      DBHUB_MCP_URL: http://dbhub:8080/mcp
+      DBHUB_AUTH_TOKEN: ${DBHUB_AUTH_TOKEN:?Set DBHUB_AUTH_TOKEN}
+      DBHUB_CONFIG_PATH: /var/lib/auxilia/dbhub/dbhub.toml
     depends_on:
       postgres:
         condition: service_healthy
@@ -78,6 +85,8 @@ services:
       # Lets the backend reach an Ollama process running on the Docker host
       # on Linux; Docker Desktop already resolves the same hostname.
       - "host.docker.internal:host-gateway"
+    volumes:
+      - dbhub-config:/var/lib/auxilia/dbhub
     restart: unless-stopped
     healthcheck:
       test:
@@ -90,6 +99,50 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+      start_period: 10s
+    networks:
+      - auxilia-network
+
+  dbhub:
+    image: bytebase/dbhub:1.5.0
+    container_name: auxilia-dbhub
+    init: true
+    user: "1000:1000"
+    environment:
+      DBHUB_AUTH_TOKEN: ${DBHUB_AUTH_TOKEN:?Set DBHUB_AUTH_TOKEN}
+      DBHUB_ALLOWED_HOSTS: dbhub,dbhub:8080,localhost,127.0.0.1
+    entrypoint: ["node", "/opt/auxilia/dbhub-reloader.mjs"]
+    command:
+      [
+        "--transport",
+        "http",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "8080",
+        "--config",
+        "/tmp/dbhub.toml",
+      ]
+    volumes:
+      - dbhub-config:/input:ro
+      - ./docker/dbhub-reloader.mjs:/opt/auxilia/dbhub-reloader.mjs:ro
+    depends_on:
+      backend:
+        condition: service_healthy
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:8080/healthz').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 3s
+      retries: 6
       start_period: 10s
     networks:
       - auxilia-network
@@ -162,4 +215,6 @@ volumes:
   postgres-data:
     driver: local
   pgadmin_data:
+    driver: local
+  dbhub-config:
     driver: local

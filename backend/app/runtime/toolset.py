@@ -11,6 +11,7 @@ from langchain_core.tools import BaseTool
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.models import AgentMCPServerBase
+from app.database_connections.tools import DBHUB_MANAGED_BY, allowed_tool_names
 from app.exceptions import root_cause
 from app.mcp.client.connection import ConnectionSpec, build_client
 from app.mcp.client.connectivity import (
@@ -144,6 +145,7 @@ class PreparedToolset:
     interrupt_on: dict[str, bool]  # sanitized tool name -> True
     apply_ui: bool
     disabled_tools: dict[str, set[str]] = field(default_factory=dict)
+    managed_allowed_tools: dict[str, set[str]] = field(default_factory=dict)
     server_description_by_name: dict[str, str | None] = field(default_factory=dict)
 
     @property
@@ -175,6 +177,7 @@ def _assemble_agent_tools(
     tools_by_server: list[tuple[str, list[BaseTool]]],
     tool_settings: dict[str, dict],
     disabled_tools: dict[str, set[str]],
+    managed_allowed_tools: dict[str, set[str]],
     server_id_by_name: dict[str, str],
 ) -> list[AgentTool]:
     """Filter -> build UI metadata -> sanitize.
@@ -203,9 +206,16 @@ def _assemble_agent_tools(
         globally_disabled_names = {
             f"{server_name}_{name}" for name in disabled_tools.get(server_name, set())
         }
+        managed_allowed_names = {
+            f"{server_name}_{name}"
+            for name in managed_allowed_tools.get(server_name, set())
+        }
+        is_managed = server_name in managed_allowed_tools
         server_id = server_id_by_name[server_name]
         for tool in lc_tools:
             if tool.name in globally_disabled_names:
+                continue
+            if is_managed and tool.name not in managed_allowed_names:
                 continue
             if tool.name in allowed_names:
                 requires_approval = False
@@ -342,6 +352,7 @@ class Toolset:
             connections={},
             tool_settings={},
             disabled_tools={},
+            managed_allowed_tools={},
             server_id_by_name={},
             interrupt_on={},
             apply_ui=apply_ui,
@@ -373,6 +384,15 @@ class Toolset:
         disabled_tools = {
             server.name: set(server.disabled_tools) for server in mcp_servers
         }
+        managed_allowed_tools = {
+            server.name: (
+                allowed_tool_names(server.managed_resource_id)
+                if server.managed_resource_id is not None
+                else set()
+            )
+            for server in mcp_servers
+            if server.managed_by == DBHUB_MANAGED_BY
+        }
 
         server_id_by_name = {server.name: str(server.id) for server in mcp_servers}
         server_description_by_name = {
@@ -399,6 +419,7 @@ class Toolset:
             connections=connections,
             tool_settings=tool_settings,
             disabled_tools=disabled_tools,
+            managed_allowed_tools=managed_allowed_tools,
             server_id_by_name=server_id_by_name,
             server_description_by_name=server_description_by_name,
             interrupt_on=interrupt_on,
@@ -475,6 +496,10 @@ class Toolset:
                 stack.push_async_exit(adapter)
                 for tool in lc_tools:
                     original_description = tool.description.strip()
+                    tool.metadata = {
+                        **(tool.metadata if isinstance(tool.metadata, dict) else {}),
+                        "auxilia_mcp_server": server_name,
+                    }
                     tool.description = f"MCP server: {server_name}."
                     if original_description:
                         tool.description += f"\n\n{original_description}"
@@ -489,6 +514,7 @@ class Toolset:
                 tools_by_server,
                 prepared.tool_settings,
                 prepared.disabled_tools,
+                prepared.managed_allowed_tools,
                 prepared.server_id_by_name,
             )
             toolset = cls(tools=agent_tools)

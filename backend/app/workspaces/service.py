@@ -4,6 +4,7 @@ from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
+from app.database_connections.repository import DatabaseConnectionRepository
 from app.exceptions import DomainValidationError, NotFoundError, PermissionDeniedError
 from app.service import BaseService
 from app.users.models import UserDB
@@ -125,6 +126,9 @@ class WorkspaceService(BaseService[WorkspaceDB, WorkspaceRepository]):
                 next_membership.workspace_id if next_membership is not None else None
             )
 
+        database_connections = DatabaseConnectionRepository(self.db)
+        if await database_connections.exists_in_workspace(workspace_id):
+            await database_connections.bump_desired_revision()
         await self.repository.delete(workspace)
         return next_workspace_id
 

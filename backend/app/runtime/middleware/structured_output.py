@@ -229,6 +229,13 @@ class DeferredStructuredOutputMiddleware(AgentMiddleware):
         request: ModelRequest,
         handler: Callable[[ModelRequest], Awaitable[ModelResponse]],
     ) -> ModelResponse:
+        messages = [
+            message
+            for message in request.messages
+            if not is_structured_output_artifact(message)
+        ]
+        if len(messages) != len(request.messages):
+            request = request.override(messages=messages)
         if request.response_format is None:
             return await handler(request)
 
@@ -265,21 +272,15 @@ class DeferredStructuredOutputMiddleware(AgentMiddleware):
         conversation = [*request.messages, *response.result]
         instruction = FORMAT_INSTRUCTION
         response_format = request.response_format
-        overrides: dict[str, Any] = {}
+        # The ReAct loop has ended. Executable tools cannot contribute to this
+        # formatting-only call, so do not resend even the discovery-selected
+        # schemas. ToolStrategy adds its own synthetic output tool separately.
+        overrides: dict[str, Any] = {"tools": []}
         if self.format_mode == FORMAT_PROVIDER_NATIVE:
             response_format = ProviderStrategy(schema=_schema_of(response_format))
-            # Drop the agent's tools on the formatting turn. It only reformats the
-            # final answer (the ReAct loop already reached one), so the tools are
-            # dead weight here — and on the provider-native path langchain's
-            # create_agent binds them with strict=True (its ProviderStrategy
-            # branch, factory.py). Under strict tools + streaming, Meta's Model API
-            # intermittently escapes non-ASCII with an extra "00" (U+00E9 ->
-            # the 6-hex "\u0000e9" not "\u00e9"), which json.loads then reads as
-            # NUL + "e9" -- mojibake in the reply. No
-            # tools on the turn => no strict binding => clean UTF-8.
-            # ponytail: scoped to provider-native; other providers keep their tools
-            # on the formatting turn (they don't force strict, so they're unaffected).
-            overrides["tools"] = []
+            # ProviderStrategy binds strict tools on Meta. Keeping executable
+            # tools there also triggered malformed non-ASCII escaping under
+            # streaming; the unconditional empty set above avoids both issues.
         error: str | None = None
         for _ in range(MAX_FORMAT_ATTEMPTS):
             format_response = await handler(

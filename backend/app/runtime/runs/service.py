@@ -165,11 +165,18 @@ class RunService:
         thread = await self._ensure_runnable_thread(db, thread_id)
         if thread.user_id != UUID(user_id):
             raise NotFoundError("Thread not found")
+        repository = RunRepository(db)
         if command is not None and not _command_prepared:
             command = await self._canonical_command(
                 checkpoint_thread_id(thread.workspace_id, thread_id), command
             )
-        repository = RunRepository(db)
+        if command is not None and delivery is None:
+            interrupted = await repository.get_latest_interrupted_for_thread(thread_id)
+            if interrupted is not None:
+                # A resume is the continuation of the interrupted turn. Preserve
+                # its push destination so a scheduled notification still sends
+                # the final answer after the user approves the gated tool.
+                delivery = interrupted.delivery
         if multitask_strategy == "reject":
             await repository.lock_thread_runs(thread_id)
             if await repository.get_active_for_thread(thread_id) is not None:
@@ -427,13 +434,18 @@ class RunService:
             if current is not None and current.id != run_id:
                 current_run_id = current.id
 
+            threads = ThreadRepository(db, workspace_id)
+            thread = await threads.get(thread_id)
+            if current_run_id is None and thread is not None and thread.awaiting_input:
+                raise DomainValidationError(
+                    "Resolve the pending approval before sending a queued prompt."
+                )
+
             ordered_ids = [
                 run_id,
                 *(record.id for record in records if record.id != run_id),
             ]
             await repository.set_queue_positions(records, ordered_ids)
-            threads = ThreadRepository(db, workspace_id)
-            thread = await threads.get(thread_id)
             if thread is not None and thread.queue_edit_run_id is not None:
                 await threads.clear_queue_edit_lease(
                     thread_id, thread.queue_edit_run_id
@@ -448,9 +460,12 @@ class RunService:
             await db.commit()
 
         # The queue order must be durable before the current run is allowed to
-        # finish, otherwise the dispatcher could claim the previous head.
+        # finish, otherwise the dispatcher could claim the previous head. Do
+        # not return until the worker has unwound the graph (including nested
+        # subagents) and published the terminal event.
         if current_run_id is not None:
             await self.cancel(current_run_id)
+            await self.wait_for_terminal(current_run_id)
 
     async def list_active_for_user(
         self, user_id: str, workspace_id: UUID, *, recent_seconds: int = 0

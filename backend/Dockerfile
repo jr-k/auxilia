@@ -69,7 +69,9 @@ ENV PYTHONDONTWRITEBYTECODE=1
 # chown it too, non-recursively, so appuser can still write directly under
 # `/app` if something ever needs to. A single directory is cheap to chown,
 # unlike the old recursive copy-up of the whole tree.
-RUN chmod +x /app/entrypoint.sh && chown appuser:appgroup /app
+RUN chmod +x /app/entrypoint.sh && \
+    mkdir -p /var/lib/auxilia/dbhub && \
+    chown appuser:appgroup /app /var/lib/auxilia/dbhub
 
 USER appuser
 

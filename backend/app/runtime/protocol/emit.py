@@ -78,7 +78,15 @@ logger = logging.getLogger(__name__)
 #: `input.requested`, and the deepagents virtual filesystem is re-sent on
 #: every superstep (megabytes on sandbox-heavy threads) while no stream
 #: consumer reads it — history comes from the checkpoint.
-_VALUES_DROP = frozenset({"messages", "files", "__interrupt__", "selected_mcp_tools"})
+_VALUES_DROP = frozenset(
+    {
+        "messages",
+        "files",
+        "__interrupt__",
+        "selected_mcp_tools",
+        "mcp_tool_candidates",
+    }
+)
 
 #: langgraph `SubgraphStatus` → protocol `AgentStatus`.
 _SUBGRAPH_STATUS = {

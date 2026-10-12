@@ -19,6 +19,7 @@ class WorkspaceEventOutboxRepository(BaseRepository[WorkspaceEventOutboxDB]):
         kind: str,
         target_user_id: UUID | None = None,
         thread_id: str | None = None,
+        payload: dict | None = None,
     ) -> None:
         self.db.add(
             WorkspaceEventOutboxDB(
@@ -26,6 +27,7 @@ class WorkspaceEventOutboxRepository(BaseRepository[WorkspaceEventOutboxDB]):
                 target_user_id=target_user_id,
                 kind=kind,
                 thread_id=thread_id,
+                payload=payload,
             )
         )
 

@@ -13,6 +13,7 @@ from app.agents.schemas import (
     AgentMCPServerPatch,
 )
 from app.database import get_db
+from app.database_connections.tools import filter_managed_tools
 from app.exceptions import DomainValidationError, NotFoundError
 from app.mcp.client.connectivity import connect_to_server, is_authorized
 from app.mcp.servers.models import MCPAuthType, MCPServerDB
@@ -136,12 +137,19 @@ class AgentMCPServerService(BaseService[AgentMCPServerDB, AgentMCPServerReposito
         db_link: AgentMCPServerDB,
         mcp_server: MCPServerDB,
         user_id: str,
+        *,
+        raise_on_error: bool = False,
     ) -> None:
         try:
             async with connect_to_server(
                 mcp_server, user_id, self.workspace_id, self.db
             ) as client:
-                fetched_names = [tool.name for tool in await client.list_tools()]
+                fetched_names = [
+                    tool.name
+                    for tool in filter_managed_tools(
+                        mcp_server, await client.list_tools()
+                    )
+                ]
             # The fetch can take seconds, so a concurrent save may have
             # rewritten the map meanwhile. Reload the row under a lock and
             # merge against the fresh state — otherwise this assignment
@@ -156,8 +164,10 @@ class AgentMCPServerService(BaseService[AgentMCPServerDB, AgentMCPServerReposito
             self.db.add(db_link)
             await self.db.flush()
             await self.db.refresh(db_link)
-        except Exception as e:  # noqa: BLE001 — FIXME(P3-12): an explicit sync that fails still reports success
+        except Exception as e:
             logger.warning(f"Failed to fetch tools for MCP server {mcp_server.id}: {e}")
+            if raise_on_error:
+                raise
 
     async def create_or_update(
         self,
@@ -274,6 +284,16 @@ class AgentMCPServerService(BaseService[AgentMCPServerDB, AgentMCPServerReposito
         await self._sync_tools(link, mcp_server, user_id)
         await self._stage_agents_changed()
         return link
+
+    async def sync_binding(
+        self,
+        binding: AgentMCPServerDB,
+        server: MCPServerDB,
+        user_id: str,
+    ) -> None:
+        """Refresh one already-loaded binding for an internal reconciler."""
+        await self._sync_tools(binding, server, user_id, raise_on_error=True)
+        await self._stage_agents_changed()
 
     # -- Server-side views ---------------------------------------------------
     #

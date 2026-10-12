@@ -29,6 +29,7 @@ type PromptQueueProps = {
 	busyId: string | null;
 	onEdit: (item: QueuedPrompt) => void;
 	onSendNow: (id: string) => Promise<void>;
+	sendNowDisabled: boolean;
 	onRemove: (id: string) => Promise<void>;
 	onReorder: (orderedIds: string[]) => Promise<void>;
 };
@@ -39,6 +40,7 @@ export function PromptQueue({
 	busyId,
 	onEdit,
 	onSendNow,
+	sendNowDisabled,
 	onRemove,
 	onReorder,
 }: PromptQueueProps) {
@@ -49,6 +51,7 @@ export function PromptQueue({
 		message: "",
 		revision: 0,
 	});
+	const queueBusy = busyId !== null;
 	const listRef = useRef<HTMLDivElement | null>(null);
 	// Ids rendered on the previous commit. A new id means a prompt was
 	// appended: scroll the list so the newest items stay in view. Removals
@@ -158,11 +161,10 @@ export function PromptQueue({
 				>
 					{items.map((item, index) => {
 						const isEditing = editingId === item.id;
-						const isBusy = busyId === item.id;
 						return (
 							<div
 								key={item.id}
-								draggable={!isBusy}
+								draggable={!queueBusy}
 								onDragStart={(event) => {
 									setDraggedId(item.id);
 									event.dataTransfer.effectAllowed = "move";
@@ -194,12 +196,13 @@ export function PromptQueue({
 							>
 								<button
 									type="button"
+									disabled={queueBusy}
 									title="Drag to reorder. Use Arrow Up or Arrow Down from this handle."
 									aria-label={`Reorder queued prompt ${index + 1}`}
 									onKeyDown={(event) => {
 										handleGripKeyDown(event, item.id);
 									}}
-									className="flex size-7 shrink-0 cursor-grab items-center justify-center rounded-md text-ghost transition-colors hover:bg-hover hover:text-subtle focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-petrol/40 active:cursor-grabbing"
+									className="flex size-7 shrink-0 cursor-grab items-center justify-center rounded-md text-ghost transition-colors hover:bg-hover hover:text-subtle focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-petrol/40 active:cursor-grabbing disabled:cursor-wait disabled:opacity-40"
 								>
 									<GripVerticalIcon className="size-4" />
 								</button>
@@ -211,7 +214,16 @@ export function PromptQueue({
 								</p>
 								<button
 									type="button"
-									disabled={isBusy}
+									disabled={
+										sendNowDisabled ||
+										queueBusy ||
+										(editingId !== null && !isEditing)
+									}
+									title={
+										sendNowDisabled
+											? "Resolve the pending approval before sending this prompt."
+											: "Stop the current response and send this prompt next."
+									}
 									onClick={() => {
 										void onSendNow(item.id);
 									}}
@@ -222,7 +234,7 @@ export function PromptQueue({
 								</button>
 								<button
 									type="button"
-									disabled={isBusy}
+									disabled={queueBusy}
 									onClick={() => {
 										onEdit(item);
 									}}
@@ -233,7 +245,7 @@ export function PromptQueue({
 								</button>
 								<button
 									type="button"
-									disabled={isBusy}
+									disabled={queueBusy}
 									onClick={() => {
 										void onRemove(item.id);
 									}}

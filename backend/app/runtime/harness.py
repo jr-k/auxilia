@@ -104,7 +104,13 @@ def _profile(model) -> HarnessProfile:
     return profile
 
 
-def _base_harness_stack(model, backend, profile: HarnessProfile, skills=None) -> list:
+def _base_harness_stack(
+    model,
+    backend,
+    profile: HarnessProfile,
+    skills=None,
+    early_middleware=(),
+) -> list:
     """The middleware every deepagents stack starts with — main agent and the
     auto-added general-purpose subagent alike, minus the subagent wiring.
 
@@ -115,6 +121,7 @@ def _base_harness_stack(model, backend, profile: HarnessProfile, skills=None) ->
             backend=backend,
             custom_tool_descriptions=profile.tool_description_overrides,
         ),
+        *early_middleware,
         create_summarization_middleware(model, backend),
         PatchToolCallsMiddleware(),
     ]
@@ -145,8 +152,13 @@ def _general_purpose_subagent(
     if gp_profile.enabled is False:
         return None
     middleware = [
-        *_base_harness_stack(model, backend, profile, skills),
-        *extra_middleware,
+        *_base_harness_stack(
+            model,
+            backend,
+            profile,
+            skills,
+            early_middleware=extra_middleware,
+        ),
     ]
     append_prompt_caching_middleware(middleware)
     spec: dict = {

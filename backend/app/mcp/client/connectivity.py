@@ -27,6 +27,7 @@ from uuid import UUID
 from fastmcp.client import Client
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.database_connections.tools import filter_managed_tools
 from app.exceptions import DomainValidationError
 from app.mcp.client.auth import (
     AUTH_METHOD_POST,
@@ -492,7 +493,7 @@ async def test_connection(
 
     try:
         async with connect_to_server(server, user_id, workspace_id, db) as client:
-            tools = await client.list_tools()
+            tools = filter_managed_tools(server, await client.list_tools())
             return ConnectionTestResult(
                 reachable=True,
                 tool_count=len(tools),

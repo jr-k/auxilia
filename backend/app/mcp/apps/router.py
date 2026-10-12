@@ -7,6 +7,11 @@ from sqlmodel import SQLModel
 
 from app.auth.dependencies import get_current_user
 from app.database import get_db
+from app.database_connections.tools import (
+    DBHUB_MANAGED_BY,
+    ensure_managed_tool_allowed,
+)
+from app.exceptions import DomainValidationError
 from app.mcp.client.connectivity import connect_to_server
 from app.mcp.client.exceptions import OAuthAuthorizationRequired
 from app.mcp.client.responses import oauth_required_response
@@ -38,6 +43,10 @@ async def read_mcp_app_resource(
     service: MCPServerService = Depends(get_mcp_server_service),
 ):
     mcp_server = await service.get_visible(server_id, current_user)
+    if mcp_server.managed_by == DBHUB_MANAGED_BY:
+        raise DomainValidationError(
+            "Database connections do not expose MCP App resources"
+        )
     # terminate_on_close=False: the resource HTML embeds a sessionToken bound to
     # this MCP session; DELETEing the session would kill the token before the
     # browser uses it. Let the server expire it by TTL instead.
@@ -67,6 +76,7 @@ async def call_mcp_app_tool(
     service: MCPServerService = Depends(get_mcp_server_service),
 ):
     mcp_server = await service.get_visible(server_id, current_user)
+    ensure_managed_tool_allowed(mcp_server, body.tool_name)
     # terminate_on_close=False: keep the session alive for the App's follow-up
     # data requests; it expires by the server's TTL.
     try:

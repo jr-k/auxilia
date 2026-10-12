@@ -1,6 +1,7 @@
 .PHONY: dev-stack migrate dev-backend dev-frontend dev build up down reset rebuild
 
 dev-stack:
+	mkdir -p .runtime/dbhub
 	docker compose -f docker-compose.dev.yml up -d --remove-orphans
 
 dev-backend: dev-stack

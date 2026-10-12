@@ -51,6 +51,20 @@ export function useDescribeTool(
       }
       const { serverName, toolName } = getToolMetadata(name, known);
       const server = mcpServers.find((candidate) => candidate.name === serverName);
+      if (!server && /^search_mcp_tools(?:_\d+)?$/.test(name)) {
+        return {
+          serverName: "Auxilia Search",
+          toolName: "find_tools",
+          icon: undefined,
+        };
+      }
+      if (!server && /^load_mcp_tools(?:_\d+)?$/.test(name)) {
+        return {
+          serverName: "Auxilia Search",
+          toolName: "load_tools",
+          icon: undefined,
+        };
+      }
       return {
         serverName,
         toolName,

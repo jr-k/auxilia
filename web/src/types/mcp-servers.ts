@@ -23,6 +23,8 @@ export interface MCPServer {
 	visibility?: ResourceVisibility;
 	teamIds?: string[];
 	disabledTools?: string[];
+	managedBy?: string | null;
+	managedResourceId?: string | null;
 	createdAt: string;
 	updatedAt: string;
 	// Static OAuth client_id when configured (not a secret); absent for DCR.

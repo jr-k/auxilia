@@ -42,6 +42,7 @@ import {
 const EMPTY_TODOS: Todo[] = [];
 /** Render cadence for the streamed views (tokens arrive far faster). */
 const THROTTLE_MS = 60;
+const snapshotMessages = (messages: BaseMessage[]): BaseMessage[] => [...messages];
 
 /** Everything the session reaches the network through. Tests script it. */
 export type ThreadSessionTransport = {
@@ -79,6 +80,8 @@ export type ThreadSession = {
 		status: "idle" | "streaming" | "interrupted";
 		/** A submission is starting or the stream reports a run in flight. */
 		isLoading: boolean;
+		/** The local submit started, but the server stream has not taken over yet. */
+		isStarting: boolean;
 		/** The stream stack's last error (command rejection or run failure). */
 		error: unknown;
 		/** Kept separately: the body renders the two differently. */
@@ -199,7 +202,13 @@ export function useThreadSession({
 	);
 
 	// --- transcript views -----------------------------------------------------
-	const messages = useThrottledValue(stream.messages, THROTTLE_MS);
+	const messages = useThrottledValue(stream.messages, THROTTLE_MS, {
+		// `message-finish` can enrich an existing message with usage metadata
+		// without replacing the messages array. The stream object still ticks
+		// for that SSE event; snapshot only at the throttled render cadence.
+		revision: stream,
+		snapshot: snapshotMessages,
+	});
 	const liveToolCalls = useThrottledValue(stream.toolCalls, THROTTLE_MS);
 	const toolCalls = useMemo(
 		() => pairToolCalls(messages, liveToolCalls),
@@ -212,8 +221,15 @@ export function useThreadSession({
 	const [pendingSubmission, setPendingSubmission] = useState<{
 		threadId: string;
 		sequence: number;
+		baselineUserMessageCount: number;
 	} | null>(null);
 	const submissionPending = pendingSubmission?.threadId === threadId;
+	const renderedUserMessageCount = messages.filter(
+		(message) => isHumanMessage(message) && message.name !== "host",
+	).length;
+	const submissionStarting =
+		submissionPending &&
+		renderedUserMessageCount <= pendingSubmission.baselineUserMessageCount;
 
 	// --- actions ----------------------------------------------------------------
 	const userActed = useCallback(() => {
@@ -226,7 +242,11 @@ export function useThreadSession({
 			if (content == null) return;
 			userActed();
 			const sequence = ++submissionSequence.current;
-			setPendingSubmission({ threadId, sequence });
+			setPendingSubmission({
+				threadId,
+				sequence,
+				baselineUserMessageCount: renderedUserMessageCount,
+			});
 			try {
 				await selectorStream.submit({
 					messages: [{ type: "human", content }],
@@ -239,7 +259,7 @@ export function useThreadSession({
 				);
 			}
 		},
-		[selectorStream, threadId, userActed],
+		[renderedUserMessageCount, selectorStream, threadId, userActed],
 	);
 
 	const regenerate = useCallback(() => {
@@ -389,6 +409,7 @@ export function useThreadSession({
 		run: {
 			status: runStatus,
 			isLoading: stream.isLoading || submissionPending,
+			isStarting: submissionStarting,
 			error: stream.error,
 			rehydratedError: state.rehydratedError,
 		},

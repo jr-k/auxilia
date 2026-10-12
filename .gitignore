@@ -78,3 +78,6 @@ next-env.d.ts
 design/uploads/
 
 connectors_all.json
+
+# Generated local runtime state (DBHub config contains decrypted credentials).
+.runtime/

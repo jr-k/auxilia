@@ -15,6 +15,9 @@ from app.auth.settings import auth_settings
 from app.auth.tokens.router import router as tokens_router
 from app.background import registry as background_loops
 from app.database import close_checkpointer_pool
+from app.database_connections.reconciler import DBHubReconciler
+from app.database_connections.router import router as database_connections_router
+from app.database_connections.settings import dbhub_settings
 from app.exceptions import DomainError, root_cause, status_for
 from app.integrations.slack.consumer import build_slack_run_consumer
 from app.integrations.slack.router import router as slack_router
@@ -27,6 +30,7 @@ from app.mcp.oauth.router import router as mcp_oauth_router
 from app.mcp.router import auxilia_mcp, transport_security_settings
 from app.mcp.servers.router import router as mcp_servers_router
 from app.model_providers.router import router as model_providers_router
+from app.notifications.delivery import build_notification_run_consumer
 from app.notifications.router import router as notifications_router
 from app.observability.router import router as observability_router
 from app.realtime.relay import WorkspaceEventRelay
@@ -54,6 +58,10 @@ configure_logging()
 logger = logging.getLogger("app")
 
 
+def _build_run_delivery_consumer(record):
+    return build_slack_run_consumer(record) or build_notification_run_consumer(record)
+
+
 def _log_background_crash(task: asyncio.Task) -> None:
     """Surface a crashed background loop as a single ERROR line (a swallowed
     exception would otherwise silently stop the dispatcher or reaper)."""
@@ -79,15 +87,24 @@ async def lifespan(app: FastAPI):
     reaper: RunReaper | None = None
     scanner: TriggerScanner | None = None
     event_relay: WorkspaceEventRelay | None = None
+    dbhub_reconciler: DBHubReconciler | None = None
+    if dbhub_settings.enabled:
+        dbhub_reconciler = DBHubReconciler()
+        await dbhub_reconciler.ensure_config_file()
+        background.append(
+            asyncio.create_task(dbhub_reconciler.run(), name="dbhub-reconciler")
+        )
     if run_settings.dispatcher_enabled:
-        dispatcher = RunDispatcher(delivery_factory=build_slack_run_consumer)
+        dispatcher = RunDispatcher(delivery_factory=_build_run_delivery_consumer)
         reaper = RunReaper()
         event_relay = WorkspaceEventRelay()
-        background = [
-            asyncio.create_task(dispatcher.run(), name="run-dispatcher"),
-            asyncio.create_task(reaper.run(), name="run-reaper"),
-            asyncio.create_task(event_relay.run(), name="workspace-event-relay"),
-        ]
+        background.extend(
+            [
+                asyncio.create_task(dispatcher.run(), name="run-dispatcher"),
+                asyncio.create_task(reaper.run(), name="run-reaper"),
+                asyncio.create_task(event_relay.run(), name="workspace-event-relay"),
+            ]
+        )
         # The scanner enqueues onto the run queue, so it only runs where the
         # dispatcher does (always-on worker instances).
         if trigger_settings.scanner_enabled:
@@ -95,8 +112,8 @@ async def lifespan(app: FastAPI):
             background.append(
                 asyncio.create_task(scanner.run(), name="trigger-scanner")
             )
-        for task in background:
-            task.add_done_callback(_log_background_crash)
+    for task in background:
+        task.add_done_callback(_log_background_crash)
 
     async with auxilia_mcp.session_manager.run():
         try:
@@ -110,6 +127,8 @@ async def lifespan(app: FastAPI):
                 scanner.stop()
             if event_relay is not None:
                 event_relay.stop()
+            if dbhub_reconciler is not None:
+                dbhub_reconciler.stop()
             for task in background:
                 task.cancel()
             await asyncio.gather(*background, return_exceptions=True)
@@ -254,6 +273,7 @@ app.include_router(tokens_router)
 app.include_router(mcp_apps_router)
 app.include_router(mcp_oauth_router)
 app.include_router(mcp_servers_router)
+app.include_router(database_connections_router)
 app.include_router(threads_router)
 app.include_router(triggers_router)
 app.include_router(skill_sources_router)  # before /skills/{skill_id}
