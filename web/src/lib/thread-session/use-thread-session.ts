@@ -1,8 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
-import { isHumanMessage } from "@langchain/core/messages";
-import type { BaseMessage } from "@langchain/core/messages";
+import {
+	coerceMessageLikeToMessage,
+	isHumanMessage,
+} from "@langchain/core/messages";
+import type {
+	BaseMessage,
+	BaseMessageLike,
+} from "@langchain/core/messages";
 import { useStream } from "@langchain/react";
 import type { AnyStream, SubagentDiscoverySnapshot } from "@langchain/react";
 import type { Interrupt } from "@langchain/langgraph-sdk";
@@ -108,6 +114,7 @@ export type ThreadSession = {
 		regenerate: () => void;
 		stop: () => void;
 		respond: (response: HitlResponse, interruptId: string | null) => void;
+		loadLatestMessages: () => Promise<BaseMessage[]>;
 		changeModel: (modelId: string) => Promise<void>;
 		recheckModel: () => Promise<void>;
 		/** Clear the mid-session sandbox gate so the composer comes back; the
@@ -286,6 +293,13 @@ export function useThreadSession({
 		[selectorStream, userActed],
 	);
 
+	const loadLatestMessages = useCallback(async () => {
+		const snapshot = await selectorStream.client.threads.getState<{
+			messages?: BaseMessageLike[];
+		}>(threadId);
+		return (snapshot.values.messages ?? []).map(coerceMessageLikeToMessage);
+	}, [selectorStream, threadId]);
+
 	const recheckSandbox = useCallback(() => {
 		dispatch({ type: "sandbox-rechecked", threadId });
 	}, [threadId]);
@@ -427,6 +441,7 @@ export function useThreadSession({
 			regenerate,
 			stop,
 			respond,
+			loadLatestMessages,
 			changeModel,
 			recheckModel,
 			recheckSandbox,

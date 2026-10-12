@@ -25,7 +25,9 @@ import {
 	BrainIcon,
 	ChartNoAxesColumnIncreasingIcon,
 	CheckIcon,
+	Loader2,
 	PlugIcon,
+	WrenchIcon,
 	XIcon,
 } from "lucide-react";
 import { useRef, useState, useEffect, useMemo } from "react";
@@ -50,6 +52,11 @@ import {
 } from "@/components/ui/dialog";
 import { SearchBar } from "@/components/ui/search-bar";
 import { getApiErrorMessage, toApiError } from "@/lib/api/errors";
+import * as agentsApi from "@/lib/api/resources/agents";
+import {
+	canConfigureAgent,
+	type ToolDiscoveryMode,
+} from "@/types/agents";
 import type { QueuedPrompt } from "@/types/runs";
 import type { ThreadResourceSettings } from "@/types/threads";
 import { PromptQueue } from "./prompt-queue";
@@ -64,6 +71,13 @@ const composerPillClass = cn(
 	"disabled:opacity-60 disabled:cursor-not-allowed",
 	"transition-colors",
 );
+
+const STATS_LOADER_MIN_MS = 400;
+const TOOL_DISCOVERY_LABELS: Record<ToolDiscoveryMode, string> = {
+	disabled: "Eager",
+	automatic: "Automatic",
+	local: "Auxilia Search",
+};
 
 interface ChatPromptInputProps {
 	agentId: string;
@@ -99,7 +113,7 @@ interface ChatPromptInputProps {
 	onQueueAuthorizationRequired?: () => void;
 	submissionDisabled?: boolean;
 	conversationMessages?: BaseMessage[];
-	conversationToolCallCount?: number;
+	loadLatestConversationMessages?: () => Promise<BaseMessage[]>;
 }
 
 // Human labels for the canonical effort ladder ("none" reads as Off — it
@@ -161,7 +175,7 @@ const ChatPromptInput = ({
 	onQueueAuthorizationRequired,
 	submissionDisabled = false,
 	conversationMessages,
-	conversationToolCallCount = 0,
+	loadLatestConversationMessages,
 }: ChatPromptInputProps) => {
 	const [connectDialogOpen, setConnectDialogOpen] = useState(false);
 	const models = useModelsStore((state) => state.models);
@@ -176,6 +190,16 @@ const ChatPromptInput = ({
 	const controller = usePromptInputController();
 	const [editingId, setEditingId] = useState<string | null>(null);
 	const [busyId, setBusyId] = useState<string | null>(null);
+	const [statsDialogOpen, setStatsDialogOpen] = useState(false);
+	const [statsLoading, setStatsLoading] = useState(false);
+	const [statsMessages, setStatsMessages] = useState<BaseMessage[] | null>(null);
+	const statsRequestRef = useRef(0);
+	const [toolDiscoveryConfig, setToolDiscoveryConfig] = useState<{
+		agentId: string;
+		mode: ToolDiscoveryMode;
+		canChange: boolean;
+	} | null>(null);
+	const [toolDiscoveryPending, setToolDiscoveryPending] = useState(false);
 	// A direct `onSubmit` (the protocol stream's `submit`) must only happen
 	// while the server has no run on the thread: it shows the message
 	// optimistically, and if a run is active the server parks it in the
@@ -191,6 +215,13 @@ const ChatPromptInput = ({
 		editingId && queuedPrompts.some((item) => item.id === editingId)
 			? editingId
 			: null;
+	const toolDiscoveryMode =
+		toolDiscoveryConfig?.agentId === agentId
+			? toolDiscoveryConfig.mode
+			: null;
+	const canChangeToolDiscovery =
+		toolDiscoveryConfig?.agentId === agentId &&
+		toolDiscoveryConfig.canChange;
 
 	const currentModel = externalSelectedModel ?? model;
 	const selectedModelData = models.find((m) => m.id === currentModel);
@@ -223,10 +254,12 @@ const ChatPromptInput = ({
 		return disconnectedServers.filter((server) => !disabledIds.has(server.id));
 	}, [disconnectedServers, resourceSettings.disabledMcpServerIds]);
 	const conversationStats = useMemo(() => {
-		if (!conversationMessages) return null;
+		const messages = statsMessages ?? conversationMessages;
+		if (!messages) return null;
 		let userMessages = 0;
 		let assistantMessages = 0;
 		let modelCalls = 0;
+		let toolCalls = 0;
 		let inputTokens = 0;
 		let outputTokens = 0;
 		let totalTokens = 0;
@@ -242,7 +275,7 @@ const ChatPromptInput = ({
 			totalTokens: number;
 		}[] = [];
 
-		for (const message of conversationMessages) {
+		for (const message of messages) {
 			if (isHumanMessage(message) && message.name !== "host") {
 				userMessages += 1;
 				continue;
@@ -253,6 +286,7 @@ const ChatPromptInput = ({
 			}
 			if (!isAIMessage(message)) continue;
 			modelCalls += 1;
+			toolCalls += message.tool_calls?.length ?? 0;
 			if (message.text.trim()) assistantMessages += 1;
 
 			const usage = message.usage_metadata;
@@ -290,7 +324,7 @@ const ChatPromptInput = ({
 			assistantMessages,
 			messageCount: userMessages + assistantMessages,
 			modelCalls,
-			toolCalls: conversationToolCallCount,
+			toolCalls,
 			inputTokens,
 			outputTokens,
 			totalTokens,
@@ -304,7 +338,38 @@ const ChatPromptInput = ({
 				.reduce((sum, call) => sum + call.inputTokens, 0),
 			calls,
 		};
-	}, [conversationMessages, conversationToolCallCount]);
+	}, [conversationMessages, statsMessages]);
+
+	const handleStatsDialogOpenChange = (open: boolean) => {
+		setStatsDialogOpen(open);
+		const request = ++statsRequestRef.current;
+		if (!open || !loadLatestConversationMessages) return;
+
+		setStatsLoading(true);
+		void Promise.all([
+			loadLatestConversationMessages(),
+			new Promise<void>((resolve) => {
+				window.setTimeout(resolve, STATS_LOADER_MIN_MS);
+			}),
+		])
+			.then(([messages]) => {
+				if (statsRequestRef.current === request) {
+					setStatsMessages(messages);
+				}
+			})
+			.catch((error: unknown) => {
+				if (statsRequestRef.current === request) {
+					toast.error(
+						getApiErrorMessage(error, "Conversation stats could not be loaded."),
+					);
+				}
+			})
+			.finally(() => {
+				if (statsRequestRef.current === request) {
+					setStatsLoading(false);
+				}
+			});
+	};
 
 	// Editable composer only: normalize a stale selection in the parent state
 	// too (not just the display), so what's shown as Default/Auto is also what
@@ -320,6 +385,51 @@ const ChatPromptInput = ({
 			onEffortChange?.(null);
 		}
 	}, [readOnlyEffort, selectedEffort, selectedModelData, onEffortChange]);
+
+	useEffect(() => {
+		let cancelled = false;
+		void agentsApi
+			.getAgent(agentId)
+			.then((agent) => {
+				if (cancelled) return;
+				setToolDiscoveryConfig({
+					agentId,
+					mode: agent.toolDiscoveryMode ?? "disabled",
+					canChange: canConfigureAgent(agent.currentUserPermission),
+				});
+			})
+			.catch(() => {
+				// The composer remains usable if this optional control cannot load.
+			});
+		return () => {
+			cancelled = true;
+		};
+	}, [agentId]);
+
+	const handleToolDiscoveryChange = async (mode: ToolDiscoveryMode) => {
+		if (mode === toolDiscoveryMode || !canChangeToolDiscovery) return;
+		setToolDiscoveryPending(true);
+		try {
+			const agent = await agentsApi.patchAgent(agentId, {
+				toolDiscoveryMode: mode,
+			});
+			const savedMode = agent.toolDiscoveryMode ?? mode;
+			setToolDiscoveryConfig({
+				agentId,
+				mode: savedMode,
+				canChange: canConfigureAgent(agent.currentUserPermission),
+			});
+			toast.success(
+				`Tool discovery set to ${TOOL_DISCOVERY_LABELS[savedMode]} for the next message.`,
+			);
+		} catch (error) {
+			toast.error(
+				getApiErrorMessage(error, "Tool discovery could not be changed."),
+			);
+		} finally {
+			setToolDiscoveryPending(false);
+		}
+	};
 
 	const handleModelChange = async (modelId: string) => {
 		if (modelChangeDisabled) return;
@@ -726,7 +836,10 @@ const ChatPromptInput = ({
 							/>
 						)}
 						{conversationStats && (
-							<Dialog>
+							<Dialog
+								open={statsDialogOpen}
+								onOpenChange={handleStatsDialogOpenChange}
+							>
 								<DialogTrigger asChild>
 									<PromptInputButton
 										aria-label="Conversation stats"
@@ -746,7 +859,17 @@ const ChatPromptInput = ({
 										this thread. Internal routing calls are not included.
 									</DialogDescription>
 
-									<div className="mt-5 grid grid-cols-3 gap-2.5">
+									{statsLoading ? (
+										<div
+											className="flex min-h-48 items-center justify-center gap-2 text-[13px] text-meta dark:text-panel-dim"
+											aria-live="polite"
+										>
+											<Loader2 className="size-4 animate-spin" />
+											Loading latest stats…
+										</div>
+									) : (
+										<>
+											<div className="mt-5 grid grid-cols-3 gap-2.5">
 										<ConversationStat
 											label="Total tokens"
 											value={
@@ -874,14 +997,69 @@ const ChatPromptInput = ({
 										)}
 									</div>
 
-									{!conversationStats.hasUsage && (
-										<p className="mt-4 rounded-[8px] bg-hover px-3 py-2.5 text-[12px] leading-[1.5] text-meta dark:bg-white/5 dark:text-panel-dim">
-											Token usage is not available for the responses in this
-											conversation.
-										</p>
+											{!conversationStats.hasUsage && (
+												<p className="mt-4 rounded-[8px] bg-hover px-3 py-2.5 text-[12px] leading-[1.5] text-meta dark:bg-white/5 dark:text-panel-dim">
+													Token usage is not available for the responses in this
+													conversation.
+												</p>
+											)}
+										</>
 									)}
 								</DialogContent>
 							</Dialog>
+						)}
+						{toolDiscoveryMode && (
+							<DropdownMenu
+								align="start"
+								side="top"
+								items={[
+									{ sectionLabel: "Tool discovery" },
+									{
+										label: "Eager · all schemas",
+										active: toolDiscoveryMode === "disabled",
+										onClick: () => {
+											void handleToolDiscoveryChange("disabled");
+										},
+									},
+									{
+										label: "Automatic · provider-native",
+										active: toolDiscoveryMode === "automatic",
+										onClick: () => {
+											void handleToolDiscoveryChange("automatic");
+										},
+									},
+									{
+										label: "Auxilia Search · adaptive",
+										active: toolDiscoveryMode === "local",
+										onClick: () => {
+											void handleToolDiscoveryChange("local");
+										},
+									},
+								]}
+								trigger={
+									<PromptInputButton
+										disabled={
+											toolDiscoveryPending || !canChangeToolDiscovery
+										}
+										aria-label={`Tool discovery: ${TOOL_DISCOVERY_LABELS[toolDiscoveryMode]}`}
+										title={
+											canChangeToolDiscovery
+												? `Tool discovery: ${TOOL_DISCOVERY_LABELS[toolDiscoveryMode]}`
+												: "Editor access is required to change tool discovery"
+										}
+										className={cn(
+											composerPillClass,
+											"w-[34px] cursor-pointer px-0 text-subtle dark:text-panel-body",
+										)}
+									>
+										{toolDiscoveryPending ? (
+											<Loader2 className="size-3.5 animate-spin" />
+										) : (
+											<WrenchIcon className="size-3.5" />
+										)}
+									</PromptInputButton>
+								}
+							/>
 						)}
 						{readOnlyModel ? (
 							<PromptInputButton disabled className={composerPillClass}>

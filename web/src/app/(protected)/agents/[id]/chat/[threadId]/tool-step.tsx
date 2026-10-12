@@ -55,14 +55,14 @@ export function useDescribeTool(
         return {
           serverName: "Auxilia Search",
           toolName: "find_tools",
-          icon: undefined,
+          icon: "/pwa-icon.svg",
         };
       }
       if (!server && /^load_mcp_tools(?:_\d+)?$/.test(name)) {
         return {
           serverName: "Auxilia Search",
           toolName: "load_tools",
-          icon: undefined,
+          icon: "/pwa-icon.svg",
         };
       }
       return {

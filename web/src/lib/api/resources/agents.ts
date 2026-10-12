@@ -41,6 +41,7 @@ export interface AgentWrite {
 /** Fields `PATCH /agents/{id}` accepts outside the config draft. */
 export interface AgentPatch {
 	group?: string | null;
+	toolDiscoveryMode?: ToolDiscoveryMode;
 }
 
 export type AgentReadyStatus =

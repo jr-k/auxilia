@@ -111,7 +111,12 @@ class AgentBase(SQLModel):
     tool_discovery_mode: ToolDiscoveryMode = Field(
         default=ToolDiscoveryMode.disabled,
         sa_column=Column(
-            String(16),
+            SAEnum(
+                ToolDiscoveryMode,
+                native_enum=False,
+                create_constraint=False,
+                length=16,
+            ),
             nullable=False,
             server_default=ToolDiscoveryMode.disabled.value,
         ),

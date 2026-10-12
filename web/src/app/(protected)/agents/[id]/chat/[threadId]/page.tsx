@@ -410,7 +410,7 @@ const ChatPage = () => {
             }}
             resourceSettingsSaving={resourceSettingsSaving}
             conversationMessages={transcript.messages}
-            conversationToolCallCount={transcript.toolCalls.length}
+            loadLatestConversationMessages={actions.loadLatestMessages}
             queuedPrompts={promptQueue.items}
             queueLoading={promptQueue.isLoading}
             onQueueAuthorizationRequired={refetchReady}
