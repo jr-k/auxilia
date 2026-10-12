@@ -69,7 +69,7 @@ const EFFORT_LABELS = new Map<string, string>([
 const effortLabel = (effort: string) => EFFORT_LABELS.get(effort) ?? effort;
 
 const TOOL_DISCOVERY_LABELS: Record<ToolDiscoveryMode, string> = {
-	disabled: "Disabled",
+	disabled: "Eager",
 	automatic: "Automatic",
 	local: "Local",
 };
@@ -944,21 +944,21 @@ export default function AgentEditor({
 								side="top"
 								items={[
 									{
-										label: "Disabled — load every schema",
+										label: "Eager: Load every schema",
 										active: form.toolDiscoveryMode === "disabled",
 										onClick: () => {
 											setField("toolDiscoveryMode", "disabled");
 										},
 									},
 									{
-										label: "Automatic — provider or AI selector",
+										label: "Automatic: From AI provider",
 										active: form.toolDiscoveryMode === "automatic",
 										onClick: () => {
 											setField("toolDiscoveryMode", "automatic");
 										},
 									},
 									{
-										label: "Local — Auxilia catalog search",
+										label: "Local: Auxilia search algorithm",
 										active: form.toolDiscoveryMode === "local",
 										onClick: () => {
 											setField("toolDiscoveryMode", "local");
