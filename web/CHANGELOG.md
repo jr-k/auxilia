@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.56](https://github.com/jr-k/auxilia/compare/web-v0.11.55...web-v0.11.56) (2026-10-12)
+
+
+### Bug Fixes
+
+* **runtime:** tolerate unavailable MCP servers ([810b795](https://github.com/jr-k/auxilia/commit/810b79542e75c35adf1cd61f082666b89de1fb7e))
+
 ## [0.11.55](https://github.com/jr-k/auxilia/compare/web-v0.11.54...web-v0.11.55) (2026-10-12)
 
 
