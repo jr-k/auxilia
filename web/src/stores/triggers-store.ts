@@ -14,6 +14,7 @@ interface TriggersState {
 	triggers: Trigger[];
 	isInitialized: boolean;
 	fetchTriggers: () => Promise<void>;
+	refreshTriggers: () => Promise<void>;
 	createTrigger: (payload: TriggerCreate) => Promise<Trigger>;
 	updateTrigger: (id: string, payload: TriggerUpdate) => Promise<Trigger>;
 	deleteTrigger: (id: string) => Promise<void>;
@@ -48,6 +49,7 @@ export const useTriggersStore = create<TriggersState>((set, get) => {
 			}
 			await load.run();
 		},
+		refreshTriggers: () => load.refresh(),
 		createTrigger: async (payload) => {
 			const created = await triggersApi.createTrigger(payload);
 			set((state) => ({ triggers: [created, ...state.triggers] }));

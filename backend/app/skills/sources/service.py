@@ -25,6 +25,8 @@ from app.exceptions import (
     NotFoundError,
     PermissionDeniedError,
 )
+from app.realtime.schemas import WorkspaceEventKind
+from app.realtime.service import stage_workspace_event
 from app.service import BaseService
 from app.skills.bundles import LIMITS, parse_skill, skill_file_from_bytes
 from app.skills.models import SkillDB, SkillSourceDB
@@ -72,6 +74,13 @@ class SkillSourceService(BaseService[SkillSourceDB, SkillSourceRepository]):
         super().__init__(db, SkillSourceRepository(db, workspace_id))
         self.workspace_id = workspace_id
         self._skills = SkillRepository(db, workspace_id)
+
+    async def _stage_skills_changed(self) -> None:
+        await stage_workspace_event(
+            self.db,
+            workspace_id=self.workspace_id,
+            kind=WorkspaceEventKind.skills,
+        )
 
     # -- read ---------------------------------------------------------------------
 
@@ -158,7 +167,9 @@ class SkillSourceService(BaseService[SkillSourceDB, SkillSourceRepository]):
             ) from exc
         await self._sync_row(row)
         await self.db.refresh(row)
-        return _response(row, user)
+        response = _response(row, user)
+        await self._stage_skills_changed()
+        return response
 
     async def update(
         self, source_id: UUID, data: SkillSourcePatch, user: UserDB
@@ -196,7 +207,9 @@ class SkillSourceService(BaseService[SkillSourceDB, SkillSourceRepository]):
                 "Another source already tracks this repository, ref and path"
             ) from exc
         await self.db.refresh(row)
-        return _response(row, user)
+        response = _response(row, user)
+        await self._stage_skills_changed()
+        return response
 
     async def delete(self, source_id: UUID, user: UserDB) -> None:
         """Its skills stay, detached: an agent must not lose a skill because
@@ -212,12 +225,15 @@ class SkillSourceService(BaseService[SkillSourceDB, SkillSourceRepository]):
         row = await self._manageable(source_id, user, lock=True)
         await self._skills.detach_from_source(row.id)
         await self.repository.delete(row)
+        await self._stage_skills_changed()
 
     async def sync(self, source_id: UUID, user: UserDB) -> SkillSourceResponse:
         row = await self._manageable(source_id, user, lock=True)
         await self._sync_row(row)
         await self.db.refresh(row)
-        return _response(row, user)
+        response = _response(row, user)
+        await self._stage_skills_changed()
+        return response
 
     async def _resolve_or_400(
         self,

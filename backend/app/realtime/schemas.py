@@ -2,6 +2,10 @@ from enum import Enum
 
 
 class WorkspaceEventKind(str, Enum):
+    agents = "agents"
+    triggers = "triggers"
+    mcp_servers = "mcp_servers"
+    skills = "skills"
     threads = "threads"
     runs = "runs"
     prompt_queue = "prompt_queue"

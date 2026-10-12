@@ -18,6 +18,8 @@ from app.mcp.client.connectivity import connect_to_server, is_authorized
 from app.mcp.servers.models import MCPAuthType, MCPServerDB
 from app.mcp.servers.repository import MCPServerRepository
 from app.mcp.servers.schemas import MCPServerAgentResponse
+from app.realtime.schemas import WorkspaceEventKind
+from app.realtime.service import stage_workspace_event
 from app.service import BaseService
 from app.visibility import (
     ResourceVisibility,
@@ -41,6 +43,15 @@ class AgentMCPServerService(BaseService[AgentMCPServerDB, AgentMCPServerReposito
         self._servers = MCPServerRepository(db, workspace_id)
         self._agents = AgentRepository(db, workspace_id)
         self._workspaces = WorkspaceRepository(db)
+
+    async def _stage_agents_changed(self) -> None:
+        if self.workspace_id is None:
+            raise RuntimeError("workspace_id is required to publish agent changes")
+        await stage_workspace_event(
+            self.db,
+            workspace_id=self.workspace_id,
+            kind=WorkspaceEventKind.agents,
+        )
 
     async def _ensure_agent(self, agent_id: UUID) -> None:
         if await self._agents.get_scoped(agent_id) is None:
@@ -166,6 +177,7 @@ class AgentMCPServerService(BaseService[AgentMCPServerDB, AgentMCPServerReposito
                 self.db.add(existing)
                 await self.db.flush()
                 await self.db.refresh(existing)
+                await self._stage_agents_changed()
             return existing
 
         db_link = await self.repository.create(
@@ -190,6 +202,7 @@ class AgentMCPServerService(BaseService[AgentMCPServerDB, AgentMCPServerReposito
         if should_fetch:
             await self._sync_tools(db_link, mcp_server, user_id)
 
+        await self._stage_agents_changed()
         return db_link
 
     async def update(
@@ -205,7 +218,9 @@ class AgentMCPServerService(BaseService[AgentMCPServerDB, AgentMCPServerReposito
             existing_tools = link.tools or {}
             data = AgentMCPServerPatch(tools={**existing_tools, **data.tools})
 
-        return await self.repository.update(link, data)
+        updated = await self.repository.update(link, data)
+        await self._stage_agents_changed()
+        return updated
 
     async def set_for_agent(
         self, agent_id: UUID, configs: list[AgentMCPServerConfig]
@@ -246,6 +261,7 @@ class AgentMCPServerService(BaseService[AgentMCPServerDB, AgentMCPServerReposito
         if not link:
             raise NotFoundError(self.not_found_message)
         await self.repository.delete(link)
+        await self._stage_agents_changed()
 
     async def sync_tools(
         self, agent_id: UUID, server_id: UUID, user_id: str
@@ -256,6 +272,7 @@ class AgentMCPServerService(BaseService[AgentMCPServerDB, AgentMCPServerReposito
         if not link:
             raise NotFoundError(self.not_found_message)
         await self._sync_tools(link, mcp_server, user_id)
+        await self._stage_agents_changed()
         return link
 
     # -- Server-side views ---------------------------------------------------
@@ -287,6 +304,7 @@ class AgentMCPServerService(BaseService[AgentMCPServerDB, AgentMCPServerReposito
         confirm before the server itself is deleted."""
         await self._ensure_server_for_update(server_id)
         await self.repository.delete_all_for_server(server_id)
+        await self._stage_agents_changed()
 
 
 def get_agent_mcp_server_service(

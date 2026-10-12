@@ -47,6 +47,8 @@ from app.exceptions import (
 from app.mcp.client.connectivity import probe_authorization
 from app.mcp.servers.repository import MCPServerRepository
 from app.model_providers.service import ModelService
+from app.realtime.schemas import WorkspaceEventKind
+from app.realtime.service import stage_workspace_event
 from app.sandbox.provider import ensure_sandboxes_available
 from app.sandbox.repository import SandboxRepository
 from app.sandbox.schemas import SandboxAgentResponse
@@ -83,6 +85,15 @@ class AgentService(BaseService[AgentDB, AgentRepository]):
         self.sandboxes = SandboxRepository(db)
         self.workspaces = WorkspaceRepository(db)
         self.teams = TeamRepository(db)
+
+    async def _stage_agents_changed(self) -> None:
+        if self.workspace_id is None:
+            raise RuntimeError("workspace_id is required to publish agent changes")
+        await stage_workspace_event(
+            self.db,
+            workspace_id=self.workspace_id,
+            kind=WorkspaceEventKind.agents,
+        )
 
     async def _validate_model_defaults(
         self, model_id: str | None, reasoning_effort: str | None
@@ -156,11 +167,13 @@ class AgentService(BaseService[AgentDB, AgentRepository]):
             sha256=image.sha256,
             revision=revision,
         )
+        await self._stage_agents_changed()
         return revision
 
     async def delete_image(self, agent_id: UUID) -> None:
         await self._get_scoped(agent_id)
         await self.repository.delete_image(agent_id)
+        await self._stage_agents_changed()
 
     @staticmethod
     def _resolve_permission(
@@ -423,9 +436,11 @@ class AgentService(BaseService[AgentDB, AgentRepository]):
         await self.set_sandboxes(agent.id, config.sandboxes)
         await self.set_subagents(agent.id, config.subagent_ids, user_role=user_role)
         await self.skill_service.set_for_agent(agent.id, config.skill_ids)
-        return await self.get(
+        response = await self.get(
             agent.id, user_id=owner_id, user_role=user_role, user_team_id=user_team_id
         )
+        await self._stage_agents_changed()
+        return response
 
     async def get(
         self,
@@ -532,9 +547,11 @@ class AgentService(BaseService[AgentDB, AgentRepository]):
                 ),
             )
         await self.repository.update_by_id(agent_id, data)
-        return await self.get(
+        response = await self.get(
             agent_id, user_id=user_id, user_role=user_role, user_team_id=user_team_id
         )
+        await self._stage_agents_changed()
+        return response
 
     async def set_config(
         self,
@@ -614,9 +631,11 @@ class AgentService(BaseService[AgentDB, AgentRepository]):
         await self.set_sandboxes(agent_id, config.sandboxes)
         await self.set_subagents(agent_id, config.subagent_ids, user_role=user_role)
         await self.skill_service.set_for_agent(agent_id, config.skill_ids)
-        return await self.get(
+        response = await self.get(
             agent_id, user_id=user_id, user_role=user_role, user_team_id=user_team_id
         )
+        await self._stage_agents_changed()
+        return response
 
     async def _validate_trigger_dependencies_for_scope(
         self,
@@ -815,6 +834,7 @@ class AgentService(BaseService[AgentDB, AgentRepository]):
         )
         await self.repository.delete_all_subagent_links(agent_id)
         await self.repository.set_archived(agent_id, archived=True)
+        await self._stage_agents_changed()
 
     async def restore(
         self,
@@ -833,13 +853,15 @@ class AgentService(BaseService[AgentDB, AgentRepository]):
             include_archived=True,
         )
         await self.repository.set_archived(agent_id, archived=False)
-        return await self.get(
+        response = await self.get(
             agent_id,
             user_id=user_id,
             user_role=user_role,
             user_team_id=user_team_id,
             include_archived=True,
         )
+        await self._stage_agents_changed()
+        return response
 
     async def delete_permanently(self, agent_id: UUID) -> None:
         """Delete the agent row and every agents-owned row that references it.
@@ -859,6 +881,7 @@ class AgentService(BaseService[AgentDB, AgentRepository]):
         await self.repository.delete_all_permissions(agent_id)
         await self.repository.delete_all_teams(agent_id)
         await self.repository.delete_by_id(agent_id)
+        await self._stage_agents_changed()
 
     async def get_permissions(self, agent_id: UUID) -> list[AgentUserPermissionDB]:
         return await self.repository.get_permissions(agent_id)
@@ -884,7 +907,9 @@ class AgentService(BaseService[AgentDB, AgentRepository]):
                 user_team_id=membership.team_id,
             )
         await self._ensure_trigger_owners_keep_access(agent_id, proposed_user_ids)
-        return await self.repository.set_permissions(agent_id, permissions)
+        saved = await self.repository.set_permissions(agent_id, permissions)
+        await self._stage_agents_changed()
+        return saved
 
     async def _ensure_trigger_owners_keep_access(
         self, agent_id: UUID, proposed_user_ids: set[UUID]
@@ -1033,7 +1058,9 @@ class AgentService(BaseService[AgentDB, AgentRepository]):
         await self._validate_bound_dependencies_for_scope(
             agent_id, agent.visibility, candidate_team_ids
         )
-        return await self.repository.set_teams(agent_id, team_ids)
+        saved = await self.repository.set_teams(agent_id, team_ids)
+        await self._stage_agents_changed()
+        return saved
 
     # -- Subagents -------------------------------------------------------------
     #
@@ -1155,13 +1182,16 @@ class AgentService(BaseService[AgentDB, AgentRepository]):
         existing = await self.repository.get_subagent_link(supervisor_id, subagent_id)
         if existing:
             return existing
-        return await self.repository.create_subagent_link(supervisor_id, subagent_id)
+        created = await self.repository.create_subagent_link(supervisor_id, subagent_id)
+        await self._stage_agents_changed()
+        return created
 
     async def delete_subagent(self, supervisor_id: UUID, subagent_id: UUID) -> None:
         link = await self.repository.get_subagent_link(supervisor_id, subagent_id)
         if not link:
             raise NotFoundError("Subagent not found")
         await self.repository.delete_subagent_link(link)
+        await self._stage_agents_changed()
 
     async def set_subagents(
         self,

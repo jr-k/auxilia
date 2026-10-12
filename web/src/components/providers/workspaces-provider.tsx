@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 
 import { WorkspaceEventsProvider } from "@/components/providers/workspace-events-provider";
 import { useRecentThreadsPoll } from "@/hooks/use-recent-threads-poll";
+import { useWorkspaceResourcesSync } from "@/hooks/use-workspace-resources-sync";
 import { useAgentsStore } from "@/stores/agents-store";
 import { useAppearanceStore } from "@/stores/appearance-store";
 import { useMcpServersStore } from "@/stores/mcp-servers-store";
@@ -50,6 +51,7 @@ export function WorkspacesProvider({ children }: { children: React.ReactNode }) 
 	const hydrate = useWorkspacesStore((state) => state.hydrate);
 	const [isReady, setIsReady] = useState(false);
 	useRecentThreadsPoll(isReady);
+	useWorkspaceResourcesSync();
 
 	useEffect(() => {
 		let active = true;

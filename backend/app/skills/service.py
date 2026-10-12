@@ -16,6 +16,8 @@ from app.exceptions import (
     PermissionDeniedError,
     StaleRevisionError,
 )
+from app.realtime.schemas import WorkspaceEventKind
+from app.realtime.service import stage_workspace_event
 from app.service import BaseService
 from app.skills.bundles import parse_skill
 from app.skills.models import SkillDB, SkillImageDB, SkillVersionDB
@@ -64,6 +66,15 @@ class SkillService(BaseService[SkillDB, SkillRepository]):
         super().__init__(db, SkillRepository(db, workspace_id))
         self.workspace_id = workspace_id
         self.teams = TeamRepository(db)
+
+    async def _stage_skills_changed(self) -> None:
+        if self.workspace_id is None:
+            raise RuntimeError("workspace_id is required to publish skill changes")
+        await stage_workspace_event(
+            self.db,
+            workspace_id=self.workspace_id,
+            kind=WorkspaceEventKind.skills,
+        )
 
     # -- the library ---------------------------------------------------------
 
@@ -142,7 +153,9 @@ class SkillService(BaseService[SkillDB, SkillRepository]):
                 await self.repository.set_team_ids(row.id, team_ids)
         except IntegrityError as exc:
             raise _name_taken(bundle.name) from exc
-        return await self._response(row, user)
+        response = await self._response(row, user)
+        await self._stage_skills_changed()
+        return response
 
     async def update(
         self, skill_id: UUID, data: SkillSave, user: UserDB
@@ -180,7 +193,9 @@ class SkillService(BaseService[SkillDB, SkillRepository]):
             )
             if data.team_ids is not None:
                 await self.repository.set_team_ids(row.id, team_ids)
-            return await self._response(await self._flush(row), user)
+            response = await self._response(await self._flush(row), user)
+            await self._stage_skills_changed()
+            return response
         _reject_files(data)
         if bundle.name != row.name:
             await self._name_is_free(bundle.name)
@@ -203,7 +218,9 @@ class SkillService(BaseService[SkillDB, SkillRepository]):
         )
         if data.team_ids is not None:
             await self.repository.set_team_ids(row.id, team_ids)
-        return await self._response(await self._flush(row), user)
+        response = await self._response(await self._flush(row), user)
+        await self._stage_skills_changed()
+        return response
 
     async def get_image(self, skill_id: UUID, user: UserDB) -> SkillImageDB:
         row = await self.repository.get_scoped(skill_id)
@@ -227,11 +244,13 @@ class SkillService(BaseService[SkillDB, SkillRepository]):
             sha256=image.sha256,
             revision=revision,
         )
+        await self._stage_skills_changed()
         return revision
 
     async def delete_image(self, skill_id: UUID, user: UserDB) -> None:
         await self._editable(skill_id, user)
         await self.repository.delete_image(skill_id)
+        await self._stage_skills_changed()
 
     async def list_bound_agents(
         self, skill_id: UUID, user: UserDB
@@ -263,6 +282,7 @@ class SkillService(BaseService[SkillDB, SkillRepository]):
                 "Disable this skill on every agent before deleting it"
             )
         await self.repository.delete(row)
+        await self._stage_skills_changed()
 
     # -- sourced skills: the version waiting upstream -------------------------
 
@@ -332,7 +352,9 @@ class SkillService(BaseService[SkillDB, SkillRepository]):
                 "missing_upstream": False,
             }
         )
-        return await self._response(await self._flush(row), user)
+        response = await self._response(await self._flush(row), user)
+        await self._stage_skills_changed()
+        return response
 
     async def _name_is_free(self, name: str) -> None:
         """The library is one namespace. Refused here rather than at the
@@ -586,6 +608,7 @@ class SkillService(BaseService[SkillDB, SkillRepository]):
             return
         await self.repository.delete_links(agent_id, current - wanted)
         await self.repository.add_links(agent_id, wanted - current)
+        await self._stage_skills_changed()
 
 
 def _reject_files(data: SkillSave) -> None:

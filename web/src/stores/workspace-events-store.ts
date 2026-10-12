@@ -11,6 +11,10 @@ export type WorkspaceEventConnection =
 interface WorkspaceEventsState {
   connection: WorkspaceEventConnection;
   syncVersion: number;
+  agentsVersion: number;
+  triggersVersion: number;
+  mcpServersVersion: number;
+  skillsVersion: number;
   threadsVersion: number;
   runsVersion: number;
   triggerHistoryVersion: number;
@@ -23,6 +27,10 @@ interface WorkspaceEventsState {
 
 const initialVersions = {
   syncVersion: 0,
+  agentsVersion: 0,
+  triggersVersion: 0,
+  mcpServersVersion: 0,
+  skillsVersion: 0,
   threadsVersion: 0,
   runsVersion: 0,
   triggerHistoryVersion: 0,
@@ -38,6 +46,10 @@ export const useWorkspaceEventsStore = create<WorkspaceEventsState>((set) => ({
   sync: () => {
     set((state) => ({
       syncVersion: state.syncVersion + 1,
+      agentsVersion: state.agentsVersion + 1,
+      triggersVersion: state.triggersVersion + 1,
+      mcpServersVersion: state.mcpServersVersion + 1,
+      skillsVersion: state.skillsVersion + 1,
       threadsVersion: state.threadsVersion + 1,
       runsVersion: state.runsVersion + 1,
       triggerHistoryVersion: state.triggerHistoryVersion + 1,
@@ -45,6 +57,20 @@ export const useWorkspaceEventsStore = create<WorkspaceEventsState>((set) => ({
   },
   invalidate: (event) => {
     switch (event.kind) {
+      case "agents":
+        set((state) => ({ agentsVersion: state.agentsVersion + 1 }));
+        break;
+      case "triggers":
+        set((state) => ({ triggersVersion: state.triggersVersion + 1 }));
+        break;
+      case "mcp_servers":
+        set((state) => ({
+          mcpServersVersion: state.mcpServersVersion + 1,
+        }));
+        break;
+      case "skills":
+        set((state) => ({ skillsVersion: state.skillsVersion + 1 }));
+        break;
       case "threads":
         set((state) => ({ threadsVersion: state.threadsVersion + 1 }));
         break;

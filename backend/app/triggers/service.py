@@ -18,6 +18,8 @@ from app.exceptions import (
     PermissionDeniedError,
 )
 from app.model_providers.service import ModelService
+from app.realtime.schemas import WorkspaceEventKind
+from app.realtime.service import stage_workspace_event
 from app.runtime.runs.service import RunService
 from app.service import BaseService
 from app.teams.repository import TeamRepository
@@ -266,7 +268,13 @@ class TriggerService(BaseService[TriggerDB, TriggerRepository]):
         )
         if data.team_ids:
             await self.repository.set_team_ids(trigger.id, data.team_ids)
-        return (await self._to_responses([trigger], owner))[0]
+        response = (await self._to_responses([trigger], owner))[0]
+        await stage_workspace_event(
+            self.db,
+            workspace_id=self.workspace_id,
+            kind=WorkspaceEventKind.triggers,
+        )
+        return response
 
     async def update(
         self, trigger_id: UUID, data: TriggerPatch, user: UserDB
@@ -372,7 +380,13 @@ class TriggerService(BaseService[TriggerDB, TriggerRepository]):
             await self.db.refresh(trigger)
         # Recompute availability: a patch that doesn't touch model_id (e.g.
         # pause/resume) must not reset the flag to its default on the client.
-        return (await self._to_responses([trigger], user))[0]
+        response = (await self._to_responses([trigger], user))[0]
+        await stage_workspace_event(
+            self.db,
+            workspace_id=trigger.workspace_id,
+            kind=WorkspaceEventKind.triggers,
+        )
+        return response
 
     async def _ensure_visible(self, trigger: TriggerDB, user: UserDB) -> None:
         team_ids = (
@@ -404,6 +418,11 @@ class TriggerService(BaseService[TriggerDB, TriggerRepository]):
         trigger = await self.get_or_404(trigger_id)
         self._ensure_can_manage(trigger, user)
         await self.repository.delete(trigger)
+        await stage_workspace_event(
+            self.db,
+            workspace_id=trigger.workspace_id,
+            kind=WorkspaceEventKind.triggers,
+        )
 
     async def run_now(self, trigger_id: UUID, user: UserDB) -> TriggerRunResponse:
         """Fire one occurrence immediately — the test path behind a "Run now"

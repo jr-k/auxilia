@@ -43,6 +43,8 @@ from app.mcp.servers.schemas import (
     OfficialMCPServerResponse,
     ToolsListed,
 )
+from app.realtime.schemas import WorkspaceEventKind
+from app.realtime.service import stage_workspace_event
 from app.service import BaseService
 from app.teams.repository import TeamRepository
 from app.users.models import UserDB
@@ -73,6 +75,15 @@ class MCPServerService(BaseService[MCPServerDB, MCPServerRepository]):
         self.workspaces = WorkspaceRepository(db)
         self.teams = TeamRepository(db)
 
+    async def _stage_servers_changed(self) -> None:
+        if self.workspace_id is None:
+            raise RuntimeError("workspace_id is required to publish MCP server changes")
+        await stage_workspace_event(
+            self.db,
+            workspace_id=self.workspace_id,
+            kind=WorkspaceEventKind.mcp_servers,
+        )
+
     async def get_scoped(self, server_id: UUID) -> MCPServerDB:
         server = await self.repository.get_scoped(server_id)
         if server is None:
@@ -102,11 +113,13 @@ class MCPServerService(BaseService[MCPServerDB, MCPServerRepository]):
             sha256=image.sha256,
             revision=revision,
         )
+        await self._stage_servers_changed()
         return revision
 
     async def delete_image(self, server_id: UUID) -> None:
         await self.get_scoped(server_id)
         await self.repository.delete_image(server_id)
+        await self._stage_servers_changed()
 
     async def create(self, data: MCPServerCreate, owner_id: UUID) -> MCPServerDB:
         if data.auth_type == MCPAuthType.api_key and not data.api_key:
@@ -179,6 +192,7 @@ class MCPServerService(BaseService[MCPServerDB, MCPServerRepository]):
                 principal=service_credential.principal,
             )
 
+        await self._stage_servers_changed()
         return db_server
 
     async def get(self, server_id: UUID) -> MCPServerDB:
@@ -470,6 +484,7 @@ class MCPServerService(BaseService[MCPServerDB, MCPServerRepository]):
                 principal=validated.principal,
             )
 
+        await self._stage_servers_changed()
         return updated
 
     async def purge_invalidated_state(
@@ -562,6 +577,7 @@ class MCPServerService(BaseService[MCPServerDB, MCPServerRepository]):
             raise DomainValidationError(
                 "This MCP server is used by agents; detach it first."
             ) from exc
+        await self._stage_servers_changed()
 
     async def list_official(self) -> list[OfficialMCPServerResponse]:
         """Return catalog templates with their workspace instance counts."""

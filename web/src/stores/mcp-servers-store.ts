@@ -13,6 +13,7 @@ interface McpServersState {
 	mcpServers: MCPServer[];
 	isInitialized: boolean;
 	fetchMcpServers: () => Promise<void>;
+	refreshMcpServers: () => Promise<void>;
 	createMcpServer: (payload: MCPServerCreate) => Promise<MCPServer>;
 	updateMcpServer: (id: string, payload: MCPServerUpdate) => Promise<MCPServer>;
 	applyMcpServer: (server: MCPServer) => void;
@@ -45,6 +46,7 @@ export const useMcpServersStore = create<McpServersState>((set, get) => {
 			}
 			return load.run();
 		},
+		refreshMcpServers: () => load.refresh(),
 		createMcpServer: async (payload) => {
 			const created = await mcpServersApi.createMcpServer(payload);
 			set((state) => ({ mcpServers: [created, ...state.mcpServers] }));

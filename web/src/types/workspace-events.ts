@@ -1,4 +1,8 @@
 export const WORKSPACE_EVENT_KINDS = [
+  "agents",
+  "triggers",
+  "mcp_servers",
+  "skills",
   "threads",
   "runs",
   "prompt_queue",
