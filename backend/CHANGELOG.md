@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.48](https://github.com/jr-k/auxilia/compare/backend-v0.10.47...backend-v0.10.48) (2026-10-12)
+
+
+### Bug Fixes
+
+* **runtime:** select tools for compact OpenAI models ([9821cd2](https://github.com/jr-k/auxilia/commit/9821cd214a464f5e2f37194142fc3c5ba6205171))
+
 ## [0.10.47](https://github.com/jr-k/auxilia/compare/backend-v0.10.46...backend-v0.10.47) (2026-10-12)
 
 
