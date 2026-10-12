@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.45](https://github.com/jr-k/auxilia/compare/backend-v0.10.44...backend-v0.10.45) (2026-10-12)
+
+
+### Bug Fixes
+
+* **models:** refresh invalid catalog cache ([379c607](https://github.com/jr-k/auxilia/commit/379c607ce4c3388177f6865e19415b3851d53c22))
+
 ## [0.10.44](https://github.com/jr-k/auxilia/compare/backend-v0.10.43...backend-v0.10.44) (2026-10-11)
 
 
