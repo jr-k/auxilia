@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.46](https://github.com/jr-k/auxilia/compare/backend-v0.10.45...backend-v0.10.46) (2026-10-12)
+
+
+### Features
+
+* **realtime:** sync workspace state over SSE ([1d5fdb8](https://github.com/jr-k/auxilia/commit/1d5fdb8757e91edfff97f8a001e7175b5e88544d))
+
 ## [0.10.45](https://github.com/jr-k/auxilia/compare/backend-v0.10.44...backend-v0.10.45) (2026-10-12)
 
 
