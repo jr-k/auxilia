@@ -23,6 +23,7 @@ import { VisibilityBadge } from "@/components/ui/visibility-badge";
 import { VisibilityPicker } from "@/components/ui/visibility-picker";
 import { ImageFilePreview, ImageUpload } from "@/components/ui/image-upload";
 import { SkillAvatar } from "@/components/ui/skill-avatar";
+import { UnderlineTabs } from "@/components/ui/underline-tabs";
 import {
 	HeaderButton,
 	HeaderPrimaryButton,
@@ -38,6 +39,7 @@ import { SkillDeleteDescription } from "./skill-delete-description";
 import type { ResourceVisibility } from "@/types/visibility";
 import { cn } from "@/lib/utils";
 import { useSkillsStore } from "@/stores/skills-store";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { useUnsavedChangesWarning } from "@/hooks/use-unsaved-changes-warning";
 import {
 	countScripts,
@@ -227,6 +229,10 @@ export default function SkillEditor({
 	const locked = fields === null;
 	const [isSaving, setIsSaving] = useState(false);
 	const [error, setError] = useState<string | null>(null);
+	const [mobileTab, setMobileTab] = useState<"instructions" | "more">(
+		"instructions",
+	);
+	const isMobile = useIsMobile();
 
 	const isDirty =
 		!readOnly &&
@@ -340,6 +346,29 @@ export default function SkillEditor({
 		"w-full rounded-lg border border-input bg-card px-3 py-[7px] outline-none transition-[border-color,box-shadow] placeholder:text-meta dark:placeholder:text-panel-dim focus:border-petrol focus:shadow-[0_0_0_3px_rgba(22,96,110,0.10)] disabled:cursor-default";
 	const editorClass =
 		"min-h-[300px] w-full flex-1 resize-none rounded-lg border border-input bg-sidebar p-4 text-[12.5px] leading-[1.7] text-foreground outline-none transition-[border-color,box-shadow] placeholder:text-meta dark:placeholder:text-panel-dim focus:border-petrol focus:shadow-[0_0_0_3px_rgba(22,96,110,0.10)] [scrollbar-width:thin]";
+
+	const secondaryPanel = (
+		<>
+			{sourced ? (
+				<SkillFilesPanel files={draft.files} skill={skill} />
+			) : (
+				<div className="rounded-[10px] border border-dashed border-input px-4 py-8 text-center text-[13px] text-meta dark:text-panel-dim">
+					A skill written here is one SKILL.md, it runs on any agent.
+					<span className="mt-1 block text-[12px]">
+						Scripts and reference files come from a{" "}
+						<Link
+							href="/skills?view=sources"
+							className="font-semibold text-petrol hover:underline dark:text-panel-terminal"
+						>
+							connected repository
+						</Link>
+						, where they are reviewed and versioned.
+					</span>
+				</div>
+			)}
+			{skill && <SkillUsedBy agents={agents} />}
+		</>
+	);
 
 	return (
 		<div className="flex h-svh min-w-0 flex-1 flex-col bg-background animate-in fade-in duration-300">
@@ -738,55 +767,62 @@ export default function SkillEditor({
 						</EditorNotice>
 					)}
 
-					<div className="mt-6 flex min-h-[24px] shrink-0 items-center justify-between border-b border-border pb-2">
-						<span className="text-[10.5px] font-semibold text-label dark:text-muted-foreground">
-							Instructions
-						</span>
-						{!readOnly && !locked && (
-							<span className="text-[10.5px] text-meta dark:text-panel-dim">
-								markdown, name, description and this text make the SKILL.md
-							</span>
-						)}
-					</div>
+					<UnderlineTabs
+						tabs={[
+							{ key: "instructions", label: "Instructions" },
+							{ key: "more", label: "More" },
+						]}
+						value={mobileTab}
+						onChange={setMobileTab}
+						className="mt-6 border-b border-border md:hidden"
+					/>
 
-					<div className="flex min-h-0 flex-1 flex-col pt-4">
-						{readOnly || sourced || locked ? (
-							<div className="min-h-[200px] w-full flex-1 overflow-y-auto rounded-lg border border-border bg-sidebar p-4 [scrollbar-width:thin]">
-								<MessageResponse className="text-[13px] leading-[1.65] text-foreground">
-									{body?.trim() || "*No instructions*"}
-								</MessageResponse>
+					{(!isMobile || mobileTab === "instructions") && (
+						<>
+							<div className="mt-6 hidden min-h-[24px] shrink-0 items-center justify-between border-b border-border pb-2 md:flex">
+								<span className="text-[10.5px] font-semibold text-label dark:text-muted-foreground">
+									Instructions
+								</span>
+								{!readOnly && !locked && (
+									<span className="text-[10.5px] text-meta dark:text-panel-dim">
+										markdown, name, description and this text make the SKILL.md
+									</span>
+								)}
 							</div>
-						) : (
-							<textarea
-								value={fields.body}
-								onChange={(e) => {
-									setFields({ body: e.target.value });
-								}}
-								placeholder="The procedure the agent follows once it picks this skill…"
-								className={editorClass}
-							/>
-						)}
-					</div>
+
+							<div className="flex min-h-0 flex-1 flex-col pt-4">
+								{readOnly || sourced || locked ? (
+									<div className="min-h-[200px] w-full flex-1 overflow-y-auto rounded-lg border border-border bg-sidebar p-4 [scrollbar-width:thin]">
+										<MessageResponse className="text-[13px] leading-[1.65] text-foreground">
+											{body?.trim() || "*No instructions*"}
+										</MessageResponse>
+									</div>
+								) : (
+									<textarea
+										value={fields.body}
+										onChange={(e) => {
+											setFields({ body: e.target.value });
+										}}
+										placeholder="The procedure the agent follows once it picks this skill…"
+										className={editorClass}
+									/>
+								)}
+							</div>
+						</>
+					)}
+					{isMobile && mobileTab === "more" && (
+						<div className="flex min-w-0 flex-col pt-4">
+							{secondaryPanel}
+						</div>
+					)}
 				</div>
 
 				{/* Right: files (sourced skills only) + where it's used */}
-				<div className="flex min-w-0 flex-col overflow-y-auto bg-sidebar p-7 md:flex-1 dark:bg-white/[0.02] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-					{sourced ? (
-						<SkillFilesPanel files={draft.files} skill={skill} />
-					) : (
-						<div className="rounded-[10px] border border-dashed border-input px-4 py-8 text-center text-[13px] text-meta dark:text-panel-dim">
-							A skill written here is one SKILL.md, it runs on any agent.
-							<span className="mt-1 block text-[12px]">
-								Scripts and reference files come from a{" "}
-								<Link href="/skills?view=sources" className="font-semibold text-petrol hover:underline dark:text-panel-terminal">
-									connected repository
-								</Link>
-								, where they are reviewed and versioned.
-							</span>
-						</div>
-					)}
-					{skill && <SkillUsedBy agents={agents} />}
-				</div>
+				{!isMobile && (
+					<div className="hidden min-w-0 flex-col overflow-y-auto bg-sidebar p-7 md:flex md:flex-1 dark:bg-white/[0.02] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+						{secondaryPanel}
+					</div>
+				)}
 			</div>
 		</div>
 	);

@@ -35,6 +35,7 @@ import { UnderlineTabs } from "@/components/ui/underline-tabs";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { groupOptions } from "@/lib/groups";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { useUnsavedChangesWarning } from "@/hooks/use-unsaved-changes-warning";
 import * as agentsApi from "@/lib/api/resources/agents";
 import { AgentAvatar } from "@/components/ui/agent-avatar";
@@ -51,7 +52,7 @@ import {
 	toPayload,
 } from "../lib/agent-form";
 
-type EditorTab = "instructions" | "options" | "permissions";
+type EditorTab = "instructions" | "options" | "permissions" | "more";
 
 const slugify = (name: string) =>
 	name.trim().toLowerCase().replace(/\s+/g, "-") || "…";
@@ -106,6 +107,7 @@ export default function AgentEditor({
 	const models = useModelsStore((state) => state.models);
 	const isAdmin = user?.role === "admin";
 	const librarySkills = useSkillsStore((state) => state.skills);
+	const isMobile = useIsMobile();
 
 	const canManageAgent =
 		agent?.currentUserPermission === "owner" ||
@@ -202,7 +204,9 @@ export default function AgentEditor({
 		...(agent && canManageAgent
 			? [{ key: "permissions" as const, label: "Permissions" }]
 			: []),
+		...(isMobile ? [{ key: "more" as const, label: "More" }] : []),
 	];
+	const activeTab = tab === "more" && !isMobile ? "instructions" : tab;
 
 	useEffect(() => {
 		const handleClickOutside = (event: MouseEvent) => {
@@ -384,6 +388,91 @@ export default function AgentEditor({
 
 	const fieldInputClass =
 		"w-full rounded-lg border border-input bg-card px-3 py-[7px] outline-none transition-[border-color,box-shadow] placeholder:text-meta dark:placeholder:text-panel-dim focus:border-petrol focus:shadow-[0_0_0_3px_rgba(22,96,110,0.10)] disabled:cursor-default";
+
+	const capabilitiesPanel = (
+		<>
+			<AgentToolList
+				agentId={agent?.id}
+				readOnly={readOnly}
+				canEdit={canEditAgent}
+				mcpServers={form.mcpServers}
+				sandboxes={form.sandboxes}
+				onMcpServersChange={(update) => {
+					setForm((prev) => ({
+						...prev,
+						mcpServers: update(prev.mcpServers),
+					}));
+				}}
+				onSandboxesChange={(sandboxes) => {
+					setField("sandboxes", sandboxes);
+				}}
+				scriptSkillNames={scriptSkillNames}
+				addDialogOpen={addToolOpen}
+				onAddDialogOpenChange={setAddToolOpen}
+				onBindingPersisted={(serverId, tools) => {
+					// A read-mode sync wrote the binding server-side;
+					// mirror it into the store so the next edit-mode
+					// snapshot (and dirty baseline) starts from what is
+					// actually saved. Read the store's latest copy, not
+					// the `agent` prop: several bindings can self-heal
+					// concurrently, and a render-closure snapshot would
+					// let the later callback revert a sibling's map.
+					if (!agent) return;
+					const current =
+						useAgentsStore
+							.getState()
+							.agents.find((a) => a.id === agent.id) ?? agent;
+					updateAgent(agent.id, {
+						mcpServers: (current.mcpServers ?? []).map((server) =>
+							server.mcpServerId === serverId ? { ...server, tools } : server,
+						),
+					});
+				}}
+			/>
+			<AgentSkillList
+				readOnly={readOnly}
+				skillIds={form.skillIds}
+				fallbackSkills={agent?.skills ?? []}
+				runsCode={form.sandboxes.length > 0}
+				onChange={(skillIds) => {
+					setField("skillIds", skillIds);
+				}}
+				onEnableCodeExecution={() => {
+					setAddToolOpen(true);
+				}}
+			/>
+			{agent && (
+				<AgentSlackBotCard
+					agentId={agent.id}
+					canManage={canManageAgent}
+					readOnly={readOnly}
+				/>
+			)}
+			{isAdmin && (
+				<AgentSubagentList
+					readOnly={readOnly}
+					agentId={agent?.id ?? ""}
+					isSubagent={agent?.isSubagent ?? false}
+					subagentIds={form.subagentIds}
+					fallbackSubagents={agent?.subagents ?? []}
+					onChange={(subagentIds) => {
+						setField("subagentIds", subagentIds);
+					}}
+					confirmLeave={() =>
+						!isDirtyRef.current
+							? Promise.resolve(true)
+							: confirmDialog({
+									title: "Discard unsaved changes?",
+									description:
+										"Opening the subagent will leave this page and discard your edits.",
+									confirmLabel: "Discard and leave",
+									destructive: true,
+								})
+					}
+				/>
+			)}
+		</>
+	);
 
 	return (
 		<div className="flex h-svh min-w-0 flex-1 flex-col bg-background animate-in fade-in duration-300">
@@ -687,14 +776,14 @@ export default function AgentEditor({
 
 					<UnderlineTabs
 						tabs={tabs}
-						value={tab}
+						value={activeTab}
 						onChange={setTab}
 						className="mt-6 border-b border-border"
 					/>
 
 					{/* The active tab fills the remaining panel height. */}
 					<div className="flex min-h-0 flex-1 flex-col pt-5">
-						{tab === "instructions" &&
+						{activeTab === "instructions" &&
 							(readOnly ? (
 								<div className="min-h-[200px] w-full flex-1 overflow-y-auto rounded-lg border border-border bg-sidebar p-4 [scrollbar-width:thin]">
 									{form.instructions ? (
@@ -717,14 +806,14 @@ export default function AgentEditor({
 									className="min-h-[300px] w-full flex-1 resize-none rounded-lg border border-input bg-sidebar p-4 text-[12.5px] leading-[1.7] text-foreground outline-none transition-[border-color,box-shadow] placeholder:text-meta dark:placeholder:text-panel-dim focus:border-petrol focus:shadow-[0_0_0_3px_rgba(22,96,110,0.10)] [scrollbar-width:thin]"
 								/>
 							))}
-						{tab === "permissions" && agent && canManageAgent && (
+						{activeTab === "permissions" && agent && canManageAgent && (
 							<AgentPermissionsPanel
 								agentId={agent.id}
 								ownerId={agent.ownerId}
 							/>
 						)}
 
-						{tab === "options" &&
+						{activeTab === "options" &&
 							(readOnly ? (
 								<div className="w-full max-w-2xl">
 									<h2 className="text-[14px] font-semibold text-foreground">
@@ -978,94 +1067,20 @@ export default function AgentEditor({
 						</div>
 						</div>
 							))}
+						{activeTab === "more" && isMobile && (
+							<div className="flex min-w-0 flex-col">
+								{capabilitiesPanel}
+							</div>
+						)}
 					</div>
 				</div>
 
 				{/* Right: capabilities */}
-				<div className="min-w-0 overflow-y-auto bg-sidebar p-7 md:flex-1 dark:bg-white/[0.02] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-					<AgentToolList
-						agentId={agent?.id}
-						readOnly={readOnly}
-						canEdit={canEditAgent}
-						mcpServers={form.mcpServers}
-						sandboxes={form.sandboxes}
-						onMcpServersChange={(update) => {
-							setForm((prev) => ({
-								...prev,
-								mcpServers: update(prev.mcpServers),
-							}));
-						}}
-						onSandboxesChange={(sandboxes) => {
-							setField("sandboxes", sandboxes);
-						}}
-						scriptSkillNames={scriptSkillNames}
-						addDialogOpen={addToolOpen}
-						onAddDialogOpenChange={setAddToolOpen}
-						onBindingPersisted={(serverId, tools) => {
-							// A read-mode sync wrote the binding server-side;
-							// mirror it into the store so the next edit-mode
-							// snapshot (and dirty baseline) starts from what is
-							// actually saved. Read the store's latest copy, not
-							// the `agent` prop: several bindings can self-heal
-							// concurrently, and a render-closure snapshot would
-							// let the later callback revert a sibling's map.
-							if (!agent) return;
-							const current =
-								useAgentsStore
-									.getState()
-									.agents.find((a) => a.id === agent.id) ?? agent;
-							updateAgent(agent.id, {
-								mcpServers: (current.mcpServers ?? []).map((server) =>
-									server.mcpServerId === serverId
-										? { ...server, tools }
-										: server,
-								),
-							});
-						}}
-					/>
-					<AgentSkillList
-						readOnly={readOnly}
-						skillIds={form.skillIds}
-						fallbackSkills={agent?.skills ?? []}
-						runsCode={form.sandboxes.length > 0}
-						onChange={(skillIds) => {
-							setField("skillIds", skillIds);
-						}}
-						onEnableCodeExecution={() => {
-							setAddToolOpen(true);
-						}}
-					/>
-					{agent && (
-						<AgentSlackBotCard
-							agentId={agent.id}
-							canManage={canManageAgent}
-							readOnly={readOnly}
-						/>
-					)}
-					{isAdmin && (
-						<AgentSubagentList
-							readOnly={readOnly}
-							agentId={agent?.id ?? ""}
-							isSubagent={agent?.isSubagent ?? false}
-							subagentIds={form.subagentIds}
-							fallbackSubagents={agent?.subagents ?? []}
-							onChange={(subagentIds) => {
-								setField("subagentIds", subagentIds);
-							}}
-							confirmLeave={() =>
-								!isDirtyRef.current
-									? Promise.resolve(true)
-									: confirmDialog({
-											title: "Discard unsaved changes?",
-											description:
-												"Opening the subagent will leave this page and discard your edits.",
-											confirmLabel: "Discard and leave",
-											destructive: true,
-										})
-							}
-						/>
-					)}
-				</div>
+				{!isMobile && (
+					<div className="hidden min-w-0 overflow-y-auto bg-sidebar p-7 md:block md:flex-1 dark:bg-white/[0.02] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+						{capabilitiesPanel}
+					</div>
+				)}
 			</div>
 		</div>
 	);

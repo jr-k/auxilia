@@ -13,9 +13,12 @@ import { GroupPicker } from "@/components/ui/group-picker";
 import { VisibilityBadge } from "@/components/ui/visibility-badge";
 import { VisibilityPicker } from "@/components/ui/visibility-picker";
 import { ImageUpload } from "@/components/ui/image-upload";
+import { UnderlineTabs } from "@/components/ui/underline-tabs";
 import * as mcpServersApi from "@/lib/api/resources/mcp-servers";
 import { getApiErrorMessage } from "@/lib/api/errors";
 import { groupOptions } from "@/lib/groups";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { cn } from "@/lib/utils";
 import { useMcpServersStore } from "@/stores/mcp-servers-store";
 import { useUserStore } from "@/stores/user-store";
 import {
@@ -164,6 +167,10 @@ export default function MCPServerDetail({
 	const [rightPanel, setRightPanel] = useState<"tools" | "connections">(
 		"tools",
 	);
+	const [mobileTab, setMobileTab] = useState<"configuration" | "more">(
+		"configuration",
+	);
+	const isMobile = useIsMobile();
 	// ?edit=1 must not expose the editor to non-admins — the backend would
 	// 403 the save, but the destructive controls shouldn't render at all.
 	const editing = isEditing && isAdmin;
@@ -594,6 +601,52 @@ export default function MCPServerDetail({
 	const isOauth = server.authType === "oauth2";
 	const busy = isSubmitting || isResetting;
 
+	const secondaryPanel = editing ? (
+		<MCPServerToolsPanel
+			key={`${server.id}-${toolsRefreshRequest}`}
+			serverId={server.id}
+			disabledTools={disabledTools}
+			onDisabledToolsChange={setDisabledTools}
+			disabled={busy}
+		/>
+	) : (
+		<div className="flex min-h-0 flex-1 flex-col">
+			<div className="mb-5 flex w-fit shrink-0 rounded-[8px] bg-hover p-1 dark:bg-white/5">
+				{(["tools", "connections"] as const).map((panel) => (
+					<button
+						key={panel}
+						type="button"
+						onClick={() => {
+							setRightPanel(panel);
+						}}
+						className={`cursor-pointer rounded-[6px] px-3 py-1.5 text-[11.5px] font-semibold capitalize transition-colors ${
+							rightPanel === panel
+								? "bg-card text-foreground shadow-sm"
+								: "text-meta hover:text-foreground dark:text-panel-dim"
+						}`}
+					>
+						{panel}
+					</button>
+				))}
+			</div>
+			{rightPanel === "tools" ? (
+				<MCPServerToolsPanel
+					key={`${server.id}-${toolsRefreshRequest}`}
+					serverId={server.id}
+					disabledTools={server.disabledTools ?? []}
+					readOnly
+				/>
+			) : (
+				<ConnectedUsersPanel
+					serverId={server.id}
+					authType={server.authType}
+					isAdmin={isAdmin}
+					onResetAll={handleReset}
+				/>
+			)}
+		</div>
+	);
+
 	return (
 		<div className="flex h-svh min-w-0 flex-1 flex-col bg-background animate-in fade-in duration-300">
 			<SubpageHeader
@@ -686,6 +739,21 @@ export default function MCPServerDetail({
 						</div>
 					</div>
 
+					<UnderlineTabs
+						tabs={[
+							{ key: "configuration", label: "Configuration" },
+							{ key: "more", label: "More" },
+						]}
+						value={mobileTab}
+						onChange={setMobileTab}
+						className="mt-6 border-b border-border md:hidden"
+					/>
+
+					<div
+						className={cn(
+							mobileTab === "more" && "hidden md:block",
+						)}
+					>
 					{submitError && (
 						<div className="mt-5">
 							<Alert
@@ -1235,56 +1303,20 @@ export default function MCPServerDetail({
 							</div>
 						</div>
 					)}
-				</div>
-
-				{/* Right panel — tools while editing, connections otherwise */}
-				<div className="flex min-w-0 flex-1 flex-col overflow-hidden bg-sidebar p-7 dark:bg-white/[0.02]">
-					{editing ? (
-						<MCPServerToolsPanel
-							key={`${server.id}-${toolsRefreshRequest}`}
-							serverId={server.id}
-							disabledTools={disabledTools}
-							onDisabledToolsChange={setDisabledTools}
-							disabled={busy}
-						/>
-					) : (
-						<div className="flex min-h-0 flex-1 flex-col">
-							<div className="mb-5 flex w-fit shrink-0 rounded-[8px] bg-hover p-1 dark:bg-white/5">
-								{(["tools", "connections"] as const).map((panel) => (
-									<button
-										key={panel}
-										type="button"
-										onClick={() => {
-											setRightPanel(panel);
-										}}
-										className={`cursor-pointer rounded-[6px] px-3 py-1.5 text-[11.5px] font-semibold capitalize transition-colors ${
-											rightPanel === panel
-												? "bg-card text-foreground shadow-sm"
-												: "text-meta hover:text-foreground dark:text-panel-dim"
-										}`}
-									>
-										{panel}
-									</button>
-								))}
-							</div>
-							{rightPanel === "tools" ? (
-								<MCPServerToolsPanel
-									key={`${server.id}-${toolsRefreshRequest}`}
-									serverId={server.id}
-									disabledTools={server.disabledTools ?? []}
-									readOnly
-								/>
-							) : (
-								<ConnectedUsersPanel
-									serverId={server.id}
-									authType={server.authType}
-									isAdmin={isAdmin}
-									onResetAll={handleReset}
-								/>
-							)}
+					</div>
+					{isMobile && mobileTab === "more" && (
+						<div className="flex min-w-0 flex-col pt-5">
+							{secondaryPanel}
 						</div>
 					)}
 				</div>
+
+				{/* Right panel — tools while editing, connections otherwise */}
+				{!isMobile && (
+					<div className="hidden min-w-0 flex-1 flex-col overflow-hidden bg-sidebar p-7 md:flex dark:bg-white/[0.02]">
+						{secondaryPanel}
+					</div>
+				)}
 			</div>
 
 			<ForbiddenErrorDialog
