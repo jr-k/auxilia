@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.11.53](https://github.com/jr-k/auxilia/compare/web-v0.11.52...web-v0.11.53) (2026-10-12)
+
+
+### Features
+
+* **chat:** add conversation usage stats ([c04ce01](https://github.com/jr-k/auxilia/commit/c04ce01569f1089c1dc44f3bf128a5420a45180b))
+* **pwa:** generate manifest from custom appearance ([32a317b](https://github.com/jr-k/auxilia/commit/32a317bafcf1d0727b0297909e1ddd5e9b5dd361))
+
+
+### Bug Fixes
+
+* **ui:** move secondary panels into mobile tabs ([2da7c26](https://github.com/jr-k/auxilia/commit/2da7c2648e5c7757a8eeb4ceba54414015be03c9))
+
 ## [0.11.52](https://github.com/jr-k/auxilia/compare/web-v0.11.51...web-v0.11.52) (2026-10-12)
 
 
