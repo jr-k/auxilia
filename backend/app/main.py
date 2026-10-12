@@ -24,7 +24,7 @@ from app.invites.router import router as invites_router
 from app.logging_config import configure_logging
 from app.mcp.apps.router import router as mcp_apps_router
 from app.mcp.oauth.router import router as mcp_oauth_router
-from app.mcp.router import auxilia_mcp
+from app.mcp.router import auxilia_mcp, transport_security_settings
 from app.mcp.servers.router import router as mcp_servers_router
 from app.model_providers.router import router as model_providers_router
 from app.notifications.router import router as notifications_router
@@ -269,4 +269,11 @@ app.include_router(realtime_router)
 app.include_router(sandboxes_router)
 app.include_router(slack_router)
 
-app.mount("/", auxilia_mcp.streamable_http_app(stateless_http=True, json_response=True))
+app.mount(
+    "/",
+    auxilia_mcp.streamable_http_app(
+        stateless_http=True,
+        json_response=True,
+        transport_security=transport_security_settings(),
+    ),
+)

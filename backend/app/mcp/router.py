@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from typing import Any
+from urllib.parse import urlparse
 from uuid import UUID
 
 from mcp.server.auth.settings import (
@@ -11,6 +12,7 @@ from mcp.server.auth.settings import (
     RevocationOptions,
 )
 from mcp.server.mcpserver import Context, MCPServer
+from mcp.server.transport_security import TransportSecuritySettings
 
 from app.agents.core.service import AgentService
 from app.agents.schemas import AgentConfig
@@ -27,6 +29,25 @@ from app.skills.schemas import SkillSave
 from app.skills.service import SkillService
 from app.threads.service import ThreadService
 from app.users.models import WorkspaceRole
+
+
+def transport_security_settings() -> TransportSecuritySettings:
+    public_origin = issuer_url()
+    return TransportSecuritySettings(
+        allowed_hosts=[
+            urlparse(public_origin).netloc,
+            "backend:8000",
+            "127.0.0.1:*",
+            "localhost:*",
+            "[::1]:*",
+        ],
+        allowed_origins=[
+            public_origin,
+            "http://127.0.0.1:*",
+            "http://localhost:*",
+            "http://[::1]:*",
+        ],
+    )
 
 
 auxilia_mcp = MCPServer(
