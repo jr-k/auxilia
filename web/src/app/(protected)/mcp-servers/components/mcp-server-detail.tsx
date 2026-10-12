@@ -161,7 +161,7 @@ export default function MCPServerDetail({
 
 	const [server, setServer] = useState<MCPServer>(initialServer);
 	const managedDatabaseHref =
-		server.managedBy === "dbhub" && server.managedResourceId
+		server.managedBy === "database" && server.managedResourceId
 			? `/mcp-servers/database/${server.managedResourceId}`
 			: null;
 	const [isEditing, setIsEditing] = useState(initialEdit);
@@ -748,7 +748,9 @@ export default function MCPServerDetail({
 								)}
 							</div>
 							<div className="mt-1 truncate font-mono text-[11.5px] text-meta dark:text-panel-dim">
-								{managedDatabaseHref ? "Managed by DBHub" : server.url}
+								{managedDatabaseHref
+									? (server.managedEndpoint ?? "Managed database")
+									: server.url}
 							</div>
 						</div>
 					</div>
@@ -791,9 +793,17 @@ export default function MCPServerDetail({
 									{server.name}
 								</span>
 							</ConfigRow>
-							<ConfigRow label="Remote server address">
+							<ConfigRow
+								label={
+									managedDatabaseHref
+										? "Database endpoint"
+										: "Remote server address"
+								}
+							>
 								<span className="break-all font-mono text-[12px] text-foreground">
-									{managedDatabaseHref ? "Managed by DBHub" : server.url}
+									{managedDatabaseHref
+										? (server.managedEndpoint ?? "Managed database")
+										: server.url}
 								</span>
 							</ConfigRow>
 							<ConfigRow label="Description">

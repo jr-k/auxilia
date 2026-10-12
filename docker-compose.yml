@@ -73,7 +73,6 @@ services:
       # its generated config through the shared volume below.
       DBHUB_ENABLED: ${DBHUB_ENABLED:-true}
       DBHUB_URL: http://dbhub:8080
-      DBHUB_MCP_URL: http://dbhub:8080/mcp
       DBHUB_AUTH_TOKEN: ${DBHUB_AUTH_TOKEN:?Set DBHUB_AUTH_TOKEN}
       DBHUB_CONFIG_PATH: /var/lib/auxilia/dbhub/dbhub.toml
     depends_on:

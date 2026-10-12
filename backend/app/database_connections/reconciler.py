@@ -158,9 +158,9 @@ class DBHubReconciler:
                         None
                         if ready
                         else (
-                            "DBHub could not connect to this source"
+                            "Could not connect to the database"
                             if applied
-                            else "DBHub did not apply this source"
+                            else "The database connection could not be configured"
                         )
                     )
                     if ready:
@@ -191,7 +191,9 @@ class DBHubReconciler:
                     state.last_error = None
                     state.last_applied_at = now
                 else:
-                    state.last_error = "One or more DBHub sources failed to apply"
+                    state.last_error = (
+                        "One or more database connections could not be configured"
+                    )
                 db.add(state)
         except Exception as exc:
             await self._set_failure(type(exc).__name__)

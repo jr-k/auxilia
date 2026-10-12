@@ -1,7 +1,8 @@
+from collections.abc import Collection
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlmodel import select
+from sqlmodel import col, select
 
 from app.database_connections.models import (
     DatabaseConnectionCredentialDB,
@@ -31,6 +32,19 @@ class DatabaseConnectionRepository(BaseRepository[DatabaseConnectionDB]):
 
     async def list_all(self) -> list[DatabaseConnectionDB]:
         stmt = select(DatabaseConnectionDB).order_by(DatabaseConnectionDB.source_id)
+        result = await self.db.execute(stmt)
+        return list(result.scalars().all())
+
+    async def list_by_ids(
+        self, connection_ids: Collection[UUID]
+    ) -> list[DatabaseConnectionDB]:
+        if not connection_ids:
+            return []
+        stmt = self._scope(
+            select(DatabaseConnectionDB).where(
+                col(DatabaseConnectionDB.id).in_(connection_ids)
+            )
+        )
         result = await self.db.execute(stmt)
         return list(result.scalars().all())
 

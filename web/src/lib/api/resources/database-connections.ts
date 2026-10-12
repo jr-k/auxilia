@@ -1,6 +1,6 @@
 import { api } from "@/lib/api/client";
 import type {
-	DBHubStatus,
+	DatabaseConnectorStatus,
 	DatabaseConnection,
 	DatabaseConnectionCreate,
 	DatabaseConnectionUpdate,
@@ -58,7 +58,9 @@ export async function reconcileDatabaseConnection(
 	await api.post(`/database-connections/${connectionId}/reconcile`);
 }
 
-export async function getDBHubStatus(): Promise<DBHubStatus> {
-	const response = await api.get<DBHubStatus>("/database-connections/status");
+export async function getDatabaseConnectorStatus(): Promise<DatabaseConnectorStatus> {
+	const response = await api.get<DatabaseConnectorStatus>(
+		"/database-connections/status",
+	);
 	return response.data;
 }

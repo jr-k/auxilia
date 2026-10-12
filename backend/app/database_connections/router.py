@@ -7,7 +7,7 @@ from app.database_connections.schemas import (
     DatabaseConnectionCreate,
     DatabaseConnectionPatch,
     DatabaseConnectionResponse,
-    DBHubStatusResponse,
+    DatabaseConnectorStatusResponse,
 )
 from app.database_connections.service import (
     DatabaseConnectionService,
@@ -30,11 +30,11 @@ async def list_database_connections(
     return await service.list_responses()
 
 
-@router.get("/status", response_model=DBHubStatusResponse)
-async def get_dbhub_status(
+@router.get("/status", response_model=DatabaseConnectorStatusResponse)
+async def get_database_connector_status(
     _: UserDB = Depends(require_admin),
     service: DatabaseConnectionService = Depends(get_database_connection_service),
-) -> DBHubStatusResponse:
+) -> DatabaseConnectorStatusResponse:
     return await service.status()
 
 

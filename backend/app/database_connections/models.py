@@ -1,5 +1,6 @@
 from datetime import datetime
 from enum import Enum
+from urllib.parse import quote
 from uuid import UUID
 
 from sqlalchemy import DateTime
@@ -14,6 +15,15 @@ class DatabaseEngine(str, Enum):
     mariadb = "mariadb"
     sqlserver = "sqlserver"
     oracle = "oracle"
+
+
+DATABASE_ENGINE_ICON_URLS: dict[DatabaseEngine, str] = {
+    DatabaseEngine.postgres: "https://cdn.jsdelivr.net/gh/devicons/devicon@v2.17.0/icons/postgresql/postgresql-original.svg",
+    DatabaseEngine.mysql: "https://cdn.jsdelivr.net/gh/devicons/devicon@v2.17.0/icons/mysql/mysql-original.svg",
+    DatabaseEngine.mariadb: "https://cdn.jsdelivr.net/gh/devicons/devicon@v2.17.0/icons/mariadb/mariadb-original.svg",
+    DatabaseEngine.sqlserver: "https://cdn.jsdelivr.net/gh/devicons/devicon@v2.17.0/icons/microsoftsqlserver/microsoftsqlserver-original.svg",
+    DatabaseEngine.oracle: "https://cdn.jsdelivr.net/gh/devicons/devicon@v2.17.0/icons/oracle/oracle-original.svg",
+}
 
 
 class DatabaseConnectionStatus(str, Enum):
@@ -74,6 +84,25 @@ class DatabaseConnectionDB(DatabaseConnectionBase, BaseDBModel, table=True):
         default=None,
         sa_column=Column(DateTime(timezone=True), nullable=True),
     )
+
+    @property
+    def display_endpoint(self) -> str:
+        scheme = {
+            DatabaseEngine.postgres: "postgresql",
+            DatabaseEngine.mysql: "mysql",
+            DatabaseEngine.mariadb: "mariadb",
+            DatabaseEngine.sqlserver: "sqlserver",
+            DatabaseEngine.oracle: "oracle",
+        }[self.engine]
+        host = (
+            f"[{self.host}]"
+            if ":" in self.host
+            and not (self.host.startswith("[") and self.host.endswith("]"))
+            else self.host
+        )
+        username = quote(self.username, safe="")
+        database = quote(self.database, safe="")
+        return f"{scheme}://{username}@{host}:{self.port}/{database}"
 
 
 class DatabaseConnectionCredentialDB(BaseDBModel, table=True):

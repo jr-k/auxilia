@@ -7,6 +7,7 @@ from app.agents.mcp_servers.service import AgentMCPServerService
 from app.database import get_db
 from app.database_connections.client import list_dbhub_source_ids
 from app.database_connections.models import (
+    DATABASE_ENGINE_ICON_URLS,
     DatabaseConnectionDB,
     DatabaseConnectionStatus,
 )
@@ -15,7 +16,7 @@ from app.database_connections.schemas import (
     DatabaseConnectionCreate,
     DatabaseConnectionPatch,
     DatabaseConnectionResponse,
-    DBHubStatusResponse,
+    DatabaseConnectorStatusResponse,
 )
 from app.database_connections.settings import dbhub_settings
 from app.database_connections.tools import (
@@ -30,6 +31,14 @@ from app.mcp.servers.service import MCPServerService
 from app.service import BaseService
 from app.users.models import UserDB
 from app.workspaces.dependencies import get_active_workspace_id
+
+
+def _public_connection_error(error: str | None) -> str | None:
+    if error == "DBHub could not connect to this source":
+        return "Could not connect to the database"
+    if error == "DBHub did not apply this source":
+        return "The database connection could not be configured"
+    return error
 
 
 class DatabaseConnectionService(
@@ -79,7 +88,10 @@ class DatabaseConnectionService(
             id=connection.id,
             mcp_server_id=connection.mcp_server_id,
             name=server.name,
+            icon_url=server.icon_url or DATABASE_ENGINE_ICON_URLS[connection.engine],
+            image_revision=server.image_revision,
             description=server.description,
+            group=server.group,
             engine=connection.engine,
             host=connection.host,
             port=connection.port,
@@ -93,7 +105,7 @@ class DatabaseConnectionService(
             visibility=server.visibility,
             team_ids=await self.mcp_servers.repository.list_team_ids(server.id),
             status=connection.status,
-            last_error=connection.last_error,
+            last_error=_public_connection_error(connection.last_error),
             desired_revision=connection.desired_revision,
             applied_revision=connection.applied_revision,
             last_applied_at=connection.last_applied_at,
@@ -107,7 +119,7 @@ class DatabaseConnectionService(
             for connection in await self.repository.list_scoped()
         ]
 
-    async def status(self) -> DBHubStatusResponse:
+    async def status(self) -> DatabaseConnectorStatusResponse:
         state = await self.repository.get_control_state()
         reachable = False
         source_count = 0
@@ -117,7 +129,7 @@ class DatabaseConnectionService(
                 reachable = True
             except Exception:  # noqa: BLE001 — status reports unreachability
                 reachable = False
-        return DBHubStatusResponse(
+        return DatabaseConnectorStatusResponse(
             enabled=dbhub_settings.enabled,
             reachable=reachable,
             desired_revision=state.desired_revision,
@@ -144,7 +156,7 @@ class DatabaseConnectionService(
                 api_key=dbhub_settings.auth_token,
                 visibility=data.visibility,
                 team_ids=data.team_ids,
-                group="Databases",
+                group=data.group,
             ),
             user.id,
         )
@@ -179,7 +191,7 @@ class DatabaseConnectionService(
     async def update(
         self, connection_id: UUID, data: DatabaseConnectionPatch
     ) -> DatabaseConnectionResponse:
-        server_fields = {"name", "description", "visibility"}
+        server_fields = {"name", "description", "group", "visibility"}
         server_update = data.model_dump(include=server_fields, exclude_unset=True)
         if "team_ids" in data.model_fields_set:
             server_update["team_ids"] = data.team_ids
@@ -195,12 +207,14 @@ class DatabaseConnectionService(
             exclude={
                 "name",
                 "description",
+                "group",
                 "password",
                 "visibility",
                 "team_ids",
             },
         )
         required_fields = {
+            "engine",
             "host",
             "port",
             "database",

@@ -38,6 +38,9 @@ from app.agents.schemas import (
     SubagentResponse,
 )
 from app.database import get_db
+from app.database_connections.models import DATABASE_ENGINE_ICON_URLS
+from app.database_connections.repository import DatabaseConnectionRepository
+from app.database_connections.tools import DBHUB_MANAGED_BY
 from app.exceptions import (
     DomainValidationError,
     NotFoundError,
@@ -134,6 +137,20 @@ class AgentService(BaseService[AgentDB, AgentRepository]):
             server.id: server
             for server in await self.mcp_servers.list_by_ids(server_ids)
         }
+        managed_connections = await DatabaseConnectionRepository(
+            self.db, self.workspace_id
+        ).list_by_ids(
+            [
+                server.managed_resource_id
+                for server in server_rows.values()
+                if server.managed_by == DBHUB_MANAGED_BY
+                and server.managed_resource_id is not None
+            ]
+        )
+        managed_icons = {
+            connection.id: DATABASE_ENGINE_ICON_URLS[connection.engine]
+            for connection in managed_connections
+        }
         configured_by_id = {
             server_id: all(
                 binding.tools is not None
@@ -146,7 +163,12 @@ class AgentService(BaseService[AgentDB, AgentRepository]):
             AgentResourceMCPServerResponse(
                 id=server.id,
                 name=server.name,
-                icon_url=server.icon_url,
+                icon_url=server.icon_url
+                or (
+                    managed_icons.get(server.managed_resource_id)
+                    if server.managed_resource_id is not None
+                    else None
+                ),
                 image_revision=server.image_revision,
                 description=server.description,
                 configured=configured_by_id[server_id],
@@ -1292,13 +1314,7 @@ class AgentService(BaseService[AgentDB, AgentRepository]):
         if not bindings:
             return {"ready": True, "disconnected_servers": [], "status": "ready"}
 
-        for binding in bindings:
-            if binding.tools is None:
-                return {
-                    "ready": False,
-                    "disconnected_servers": [],
-                    "status": "not_configured",
-                }
+        is_configured = all(binding.tools is not None for binding in bindings)
 
         server_ids = {b.mcp_server_id for b in bindings}  # dedupe for the probe
         servers = await self.mcp_servers.list_by_ids(server_ids)
@@ -1309,6 +1325,13 @@ class AgentService(BaseService[AgentDB, AgentRepository]):
         disconnected = [
             str(server.id) for server in servers if not authorized.get(server.id, True)
         ]
+
+        if not is_configured:
+            return {
+                "ready": False,
+                "disconnected_servers": disconnected,
+                "status": "not_configured",
+            }
 
         return {
             "ready": True,

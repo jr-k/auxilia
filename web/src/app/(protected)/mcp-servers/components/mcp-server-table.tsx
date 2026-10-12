@@ -50,7 +50,7 @@ function serverHref(server: MCPServer): string {
 }
 
 function serverEditHref(server: MCPServer): string {
-	return server.managedBy === "dbhub" && server.managedResourceId
+	return server.managedBy === "database" && server.managedResourceId
 		? `/mcp-servers/database/${server.managedResourceId}`
 		: `${serverHref(server)}?edit=1`;
 }
@@ -169,7 +169,7 @@ export default function MCPServerTable({
 		() =>
 			isAdmin
 				? orderedServers
-						.filter((server) => server.managedBy !== "dbhub")
+						.filter((server) => server.managedBy !== "database")
 						.map((server) => server.id)
 				: [],
 		[isAdmin, orderedServers],
@@ -296,7 +296,7 @@ export default function MCPServerTable({
 					<SelectableLeading
 						selected={selection.isSelected(server.id)}
 						selectionMode={selection.selectionMode}
-						disabled={!isAdmin || server.managedBy === "dbhub"}
+						disabled={!isAdmin || server.managedBy === "database"}
 						label={`Select ${server.name}`}
 						onToggle={(shiftKey) => {
 							selection.toggle(server.id, shiftKey);
@@ -315,11 +315,6 @@ export default function MCPServerTable({
 						<div className="truncate text-[13.5px] font-semibold text-foreground">
 							{server.name}
 						</div>
-						{server.managedBy === "dbhub" ? (
-							<span className="mt-1 inline-flex rounded-full bg-petrol-tint px-2 py-0.5 text-[10px] font-semibold text-petrol">
-								Managed database
-							</span>
-						) : null}
 						<div className="mt-px truncate text-[12px] text-subtle dark:text-muted-foreground">
 							{server.description || "No description provided."}
 						</div>
@@ -333,7 +328,9 @@ export default function MCPServerTable({
 			width: "220px",
 			cell: (server) => (
 				<span className="block truncate font-mono text-[11px] text-subtle dark:text-muted-foreground">
-					{server.managedBy === "dbhub" ? "Managed by DBHub" : server.url}
+					{server.managedBy === "database"
+						? (server.managedEndpoint ?? "Managed database")
+						: server.url}
 				</span>
 			),
 		},
@@ -377,7 +374,7 @@ export default function MCPServerTable({
 							>
 								Edit
 							</button>
-							{server.managedBy !== "dbhub" ? (
+							{server.managedBy !== "database" ? (
 								<DropdownMenu
 									items={[
 										...(server.authType === "oauth2"
@@ -533,7 +530,7 @@ export default function MCPServerTable({
 										if (
 											!selection.selectionMode ||
 											!isAdmin ||
-											server.managedBy === "dbhub"
+											server.managedBy === "database"
 										)
 											return;
 										event.preventDefault();
@@ -547,7 +544,7 @@ export default function MCPServerTable({
 									<SelectableLeading
 										selected={selection.isSelected(server.id)}
 										selectionMode={selection.selectionMode}
-										disabled={!isAdmin || server.managedBy === "dbhub"}
+										disabled={!isAdmin || server.managedBy === "database"}
 										label={`Select ${server.name}`}
 										onToggle={(shiftKey) => {
 											selection.toggle(server.id, shiftKey);
@@ -569,11 +566,6 @@ export default function MCPServerTable({
 										<div className="mt-1 flex flex-wrap items-center gap-1.5">
 											<AuthTypeBadge authType={server.authType} />
 											<VisibilityBadge visibility={server.visibility ?? "workspace"} />
-											{server.managedBy === "dbhub" ? (
-												<span className="rounded-full bg-petrol-tint px-2 py-0.5 text-[9px] font-semibold text-petrol">
-													Managed database
-												</span>
-											) : null}
 										</div>
 									</div>
 								</div>
@@ -581,8 +573,8 @@ export default function MCPServerTable({
 									{server.description || "No description provided."}
 								</p>
 								<p className="pointer-events-none mt-3 truncate border-t border-[#edf2ef] pt-3 font-mono text-[10.5px] text-meta dark:border-white/5 dark:text-panel-dim">
-									{server.managedBy === "dbhub"
-										? "Managed by DBHub"
+									{server.managedBy === "database"
+										? (server.managedEndpoint ?? "Managed database")
 										: server.url}
 								</p>
 								<div className="relative z-10 mt-3 flex flex-wrap items-center justify-end gap-1.5">
@@ -598,7 +590,7 @@ export default function MCPServerTable({
 											>
 												Edit
 											</button>
-											{server.managedBy !== "dbhub" ? (
+											{server.managedBy !== "database" ? (
 												<DropdownMenu
 													items={[
 														...(server.authType === "oauth2"
@@ -639,7 +631,7 @@ export default function MCPServerTable({
 						selection.toggle(server.id, shiftKey);
 					}}
 					isRowSelectable={(server) =>
-						isAdmin && server.managedBy !== "dbhub"
+						isAdmin && server.managedBy !== "database"
 					}
 					isLoading={isLoading}
 					scrollBody

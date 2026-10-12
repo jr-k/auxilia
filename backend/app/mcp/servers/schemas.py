@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Annotated, Literal
 from uuid import UUID
 
-from pydantic import field_validator
+from pydantic import field_serializer, field_validator
 from sqlmodel import Field, SQLModel
 
 from app.mcp.servers.models import MCPAuthType, ServiceCredentialProvider
@@ -87,6 +87,7 @@ class MCPServerResponse(SQLModel):
     disabled_tools: list[str] = Field(default_factory=list)
     managed_by: str | None = None
     managed_resource_id: UUID | None = None
+    managed_endpoint: str | None = None
     created_at: datetime
     updated_at: datetime
     # Static OAuth client_id when configured (public identifier, not a secret);
@@ -95,6 +96,10 @@ class MCPServerResponse(SQLModel):
     service_credential_provider: ServiceCredentialProvider | None = None
     service_credential_principal: str | None = None
     service_credential_scopes: list[str] = Field(default_factory=list)
+
+    @field_serializer("managed_by")
+    def serialize_managed_by(self, value: str | None) -> str | None:
+        return "database" if value == "dbhub" else value
 
 
 class OfficialMCPServerResponse(SQLModel):

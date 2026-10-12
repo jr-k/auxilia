@@ -10,6 +10,7 @@ from app.visibility import ResourceVisibility
 class DatabaseConnectionCreate(SQLModel):
     name: str = Field(min_length=1, max_length=255)
     description: str | None = Field(default=None, max_length=1000)
+    group: str | None = Field(default=None, max_length=255)
     engine: DatabaseEngine
     host: str = Field(min_length=1, max_length=255)
     port: int = Field(ge=1, le=65535)
@@ -28,6 +29,8 @@ class DatabaseConnectionCreate(SQLModel):
 class DatabaseConnectionPatch(SQLModel):
     name: str | None = Field(default=None, min_length=1, max_length=255)
     description: str | None = Field(default=None, max_length=1000)
+    group: str | None = Field(default=None, max_length=255)
+    engine: DatabaseEngine | None = None
     host: str | None = Field(default=None, min_length=1, max_length=255)
     port: int | None = Field(default=None, ge=1, le=65535)
     database: str | None = Field(default=None, min_length=1, max_length=255)
@@ -46,7 +49,10 @@ class DatabaseConnectionResponse(SQLModel):
     id: UUID
     mcp_server_id: UUID
     name: str
+    icon_url: str
+    image_revision: UUID | None = None
     description: str | None = None
+    group: str | None = None
     engine: DatabaseEngine
     host: str
     port: int
@@ -69,7 +75,7 @@ class DatabaseConnectionResponse(SQLModel):
     updated_at: datetime
 
 
-class DBHubStatusResponse(SQLModel):
+class DatabaseConnectorStatusResponse(SQLModel):
     enabled: bool
     reachable: bool
     desired_revision: int

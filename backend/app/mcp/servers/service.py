@@ -10,7 +10,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.core.repository import AgentRepository
 from app.database import get_db
-from app.database_connections.tools import filter_managed_tools
+from app.database_connections.models import DATABASE_ENGINE_ICON_URLS
+from app.database_connections.repository import DatabaseConnectionRepository
+from app.database_connections.tools import DBHUB_MANAGED_BY, filter_managed_tools
 from app.exceptions import (
     DomainValidationError,
     NotFoundError,
@@ -266,8 +268,23 @@ class MCPServerService(BaseService[MCPServerDB, MCPServerRepository]):
             if server.visibility == ResourceVisibility.teams
             else []
         )
+        managed_endpoint = None
+        icon_url = server.icon_url
+        if (
+            server.managed_by == DBHUB_MANAGED_BY
+            and server.managed_resource_id is not None
+        ):
+            connection = await DatabaseConnectionRepository(
+                self.db, self.workspace_id
+            ).get_scoped(server.managed_resource_id)
+            managed_endpoint = (
+                connection.display_endpoint if connection is not None else None
+            )
+            if connection is not None and icon_url is None:
+                icon_url = DATABASE_ENGINE_ICON_URLS[connection.engine]
         return MCPServerResponse(
-            **server.model_dump(),
+            **server.model_dump(exclude={"icon_url"}),
+            icon_url=icon_url,
             oauth_client_id=oauth_client_id,
             service_credential_provider=(
                 service_creds.provider if service_creds else None
@@ -277,6 +294,7 @@ class MCPServerService(BaseService[MCPServerDB, MCPServerRepository]):
             ),
             service_credential_scopes=(service_creds.scopes if service_creds else []),
             team_ids=team_ids,
+            managed_endpoint=managed_endpoint,
         )
 
     async def get_oauth_secret_hint(self, server_id: UUID) -> OAuthSecretHint:
@@ -302,11 +320,32 @@ class MCPServerService(BaseService[MCPServerDB, MCPServerRepository]):
                 if server.visibility == ResourceVisibility.teams
             ]
         )
+        managed_connections = await DatabaseConnectionRepository(
+            self.db, self.workspace_id
+        ).list_by_ids(
+            [
+                server.managed_resource_id
+                for server, *_ in rows
+                if server.managed_by == DBHUB_MANAGED_BY
+                and server.managed_resource_id is not None
+            ]
+        )
+        managed_connections_by_id = {
+            connection.id: connection for connection in managed_connections
+        }
         # Gate client_id on the current auth type (as to_response does): a server
         # switched away from OAuth2 may still have a stale credentials row.
         return [
             MCPServerResponse(
-                **server.model_dump(),
+                **server.model_dump(exclude={"icon_url"}),
+                icon_url=server.icon_url
+                or (
+                    DATABASE_ENGINE_ICON_URLS[
+                        managed_connections_by_id[server.managed_resource_id].engine
+                    ]
+                    if server.managed_resource_id in managed_connections_by_id
+                    else None
+                ),
                 team_ids=team_ids.get(server.id, []),
                 oauth_client_id=(
                     client_id if server.auth_type == MCPAuthType.oauth2 else None
@@ -328,6 +367,13 @@ class MCPServerService(BaseService[MCPServerDB, MCPServerRepository]):
                     if server.auth_type
                     in (MCPAuthType.service_identity, MCPAuthType.custom_http)
                     else []
+                ),
+                managed_endpoint=(
+                    managed_connections_by_id[
+                        server.managed_resource_id
+                    ].display_endpoint
+                    if server.managed_resource_id in managed_connections_by_id
+                    else None
                 ),
             )
             for (

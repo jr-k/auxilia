@@ -9,7 +9,10 @@ export interface DatabaseConnection {
 	id: string;
 	mcpServerId: string;
 	name: string;
+	iconUrl: string;
+	imageRevision?: string | null;
 	description?: string | null;
+	group?: string | null;
 	engine: DatabaseEngine;
 	host: string;
 	port: number;
@@ -35,6 +38,7 @@ export interface DatabaseConnection {
 export interface DatabaseConnectionCreate {
 	name: string;
 	description?: string | null;
+	group?: string | null;
 	engine: DatabaseEngine;
 	host: string;
 	port: number;
@@ -50,11 +54,9 @@ export interface DatabaseConnectionCreate {
 	teamIds?: string[];
 }
 
-export type DatabaseConnectionUpdate = Partial<
-	Omit<DatabaseConnectionCreate, "engine">
->;
+export type DatabaseConnectionUpdate = Partial<DatabaseConnectionCreate>;
 
-export interface DBHubStatus {
+export interface DatabaseConnectorStatus {
 	enabled: boolean;
 	reachable: boolean;
 	desiredRevision: number;
