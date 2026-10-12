@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.48](https://github.com/jr-k/auxilia/compare/web-v0.11.47...web-v0.11.48) (2026-10-12)
+
+
+### Bug Fixes
+
+* **mcp:** use configured public host through proxy ([cf43e50](https://github.com/jr-k/auxilia/commit/cf43e50a84357ce39e6cdf705253dec9ee3ed2e6))
+
 ## [0.11.47](https://github.com/jr-k/auxilia/compare/web-v0.11.46...web-v0.11.47) (2026-10-11)
 
 
