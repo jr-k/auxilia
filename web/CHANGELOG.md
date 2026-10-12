@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.50](https://github.com/jr-k/auxilia/compare/web-v0.11.49...web-v0.11.50) (2026-10-12)
+
+
+### Bug Fixes
+
+* **models:** preserve slashes in model routes ([42951c5](https://github.com/jr-k/auxilia/commit/42951c5e06e65e5121d7936cdf35402a3c9753fb))
+
 ## [0.11.49](https://github.com/jr-k/auxilia/compare/web-v0.11.48...web-v0.11.49) (2026-10-12)
 
 
