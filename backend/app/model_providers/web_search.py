@@ -13,11 +13,7 @@ def compatible_reasoning_effort(
     web_search_enabled: bool,
 ) -> str | None:
     """Return an effort accepted when the provider's web-search tool is bound."""
-    if (
-        provider == "openai"
-        and web_search_enabled
-        and reasoning_effort == "minimal"
-    ):
+    if provider == "openai" and web_search_enabled and reasoning_effort == "minimal":
         return "low"
     return reasoning_effort
 

@@ -173,9 +173,7 @@ class ThreadService(BaseService[ThreadDB, ThreadRepository]):
         # than the effort (ensure_available clamps it at run time), not the
         # whole scheduled firing.
         if reasoning_effort is not None and source != ThreadSource.trigger:
-            await ModelService.validate_reasoning_effort(
-                model_id, reasoning_effort
-            )
+            await ModelService.validate_reasoning_effort(model_id, reasoning_effort)
         # `trigger_id` is a keyword (not a ThreadCreate field) so API clients
         # can't attach arbitrary threads to a trigger — only the scanner sets it.
         thread = ThreadDB(
