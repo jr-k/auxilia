@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.51](https://github.com/jr-k/auxilia/compare/web-v0.11.50...web-v0.11.51) (2026-10-12)
+
+
+### Features
+
+* **agents:** add configurable tool discovery ([a0b48f9](https://github.com/jr-k/auxilia/commit/a0b48f9ba05cd69fa4a1cde69d54af609dc7fc93))
+
 ## [0.11.50](https://github.com/jr-k/auxilia/compare/web-v0.11.49...web-v0.11.50) (2026-10-12)
 
 
