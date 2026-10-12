@@ -28,6 +28,7 @@ type PromptQueueProps = {
 	editingId: string | null;
 	busyId: string | null;
 	onEdit: (item: QueuedPrompt) => void;
+	onSendNow: (id: string) => Promise<void>;
 	onRemove: (id: string) => Promise<void>;
 	onReorder: (orderedIds: string[]) => Promise<void>;
 };
@@ -37,6 +38,7 @@ export function PromptQueue({
 	editingId,
 	busyId,
 	onEdit,
+	onSendNow,
 	onRemove,
 	onReorder,
 }: PromptQueueProps) {
@@ -207,6 +209,17 @@ export function PromptQueue({
 								<p className="min-w-0 flex-1 truncate text-[12.5px] font-medium text-foreground/85">
 									{item.text}
 								</p>
+								<button
+									type="button"
+									disabled={isBusy}
+									onClick={() => {
+										void onSendNow(item.id);
+									}}
+									aria-label="Send queued prompt now"
+									className="shrink-0 cursor-pointer rounded-md px-2 py-1 text-[11px] font-semibold text-petrol opacity-80 transition-all hover:bg-petrol/10 disabled:cursor-wait disabled:opacity-40 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
+								>
+									Send now
+								</button>
 								<button
 									type="button"
 									disabled={isBusy}

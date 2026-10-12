@@ -134,6 +134,13 @@ export async function endQueuedPromptEdit(
 	await api.delete(`/threads/${threadId}/runs/queue/${runId}/edit`);
 }
 
+export async function sendQueuedPromptNow(
+	threadId: string,
+	runId: string,
+): Promise<void> {
+	await api.post(`/threads/${threadId}/runs/queue/${runId}/send-now`);
+}
+
 export async function removeQueuedPrompt(
 	threadId: string,
 	runId: string,

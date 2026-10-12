@@ -326,6 +326,16 @@ async def reorder_prompt_queue(
     return _queued_responses(records)
 
 
+@router.post("/queue/{run_id}/send-now", status_code=204)
+async def send_prompt_queue_item_now(
+    thread_id: str,
+    run_id: str,
+    thread: ThreadResponse = Depends(authorize_thread_for_run_service),
+    runs: RunService = Depends(get_run_service),
+) -> None:
+    await runs.send_queued_prompt_now(thread_id, run_id, thread.workspace_id)
+
+
 @router.delete("/queue/{run_id}", status_code=204)
 async def remove_prompt_queue_item(
     thread_id: str,

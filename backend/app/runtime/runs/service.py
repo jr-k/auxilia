@@ -409,6 +409,49 @@ class RunService:
             )
         await self.end_queue_edit(record.thread_id, run_id, record.workspace_id)
 
+    async def send_queued_prompt_now(
+        self, thread_id: str, run_id: str, workspace_id: UUID
+    ) -> None:
+        """Promote one queued prompt, then stop the turn currently executing."""
+        current_run_id: str | None = None
+        async with AsyncSessionLocal() as db:
+            repository = RunRepository(db, workspace_id)
+            await repository.lock_thread_runs(thread_id)
+            records = await repository.list_queued_prompts(thread_id, for_update=True)
+            if run_id not in {record.id for record in records}:
+                raise StaleRevisionError(
+                    "This prompt has already started and can no longer be sent now."
+                )
+
+            current = await repository.get_current_for_thread(thread_id)
+            if current is not None and current.id != run_id:
+                current_run_id = current.id
+
+            ordered_ids = [
+                run_id,
+                *(record.id for record in records if record.id != run_id),
+            ]
+            await repository.set_queue_positions(records, ordered_ids)
+            threads = ThreadRepository(db, workspace_id)
+            thread = await threads.get(thread_id)
+            if thread is not None and thread.queue_edit_run_id is not None:
+                await threads.clear_queue_edit_lease(
+                    thread_id, thread.queue_edit_run_id
+                )
+            await stage_workspace_event(
+                db,
+                workspace_id=records[0].workspace_id,
+                kind=WorkspaceEventKind.prompt_queue,
+                target_user_id=records[0].user_id,
+                thread_id=thread_id,
+            )
+            await db.commit()
+
+        # The queue order must be durable before the current run is allowed to
+        # finish, otherwise the dispatcher could claim the previous head.
+        if current_run_id is not None:
+            await self.cancel(current_run_id)
+
     async def list_active_for_user(
         self, user_id: str, workspace_id: UUID, *, recent_seconds: int = 0
     ) -> list[RunDB]:

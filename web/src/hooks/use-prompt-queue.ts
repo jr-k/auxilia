@@ -305,6 +305,47 @@ export function usePromptQueue(
 		[threadId],
 	);
 
+	const sendNow = useCallback(
+		async (id: string) => {
+			const version = requestVersion.current;
+			const previous = items;
+			setItems((current) => {
+				const selected = current.find((item) => item.id === id);
+				if (!selected) return current;
+				const ordered = [
+					selected,
+					...current.filter((item) => item.id !== id),
+				];
+				const positions = current
+					.map((item) => item.position)
+					.sort((a, b) => a - b);
+				return ordered.map((item, index) => ({
+					...item,
+					position: positions[index] ?? item.position,
+				}));
+			});
+			try {
+				await threadsApi.sendQueuedPromptNow(threadId, id);
+				if (
+					threadIdRef.current === threadId &&
+					version === requestVersion.current
+				) {
+					void refresh().catch(() => {});
+				}
+			} catch (error) {
+				if (
+					threadIdRef.current === threadId &&
+					version === requestVersion.current
+				) {
+					setItems(previous);
+					void refresh().catch(() => {});
+				}
+				throw error;
+			}
+		},
+		[items, refresh, threadId],
+	);
+
 	const remove = useCallback(
 		async (id: string) => {
 			const version = requestVersion.current;
@@ -388,6 +429,7 @@ export function usePromptQueue(
 		update,
 		beginEdit,
 		endEdit,
+		sendNow,
 		remove,
 		reorder,
 		refresh,

@@ -91,6 +91,7 @@ interface ChatPromptInputProps {
 	onUpdateQueued?: (id: string, text: string) => Promise<void>;
 	onBeginQueuedEdit?: (id: string) => Promise<void>;
 	onEndQueuedEdit?: (id: string) => Promise<void>;
+	onSendQueuedNow?: (id: string) => Promise<void>;
 	onRemoveQueued?: (id: string) => Promise<void>;
 	onReorderQueued?: (orderedIds: string[]) => Promise<void>;
 	queueLoading?: boolean;
@@ -151,6 +152,7 @@ const ChatPromptInput = ({
 	onUpdateQueued,
 	onBeginQueuedEdit,
 	onEndQueuedEdit,
+	onSendQueuedNow,
 	onRemoveQueued,
 	onReorderQueued,
 	queueLoading = false,
@@ -579,6 +581,20 @@ const ChatPromptInput = ({
 		}
 	};
 
+	const sendQueuedNow = async (id: string) => {
+		setBusyId(id);
+		try {
+			await onSendQueuedNow?.(id);
+			if (editingId === id) finishEditingLocally();
+		} catch (error) {
+			toast.error(
+				getApiErrorMessage(error, "The queued prompt could not be sent now."),
+			);
+		} finally {
+			setBusyId(null);
+		}
+	};
+
 	const reorderQueued = async (orderedIds: string[]) => {
 		try {
 			await onReorderQueued?.(orderedIds);
@@ -604,6 +620,7 @@ const ChatPromptInput = ({
 					editingId={effectiveEditingId}
 					busyId={busyId}
 					onEdit={beginEdit}
+					onSendNow={sendQueuedNow}
 					onRemove={removeQueued}
 					onReorder={reorderQueued}
 				/>

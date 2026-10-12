@@ -219,6 +219,29 @@ class RunRepository(BaseRepository[RunDB]):
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
+    async def get_current_for_thread(self, thread_id: str) -> RunDB | None:
+        """The run to stop before a queued prompt is promoted.
+
+        Positioned pending rows are waiters, not the current turn. The narrow
+        query also catches a direct run that has not been claimed yet.
+        """
+        stmt = (
+            select(RunDB)
+            .where(
+                RunDB.thread_id == thread_id,
+                RunDB.status.in_(ACTIVE_STATUSES),
+                or_(
+                    RunDB.status == RunStatus.running,
+                    RunDB.queue_position.is_(None),
+                ),
+            )
+            .order_by(RunDB.status != RunStatus.running, RunDB.created_at)
+            .limit(1)
+        )
+        stmt = self._scope(stmt)
+        result = await self.db.execute(stmt)
+        return result.scalar_one_or_none()
+
     async def get_active_command_for_thread(self, thread_id: str) -> RunDB | None:
         stmt = (
             select(RunDB)

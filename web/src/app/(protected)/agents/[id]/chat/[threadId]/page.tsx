@@ -421,6 +421,7 @@ const ChatPage = () => {
             }}
             onBeginQueuedEdit={promptQueue.beginEdit}
             onEndQueuedEdit={promptQueue.endEdit}
+            onSendQueuedNow={promptQueue.sendNow}
             onRemoveQueued={promptQueue.remove}
             onReorderQueued={promptQueue.reorder}
           />
