@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.52](https://github.com/jr-k/auxilia/compare/web-v0.11.51...web-v0.11.52) (2026-10-12)
+
+
+### Bug Fixes
+
+* **agents:** rename eager tool discovery mode ([6e67052](https://github.com/jr-k/auxilia/commit/6e670528f457494c322edf58f99f00c66129245e))
+
 ## [0.11.51](https://github.com/jr-k/auxilia/compare/web-v0.11.50...web-v0.11.51) (2026-10-12)
 
 
