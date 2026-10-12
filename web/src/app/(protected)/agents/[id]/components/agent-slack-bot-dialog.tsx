@@ -318,6 +318,25 @@ function AgentSlackSetupGuide({
 			),
 		},
 		{
+			title: "Add the message shortcut",
+			body: (
+				<div className="space-y-3">
+					<p>
+						Still under <strong>Interactivity &amp; Shortcuts</strong>, click{" "}
+						<strong>Create New Shortcut</strong> and choose{" "}
+						<strong>On messages</strong>.
+					</p>
+					<p>
+						Set the name to <strong>Ask agent about message</strong>, the
+						callback ID to{" "}
+						<code className={badgeClass}>agent_message_shortcut</code>, and the
+						description to{" "}
+						<strong>Use this message as context for the agent</strong>.
+					</p>
+				</div>
+			),
+		},
+		{
 			title: "Save and test",
 			body: (
 				<p>

@@ -734,6 +734,13 @@ class MCPServerService(BaseService[MCPServerDB, MCPServerRepository]):
             # has since revoked only fails during the handshake, and the seam
             # unwraps it out of the client's connect failure for us.
             return AuthorizationRequired(auth_url=exc.url)
+        except Exception:
+            logger.exception(
+                "Failed to list tools for MCP server %s (%s)",
+                server.id,
+                server.name,
+            )
+            raise
 
 
 def get_mcp_server_service(

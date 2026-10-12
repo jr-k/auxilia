@@ -11,6 +11,7 @@ from langchain_core.tools import BaseTool
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.models import AgentMCPServerBase
+from app.exceptions import root_cause
 from app.mcp.client.connection import ConnectionSpec, build_client
 from app.mcp.client.connectivity import (
     CredentialCache,
@@ -450,7 +451,11 @@ class Toolset:
                             server_name,
                         )
                         continue
-                    raise
+                    cause = root_cause(exc)
+                    raise RuntimeError(
+                        f"Failed to load tools from MCP server '{server_name}': "
+                        f"{str(cause) or type(cause).__name__}"
+                    ) from exc
 
                 stack.push_async_exit(adapter)
                 for tool in lc_tools:

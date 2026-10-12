@@ -159,6 +159,12 @@ class RunWorker:
             # record never carry a blank error. The record outlives the event
             # log's TTL, so this is what a reload/reattach shows.
             cause = root_cause(exc)
+            logger.error(
+                "Run %s stream failed: %s",
+                record.id,
+                str(cause) or type(cause).__name__,
+                exc_info=(type(exc), exc, exc.__traceback__),
+            )
             return RunStatus.error, str(cause) or type(cause).__name__
         if await self._is_interrupted(record.workspace_id, record.thread_id):
             return RunStatus.interrupted, None
