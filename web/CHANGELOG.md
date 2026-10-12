@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.49](https://github.com/jr-k/auxilia/compare/web-v0.11.48...web-v0.11.49) (2026-10-12)
+
+
+### Features
+
+* **realtime:** sync workspace state over SSE ([1d5fdb8](https://github.com/jr-k/auxilia/commit/1d5fdb8757e91edfff97f8a001e7175b5e88544d))
+
 ## [0.11.48](https://github.com/jr-k/auxilia/compare/web-v0.11.47...web-v0.11.48) (2026-10-12)
 
 
