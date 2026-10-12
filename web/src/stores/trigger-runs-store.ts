@@ -15,13 +15,22 @@ interface TriggerRunsState {
 	setRunStatus: (threadId: string, status: RunTerminalStatus) => void;
 }
 
+const fetchSequence = new Map<string, number>();
+
 export const useTriggerRunsStore = create<TriggerRunsState>((set) => ({
 	runsByTrigger: {},
 	fetchRuns: async (triggerId) => {
 		const generation = getWorkspaceGeneration();
+		const sequence = (fetchSequence.get(triggerId) ?? 0) + 1;
+		fetchSequence.set(triggerId, sequence);
 		try {
 			const runs = await triggersApi.listTriggerThreads(triggerId);
-			if (!isCurrentWorkspaceGeneration(generation)) return;
+			if (
+				!isCurrentWorkspaceGeneration(generation) ||
+				fetchSequence.get(triggerId) !== sequence
+			) {
+				return;
+			}
 			set((state) => ({
 				runsByTrigger: { ...state.runsByTrigger, [triggerId]: runs },
 			}));

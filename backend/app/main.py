@@ -29,6 +29,8 @@ from app.mcp.servers.router import router as mcp_servers_router
 from app.model_providers.router import router as model_providers_router
 from app.notifications.router import router as notifications_router
 from app.observability.router import router as observability_router
+from app.realtime.relay import WorkspaceEventRelay
+from app.realtime.router import router as realtime_router
 from app.redis_client import close_redis, get_redis
 from app.runtime.api.protocol_router import router as protocol_router
 from app.runtime.api.runs_router import router as runs_router, user_runs_router
@@ -76,12 +78,15 @@ async def lifespan(app: FastAPI):
     dispatcher: RunDispatcher | None = None
     reaper: RunReaper | None = None
     scanner: TriggerScanner | None = None
+    event_relay: WorkspaceEventRelay | None = None
     if run_settings.dispatcher_enabled:
         dispatcher = RunDispatcher(delivery_factory=build_slack_run_consumer)
         reaper = RunReaper()
+        event_relay = WorkspaceEventRelay()
         background = [
             asyncio.create_task(dispatcher.run(), name="run-dispatcher"),
             asyncio.create_task(reaper.run(), name="run-reaper"),
+            asyncio.create_task(event_relay.run(), name="workspace-event-relay"),
         ]
         # The scanner enqueues onto the run queue, so it only runs where the
         # dispatcher does (always-on worker instances).
@@ -103,6 +108,8 @@ async def lifespan(app: FastAPI):
                 reaper.stop()
             if scanner is not None:
                 scanner.stop()
+            if event_relay is not None:
+                event_relay.stop()
             for task in background:
                 task.cancel()
             await asyncio.gather(*background, return_exceptions=True)
@@ -258,6 +265,7 @@ app.include_router(teams_router)
 app.include_router(model_providers_router)
 app.include_router(notifications_router)
 app.include_router(observability_router)
+app.include_router(realtime_router)
 app.include_router(sandboxes_router)
 app.include_router(slack_router)
 

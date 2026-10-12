@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import * as threadsApi from "@/lib/api/resources/threads";
+import { useWorkspaceEventsStore } from "@/stores/workspace-events-store";
 import type { QueuedPrompt } from "@/types/runs";
 
 const POLL_MS = 1000;
@@ -20,6 +21,11 @@ export function usePromptQueue(
 	runActive: boolean,
 	userMessageCount: number,
 ) {
+	const connection = useWorkspaceEventsStore((state) => state.connection);
+	const syncVersion = useWorkspaceEventsStore((state) => state.syncVersion);
+	const queueVersion = useWorkspaceEventsStore(
+		(state) => state.queueVersions[threadId] ?? 0,
+	);
 	const [items, setItems] = useState<QueuedPrompt[]>([]);
 	const [isLoading, setIsLoading] = useState(true);
 	const [loadedThreadId, setLoadedThreadId] = useState<string | null>(null);
@@ -187,6 +193,10 @@ export function usePromptQueue(
 	useEffect(() => {
 		void refresh().catch(() => {});
 	}, [refresh]);
+	useEffect(() => {
+		if (syncVersion === 0 && queueVersion === 0) return;
+		void refresh().catch(() => {});
+	}, [queueVersion, refresh, syncVersion]);
 
 	// A run starting (a queued item was claimed) or ending (the next one is
 	// about to be) is exactly when the list changes: don't wait for the poll.
@@ -197,7 +207,8 @@ export function usePromptQueue(
 	// A boolean dependency, not `items.length`: resetting the interval on
 	// every enqueue meant it never fired while the user was typing fast.
 	const shouldPoll =
-		runActive || items.length > 0 || loadedThreadId !== threadId;
+		connection === "disconnected" &&
+		(runActive || items.length > 0 || loadedThreadId !== threadId);
 	useEffect(() => {
 		if (!shouldPoll) return;
 		const timer = window.setInterval(() => {

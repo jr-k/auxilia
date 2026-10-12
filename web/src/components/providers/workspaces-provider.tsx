@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 
+import { WorkspaceEventsProvider } from "@/components/providers/workspace-events-provider";
 import { useRecentThreadsPoll } from "@/hooks/use-recent-threads-poll";
 import { useAgentsStore } from "@/stores/agents-store";
 import { useAppearanceStore } from "@/stores/appearance-store";
@@ -66,5 +67,5 @@ export function WorkspacesProvider({ children }: { children: React.ReactNode }) 
 	}, [hydrate]);
 
 	if (!isReady) return <FullPageLoader />;
-	return children;
+	return <WorkspaceEventsProvider>{children}</WorkspaceEventsProvider>;
 }

@@ -9,6 +9,7 @@ import { useSkillsStore } from "@/stores/skills-store";
 import { useThreadsStore } from "@/stores/threads-store";
 import { useTriggerRunsStore } from "@/stores/trigger-runs-store";
 import { useTriggersStore } from "@/stores/triggers-store";
+import { useWorkspaceEventsStore } from "@/stores/workspace-events-store";
 
 export function resetWorkspaceStores(): void {
 	advanceWorkspaceGeneration();
@@ -33,5 +34,6 @@ export function resetWorkspaceStores(): void {
 		pollSeq: state.pollSeq + 1,
 	}));
 	usePendingMessageStore.setState({ pendingMessages: new Map() });
+	useWorkspaceEventsStore.getState().reset();
 	useChatHeaderStore.getState().clearCurrentChat();
 }

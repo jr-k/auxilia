@@ -12,6 +12,8 @@ from app.database import get_checkpointer, get_db
 from app.exceptions import DomainValidationError, NotFoundError
 from app.model_providers.service import ModelService
 from app.pagination import Page, PageParams
+from app.realtime.schemas import WorkspaceEventKind
+from app.realtime.service import stage_workspace_event
 from app.service import BaseService
 from app.skills.repository import SkillRepository
 from app.threads.models import ThreadDB, ThreadSource
@@ -198,6 +200,19 @@ class ThreadService(BaseService[ThreadDB, ThreadRepository]):
         self.db.add(thread)
         await self.db.flush()
         await self.db.refresh(thread)
+        await stage_workspace_event(
+            self.db,
+            workspace_id=self.workspace_id,
+            kind=WorkspaceEventKind.threads,
+            target_user_id=user_id,
+            thread_id=thread.id,
+        )
+        if source == ThreadSource.trigger:
+            await stage_workspace_event(
+                self.db,
+                workspace_id=self.workspace_id,
+                kind=WorkspaceEventKind.trigger_history,
+            )
         # Compute (not default) the availability flag: creating a thread on a
         # disabled model is possible via the API, and the schema default
         # (True) must not masquerade as a runnable thread.
@@ -284,6 +299,19 @@ class ThreadService(BaseService[ThreadDB, ThreadRepository]):
 
     async def delete(self, thread_id: str) -> ThreadDB:
         thread = await self.get_or_404(thread_id)
+        await stage_workspace_event(
+            self.db,
+            workspace_id=self.workspace_id,
+            kind=WorkspaceEventKind.threads,
+            target_user_id=thread.user_id,
+            thread_id=thread.id,
+        )
+        if thread.trigger_id is not None:
+            await stage_workspace_event(
+                self.db,
+                workspace_id=self.workspace_id,
+                kind=WorkspaceEventKind.trigger_history,
+            )
         await self.db.delete(thread)
         return thread
 
@@ -361,6 +389,13 @@ class ThreadService(BaseService[ThreadDB, ThreadRepository]):
             self.db.add(thread)
             await self.db.flush()
             await self.db.refresh(thread)
+            await stage_workspace_event(
+                self.db,
+                workspace_id=self.workspace_id,
+                kind=WorkspaceEventKind.threads,
+                target_user_id=UUID(user_id),
+                thread_id=thread.id,
+            )
         return thread
 
 

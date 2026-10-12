@@ -260,6 +260,8 @@ export const ConversationBody = memo(function ConversationBody({
 
       {optimisticPrompt && <OptimisticUserTurn text={optimisticPrompt} />}
 
+      {optimisticPrompt && !showThinking && <OptimisticAssistantTurn />}
+
       {showThinking && <ChainThinking />}
 
       {(error != null || rehydratedError != null) && (
@@ -466,6 +468,22 @@ const OptimisticUserTurn = ({ text }: { text: string }) => (
       <MessageContent className="group-[.is-user]:ml-0 group-[.is-user]:max-w-full">
         <MessageResponse>{text}</MessageResponse>
       </MessageContent>
+    </div>
+  </Message>
+);
+
+const OptimisticAssistantTurn = () => (
+  <Message from="assistant">
+    <div
+      className="flex items-center py-0.5"
+      role="status"
+      aria-label="Waiting for assistant response"
+    >
+      <Loader
+        size={14}
+        className="shrink-0 text-meta motion-reduce:animate-none dark:text-panel-dim"
+        aria-hidden="true"
+      />
     </div>
   </Message>
 );

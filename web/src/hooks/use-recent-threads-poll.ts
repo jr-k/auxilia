@@ -2,12 +2,23 @@
 
 import { useEffect } from "react";
 import { useThreadsStore } from "@/stores/threads-store";
+import { useWorkspaceEventsStore } from "@/stores/workspace-events-store";
 
 const RECENT_THREADS_POLL_MS = 5_000;
 
 export function useRecentThreadsPoll(enabled: boolean): void {
+	const connection = useWorkspaceEventsStore((state) => state.connection);
+	const threadsVersion = useWorkspaceEventsStore(
+		(state) => state.threadsVersion,
+	);
+
 	useEffect(() => {
-		if (!enabled) return;
+		if (!enabled || threadsVersion === 0) return;
+		void useThreadsStore.getState().pollRecentThreads();
+	}, [enabled, threadsVersion]);
+
+	useEffect(() => {
+		if (!enabled || connection !== "disconnected") return;
 
 		let cancelled = false;
 		let timer: ReturnType<typeof setTimeout> | undefined;
@@ -38,5 +49,5 @@ export function useRecentThreadsPoll(enabled: boolean): void {
 			clearTimeout(timer);
 			document.removeEventListener("visibilitychange", handleVisibility);
 		};
-	}, [enabled]);
+	}, [connection, enabled]);
 }

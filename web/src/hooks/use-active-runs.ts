@@ -5,6 +5,7 @@ import * as runsApi from "@/lib/api/resources/runs";
 import { Thread } from "@/types/threads";
 import { useActiveRunsStore } from "@/stores/active-runs-store";
 import { useThreadsStore } from "@/stores/threads-store";
+import { useWorkspaceEventsStore } from "@/stores/workspace-events-store";
 
 const ACTIVE_POLL_MS = 5_000;
 const WATCH_POLL_MS = 15_000;
@@ -52,6 +53,8 @@ export function useActiveRunThreadIds(threads: Thread[]): Set<string> {
 		(state) => state.optimisticMarkedAt,
 	);
 	const pollEpoch = useActiveRunsStore((state) => state.pollEpoch);
+	const connection = useWorkspaceEventsStore((state) => state.connection);
+	const runsVersion = useWorkspaceEventsStore((state) => state.runsVersion);
 
 	const hasActiveRuns =
 		confirmedThreadIds.length > 0 ||
@@ -76,7 +79,26 @@ export function useActiveRunThreadIds(threads: Thread[]): Set<string> {
 		});
 	}, []);
 
+	// A server invalidation (including reconnect sync) reconciles the complete
+	// active set and any terminal outcomes since the preceding snapshot.
 	useEffect(() => {
+		if (runsVersion === 0) return;
+		void pollActiveRuns().catch((error: unknown) => {
+			console.error("Error refreshing active runs:", error);
+		});
+	}, [runsVersion]);
+
+	// Local starts/stops remain optimistic, then ask for an immediate snapshot
+	// instead of waiting for the outbox relay.
+	useEffect(() => {
+		if (pollEpoch === 0) return;
+		void pollActiveRuns().catch((error: unknown) => {
+			console.error("Error refreshing active runs:", error);
+		});
+	}, [pollEpoch]);
+
+	useEffect(() => {
+		if (connection !== "disconnected") return;
 		const inWatchWindow = () =>
 			Date.now() - latestTriggerThreadAt < RECENT_TRIGGER_WINDOW_MS;
 		if (!hasActiveRuns && !inWatchWindow()) return;
@@ -117,8 +139,6 @@ export function useActiveRunThreadIds(threads: Thread[]): Set<string> {
 			}
 		};
 
-		// pollEpoch in the deps re-runs this effect the moment a run is
-		// marked client-side, so the server state refreshes immediately.
 		void poll();
 		document.addEventListener("visibilitychange", handleVisibility);
 		return () => {
@@ -126,7 +146,7 @@ export function useActiveRunThreadIds(threads: Thread[]): Set<string> {
 			clearTimeout(timer);
 			document.removeEventListener("visibilitychange", handleVisibility);
 		};
-	}, [hasActiveRuns, latestTriggerThreadAt, pollEpoch]);
+	}, [connection, hasActiveRuns, latestTriggerThreadAt]);
 
 	return useActiveRunThreadIdSet();
 }

@@ -28,6 +28,8 @@ from app.exceptions import (
     StaleRevisionError,
 )
 from app.model_providers.service import ModelService
+from app.realtime.schemas import WorkspaceEventKind
+from app.realtime.service import stage_workspace_event
 from app.redis_client import get_redis
 from app.runtime.checkpoints import checkpoint_thread_id
 from app.runtime.hitl import (
@@ -194,7 +196,7 @@ class RunService:
                 queue_position = await repository.allocate_queue_position(thread_id)
                 if queue_position is None:
                     queue_position = await repository.next_queue_position(thread_id)
-        return await repository.create(
+        record = await repository.create(
             RunDB(
                 workspace_id=thread.workspace_id,
                 thread_id=thread_id,
@@ -209,6 +211,22 @@ class RunService:
                 queue_position=queue_position,
             )
         )
+        await stage_workspace_event(
+            db,
+            workspace_id=record.workspace_id,
+            kind=WorkspaceEventKind.runs,
+            target_user_id=record.user_id,
+            thread_id=record.thread_id,
+        )
+        if record.queue_position is not None:
+            await stage_workspace_event(
+                db,
+                workspace_id=record.workspace_id,
+                kind=WorkspaceEventKind.prompt_queue,
+                target_user_id=record.user_id,
+                thread_id=record.thread_id,
+            )
+        return record
 
     @staticmethod
     async def _canonical_command(thread_id: str, command: dict) -> dict:
@@ -334,6 +352,13 @@ class RunService:
             await ThreadRepository(db, workspace_id).clear_queue_edit_lease(
                 record.thread_id, run_id
             )
+            await stage_workspace_event(
+                db,
+                workspace_id=record.workspace_id,
+                kind=WorkspaceEventKind.prompt_queue,
+                target_user_id=record.user_id,
+                thread_id=record.thread_id,
+            )
             await db.commit()
         return record
 
@@ -354,6 +379,14 @@ class RunService:
                     "The prompt queue changed. Reload it before reordering."
                 )
             await repository.set_queue_positions(records, ordered_ids)
+            if records:
+                await stage_workspace_event(
+                    db,
+                    workspace_id=records[0].workspace_id,
+                    kind=WorkspaceEventKind.prompt_queue,
+                    target_user_id=records[0].user_id,
+                    thread_id=thread_id,
+                )
             await db.commit()
             return await repository.list_queued_prompts(thread_id)
 
@@ -400,6 +433,22 @@ class RunService:
         Claiming *is* the pending → running transition."""
         async with AsyncSessionLocal() as db:
             run = await RunRepository(db).claim_next()
+            if run is not None:
+                await stage_workspace_event(
+                    db,
+                    workspace_id=run.workspace_id,
+                    kind=WorkspaceEventKind.runs,
+                    target_user_id=run.user_id,
+                    thread_id=run.thread_id,
+                )
+                if run.queue_position is not None:
+                    await stage_workspace_event(
+                        db,
+                        workspace_id=run.workspace_id,
+                        kind=WorkspaceEventKind.prompt_queue,
+                        target_user_id=run.user_id,
+                        thread_id=run.thread_id,
+                    )
             await db.commit()
         return run
 
@@ -507,6 +556,29 @@ class RunService:
                     await threads.set_awaiting_input(thread_id, True)
                 elif was_command and status == RunStatus.success:
                     await threads.set_awaiting_input(thread_id, False)
+                if before is not None:
+                    await stage_workspace_event(
+                        db,
+                        workspace_id=before.workspace_id,
+                        kind=WorkspaceEventKind.runs,
+                        target_user_id=before.user_id,
+                        thread_id=thread_id,
+                    )
+                    if was_pending_queue:
+                        await stage_workspace_event(
+                            db,
+                            workspace_id=before.workspace_id,
+                            kind=WorkspaceEventKind.prompt_queue,
+                            target_user_id=before.user_id,
+                            thread_id=thread_id,
+                        )
+                    thread = await threads.get(thread_id)
+                    if thread is not None and thread.trigger_id is not None:
+                        await stage_workspace_event(
+                            db,
+                            workspace_id=before.workspace_id,
+                            kind=WorkspaceEventKind.trigger_history,
+                        )
             await db.commit()
             record = await repository.get(run_id)
         if thread_id is not None:

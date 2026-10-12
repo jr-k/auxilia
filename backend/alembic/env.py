@@ -15,6 +15,7 @@ from app.mcp.servers import models as mcp_server_models  # noqa: F401
 from app.model_providers import models as model_provider_models  # noqa: F401
 from app.notifications import models as notification_models  # noqa: F401
 from app.observability import models as observability_models  # noqa: F401
+from app.realtime import models as realtime_models  # noqa: F401
 from app.runtime.runs import models as run_models  # noqa: F401
 from app.sandbox import models as sandbox_models  # noqa: F401
 from app.settings import app_settings

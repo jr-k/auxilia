@@ -7,6 +7,7 @@ import { formatRunAt } from "@/lib/triggers/schedule";
 import { TriggerThread } from "@/types/triggers";
 import { useTriggerRunsStore } from "@/stores/trigger-runs-store";
 import { useActiveRunThreadIdSet } from "@/hooks/use-active-runs";
+import { useWorkspaceEventsStore } from "@/stores/workspace-events-store";
 
 interface RunHistoryCardProps {
 	triggerId: string;
@@ -42,11 +43,26 @@ export default function RunHistoryCard({
 	const runs = useTriggerRunsStore((state) => state.runsByTrigger[triggerId]);
 	const fetchRuns = useTriggerRunsStore((state) => state.fetchRuns);
 	const activeRunThreadIds = useActiveRunThreadIdSet();
+	const connection = useWorkspaceEventsStore((state) => state.connection);
+	const triggerHistoryVersion = useWorkspaceEventsStore(
+		(state) => state.triggerHistoryVersion,
+	);
 
 	useEffect(() => {
 		fetchRuns(triggerId).catch(() => {
 			// logged by the store; the card keeps whatever it has
 		});
+	}, [triggerId, fetchRuns]);
+
+	useEffect(() => {
+		if (triggerHistoryVersion === 0) return;
+		fetchRuns(triggerId).catch(() => {
+			// logged by the store; the card keeps whatever it has
+		});
+	}, [fetchRuns, triggerHistoryVersion, triggerId]);
+
+	useEffect(() => {
+		if (connection !== "disconnected") return;
 		const timer = setInterval(() => {
 			if (document.visibilityState === "hidden") return;
 			fetchRuns(triggerId).catch(() => {
@@ -56,7 +72,7 @@ export default function RunHistoryCard({
 		return () => {
 			clearInterval(timer);
 		};
-	}, [triggerId, fetchRuns]);
+	}, [connection, triggerId, fetchRuns]);
 
 	// A scheduled firing while the card is open surfaces as an active thread
 	// id the fetched history doesn't have yet — refetch so its row appears.
@@ -65,7 +81,7 @@ export default function RunHistoryCard({
 	// up and refetch at most once per unknown id.
 	const checkedThreadIdsRef = useRef(new Set<string>());
 	useEffect(() => {
-		if (runs === undefined) return;
+		if (connection !== "disconnected" || runs === undefined) return;
 		const known = new Set(runs.map((run) => run.id));
 		let hasUnknown = false;
 		for (const threadId of activeRunThreadIds) {
@@ -79,7 +95,7 @@ export default function RunHistoryCard({
 		fetchRuns(triggerId).catch(() => {
 			// logged by the store; the card keeps whatever it has
 		});
-	}, [runs, activeRunThreadIds, triggerId, fetchRuns]);
+	}, [connection, runs, activeRunThreadIds, triggerId, fetchRuns]);
 
 	return (
 		<div className="flex flex-col rounded-[10px] border border-border bg-card px-4.5 py-1.5">
