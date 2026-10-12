@@ -413,8 +413,9 @@ class Toolset:
         OAuth is optional at execution time. The authorization probe used while
         preparing the graph cheaply removes servers with no stored credential;
         this live handshake is the authoritative backstop for revoked or expired
-        credentials. A server that challenges here is omitted without affecting
-        the other servers, so its tools are never shown to the model.
+        credentials. Any server that cannot open or list its tools is omitted
+        without affecting the other servers, so one unavailable integration
+        cannot prevent the agent from answering.
 
         Each adapter's context is held for the whole ``async with`` block, so a
         handle minted by one tool call (e.g. Metabase ``construct_query``'s
@@ -435,6 +436,7 @@ class Toolset:
 
         async with AsyncExitStack() as stack:
             tools_by_server: list[tuple[str, list[BaseTool]]] = []
+            unavailable_servers: set[str] = set()
             for server_name, spec in prepared.connections.items():
                 adapter = MCPAdapter(build_client(spec))
                 entered = False
@@ -444,18 +446,31 @@ class Toolset:
                     lc_tools = await adapter.list_tools()
                 except BaseException as exc:
                     if entered:
-                        await adapter.__aexit__(type(exc), exc, exc.__traceback__)
+                        try:
+                            await adapter.__aexit__(type(exc), exc, exc.__traceback__)
+                        except Exception:  # noqa: BLE001 — cleanup stays best-effort
+                            logger.warning(
+                                "Failed to close unavailable MCP server %s",
+                                server_name,
+                                exc_info=True,
+                            )
+                    cause = root_cause(exc)
+                    if not isinstance(cause, Exception):
+                        raise
                     if as_oauth_required(exc) is not None:
                         logger.info(
                             "Omitting unauthorized OAuth MCP server %s from run",
                             server_name,
                         )
-                        continue
-                    cause = root_cause(exc)
-                    raise RuntimeError(
-                        f"Failed to load tools from MCP server '{server_name}': "
-                        f"{str(cause) or type(cause).__name__}"
-                    ) from exc
+                    else:
+                        logger.warning(
+                            "Omitting unavailable MCP server %s from run: %s",
+                            server_name,
+                            str(cause) or type(cause).__name__,
+                            exc_info=(type(exc), exc, exc.__traceback__),
+                        )
+                    unavailable_servers.add(server_name)
+                    continue
 
                 stack.push_async_exit(adapter)
                 for tool in lc_tools:
@@ -465,6 +480,10 @@ class Toolset:
                         tool.description += f"\n\n{original_description}"
                     tool.name = f"{server_name}_{tool.name}"
                 tools_by_server.append((server_name, lc_tools))
+
+            for server_name in unavailable_servers:
+                prepared.connections.pop(server_name, None)
+                prepared.server_description_by_name.pop(server_name, None)
 
             agent_tools = _assemble_agent_tools(
                 tools_by_server,

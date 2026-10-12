@@ -57,14 +57,15 @@ export default function AgentMCPServer({
 	const [toolsFetched, setToolsFetched] = useState(false);
 	const [isConnected, setIsConnected] = useState(false);
 	const [isCheckingConnection, setIsCheckingConnection] = useState(true);
+	const [toolsUnavailable, setToolsUnavailable] = useState(false);
 	const [detailsOpen, setDetailsOpen] = useState(false);
 
-	// Auto-expand when not connected
+	// Auto-expand when the user needs to connect or inspect an unavailable server.
 	useEffect(() => {
-		if (!isCheckingConnection && !isConnected) {
+		if (!isCheckingConnection && (!isConnected || toolsUnavailable)) {
 			setIsExpanded(true);
 		}
-	}, [isCheckingConnection, isConnected]);
+	}, [isCheckingConnection, isConnected, toolsUnavailable]);
 
 	const handleToggleExpand = () => {
 		setIsExpanded(!isExpanded);
@@ -163,6 +164,7 @@ export default function AgentMCPServer({
 
 	const fetchTools = useCallback(async () => {
 		setIsLoading(true);
+		setToolsUnavailable(false);
 		try {
 			const result = await mcpServersApi.listMcpServerTools(server.id);
 
@@ -202,6 +204,7 @@ export default function AgentMCPServer({
 								const fetchedTools = retry.tools;
 								setTools(fetchedTools);
 								setToolsFetched(true);
+								setToolsUnavailable(false);
 								// Only after toolsFetched, in the same batch —
 								// flipping isConnected first re-renders with
 								// toolsFetched=false and the mount effect starts a
@@ -220,6 +223,7 @@ export default function AgentMCPServer({
 								// the mount effect retries the fetch instead of the
 								// card sticking at NOT CONNECTED with polling dead.
 								setIsConnected(true);
+								setToolsUnavailable(true);
 								setIsLoading(false);
 							}
 
@@ -250,6 +254,7 @@ export default function AgentMCPServer({
 		} catch (error: unknown) {
 			console.error("Failed to fetch tools:", error);
 			setTools([]);
+			setToolsUnavailable(true);
 		} finally {
 			setIsLoading(false);
 		}
@@ -303,7 +308,11 @@ export default function AgentMCPServer({
 				</span>
 				<div className="ml-auto flex shrink-0 items-center gap-2">
 					{!isCheckingConnection &&
-						(isConnected ? (
+						(toolsUnavailable ? (
+							<span className="rounded-[4px] bg-[#FBEFED] px-2 py-0.5 text-[9.5px] font-semibold text-[#B04A3A]">
+								Unavailable
+							</span>
+						) : isConnected ? (
 							<span className="rounded-[4px] bg-success-bg px-2 py-0.5 text-[9.5px] font-semibold text-success">
 								Connected
 							</span>
@@ -348,6 +357,24 @@ export default function AgentMCPServer({
 					) : isLoading || isCheckingConnection ? (
 						<div className="px-4 py-3 text-[13px] text-muted-foreground">
 							Loading tools…
+						</div>
+					) : toolsUnavailable ? (
+						<div className="p-6 text-center">
+							<p className="mb-1 text-[13.5px] font-semibold text-foreground">
+								Server temporarily unavailable
+							</p>
+							<p className="mb-4 text-xs text-muted-foreground">
+								The agent can still respond, but this server&apos;s tools
+								will be skipped.
+							</p>
+							<button
+								className="cursor-pointer rounded-[7px] border border-input bg-background px-4 py-2 text-[13px] font-semibold text-foreground transition-colors hover:border-border-hover"
+								onClick={() => {
+									void fetchTools();
+								}}
+							>
+								Retry
+							</button>
 						</div>
 					) : configurableTools.length > 0 ? (
 						// Show ~5-6 tool rows; longer lists scroll within the card.
