@@ -77,7 +77,7 @@ export type ThreadSession = {
 	openError: unknown;
 	run: {
 		status: "idle" | "streaming" | "interrupted";
-		/** `stream.isLoading` — a run is in flight (also true while a resume is pending). */
+		/** A submission is starting or the stream reports a run in flight. */
 		isLoading: boolean;
 		/** The stream stack's last error (command rejection or run failure). */
 		error: unknown;
@@ -208,6 +208,12 @@ export function useThreadSession({
 	const todos =
 		((stream.values as Record<string, unknown>).todos as Todo[] | undefined) ??
 		EMPTY_TODOS;
+	const submissionSequence = useRef(0);
+	const [pendingSubmission, setPendingSubmission] = useState<{
+		threadId: string;
+		sequence: number;
+	} | null>(null);
+	const submissionPending = pendingSubmission?.threadId === threadId;
 
 	// --- actions ----------------------------------------------------------------
 	const userActed = useCallback(() => {
@@ -219,9 +225,21 @@ export function useThreadSession({
 			const content = promptMessageToContent(message);
 			if (content == null) return;
 			userActed();
-			await selectorStream.submit({ messages: [{ type: "human", content }] });
+			const sequence = ++submissionSequence.current;
+			setPendingSubmission({ threadId, sequence });
+			try {
+				await selectorStream.submit({
+					messages: [{ type: "human", content }],
+				});
+			} finally {
+				setPendingSubmission((current) =>
+					current?.threadId === threadId && current.sequence === sequence
+						? null
+						: current,
+				);
+			}
 		},
-		[selectorStream, userActed],
+		[selectorStream, threadId, userActed],
 	);
 
 	const regenerate = useCallback(() => {
@@ -361,7 +379,7 @@ export function useThreadSession({
 
 	const runStatus: ThreadSession["run"]["status"] = isInterrupted
 		? "interrupted"
-		: stream.isLoading
+		: stream.isLoading || submissionPending
 			? "streaming"
 			: "idle";
 
@@ -370,7 +388,7 @@ export function useThreadSession({
 		openError: state.openError,
 		run: {
 			status: runStatus,
-			isLoading: stream.isLoading,
+			isLoading: stream.isLoading || submissionPending,
 			error: stream.error,
 			rehydratedError: state.rehydratedError,
 		},
