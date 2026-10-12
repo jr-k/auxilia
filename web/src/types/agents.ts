@@ -4,6 +4,7 @@ import { AgentSkill } from "./skills";
 import type { ResourceVisibility } from "./visibility";
 
 export type ToolStatus = "always_allow" | "needs_approval" | "disabled";
+export type ToolDiscoveryMode = "disabled" | "automatic" | "local";
 
 interface AgentMCPServer extends MCPServer {
 	mcpServerId: string;
@@ -102,6 +103,7 @@ export interface Agent {
 	group?: string | null;
 	visibility: ResourceVisibility;
 	webSearchEnabled?: boolean;
+	toolDiscoveryMode?: ToolDiscoveryMode;
 	/** Detail responses only. Null inherits the workspace default model. */
 	defaultModelId?: string | null;
 	defaultReasoningEffort?: string | null;

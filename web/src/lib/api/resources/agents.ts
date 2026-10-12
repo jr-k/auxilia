@@ -13,6 +13,7 @@ import type {
 	AgentResources,
 	AgentSlackBotSettings,
 	AgentSlackBotSettingsUpdate,
+	ToolDiscoveryMode,
 } from "@/types/agents";
 import type { ResourceVisibility } from "@/types/visibility";
 
@@ -27,6 +28,7 @@ export interface AgentWrite {
 	color: string | null;
 	visibility: ResourceVisibility;
 	webSearchEnabled?: boolean;
+	toolDiscoveryMode?: ToolDiscoveryMode;
 	defaultModelId?: string | null;
 	defaultReasoningEffort?: string | null;
 	teamIds: string[];

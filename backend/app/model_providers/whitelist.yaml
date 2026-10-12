@@ -11,6 +11,7 @@
 #   supports_structured_output — REAL constrained decoding (json_schema /
 #                                strict tool call) on the endpoint we call,
 #                                NOT best-effort json_object
+#   supports_tool_search       — provider-native deferred tool discovery
 #
 # reasoning_effort_levels / reasoning_effort_default — the effort values a
 # user may pick for this model, drawn from the canonical ladder
@@ -99,6 +100,7 @@ models:
     chef_slug: openai
     multimodal: true
     supports_structured_output: true
+    supports_tool_search: true
     reasoning_effort_levels: [none, low, medium, high, xhigh]
     reasoning_effort_default: medium
   - provider: openai
@@ -108,6 +110,7 @@ models:
     chef_slug: openai
     multimodal: true
     supports_structured_output: true
+    supports_tool_search: true
     reasoning_effort_levels: [none, low, medium, high, xhigh, max]
     reasoning_effort_default: medium
   - provider: openai
@@ -117,6 +120,7 @@ models:
     chef_slug: openai
     multimodal: true
     supports_structured_output: true
+    supports_tool_search: true
     reasoning_effort_levels: [none, low, medium, high, xhigh, max]
     reasoning_effort_default: medium
   - provider: openai
@@ -126,6 +130,7 @@ models:
     chef_slug: openai
     multimodal: true
     supports_structured_output: true
+    supports_tool_search: true
     reasoning_effort_levels: [none, low, medium, high, xhigh, max]
     reasoning_effort_default: medium
 
@@ -137,6 +142,7 @@ models:
     chef_slug: anthropic
     multimodal: true
     supports_structured_output: true
+    supports_tool_search: true
   - provider: anthropic
     model_id: claude-sonnet-4-6
     display_name: Claude Sonnet 4.6
@@ -144,6 +150,7 @@ models:
     chef_slug: anthropic
     multimodal: true
     supports_structured_output: true
+    supports_tool_search: true
     reasoning_effort_levels: [low, medium, high, max]
   - provider: anthropic
     model_id: claude-sonnet-5
@@ -152,6 +159,7 @@ models:
     chef_slug: anthropic
     multimodal: true
     supports_structured_output: true
+    supports_tool_search: true
     reasoning_effort_levels: [low, medium, high, xhigh, max]
     # Adaptive-thinking models (ADAPTIVE_THINKING_MODELS in catalog.py) have
     # always been served at effort medium — the applied default preserves
@@ -164,6 +172,7 @@ models:
     chef_slug: anthropic
     multimodal: true
     supports_structured_output: true
+    supports_tool_search: true
     reasoning_effort_levels: [low, medium, high, max]
     reasoning_effort_default: medium
   - provider: anthropic
@@ -173,6 +182,7 @@ models:
     chef_slug: anthropic
     multimodal: true
     supports_structured_output: true
+    supports_tool_search: true
     reasoning_effort_levels: [low, medium, high, xhigh, max]
     reasoning_effort_default: medium
   # Opus 5 thinks by default (no opt-in needed) but is driven through the same
@@ -188,6 +198,7 @@ models:
     chef_slug: anthropic
     multimodal: true
     supports_structured_output: true
+    supports_tool_search: true
     reasoning_effort_levels: [low, medium, high, xhigh, max]
     reasoning_effort_default: medium
 

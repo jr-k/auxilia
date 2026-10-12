@@ -2,6 +2,7 @@
 
 import { useCallback, useSyncExternalStore } from "react";
 import type { ViewMode } from "@/components/ui/view-toggle";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const listeners = new Map<string, Set<() => void>>();
 const sessionValues = new Map<string, ViewMode>();
@@ -20,6 +21,7 @@ export function usePersistedViewMode(
 	storageKey: string,
 	fallback: ViewMode = "table",
 ): readonly [ViewMode, (mode: ViewMode) => void] {
+	const isMobile = useIsMobile();
 	const subscribe = useCallback(
 		(listener: () => void) => {
 			const subscribers = listeners.get(storageKey) ?? new Set<() => void>();
@@ -54,5 +56,5 @@ export function usePersistedViewMode(
 		[storageKey],
 	);
 
-	return [value, setValue] as const;
+	return [isMobile ? "cards" : value, setValue] as const;
 }

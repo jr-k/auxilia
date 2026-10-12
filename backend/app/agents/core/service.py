@@ -411,6 +411,7 @@ class AgentService(BaseService[AgentDB, AgentRepository]):
                 group=config.group,
                 visibility=config.visibility,
                 web_search_enabled=config.web_search_enabled,
+                tool_discovery_mode=config.tool_discovery_mode,
                 default_model_id=config.default_model_id,
                 default_reasoning_effort=config.default_reasoning_effort,
             )
@@ -604,6 +605,7 @@ class AgentService(BaseService[AgentDB, AgentRepository]):
                 group=config.group,
                 visibility=visibility,
                 web_search_enabled=config.web_search_enabled,
+                tool_discovery_mode=config.tool_discovery_mode,
                 default_model_id=config.default_model_id,
                 default_reasoning_effort=config.default_reasoning_effort,
             ),

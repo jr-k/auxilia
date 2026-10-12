@@ -18,7 +18,7 @@ row already holds every field the runtime touches.
 from dataclasses import dataclass
 from uuid import UUID
 
-from app.agents.models import AgentMCPServerDB, ToolStatus
+from app.agents.models import AgentMCPServerDB, ToolDiscoveryMode, ToolStatus
 from app.sandbox.models import SandboxDB
 
 
@@ -45,6 +45,7 @@ class AgentSpec:
     mcp_servers: list[AgentMCPServerDB]
     sandbox: SandboxSpec | None
     web_search_enabled: bool = False
+    tool_discovery_mode: ToolDiscoveryMode = ToolDiscoveryMode.disabled
     default_model_id: str | None = None
     default_reasoning_effort: str | None = None
 

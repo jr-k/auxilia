@@ -29,11 +29,12 @@ from langgraph.types import Command
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.core.repository import AgentRepository
+from app.agents.models import ToolDiscoveryMode
 from app.agents.run_spec import AgentSpec, RunSpec
 from app.database import AsyncSessionLocal, get_checkpointer
 from app.exceptions import DomainValidationError, NotFoundError
 from app.integrations.tracing import NoOpTracing, RunTracing, get_tracing
-from app.model_providers.catalog import ChatModelFactory, ResponsesChatOpenAI
+from app.model_providers.catalog import ChatModelFactory
 from app.model_providers.service import ModelService
 from app.model_providers.web_search import (
     compatible_reasoning_effort,
@@ -59,7 +60,11 @@ from app.runtime.middleware.tool_errors import (
     RepairInvalidToolCallsMiddleware,
     ToolErrorMiddleware,
 )
-from app.runtime.middleware.tool_selection import LenientLLMToolSelectorMiddleware
+from app.runtime.middleware.tool_selection import (
+    LOCAL_DISCOVERY_STATE_KEY,
+    discovery_interrupt_on,
+    tool_discovery_middleware,
+)
 from app.runtime.protocol.emit import ProtocolEmitter
 from app.runtime.settings import agent_settings
 from app.runtime.toolset import (
@@ -88,9 +93,6 @@ from app.threads.repository import ThreadRepository
 
 logger = logging.getLogger(__name__)
 
-
-OPENAI_TOOL_SELECTION_THRESHOLD = 128
-OPENAI_TOOL_SELECTION_LIMIT = 32
 
 RECURSION_LIMIT_MESSAGE = (
     "I reached my step limit for this turn. Send any follow-up message "
@@ -188,6 +190,10 @@ def build_runnable(
     checkpointer=None,
     output_schema: dict | None = None,
     format_mode: str = FORMAT_TOOL,
+    tool_discovery_mode: ToolDiscoveryMode = ToolDiscoveryMode.disabled,
+    supports_tool_search: bool = False,
+    discoverable_tools=(),
+    general_purpose_interrupt_on: dict[str, bool] | None = None,
 ):
     """Build a LangGraph runnable. One construction path, one middleware list.
 
@@ -235,10 +241,24 @@ def build_runnable(
     ``app.runtime.checkpoints.get_checkpoint_state``.
     """
     tools = list(tools)
+    searchable_tools = list(discoverable_tools)
+    if not isinstance(tool_discovery_mode, ToolDiscoveryMode):
+        tool_discovery_mode = ToolDiscoveryMode.disabled
+    private_state_keys = (
+        frozenset({LOCAL_DISCOVERY_STATE_KEY})
+        if tool_discovery_mode is ToolDiscoveryMode.local
+        else None
+    )
     system_prompt = _append_system_prompt_context(system_prompt, mcp_context)
     harness: list = []
 
     if sandbox_backend is not None:
+        general_purpose_discovery = tool_discovery_middleware(
+            model=model,
+            searchable_tools=searchable_tools,
+            mode=tool_discovery_mode,
+            provider_native=supports_tool_search,
+        )
         harness += harness_middleware(
             model=model,
             tools=tools,
@@ -246,6 +266,17 @@ def build_runnable(
             subagents=subagents,
             skills=skills,
             mcp_context=mcp_context,
+            general_purpose_middleware=(
+                [general_purpose_discovery] if general_purpose_discovery else []
+            ),
+            general_purpose_interrupt_on=(
+                discovery_interrupt_on(
+                    general_purpose_interrupt_on, tool_discovery_mode
+                )
+                if tool_discovery_mode is ToolDiscoveryMode.local
+                else None
+            ),
+            private_state_keys=private_state_keys,
         )
         system_prompt = harness_system_prompt(model, system_prompt)
         # The harness brings its own PatchToolCallsMiddleware and langchain
@@ -257,19 +288,14 @@ def build_runnable(
         harness += skills_read_middleware(skills)
 
     middleware = [*harness, *base_middleware]
-    if (
-        isinstance(model, ResponsesChatOpenAI)
-        and len(tools) > OPENAI_TOOL_SELECTION_THRESHOLD
-    ):
-        # Large MCP graphs can put hundreds of complete JSON schemas into one
-        # Responses request. GPT-5 nano returns an empty `incomplete` response
-        # before processing such a request. Select from the compact tool-name
-        # enum first, then expose only the relevant schemas to the main call.
-        middleware.append(
-            LenientLLMToolSelectorMiddleware(
-                model=model, max_tools=OPENAI_TOOL_SELECTION_LIMIT
-            )
-        )
+    discovery = tool_discovery_middleware(
+        model=model,
+        searchable_tools=searchable_tools,
+        mode=tool_discovery_mode,
+        provider_native=supports_tool_search,
+    )
+    if discovery is not None:
+        middleware.append(discovery)
     if sandbox_backend is None and subagents:
         # On the far side of the caller's stack, where the plain path has
         # always put it — the harness wires its own SubAgentMiddleware *before*
@@ -278,7 +304,11 @@ def build_runnable(
         # its own (the `task` tool description carries the agent list), so the
         # position only orders hooks now.
         middleware.append(
-            SubAgentMiddleware(backend=StateBackend(), subagents=subagents)
+            SubAgentMiddleware(
+                backend=StateBackend(),
+                subagents=subagents,
+                private_state_keys=private_state_keys,
+            )
         )
     if output_schema is not None:
         middleware.append(DeferredStructuredOutputMiddleware(format_mode))
@@ -305,6 +335,7 @@ def build_agent_middleware(
     *,
     recursion_limit: int,
     interrupt_on: dict[str, bool] | None = None,
+    tool_discovery_mode: ToolDiscoveryMode = ToolDiscoveryMode.disabled,
 ) -> list:
     """The middleware stack every agent gets, parent or subagent.
 
@@ -343,6 +374,7 @@ def build_agent_middleware(
     is the limit that actually ends the run).
     """
     checkpointed = interrupt_on is not None
+    resolved_interrupt_on = discovery_interrupt_on(interrupt_on, tool_discovery_mode)
     return [
         *([PatchToolCallsMiddleware()] if checkpointed else []),
         ModelRetryMiddleware(),
@@ -354,7 +386,7 @@ def build_agent_middleware(
         *(
             [
                 HumanInTheLoopMiddleware(
-                    interrupt_on=interrupt_on,
+                    interrupt_on=resolved_interrupt_on,
                     description_prefix="Tool execution pending approval",
                 )
             ]
@@ -365,12 +397,17 @@ def build_agent_middleware(
     ]
 
 
-def build_parent_middleware(created_at: datetime, prepared: PreparedToolset) -> list:
+def build_parent_middleware(
+    created_at: datetime,
+    prepared: PreparedToolset,
+    tool_discovery_mode: ToolDiscoveryMode = ToolDiscoveryMode.disabled,
+) -> list:
     """The parent agent's stack: checkpointed, under our own recursion limit."""
     return build_agent_middleware(
         created_at,
         recursion_limit=agent_settings.recursion_limit,
         interrupt_on=prepared.interrupt_on,
+        tool_discovery_mode=tool_discovery_mode,
     )
 
 
@@ -456,6 +493,7 @@ class ResolvedAgent:
         sandbox_backend=None,
         skills: SkillsBackend | None = None,
         web_search_tool: dict | None = None,
+        supports_tool_search: bool = False,
     ) -> CompiledSubAgent:
         """Compile into a CompiledSubAgent runnable (for subagent use).
 
@@ -491,7 +529,12 @@ class ResolvedAgent:
                 created_at,
                 recursion_limit=agent_settings.recursion_limit,
                 interrupt_on=self.prepared.interrupt_on,
+                tool_discovery_mode=self.config.tool_discovery_mode,
             ),
+            tool_discovery_mode=self.config.tool_discovery_mode,
+            supports_tool_search=supports_tool_search,
+            discoverable_tools=self.live.all,
+            general_purpose_interrupt_on=self.prepared.interrupt_on,
         )
         return CompiledSubAgent(
             name=sanitize_tool_name(self.config.name),
@@ -510,6 +553,7 @@ class Agent:
         subagents: list[ResolvedAgent],
         provider: str | None = None,
         web_search_supported: bool = False,
+        tool_search_supported: bool = False,
         skills: list[SkillBundle] = (),
         tracing: RunTracing | None = None,
     ):
@@ -521,6 +565,7 @@ class Agent:
         self.subagents = subagents
         self.provider = provider
         self.web_search_supported = web_search_supported
+        self.tool_search_supported = tool_search_supported
         # One skill set for the whole graph, frozen for this run.
         self.skills = list(skills)
         # The run's live sandbox, opened by `_setup` for the length of one run.
@@ -627,7 +672,11 @@ class Agent:
             base_url=resolved.base_url,
         )
 
-        middleware = build_parent_middleware(thread.created_at, agent.prepared)
+        middleware = build_parent_middleware(
+            thread.created_at,
+            agent.prepared,
+            agent.config.tool_discovery_mode,
+        )
 
         # Still sequential, and deliberately so: these share one AsyncSession,
         # which is not concurrency-safe. It no longer costs anything to be —
@@ -668,6 +717,7 @@ class Agent:
             subagents=subagents,
             provider=resolved.provider,
             web_search_supported=resolved.supports_web_search,
+            tool_search_supported=resolved.supports_tool_search,
             skills=skills,
         )
 
@@ -699,6 +749,7 @@ class Agent:
                     sandbox_backend=self._sandbox_for(s),
                     skills=skills,
                     web_search_tool=self._web_search_tool(s),
+                    supports_tool_search=self.tool_search_supported,
                 )
                 for s in self.subagents
             ]
@@ -724,6 +775,10 @@ class Agent:
             checkpointer=checkpointer,
             output_schema=output_schema,
             format_mode=PROVIDER_FORMAT_MODES.get(self.provider, FORMAT_TOOL),
+            tool_discovery_mode=self.agent.config.tool_discovery_mode,
+            supports_tool_search=self.tool_search_supported,
+            discoverable_tools=self.agent.live.all,
+            general_purpose_interrupt_on=self.agent.prepared.interrupt_on,
         )
 
     def _resolve_input(self, agent_input: dict | None, command: dict | None):

@@ -71,6 +71,7 @@ class ResolvedModel(BaseModel):
     # model declares no default — send nothing, provider default applies.
     reasoning_effort: str | None = None
     supports_web_search: bool = False
+    supports_tool_search: bool = False
 
 
 def _managed(entry: SupportedModel | None, row: ModelDB) -> ManagedModelResponse:
@@ -110,6 +111,7 @@ def _catalog_entry(row: ModelProviderCatalogEntryDB) -> SupportedModel:
         supports_tools=row.supports_tools,
         is_available=row.is_available,
         supports_web_search=False,
+        supports_tool_search=False,
     )
 
 
@@ -233,6 +235,7 @@ class ModelService(BaseService[ModelDB, ModelRepository]):
             base_url=base_url,
             reasoning_effort=reasoning_effort,
             supports_web_search=bool(entry.supports_web_search),
+            supports_tool_search=entry.supports_tool_search,
         )
 
     @staticmethod

@@ -21,7 +21,7 @@ export function ViewToggle({ value, onChange, className }: ViewToggleProps) {
 	return (
 		<span
 			className={cn(
-				"inline-flex shrink-0 overflow-hidden rounded-[6px] border border-border",
+				"hidden shrink-0 overflow-hidden rounded-[6px] border border-border md:inline-flex",
 				className,
 			)}
 		>

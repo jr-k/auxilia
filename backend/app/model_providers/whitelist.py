@@ -100,6 +100,9 @@ class SupportedModel(BaseModel):
     supports_structured_output: bool = False
     supports_tools: bool = True
     is_available: bool = True
+    # Provider-native schema discovery (`tool_search`). False means the runtime
+    # uses its model-driven fallback when an agent enables tool discovery.
+    supports_tool_search: bool = False
     # None keeps older remote catalogs compatible: providers whose native
     # serving path supports server-side search inherit True. An entry may set
     # False explicitly if one model on such a provider does not support it.

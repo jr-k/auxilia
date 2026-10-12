@@ -20,6 +20,7 @@ type DropdownItem =
 interface DropdownMenuProps {
 	items: DropdownItem[];
 	trigger?: React.ReactNode;
+	modal?: boolean;
 	align?: "start" | "end";
 	side?: "bottom" | "right" | "left" | "top";
 	sideOffset?: number;
@@ -29,13 +30,14 @@ interface DropdownMenuProps {
 export function DropdownMenu({
 	items,
 	trigger,
+	modal = true,
 	align = "end",
 	side = "bottom",
 	sideOffset = 6,
 	className,
 }: DropdownMenuProps) {
 	return (
-		<DropdownMenuPrimitive.Root>
+		<DropdownMenuPrimitive.Root modal={modal}>
 			<DropdownMenuPrimitive.Trigger asChild>
 				{trigger || (
 					<button

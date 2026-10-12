@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -149,6 +149,10 @@ export function AppSidebar() {
 	const appearance = useAppearanceStore((state) => state.appearance);
 	const showShortcutsInMenu = useShowShortcutsInMenu();
 
+	useEffect(() => {
+		if (isMobile) setOpenMobile(false);
+	}, [isMobile, pathname, setOpenMobile]);
+
 	const navCounts: Record<string, number | undefined> = {
 		"/agents": agentsReady ? agents.length : undefined,
 		"/triggers": triggersReady ? triggers.length : undefined,
@@ -236,6 +240,7 @@ export function AppSidebar() {
 										? agents.find((a) => a.id === threads[0].agentId)
 										: undefined;
 									router.push(`/agents/${(lastAgent ?? agents[0]).id}/chat`);
+									if (isMobile) setOpenMobile(false);
 								}
 							}}
 							disabled={agents.length === 0}
@@ -299,6 +304,9 @@ export function AppSidebar() {
 													// prefetches on page load — dozens of requests for
 													// threads the user rarely opens.
 													prefetch={false}
+													onClick={() => {
+														if (isMobile) setOpenMobile(false);
+													}}
 													className="flex items-center gap-1.5 px-[5px]"
 												>
 													<span className="flex w-7 shrink-0 items-center justify-center">
@@ -492,6 +500,7 @@ export function AppSidebar() {
 					<SidebarMenu>
 						<SidebarMenuItem>
 							<DropdownMenu
+								modal={!isMobile}
 								trigger={
 									<SidebarMenuButton
 										size="lg"

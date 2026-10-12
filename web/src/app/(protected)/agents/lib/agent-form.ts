@@ -1,4 +1,4 @@
-import { Agent, ToolStatus } from "@/types/agents";
+import { Agent, ToolDiscoveryMode, ToolStatus } from "@/types/agents";
 import { AGENT_COLORS, randomAgentColor } from "@/lib/colors";
 import type { ResourceVisibility } from "@/types/visibility";
 
@@ -24,6 +24,7 @@ export interface AgentFormState {
 	emoji: string;
 	color: string;
 	webSearchEnabled: boolean;
+	toolDiscoveryMode: ToolDiscoveryMode;
 	defaultModelId: string | null;
 	defaultReasoningEffort: string | null;
 	mcpServers: AgentMCPServerForm[];
@@ -45,6 +46,7 @@ export function defaultAgentForm(): AgentFormState {
 		emoji: "🤖",
 		color: randomAgentColor(),
 		webSearchEnabled: false,
+		toolDiscoveryMode: "disabled",
 		defaultModelId: null,
 		defaultReasoningEffort: null,
 		mcpServers: [],
@@ -65,6 +67,7 @@ export function fromAgent(agent: Agent): AgentFormState {
 		emoji: agent.emoji || "🤖",
 		color: agent.color || AGENT_COLORS[0],
 		webSearchEnabled: agent.webSearchEnabled ?? false,
+		toolDiscoveryMode: agent.toolDiscoveryMode ?? "disabled",
 		defaultModelId: agent.defaultModelId ?? null,
 		defaultReasoningEffort: agent.defaultReasoningEffort ?? null,
 		mcpServers: (agent.mcpServers || []).map((server) => ({
@@ -107,6 +110,7 @@ export function toPayload(form: AgentFormState) {
 		emoji: form.emoji || null,
 		color: form.color || null,
 		webSearchEnabled: form.webSearchEnabled,
+		toolDiscoveryMode: form.toolDiscoveryMode,
 		defaultModelId: form.defaultModelId,
 		defaultReasoningEffort: form.defaultReasoningEffort,
 		mcpServers: [...form.mcpServers]

@@ -308,6 +308,7 @@ class AgentRepository(BaseRepository[AgentDB]):
                 instructions=agent.instructions,
                 description=agent.description,
                 web_search_enabled=agent.web_search_enabled,
+                tool_discovery_mode=agent.tool_discovery_mode,
                 default_model_id=agent.default_model_id,
                 default_reasoning_effort=agent.default_reasoning_effort,
                 mcp_servers=bindings_by_agent.get(agent.id, []),

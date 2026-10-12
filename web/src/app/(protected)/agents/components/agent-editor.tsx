@@ -14,7 +14,7 @@ import {
 import { toast } from "sonner";
 import { AGENT_COLORS } from "@/lib/colors";
 import { useTheme } from "next-themes";
-import { Agent } from "@/types/agents";
+import { Agent, ToolDiscoveryMode } from "@/types/agents";
 import AgentToolList from "../[id]/components/agent-tool-list";
 import AgentSubagentList from "../[id]/components/agent-subagent-list";
 import AgentSkillList from "../[id]/components/agent-skill-list";
@@ -67,6 +67,12 @@ const EFFORT_LABELS = new Map<string, string>([
 ]);
 
 const effortLabel = (effort: string) => EFFORT_LABELS.get(effort) ?? effort;
+
+const TOOL_DISCOVERY_LABELS: Record<ToolDiscoveryMode, string> = {
+	disabled: "Disabled",
+	automatic: "Automatic",
+	local: "Local",
+};
 
 interface AgentEditorProps {
 	/** Undefined = create mode (`/agents/new` draft). */
@@ -328,6 +334,7 @@ export default function AgentEditor({
 				color: source.color ?? null,
 				visibility: source.visibility,
 				webSearchEnabled: source.webSearchEnabled ?? false,
+				toolDiscoveryMode: source.toolDiscoveryMode ?? "disabled",
 				defaultModelId: source.defaultModelId ?? null,
 				defaultReasoningEffort: source.defaultReasoningEffort ?? null,
 				teamIds: source.teamIds,
@@ -780,6 +787,26 @@ export default function AgentEditor({
 												{form.webSearchEnabled ? "Enabled" : "Disabled"}
 											</dd>
 										</div>
+										<div className="flex items-center gap-6 border-t border-hairline px-4 py-3.5 dark:border-white/5">
+											<div className="min-w-0 flex-1">
+												<dt className="text-[12.5px] font-semibold text-foreground">
+													AI tool discovery
+													<span className="mt-0.5 block text-[10.5px] font-normal text-meta dark:text-panel-dim">
+														Loads relevant tool schemas on demand.
+													</span>
+												</dt>
+											</div>
+											<dd
+												className={cn(
+													"rounded-full px-3 py-1.5 text-[11.5px] font-semibold",
+													form.toolDiscoveryMode !== "disabled"
+														? "bg-success-bg text-success"
+														: "bg-hover text-meta dark:bg-white/5 dark:text-panel-dim",
+												)}
+											>
+												{TOOL_DISCOVERY_LABELS[form.toolDiscoveryMode]}
+											</dd>
+										</div>
 									</dl>
 								</div>
 							) : (
@@ -900,6 +927,53 @@ export default function AgentEditor({
 								onCheckedChange={(checked) => {
 									setField("webSearchEnabled", checked);
 								}}
+							/>
+						</div>
+						<div className="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3">
+							<div className="min-w-0 flex-1">
+								<p className="text-[13px] font-semibold text-foreground">
+									AI tool discovery
+								</p>
+								<p className="mt-0.5 text-[11.5px] leading-[1.45] text-meta dark:text-panel-dim">
+									Finds relevant MCP tools before loading their full schemas.
+									All enabled tools remain discoverable.
+								</p>
+							</div>
+							<DropdownMenu
+								align="end"
+								side="top"
+								items={[
+									{
+										label: "Disabled — load every schema",
+										active: form.toolDiscoveryMode === "disabled",
+										onClick: () => {
+											setField("toolDiscoveryMode", "disabled");
+										},
+									},
+									{
+										label: "Automatic — provider or AI selector",
+										active: form.toolDiscoveryMode === "automatic",
+										onClick: () => {
+											setField("toolDiscoveryMode", "automatic");
+										},
+									},
+									{
+										label: "Local — Auxilia catalog search",
+										active: form.toolDiscoveryMode === "local",
+										onClick: () => {
+											setField("toolDiscoveryMode", "local");
+										},
+									},
+								]}
+								trigger={
+									<button
+										type="button"
+										disabled={readOnly || !canEditAgent}
+										className="inline-flex h-8 cursor-pointer items-center rounded-full bg-hover px-3 text-[12px] font-medium text-foreground transition-colors hover:bg-petrol-tint disabled:cursor-not-allowed disabled:opacity-60 dark:bg-white/5 dark:hover:bg-white/10"
+									>
+										{TOOL_DISCOVERY_LABELS[form.toolDiscoveryMode]}
+									</button>
+								}
 							/>
 						</div>
 						</div>

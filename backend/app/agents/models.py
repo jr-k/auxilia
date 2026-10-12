@@ -53,6 +53,12 @@ class ToolStatus(str, Enum):
     disabled = "disabled"
 
 
+class ToolDiscoveryMode(str, Enum):
+    disabled = "disabled"
+    automatic = "automatic"
+    local = "local"
+
+
 class AgentMCPServerBase(SQLModel):
     agent_id: UUID = Field(foreign_key="agents.id", ondelete="CASCADE", nullable=False)
     # No cascade on the server side: deleting a bound MCP server is refused
@@ -101,6 +107,14 @@ class AgentBase(SQLModel):
     web_search_enabled: bool = Field(
         default=False,
         sa_column=Column(Boolean, nullable=False, server_default="false"),
+    )
+    tool_discovery_mode: ToolDiscoveryMode = Field(
+        default=ToolDiscoveryMode.disabled,
+        sa_column=Column(
+            String(16),
+            nullable=False,
+            server_default=ToolDiscoveryMode.disabled.value,
+        ),
     )
     # Optional per-agent defaults for new threads. NULL inherits the
     # workspace default model; effort is only meaningful with an explicit

@@ -9,6 +9,7 @@ from app.agents.models import (
     AgentMCPServerBase,
     EffectivePermission,
     PermissionLevel,
+    ToolDiscoveryMode,
     ToolStatus,
 )
 from app.sandbox.models import SandboxProviderType
@@ -47,6 +48,7 @@ class AgentCreateDB(SQLModel):
     group: str | None = None
     visibility: ResourceVisibility = ResourceVisibility.personal
     web_search_enabled: bool = False
+    tool_discovery_mode: ToolDiscoveryMode = ToolDiscoveryMode.disabled
     default_model_id: str | None = Field(default=None, max_length=255)
     default_reasoning_effort: str | None = Field(default=None, max_length=32)
 
@@ -65,6 +67,7 @@ class AgentPatch(SQLModel):
     group: str | None = None
     visibility: ResourceVisibility | None = None
     web_search_enabled: bool = False
+    tool_discovery_mode: ToolDiscoveryMode = ToolDiscoveryMode.disabled
     default_model_id: str | None = Field(default=None, max_length=255)
     default_reasoning_effort: str | None = Field(default=None, max_length=32)
 
@@ -102,6 +105,7 @@ class AgentConfig(SQLModel):
     group: str | None = None
     visibility: ResourceVisibility = ResourceVisibility.personal
     web_search_enabled: bool = False
+    tool_discovery_mode: ToolDiscoveryMode = ToolDiscoveryMode.disabled
     default_model_id: str | None = Field(default=None, max_length=255)
     default_reasoning_effort: str | None = Field(default=None, max_length=32)
     team_ids: list[UUID] = []
@@ -268,6 +272,7 @@ class AgentListResponse(SQLModel):
 
 class AgentResponse(AgentListResponse):
     instructions: str
+    tool_discovery_mode: ToolDiscoveryMode = ToolDiscoveryMode.disabled
     default_model_id: str | None = None
     default_reasoning_effort: str | None = None
     mcp_servers: list[AgentMCPServerResponse] | None = None

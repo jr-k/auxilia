@@ -130,6 +130,8 @@ def _general_purpose_subagent(
     profile: HarnessProfile,
     skills=None,
     mcp_context: str | None = None,
+    extra_middleware=(),
+    interrupt_on=None,
 ) -> dict | None:
     """deepagents' default subagent: the parent's tools, its own harness stack.
 
@@ -142,7 +144,10 @@ def _general_purpose_subagent(
     gp_profile = profile.general_purpose_subagent or GeneralPurposeSubagentProfile()
     if gp_profile.enabled is False:
         return None
-    middleware = _base_harness_stack(model, backend, profile, skills)
+    middleware = [
+        *_base_harness_stack(model, backend, profile, skills),
+        *extra_middleware,
+    ]
     append_prompt_caching_middleware(middleware)
     spec: dict = {
         **GENERAL_PURPOSE_SUBAGENT,
@@ -150,6 +155,8 @@ def _general_purpose_subagent(
         "tools": tools,
         "middleware": middleware,
     }
+    if interrupt_on is not None:
+        spec["interrupt_on"] = interrupt_on
     if gp_profile.description is not None:
         spec["description"] = gp_profile.description
     if gp_profile.system_prompt is not None:
@@ -176,6 +183,9 @@ def harness_middleware(
     subagents=None,
     skills=None,
     mcp_context: str | None = None,
+    general_purpose_middleware=(),
+    general_purpose_interrupt_on=None,
+    private_state_keys: frozenset[str] | None = None,
 ) -> list:
     """The harness middleware that runs *before* the caller's own stack.
 
@@ -199,6 +209,8 @@ def harness_middleware(
             profile,
             skills,
             mcp_context,
+            general_purpose_middleware,
+            general_purpose_interrupt_on,
         )
         specs = [default, *supplied] if default is not None else supplied
     middleware: list = [TodoListMiddleware()]
@@ -216,6 +228,7 @@ def harness_middleware(
                 backend=backend,
                 subagents=specs,
                 task_description=profile.tool_description_overrides.get("task"),
+                private_state_keys=private_state_keys,
             )
         )
     middleware += [
