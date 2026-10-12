@@ -11,7 +11,7 @@
 #   supports_structured_output — REAL constrained decoding (json_schema /
 #                                strict tool call) on the endpoint we call,
 #                                NOT best-effort json_object
-#   supports_tool_search       — provider-native deferred tool discovery
+#   supports_tool_search: provider-native deferred tool discovery
 #
 # reasoning_effort_levels / reasoning_effort_default — the effort values a
 # user may pick for this model, drawn from the canonical ladder
