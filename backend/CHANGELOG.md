@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.47](https://github.com/jr-k/auxilia/compare/backend-v0.10.46...backend-v0.10.47) (2026-10-12)
+
+
+### Bug Fixes
+
+* **mcp:** allow internal proxy host ([87eb94f](https://github.com/jr-k/auxilia/commit/87eb94fb68b767ff90b223b28db5fc441658469f))
+
 ## [0.10.46](https://github.com/jr-k/auxilia/compare/backend-v0.10.45...backend-v0.10.46) (2026-10-12)
 
 
