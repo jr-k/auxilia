@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.49](https://github.com/jr-k/auxilia/compare/backend-v0.10.48...backend-v0.10.49) (2026-10-12)
+
+
+### Features
+
+* **agents:** add configurable tool discovery ([a0b48f9](https://github.com/jr-k/auxilia/commit/a0b48f9ba05cd69fa4a1cde69d54af609dc7fc93))
+
 ## [0.10.48](https://github.com/jr-k/auxilia/compare/backend-v0.10.47...backend-v0.10.48) (2026-10-12)
 
 
