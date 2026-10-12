@@ -15,7 +15,18 @@ import {
 	PromptInputTools,
 	usePromptInputController,
 } from "@/components/ai-elements/prompt-input";
-import { BrainIcon, CheckIcon, PlugIcon, XIcon } from "lucide-react";
+import type { BaseMessage } from "@langchain/core/messages";
+import {
+	isAIMessage,
+	isHumanMessage,
+} from "@langchain/core/messages";
+import {
+	BrainIcon,
+	ChartNoAxesColumnIncreasingIcon,
+	CheckIcon,
+	PlugIcon,
+	XIcon,
+} from "lucide-react";
 import { useRef, useState, useEffect, useMemo } from "react";
 import { toast } from "sonner";
 import { DropdownMenu } from "@/components/ui/dropdown-menu";
@@ -84,6 +95,8 @@ interface ChatPromptInputProps {
 	queueLoading?: boolean;
 	onQueueAuthorizationRequired?: () => void;
 	submissionDisabled?: boolean;
+	conversationMessages?: BaseMessage[];
+	conversationToolCallCount?: number;
 }
 
 // Human labels for the canonical effort ladder ("none" reads as Off — it
@@ -142,6 +155,8 @@ const ChatPromptInput = ({
 	queueLoading = false,
 	onQueueAuthorizationRequired,
 	submissionDisabled = false,
+	conversationMessages,
+	conversationToolCallCount = 0,
 }: ChatPromptInputProps) => {
 	const [connectDialogOpen, setConnectDialogOpen] = useState(false);
 	const models = useModelsStore((state) => state.models);
@@ -202,6 +217,53 @@ const ChatPromptInput = ({
 		const disabledIds = new Set(resourceSettings.disabledMcpServerIds);
 		return disconnectedServers.filter((server) => !disabledIds.has(server.id));
 	}, [disconnectedServers, resourceSettings.disabledMcpServerIds]);
+	const conversationStats = useMemo(() => {
+		if (!conversationMessages) return null;
+		let userMessages = 0;
+		let assistantMessages = 0;
+		let modelCalls = 0;
+		let inputTokens = 0;
+		let outputTokens = 0;
+		let totalTokens = 0;
+		let cachedInputTokens = 0;
+		let reasoningTokens = 0;
+		let hasUsage = false;
+
+		for (const message of conversationMessages) {
+			if (isHumanMessage(message) && message.name !== "host") {
+				userMessages += 1;
+				continue;
+			}
+			if (!isAIMessage(message)) continue;
+			modelCalls += 1;
+			if (message.text.trim()) assistantMessages += 1;
+
+			const usage = message.usage_metadata;
+			if (!usage) continue;
+			hasUsage = true;
+			const input = usage.input_tokens ?? 0;
+			const output = usage.output_tokens ?? 0;
+			inputTokens += input;
+			outputTokens += output;
+			totalTokens += usage.total_tokens ?? input + output;
+			cachedInputTokens += usage.input_token_details?.cache_read ?? 0;
+			reasoningTokens += usage.output_token_details?.reasoning ?? 0;
+		}
+
+		return {
+			userMessages,
+			assistantMessages,
+			messageCount: userMessages + assistantMessages,
+			modelCalls,
+			toolCalls: conversationToolCallCount,
+			inputTokens,
+			outputTokens,
+			totalTokens,
+			cachedInputTokens,
+			reasoningTokens,
+			hasUsage,
+		};
+	}, [conversationMessages, conversationToolCallCount]);
 
 	// Editable composer only: normalize a stale selection in the parent state
 	// too (not just the display), so what's shown as Default/Auto is also what
@@ -604,6 +666,104 @@ const ChatPromptInput = ({
 								)}
 							/>
 						)}
+						{conversationStats && (
+							<Dialog>
+								<DialogTrigger asChild>
+									<PromptInputButton
+										aria-label="Conversation stats"
+										title="Conversation stats"
+										className={cn(
+											composerPillClass,
+											"w-[34px] cursor-pointer px-0 text-subtle dark:text-panel-body",
+										)}
+									>
+										<ChartNoAxesColumnIncreasingIcon className="size-3.5" />
+									</PromptInputButton>
+								</DialogTrigger>
+								<DialogContent className="gap-0 sm:max-w-[520px]">
+									<DialogTitle>Conversation stats</DialogTitle>
+									<DialogDescription className="mt-1.5">
+										Usage accumulated across every model call in this thread.
+									</DialogDescription>
+
+									<div className="mt-5 grid grid-cols-3 gap-2.5">
+										<ConversationStat
+											label="Total tokens"
+											value={
+												conversationStats.hasUsage
+													? conversationStats.totalTokens
+													: null
+											}
+											primary
+										/>
+										<ConversationStat
+											label="Input tokens"
+											value={
+												conversationStats.hasUsage
+													? conversationStats.inputTokens
+													: null
+											}
+										/>
+										<ConversationStat
+											label="Output tokens"
+											value={
+												conversationStats.hasUsage
+													? conversationStats.outputTokens
+													: null
+											}
+										/>
+									</div>
+
+									<div className="mt-5 overflow-hidden rounded-[10px] border border-border">
+										<ConversationStatRow
+											label="Messages"
+											value={conversationStats.messageCount}
+										/>
+										<ConversationStatRow
+											label="Your messages"
+											value={conversationStats.userMessages}
+										/>
+										<ConversationStatRow
+											label="Assistant messages"
+											value={conversationStats.assistantMessages}
+										/>
+										<ConversationStatRow
+											label="Model calls"
+											value={conversationStats.modelCalls}
+										/>
+										<ConversationStatRow
+											label="Tool calls"
+											value={conversationStats.toolCalls}
+											last={
+												conversationStats.cachedInputTokens === 0 &&
+												conversationStats.reasoningTokens === 0
+											}
+										/>
+										{conversationStats.cachedInputTokens > 0 && (
+											<ConversationStatRow
+												label="Cached input tokens"
+												value={conversationStats.cachedInputTokens}
+												last={conversationStats.reasoningTokens === 0}
+											/>
+										)}
+										{conversationStats.reasoningTokens > 0 && (
+											<ConversationStatRow
+												label="Reasoning tokens"
+												value={conversationStats.reasoningTokens}
+												last
+											/>
+										)}
+									</div>
+
+									{!conversationStats.hasUsage && (
+										<p className="mt-4 rounded-[8px] bg-hover px-3 py-2.5 text-[12px] leading-[1.5] text-meta dark:bg-white/5 dark:text-panel-dim">
+											Token usage is not available for the responses in this
+											conversation.
+										</p>
+									)}
+								</DialogContent>
+							</Dialog>
+						)}
 						{readOnlyModel ? (
 							<PromptInputButton disabled className={composerPillClass}>
 								{selectedModelData?.chefSlug && (
@@ -790,6 +950,64 @@ const ChatPromptInput = ({
 		</>
 	);
 };
+
+const formatStat = (value: number | null) =>
+	value === null ? "N/A" : new Intl.NumberFormat("en-US").format(value);
+
+const ConversationStat = ({
+	label,
+	value,
+	primary = false,
+}: {
+	label: string;
+	value: number | null;
+	primary?: boolean;
+}) => (
+	<div
+		className={cn(
+			"rounded-[10px] border px-3 py-3",
+			primary
+				? "border-petrol/20 bg-petrol-tint dark:border-white/10 dark:bg-white/10"
+				: "border-border bg-card",
+		)}
+	>
+		<div
+			className={cn(
+				"font-mono text-[18px] font-semibold tracking-[-0.03em]",
+				primary ? "text-petrol dark:text-panel-terminal" : "text-foreground",
+			)}
+		>
+			{formatStat(value)}
+		</div>
+		<div className="mt-1 text-[10.5px] font-medium leading-tight text-meta dark:text-panel-dim">
+			{label}
+		</div>
+	</div>
+);
+
+const ConversationStatRow = ({
+	label,
+	value,
+	last = false,
+}: {
+	label: string;
+	value: number;
+	last?: boolean;
+}) => (
+	<div
+		className={cn(
+			"flex items-center justify-between px-3.5 py-2.5",
+			!last && "border-b border-hairline dark:border-white/5",
+		)}
+	>
+		<span className="text-[12.5px] font-medium text-body dark:text-panel-body">
+			{label}
+		</span>
+		<span className="font-mono text-[12px] font-semibold text-foreground">
+			{formatStat(value)}
+		</span>
+	</div>
+);
 
 const SubmitButton = ({ disabled = false }: { disabled?: boolean }) => {
 	const controller = usePromptInputController();

@@ -408,6 +408,8 @@ const ChatPage = () => {
               void updateResourceSettings(settings);
             }}
             resourceSettingsSaving={resourceSettingsSaving}
+            conversationMessages={transcript.messages}
+            conversationToolCallCount={transcript.toolCalls.length}
             queuedPrompts={promptQueue.items}
             queueLoading={promptQueue.isLoading}
             onQueueAuthorizationRequired={refetchReady}
