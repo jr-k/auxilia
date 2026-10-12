@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.54](https://github.com/jr-k/auxilia/compare/web-v0.11.53...web-v0.11.54) (2026-10-12)
+
+
+### Features
+
+* **web:** add user grid and detailed usage stats ([ca87e6d](https://github.com/jr-k/auxilia/commit/ca87e6d83a803a6cb6cba8cd31c8c19aa28c79a0))
+
 ## [0.11.53](https://github.com/jr-k/auxilia/compare/web-v0.11.52...web-v0.11.53) (2026-10-12)
 
 
