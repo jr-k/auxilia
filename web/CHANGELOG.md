@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.12.0](https://github.com/jr-k/auxilia/compare/web-v0.11.58...web-v0.12.0) (2026-10-12)
+
+
+### ⚠ BREAKING CHANGES
+
+* **notifications:** remove delivery channels
+
+### Features
+
+* **chat:** expose runtime controls and live statistics ([db71629](https://github.com/jr-k/auxilia/commit/db716295578c570b63d9fce01df7a14059fbae63))
+* **databases:** refine managed connection experience ([633ffe1](https://github.com/jr-k/auxilia/commit/633ffe18d9043a9b5ea6f222efb985067ba02b31))
+* **notifications:** remove delivery channels ([35c2998](https://github.com/jr-k/auxilia/commit/35c29984154684d3bbb36a7043f9c99527508b17))
+
 ## [0.11.58](https://github.com/jr-k/auxilia/compare/web-v0.11.57...web-v0.11.58) (2026-10-12)
 
 
