@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.3](https://github.com/jr-k/auxilia/compare/web-v0.12.2...web-v0.12.3) (2026-10-13)
+
+
+### Features
+
+* **chat:** improve conversation resource selection ([523c1c2](https://github.com/jr-k/auxilia/commit/523c1c2730486616f2b0cef379c322e2772991d4))
+
 ## [0.12.2](https://github.com/jr-k/auxilia/compare/web-v0.12.1...web-v0.12.2) (2026-10-13)
 
 
