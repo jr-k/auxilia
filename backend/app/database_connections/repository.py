@@ -136,14 +136,27 @@ class DatabaseConnectionRepository(BaseRepository[DatabaseConnectionDB]):
 
 
 class DatabaseFileRepository(BaseRepository[DatabaseFileDB]):
-    def __init__(self, db: AsyncSession, workspace_id: UUID):
+    def __init__(self, db: AsyncSession, workspace_id: UUID | None = None):
         super().__init__(DatabaseFileDB, db)
         self.workspace_id = workspace_id
 
     async def get_scoped(self, file_id: UUID) -> DatabaseFileDB | None:
-        stmt = select(DatabaseFileDB).where(
-            DatabaseFileDB.id == file_id,
-            DatabaseFileDB.workspace_id == self.workspace_id,
-        )
+        stmt = select(DatabaseFileDB).where(DatabaseFileDB.id == file_id)
+        if self.workspace_id is not None:
+            stmt = stmt.where(DatabaseFileDB.workspace_id == self.workspace_id)
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
+
+    async def list_stored_names(self) -> set[str]:
+        stmt = select(DatabaseFileDB.stored_name)
+        result = await self.db.execute(stmt)
+        return set(result.scalars().all())
+
+    async def is_referenced(self, file_id: UUID) -> bool:
+        stmt = (
+            select(DatabaseConnectionDB.id)
+            .where(DatabaseConnectionDB.sqlite_file_id == file_id)
+            .limit(1)
+        )
+        result = await self.db.execute(stmt)
+        return result.scalar_one_or_none() is not None

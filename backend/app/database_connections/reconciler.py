@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import os
+import time
 import tomllib
 from datetime import UTC, datetime
 from pathlib import Path
@@ -20,6 +21,7 @@ from app.database_connections.config import (
     build_dbhub_config,
     source_description,
 )
+from app.database_connections.files import delete_untracked_files
 from app.database_connections.models import (
     DatabaseConnectionDB,
     DatabaseConnectionStatus,
@@ -36,6 +38,7 @@ from app.mcp.servers.repository import MCPServerRepository
 
 logger = logging.getLogger(__name__)
 _LOCK_ID = 0x4442485542  # "DBHUB"
+_FILE_CLEANUP_INTERVAL_SECONDS = 300
 
 
 def _write_in_place(path: Path, content: str) -> None:
@@ -75,6 +78,7 @@ async def _hydrate_connections(
 
 class DBHubReconciler:
     def __init__(self) -> None:
+        self._last_file_cleanup = 0.0
         self._loop = PeriodicLoop(
             "dbhub-reconciler",
             dbhub_settings.reconcile_interval_seconds,
@@ -84,8 +88,26 @@ class DBHubReconciler:
     async def ensure_config_file(self) -> None:
         if not dbhub_settings.enabled:
             return
+        await self._cleanup_orphaned_files(force=True)
         content = await self._render()
         await asyncio.to_thread(_write_in_place, dbhub_settings.config_path, content)
+
+    async def _cleanup_orphaned_files(self, *, force: bool = False) -> None:
+        now = time.monotonic()
+        if (
+            not force
+            and now - self._last_file_cleanup < _FILE_CLEANUP_INTERVAL_SECONDS
+        ):
+            return
+        self._last_file_cleanup = now
+        try:
+            async with AsyncSessionLocal() as db:
+                known_names = await DatabaseFileRepository(db).list_stored_names()
+            deleted = await delete_untracked_files(known_names)
+            if deleted:
+                logger.info("Removed %s orphaned database file(s)", deleted)
+        except Exception:
+            logger.exception("Could not clean orphaned database files")
 
     async def _render(self) -> str:
         async with AsyncSessionLocal() as db:
@@ -107,6 +129,7 @@ class DBHubReconciler:
         if not dbhub_settings.auth_token:
             await self._set_failure("MissingDBHubAuthToken")
             return
+        await self._cleanup_orphaned_files()
 
         try:
             async with AsyncSessionLocal() as db, db.begin():

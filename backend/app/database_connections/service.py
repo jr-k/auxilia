@@ -1,3 +1,5 @@
+import logging
+from dataclasses import dataclass
 from uuid import UUID, uuid4
 
 from fastapi import Depends, UploadFile
@@ -6,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.agents.mcp_servers.service import AgentMCPServerService
 from app.database import get_db
 from app.database_connections.client import list_dbhub_source_ids
-from app.database_connections.files import store_sqlite_upload
+from app.database_connections.files import delete_stored_file, store_sqlite_upload
 from app.database_connections.models import (
     DATABASE_ENGINE_ICON_URLS,
     DatabaseConnectionDB,
@@ -39,6 +41,15 @@ from app.mcp.servers.service import MCPServerService
 from app.service import BaseService
 from app.users.models import UserDB
 from app.workspaces.dependencies import get_active_workspace_id
+
+
+logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class DatabaseConnectionUpdateResult:
+    response: DatabaseConnectionResponse
+    replaced_file: DatabaseFileDB | None
 
 
 def _public_connection_error(error: str | None) -> str | None:
@@ -137,15 +148,22 @@ class DatabaseConnectionService(
         if not dbhub_settings.enabled or not dbhub_settings.auth_token:
             raise DomainValidationError("The internal database connector is disabled")
         stored = await store_sqlite_upload(upload)
-        database_file = await self.files.create(
-            DatabaseFileCreateDB(
-                workspace_id=self.workspace_id,
-                owner_id=user.id,
-                original_name=stored.original_name,
-                stored_name=stored.stored_name,
-                size_bytes=stored.size_bytes,
+        try:
+            database_file = await self.files.create(
+                DatabaseFileCreateDB(
+                    workspace_id=self.workspace_id,
+                    owner_id=user.id,
+                    original_name=stored.original_name,
+                    stored_name=stored.stored_name,
+                    size_bytes=stored.size_bytes,
+                )
             )
-        )
+        except Exception:
+            try:
+                await delete_stored_file(stored.stored_name)
+            except OSError:
+                logger.exception("Could not remove failed SQLite upload")
+            raise
         return SQLiteFileResponse(
             id=database_file.id,
             original_name=database_file.original_name,
@@ -260,8 +278,13 @@ class DatabaseConnectionService(
 
     async def update(
         self, connection_id: UUID, data: DatabaseConnectionPatch
-    ) -> DatabaseConnectionResponse:
+    ) -> DatabaseConnectionUpdateResult:
         connection = await self.get_scoped(connection_id, for_update=True)
+        previous_file = (
+            await self.files.get_scoped(connection.sqlite_file_id)
+            if connection.sqlite_file_id
+            else None
+        )
         server_fields = {"name", "description", "group", "visibility"}
         server_update = data.model_dump(include=server_fields, exclude_unset=True)
         if "team_ids" in data.model_fields_set:
@@ -368,7 +391,29 @@ class DatabaseConnectionService(
         if database_changed:
             await self._mark_changed(connection)
         await self.db.refresh(connection)
-        return await self.to_response(connection)
+        replaced_file = (
+            previous_file
+            if previous_file is not None
+            and previous_file.id != connection.sqlite_file_id
+            else None
+        )
+        return DatabaseConnectionUpdateResult(
+            response=await self.to_response(connection),
+            replaced_file=replaced_file,
+        )
+
+    async def cleanup_replaced_file(self, database_file: DatabaseFileDB) -> None:
+        try:
+            if await self.files.is_referenced(database_file.id):
+                return
+            await delete_stored_file(database_file.stored_name)
+            await self.files.delete(database_file)
+        except Exception:  # The update is already committed; cleanup is best-effort.
+            await self.db.rollback()
+            logger.exception(
+                "Could not remove replaced SQLite file %s",
+                database_file.id,
+            )
 
     async def request_reconcile(self, connection_id: UUID) -> None:
         await self.repository.bump_desired_revision()

@@ -73,7 +73,13 @@ async def update_database_connection(
     _: UserDB = Depends(require_admin),
     service: DatabaseConnectionService = Depends(get_database_connection_service),
 ) -> DatabaseConnectionResponse:
-    return await service.update(connection_id, data)
+    result = await service.update(connection_id, data)
+    if result.replaced_file is not None:
+        # Commit the new file reference before deleting the old file, which is a
+        # non-rollbackable filesystem side effect.
+        await service.db.commit()
+        await service.cleanup_replaced_file(result.replaced_file)
+    return result.response
 
 
 @router.post("/{connection_id}/reconcile", status_code=202)

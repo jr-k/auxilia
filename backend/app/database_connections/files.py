@@ -1,5 +1,7 @@
 import asyncio
 import os
+import re
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import BinaryIO
@@ -14,6 +16,8 @@ from app.exceptions import DomainValidationError
 _SQLITE_HEADER = b"SQLite format 3\x00"
 _ALLOWED_SUFFIXES = {".db", ".sqlite", ".sqlite3"}
 _CHUNK_SIZE = 1024 * 1024
+_STORED_FILE_PATTERN = re.compile(r"^[0-9a-f]{32}\.sqlite3$")
+_TEMP_FILE_PATTERN = re.compile(r"^\.[0-9a-f]{32}\.sqlite3\.upload$")
 
 
 @dataclass(frozen=True)
@@ -77,3 +81,51 @@ async def store_sqlite_upload(upload: UploadFile) -> StoredSQLiteFile:
     original_name = _clean_name(upload.filename)
     await upload.seek(0)
     return await asyncio.to_thread(_copy_upload, upload.file, original_name)
+
+
+def _delete_stored_file(stored_name: str) -> None:
+    if not _STORED_FILE_PATTERN.fullmatch(stored_name):
+        raise ValueError("Invalid stored database filename")
+    (database_file_settings.storage_path / stored_name).unlink(missing_ok=True)
+
+
+async def delete_stored_file(stored_name: str) -> None:
+    await asyncio.to_thread(_delete_stored_file, stored_name)
+
+
+def _delete_untracked_files(
+    known_names: set[str],
+    *,
+    older_than_seconds: int,
+) -> int:
+    root = database_file_settings.storage_path
+    if not root.exists():
+        return 0
+    cutoff = time.time() - older_than_seconds
+    deleted = 0
+    for path in root.iterdir():
+        if path.name in known_names or not (
+            _STORED_FILE_PATTERN.fullmatch(path.name)
+            or _TEMP_FILE_PATTERN.fullmatch(path.name)
+        ):
+            continue
+        try:
+            if path.stat().st_mtime > cutoff:
+                continue
+            path.unlink(missing_ok=True)
+            deleted += 1
+        except FileNotFoundError:
+            continue
+    return deleted
+
+
+async def delete_untracked_files(
+    known_names: set[str],
+    *,
+    older_than_seconds: int = 300,
+) -> int:
+    return await asyncio.to_thread(
+        _delete_untracked_files,
+        known_names,
+        older_than_seconds=older_than_seconds,
+    )
