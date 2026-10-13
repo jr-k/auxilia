@@ -7,6 +7,14 @@ from app.database_connections.models import DatabaseConnectionStatus, DatabaseEn
 from app.visibility import ResourceVisibility
 
 
+class DatabaseFileCreateDB(SQLModel):
+    workspace_id: UUID
+    owner_id: UUID
+    original_name: str
+    stored_name: str
+    size_bytes: int
+
+
 class DatabaseConnectionCreate(SQLModel):
     name: str = Field(min_length=1, max_length=255)
     description: str | None = Field(default=None, max_length=1000)

@@ -23,6 +23,7 @@ from app.database_connections.schemas import (
     DatabaseConnectionPatch,
     DatabaseConnectionResponse,
     DatabaseConnectorStatusResponse,
+    DatabaseFileCreateDB,
     SQLiteFileResponse,
 )
 from app.database_connections.settings import dbhub_settings
@@ -136,14 +137,15 @@ class DatabaseConnectionService(
         if not dbhub_settings.enabled or not dbhub_settings.auth_token:
             raise DomainValidationError("The internal database connector is disabled")
         stored = await store_sqlite_upload(upload)
-        database_file = DatabaseFileDB(
-            workspace_id=self.workspace_id,
-            owner_id=user.id,
-            original_name=stored.original_name,
-            stored_name=stored.stored_name,
-            size_bytes=stored.size_bytes,
+        database_file = await self.files.create(
+            DatabaseFileCreateDB(
+                workspace_id=self.workspace_id,
+                owner_id=user.id,
+                original_name=stored.original_name,
+                stored_name=stored.stored_name,
+                size_bytes=stored.size_bytes,
+            )
         )
-        database_file = await self.files.create(database_file)
         return SQLiteFileResponse(
             id=database_file.id,
             original_name=database_file.original_name,
