@@ -124,7 +124,7 @@ services:
       ]
     volumes:
       - dbhub-config:/input:ro
-      - ./docker/dbhub-reloader.mjs:/opt/auxilia/dbhub-reloader.mjs:ro
+      - ../files/dbhub-reloader.mjs:/opt/auxilia/dbhub-reloader.mjs:ro
     depends_on:
       backend:
         condition: service_healthy

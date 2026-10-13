@@ -24,7 +24,8 @@ import { useDeleteMcpServer } from "@/hooks/use-delete-mcp-server";
 import { useMcpServersStore } from "@/stores/mcp-servers-store";
 import { useUserStore } from "@/stores/user-store";
 import { MCPServer } from "@/types/mcp-servers";
-import { getApiErrorMessage } from "@/lib/api/errors";
+import { getApiErrorMessage, toApiError } from "@/lib/api/errors";
+import { deleteDatabaseConnection } from "@/lib/api/resources/database-connections";
 import * as mcpServersApi from "@/lib/api/resources/mcp-servers";
 import { buildGroupTree, flattenGroupTree } from "@/lib/groups";
 import { useRowSelection } from "@/hooks/use-row-selection";
@@ -119,6 +120,7 @@ export default function MCPServerTable({
 		fetchMcpServers,
 		isInitialized,
 		deleteMcpServer,
+		refreshMcpServers,
 		resetMcpServerConnections,
 	} = useMcpServersStore();
 	const [isLoading, setIsLoading] = useState(true);
@@ -239,6 +241,56 @@ export default function MCPServerTable({
 		// A stale failure banner must not outlive the next action.
 		setActionError(null);
 		await requestDelete(server);
+	};
+
+	const handleDeleteDatabase = async (server: MCPServer) => {
+		if (!server.managedResourceId) return;
+		if (
+			!(await confirmDialog({
+				title: `Delete “${server.name}”?`,
+				description:
+					"The database connection and its managed MCP server will be removed permanently.",
+				confirmLabel: "Delete connection",
+				destructive: true,
+			}))
+		)
+			return;
+
+		setActionError(null);
+		try {
+			await deleteDatabaseConnection(server.managedResourceId);
+		} catch (error) {
+			if (toApiError(error).status !== 400) {
+				setActionError(
+					getApiErrorMessage(error, "Failed to delete database connection."),
+				);
+				return;
+			}
+			if (
+				!(await confirmDialog({
+					title: "Detach agents and delete?",
+					description:
+						"This connection is still attached to one or more agents. It must be detached before it can be deleted.",
+					confirmLabel: "Detach and delete",
+					destructive: true,
+				}))
+			)
+				return;
+			try {
+				await deleteDatabaseConnection(server.managedResourceId, {
+					detachAgents: true,
+				});
+			} catch (detachError) {
+				setActionError(
+					getApiErrorMessage(
+						detachError,
+						"Failed to delete database connection.",
+					),
+				);
+				return;
+			}
+		}
+		await refreshMcpServers();
 	};
 
 	const handleReset = async (server: MCPServer) => {
@@ -374,9 +426,19 @@ export default function MCPServerTable({
 							>
 								Edit
 							</button>
-							{server.managedBy !== "database" ? (
-								<DropdownMenu
-									items={[
+							<DropdownMenu
+								items={
+									server.managedBy === "database"
+										? [
+												{
+													label: "Delete database",
+													destructive: true,
+													onClick: () => {
+														void handleDeleteDatabase(server);
+													},
+												},
+											]
+										: [
 										...(server.authType === "oauth2"
 											? [
 													{
@@ -394,9 +456,9 @@ export default function MCPServerTable({
 												void handleDelete(server);
 											},
 										},
-									]}
-								/>
-							) : null}
+											]
+								}
+							/>
 						</>
 					)}
 				</div>
@@ -590,9 +652,19 @@ export default function MCPServerTable({
 											>
 												Edit
 											</button>
-											{server.managedBy !== "database" ? (
-												<DropdownMenu
-													items={[
+											<DropdownMenu
+												items={
+													server.managedBy === "database"
+														? [
+																{
+																	label: "Delete database",
+																	destructive: true,
+																	onClick: () => {
+																		void handleDeleteDatabase(server);
+																	},
+																},
+															]
+														: [
 														...(server.authType === "oauth2"
 															? [
 																	{
@@ -610,9 +682,9 @@ export default function MCPServerTable({
 																void handleDelete(server);
 															},
 														},
-													]}
-												/>
-											) : null}
+															]
+												}
+											/>
 										</>
 									)}
 								</div>

@@ -540,7 +540,6 @@ export function DatabaseConnectionForm({
 				trail={[
 					{ label: "workspace" },
 					{ label: "mcp-servers", href: "/mcp-servers" },
-					{ label: "database" },
 					{ label: isEditing ? connection.name : "new" },
 				]}
 			>
