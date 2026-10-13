@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.5](https://github.com/jr-k/auxilia/compare/backend-v0.11.4...backend-v0.11.5) (2026-10-13)
+
+
+### Bug Fixes
+
+* **database:** clean SQLite sidecars and expose paths ([02c9be1](https://github.com/jr-k/auxilia/commit/02c9be10e38048ddd58b7e434635c384dd361c60))
+
 ## [0.11.4](https://github.com/jr-k/auxilia/compare/backend-v0.11.3...backend-v0.11.4) (2026-10-13)
 
 

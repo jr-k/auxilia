@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.5](https://github.com/jr-k/auxilia/compare/web-v0.12.4...web-v0.12.5) (2026-10-13)
+
+
+### Bug Fixes
+
+* **database:** clean SQLite sidecars and expose paths ([02c9be1](https://github.com/jr-k/auxilia/commit/02c9be10e38048ddd58b7e434635c384dd361c60))
+
 ## [0.12.4](https://github.com/jr-k/auxilia/compare/web-v0.12.3...web-v0.12.4) (2026-10-13)
 
 
