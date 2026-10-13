@@ -1,7 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useCallback, useEffect, useMemo, useRef } from "react";
+import {
+	Fragment,
+	useState,
+	useCallback,
+	useEffect,
+	useMemo,
+	useRef,
+} from "react";
 import {
 	Dialog,
 	DialogContent,
@@ -26,7 +33,7 @@ import {
 import { toast } from "sonner";
 import { ServerIconTile } from "@/app/(protected)/mcp-servers/components/server-icon-tile";
 import { SkillAvatar } from "@/components/ui/skill-avatar";
-import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 
 interface ConnectServersDialogProps {
@@ -61,6 +68,10 @@ export function ConnectServersDialog({
 	const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 	const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const resourceRequestRef = useRef(0);
+	const rangeAnchorRef = useRef<Record<ResourceTab, string | null>>({
+		servers: null,
+		skills: null,
+	});
 
 	const disconnectedIds = useMemo(
 		() => new Set(disconnectedServers.map((server) => server.id)),
@@ -68,6 +79,17 @@ export function ConnectServersDialog({
 	);
 	const servers = resources?.mcpServers ?? [];
 	const skills = resources?.skills ?? [];
+	const orderedServers = useMemo(
+		() =>
+			[...(resources?.mcpServers ?? [])].sort((left, right) => {
+				const leftDisconnected =
+					disconnectedIds.has(left.id) && !connectedIds.has(left.id);
+				const rightDisconnected =
+					disconnectedIds.has(right.id) && !connectedIds.has(right.id);
+				return Number(rightDisconnected) - Number(leftDisconnected);
+			}),
+		[connectedIds, disconnectedIds, resources?.mcpServers],
+	);
 	const disabledServerIds = useMemo(
 		() => new Set(resourceSettings.disabledMcpServerIds),
 		[resourceSettings.disabledMcpServerIds],
@@ -96,6 +118,7 @@ export function ConnectServersDialog({
 		if (!nextOpen) {
 			clearPolling();
 			setConnectingId(null);
+			rangeAnchorRef.current = { servers: null, skills: null };
 		}
 		onOpenChange(nextOpen);
 	};
@@ -193,15 +216,40 @@ export function ConnectServersDialog({
 		type: ResourceTab,
 		resourceId: string,
 		enabled: boolean,
+		shiftKey = false,
 	) => {
 		const disabledKey =
 			type === "servers" ? "disabledMcpServerIds" : "disabledSkillIds";
-		const disabledIds = resourceSettings[disabledKey];
+		const orderedIds =
+			type === "servers"
+				? orderedServers
+						.filter(
+							(server) =>
+								!disconnectedIds.has(server.id) ||
+								connectedIds.has(server.id),
+						)
+						.map((server) => server.id)
+				: skills.map((skill) => skill.id);
+		const previousAnchor = rangeAnchorRef.current[type];
+		rangeAnchorRef.current[type] = resourceId;
+		let targetIds = [resourceId];
+		if (shiftKey && previousAnchor) {
+			const anchorIndex = orderedIds.indexOf(previousAnchor);
+			const targetIndex = orderedIds.indexOf(resourceId);
+			if (anchorIndex >= 0 && targetIndex >= 0) {
+				const from = Math.min(anchorIndex, targetIndex);
+				const to = Math.max(anchorIndex, targetIndex);
+				targetIds = orderedIds.slice(from, to + 1);
+			}
+		}
+		const disabledIds = new Set(resourceSettings[disabledKey]);
+		for (const id of targetIds) {
+			if (enabled) disabledIds.delete(id);
+			else disabledIds.add(id);
+		}
 		onResourceSettingsChange({
 			...resourceSettings,
-			[disabledKey]: enabled
-				? disabledIds.filter((id) => id !== resourceId)
-				: [...new Set([...disabledIds, resourceId])],
+			[disabledKey]: [...disabledIds],
 		});
 	};
 
@@ -267,57 +315,77 @@ export function ConnectServersDialog({
 					) : activeTab === "servers" ? (
 						servers.length > 0 ? (
 							<div className="flex flex-col gap-2">
-								{servers.map((server) => {
+								{orderedServers.map((server, index) => {
 									const isEnabled = !disabledServerIds.has(server.id);
 									const isDisconnected =
 										disconnectedIds.has(server.id) &&
 										!connectedIds.has(server.id);
 									const isConnecting = connectingId === server.id;
+									const previous = orderedServers.at(index - 1);
+									const previousIsDisconnected =
+										previous !== undefined &&
+										disconnectedIds.has(previous.id) &&
+										!connectedIds.has(previous.id);
+									const startsConnectedGroup =
+										!isDisconnected && previousIsDisconnected;
 									return (
-										<div
-											key={server.id}
-											className="flex items-center gap-3 rounded-[10px] border border-hairline bg-sidebar p-3 dark:bg-white/5"
-										>
-											<ServerIconTile
-												iconUrl={server.iconUrl}
-												serverId={server.id}
-												imageRevision={server.imageRevision}
-												name={server.name}
-												size={32}
-											/>
-											<p className="min-w-0 flex-1 truncate text-[13px] font-semibold text-ink dark:text-panel-button">
-												{server.name}
-											</p>
-											<div className="ml-auto flex shrink-0 items-center gap-2">
-												<ConnectionStatusBadge connected={!isDisconnected} />
-												{isEnabled && isDisconnected && (
-													<button
-														type="button"
-														disabled={connectingId !== null}
-														onClick={() => {
-															void handleConnect(server);
-														}}
-														className="flex h-8 min-w-[82px] cursor-pointer items-center justify-center gap-1.5 rounded-full bg-petrol px-3 text-[11.5px] font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-55"
-													>
-														{isConnecting ? (
-															<LoaderIcon className="size-3.5 animate-spin" />
-														) : (
-															<PlugIcon className="size-3.5" />
-														)}
-														{isConnecting ? "Waiting…" : "Connect"}
-													</button>
-												)}
-												<Switch
-													checked={isEnabled}
-													disabled={resourceSettingsSaving}
-													className="cursor-pointer data-[state=checked]:bg-petrol"
-													onCheckedChange={(checked) => {
-														setResourceEnabled("servers", server.id, checked);
-													}}
-													aria-label={`${isEnabled ? "Disable" : "Enable"} ${server.name} for this conversation`}
+										<Fragment key={server.id}>
+											{startsConnectedGroup && (
+												<div className="flex items-center gap-2 px-1 pt-2">
+													<span className="text-[9.5px] font-semibold uppercase tracking-[0.08em] text-meta dark:text-panel-dim">
+														Connected
+													</span>
+													<span className="h-px flex-1 bg-hairline dark:bg-white/8" />
+												</div>
+											)}
+											<div className="flex items-center gap-3 rounded-[10px] border border-hairline bg-sidebar p-3 dark:bg-white/5">
+												<ServerIconTile
+													iconUrl={server.iconUrl}
+													serverId={server.id}
+													imageRevision={server.imageRevision}
+													name={server.name}
+													size={32}
 												/>
+												<p className="min-w-0 flex-1 truncate text-[13px] font-semibold text-ink dark:text-panel-button">
+													{server.name}
+												</p>
+												<div className="ml-auto flex shrink-0 items-center gap-2">
+													{!isDisconnected && <ConnectionStatusBadge />}
+													{isDisconnected && (
+														<button
+															type="button"
+															disabled={connectingId !== null}
+															onClick={() => {
+																void handleConnect(server);
+															}}
+															className="flex h-8 min-w-[82px] cursor-pointer items-center justify-center gap-1.5 rounded-full bg-petrol px-3 text-[11.5px] font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-55"
+														>
+															{isConnecting ? (
+																<LoaderIcon className="size-3.5 animate-spin" />
+															) : (
+																<PlugIcon className="size-3.5" />
+															)}
+															{isConnecting ? "Waiting…" : "Connect"}
+														</button>
+													)}
+													{!isDisconnected && (
+														<Checkbox
+															checked={isEnabled}
+															disabled={resourceSettingsSaving}
+															onCheckedChange={(checked, event) => {
+																setResourceEnabled(
+																	"servers",
+																	server.id,
+																	checked,
+																	event.shiftKey,
+																);
+															}}
+															aria-label={`${isEnabled ? "Disable" : "Enable"} ${server.name} for this conversation`}
+														/>
+													)}
+												</div>
 											</div>
-										</div>
+										</Fragment>
 									);
 								})}
 							</div>
@@ -363,12 +431,16 @@ export function ConnectServersDialog({
 											</div>
 											<ExternalLinkIcon className="size-3.5 shrink-0 text-meta transition-colors group-hover:text-petrol dark:text-panel-dim" />
 										</Link>
-										<Switch
+										<Checkbox
 											checked={isEnabled}
 											disabled={resourceSettingsSaving}
-											className="cursor-pointer data-[state=checked]:bg-petrol"
-											onCheckedChange={(checked) => {
-												setResourceEnabled("skills", skill.id, checked);
+											onCheckedChange={(checked, event) => {
+												setResourceEnabled(
+													"skills",
+													skill.id,
+													checked,
+													event.shiftKey,
+												);
 											}}
 											aria-label={`${isEnabled ? "Disable" : "Enable"} ${skill.name} for this conversation`}
 										/>
@@ -389,23 +461,11 @@ export function ConnectServersDialog({
 	);
 }
 
-function ConnectionStatusBadge({ connected }: { connected: boolean }) {
+function ConnectionStatusBadge() {
 	return (
-		<span
-			className={cn(
-				"inline-flex shrink-0 items-center gap-1.5 rounded-[4px] px-2 py-[3px] text-[9.5px] font-semibold",
-				connected
-					? "bg-success-bg text-success dark:bg-emerald-950 dark:text-emerald-300"
-					: "bg-[#FBEFED] text-[#B04A3A] dark:bg-[#B04A3A]/15 dark:text-[#E58A7D]",
-			)}
-		>
-			<span
-				className={cn(
-					"size-[5px] rounded-full",
-					connected ? "bg-success" : "bg-[#B04A3A]",
-				)}
-			/>
-			{connected ? "Connected" : "Not connected"}
+		<span className="inline-flex shrink-0 items-center gap-1.5 rounded-[4px] bg-success-bg px-2 py-[3px] text-[9.5px] font-semibold text-success dark:bg-emerald-950 dark:text-emerald-300">
+			<span className="size-[5px] rounded-full bg-success" />
+			Connected
 		</span>
 	);
 }
