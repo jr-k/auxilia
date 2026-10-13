@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.2](https://github.com/jr-k/auxilia/compare/backend-v0.11.1...backend-v0.11.2) (2026-10-13)
+
+
+### Bug Fixes
+
+* **database:** persist uploaded SQLite metadata ([a2de506](https://github.com/jr-k/auxilia/commit/a2de50683651fd1312f93c7b8f45ee04ac3d7cdc))
+
 ## [0.11.1](https://github.com/jr-k/auxilia/compare/backend-v0.11.0...backend-v0.11.1) (2026-10-13)
 
 
