@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.1](https://github.com/jr-k/auxilia/compare/backend-v0.11.0...backend-v0.11.1) (2026-10-13)
+
+
+### Features
+
+* **database:** add SQLite upload support ([733e16a](https://github.com/jr-k/auxilia/commit/733e16ae62fb581f287b3a3958ac06b786b04e62))
+
 ## [0.11.0](https://github.com/jr-k/auxilia/compare/backend-v0.10.53...backend-v0.11.0) (2026-10-12)
 
 
