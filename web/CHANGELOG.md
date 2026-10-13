@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.4](https://github.com/jr-k/auxilia/compare/web-v0.12.3...web-v0.12.4) (2026-10-13)
+
+
+### Features
+
+* **database:** add SQLite upload support ([733e16a](https://github.com/jr-k/auxilia/commit/733e16ae62fb581f287b3a3958ac06b786b04e62))
+
 ## [0.12.3](https://github.com/jr-k/auxilia/compare/web-v0.12.2...web-v0.12.3) (2026-10-13)
 
 
