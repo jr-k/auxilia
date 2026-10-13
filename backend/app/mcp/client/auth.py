@@ -27,7 +27,7 @@ from __future__ import annotations
 
 import logging
 import secrets
-from collections.abc import AsyncGenerator, Mapping
+from collections.abc import AsyncGenerator, Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from urllib.parse import parse_qsl, urlencode, urljoin
@@ -51,6 +51,7 @@ from mcp.shared.auth import (
     OAuthClientInformationFull,
     OAuthClientMetadata,
     OAuthMetadata,
+    ProtectedResourceMetadata,
 )
 from pydantic import AnyHttpUrl, AnyUrl
 
@@ -86,6 +87,7 @@ def _validate_metadata_issuer_tolerantly(
 
 
 sdk_oauth2.validate_metadata_issuer = _validate_metadata_issuer_tolerantly
+_sdk_get_client_metadata_scopes = sdk_oauth2.get_client_metadata_scopes
 
 
 # RFC 7591 token-endpoint authentication *method names* — identifiers from the
@@ -112,12 +114,15 @@ class OAuthQuirk:
     key, in two different layers, where the copies could disagree about which
     servers they covered (design review §4.1).
 
-    Fields are the three things a quirk can change, all optional:
+    Fields are the things a quirk can change, all optional:
 
     * ``token_endpoint_auth_method`` — how the token request authenticates.
     * ``authorization_params`` — extra query params on the authorize URL.
     * ``scope`` — a fixed scope string, used when the server advertises none
       usable (see :func:`quirk_scope`).
+    * ``advertised_scope_markers`` + ``request_all_advertised_scopes`` —
+      identify a provider by its scope vocabulary and request its complete
+      advertised set rather than only the baseline challenge.
     """
 
     name: str
@@ -126,6 +131,8 @@ class OAuthQuirk:
     token_endpoint_auth_method: str | None = None
     authorization_params: Mapping[str, str] = field(default_factory=dict)
     scope: str | None = None
+    advertised_scope_markers: frozenset[str] = frozenset()
+    request_all_advertised_scopes: bool = False
 
 
 OAUTH_QUIRKS: tuple[OAuthQuirk, ...] = (
@@ -157,6 +164,20 @@ OAUTH_QUIRKS: tuple[OAuthQuirk, ...] = (
             "https://www.googleapis.com/auth/gmail.modify"
         ),
     ),
+    OAuthQuirk(
+        name="metabase",
+        advertised_scope_markers=frozenset(
+            {
+                "agent:resource:read",
+                "agent:content:read",
+                "agent:query:run",
+            }
+        ),
+        # Metabase's initial 401 challenges only for its locked baseline scopes.
+        # Optional write/SQL/delivery scopes therefore never reach its consent
+        # screen unless the client prefers the complete PRM advertisement.
+        request_all_advertised_scopes=True,
+    ),
 )
 
 
@@ -171,20 +192,28 @@ def _issuer_key(issuer: str | AnyHttpUrl | None) -> str | None:
 
 
 def resolve_quirks(
-    *, server_url: str | AnyUrl | None = None, issuer: str | AnyHttpUrl | None = None
+    *,
+    server_url: str | AnyUrl | None = None,
+    issuer: str | AnyHttpUrl | None = None,
+    advertised_scopes: Sequence[str] | None = None,
 ) -> list[OAuthQuirk]:
-    """Every quirk matching this server — by URL, by issuer, or either.
+    """Every quirk matching this server — by URL, issuer, or scope vocabulary.
 
     A caller passes whichever keys it holds at that point in the flow; a quirk
     matches when any key it declares matches one that was passed.
     """
     url = str(server_url) if server_url is not None else None
     issuer_url = _issuer_key(issuer)
+    scope_set = frozenset(advertised_scopes or ())
     return [
         quirk
         for quirk in OAUTH_QUIRKS
         if (quirk.server_url is not None and quirk.server_url == url)
         or (quirk.issuer is not None and _issuer_key(quirk.issuer) == issuer_url)
+        or (
+            bool(quirk.advertised_scope_markers)
+            and quirk.advertised_scope_markers.issubset(scope_set)
+        )
     ]
 
 
@@ -209,13 +238,56 @@ def quirk_authorization_params(
 
 
 def quirk_scope(
-    *, server_url: str | AnyUrl | None = None, issuer: str | AnyHttpUrl | None = None
+    *,
+    server_url: str | AnyUrl | None = None,
+    issuer: str | AnyHttpUrl | None = None,
+    advertised_scopes: Sequence[str] | None = None,
 ) -> str | None:
     """A fixed scope string for this server, overriding discovery."""
-    for quirk in resolve_quirks(server_url=server_url, issuer=issuer):
+    for quirk in resolve_quirks(
+        server_url=server_url,
+        issuer=issuer,
+        advertised_scopes=advertised_scopes,
+    ):
         if quirk.scope:
             return quirk.scope
+        if quirk.request_all_advertised_scopes and advertised_scopes:
+            return " ".join(dict.fromkeys(advertised_scopes))
     return None
+
+
+def _select_oauth_scopes(
+    www_authenticate_scope: str | None,
+    protected_resource_metadata: ProtectedResourceMetadata | None,
+    authorization_server_metadata: OAuthMetadata | None = None,
+    client_grant_types: list[str] | None = None,
+) -> str | None:
+    """Apply provider policy before dynamic client registration.
+
+    The SDK normally gives a ``WWW-Authenticate`` challenge priority over the
+    protected resource's complete scope advertisement. Metabase challenges with
+    only its locked baseline, so its optional permissions would never appear on
+    the first consent screen. Detect its published scope vocabulary and request
+    the complete advertised set while leaving every other provider untouched.
+    """
+    selected = _sdk_get_client_metadata_scopes(
+        www_authenticate_scope,
+        protected_resource_metadata,
+        authorization_server_metadata,
+        client_grant_types,
+    )
+    advertised_scopes = (
+        protected_resource_metadata.scopes_supported
+        if protected_resource_metadata is not None
+        else None
+    )
+    expanded = quirk_scope(advertised_scopes=advertised_scopes)
+    if expanded is None:
+        return selected
+    return " ".join(dict.fromkeys([*expanded.split(), *((selected or "").split())]))
+
+
+sdk_oauth2.get_client_metadata_scopes = _select_oauth_scopes
 
 
 def refresh_failure_is_transient(status_code: int) -> bool:
