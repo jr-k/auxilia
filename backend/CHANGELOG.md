@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.6](https://github.com/jr-k/auxilia/compare/backend-v0.11.5...backend-v0.11.6) (2026-10-13)
+
+
+### Bug Fixes
+
+* **mcp:** reconnect dead client sessions ([5ff02bb](https://github.com/jr-k/auxilia/commit/5ff02bb3e6fa4d3ce1829414a7330dac981b78c3))
+
 ## [0.11.5](https://github.com/jr-k/auxilia/compare/backend-v0.11.4...backend-v0.11.5) (2026-10-13)
 
 
