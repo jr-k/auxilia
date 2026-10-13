@@ -25,6 +25,8 @@ export interface DatabaseConnection {
 	username: string | null;
 	sqliteFileId?: string | null;
 	sqliteFileName?: string | null;
+	sqliteStoredName?: string | null;
+	sqliteRuntimePath?: string | null;
 	sqliteFileSizeBytes?: number | null;
 	sslMode?: string | null;
 	connectionTimeout: number;
@@ -68,6 +70,8 @@ export type DatabaseConnectionUpdate = Partial<DatabaseConnectionCreate>;
 export interface SQLiteFile {
 	id: string;
 	originalName: string;
+	storedName: string;
+	runtimePath: string;
 	sizeBytes: number;
 }
 

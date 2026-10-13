@@ -8,7 +8,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.agents.mcp_servers.service import AgentMCPServerService
 from app.database import get_db
 from app.database_connections.client import list_dbhub_source_ids
-from app.database_connections.files import delete_stored_file, store_sqlite_upload
+from app.database_connections.files import (
+    delete_stored_file,
+    runtime_path_for_stored_file,
+    store_sqlite_upload,
+)
 from app.database_connections.models import (
     DATABASE_ENGINE_ICON_URLS,
     DatabaseConnectionDB,
@@ -124,6 +128,12 @@ class DatabaseConnectionService(
             username=connection.username,
             sqlite_file_id=connection.sqlite_file_id,
             sqlite_file_name=sqlite_file.original_name if sqlite_file else None,
+            sqlite_stored_name=sqlite_file.stored_name if sqlite_file else None,
+            sqlite_runtime_path=(
+                str(runtime_path_for_stored_file(sqlite_file.stored_name))
+                if sqlite_file
+                else None
+            ),
             sqlite_file_size_bytes=sqlite_file.size_bytes if sqlite_file else None,
             ssl_mode=connection.ssl_mode,
             connection_timeout=connection.connection_timeout,
@@ -167,6 +177,8 @@ class DatabaseConnectionService(
         return SQLiteFileResponse(
             id=database_file.id,
             original_name=database_file.original_name,
+            stored_name=database_file.stored_name,
+            runtime_path=str(runtime_path_for_stored_file(database_file.stored_name)),
             size_bytes=database_file.size_bytes,
         )
 

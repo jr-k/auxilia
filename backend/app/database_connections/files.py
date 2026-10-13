@@ -18,6 +18,9 @@ _ALLOWED_SUFFIXES = {".db", ".sqlite", ".sqlite3"}
 _CHUNK_SIZE = 1024 * 1024
 _STORED_FILE_PATTERN = re.compile(r"^[0-9a-f]{32}\.sqlite3$")
 _TEMP_FILE_PATTERN = re.compile(r"^\.[0-9a-f]{32}\.sqlite3\.upload$")
+_SIDECAR_FILE_PATTERN = re.compile(
+    r"^(?P<stored_name>[0-9a-f]{32}\.sqlite3)-(?:journal|shm|wal)$"
+)
 _SHARED_DIRECTORY_MODE = 0o755
 _SHARED_FILE_MODE = 0o644
 
@@ -90,11 +93,20 @@ async def store_sqlite_upload(upload: UploadFile) -> StoredSQLiteFile:
 def _delete_stored_file(stored_name: str) -> None:
     if not _STORED_FILE_PATTERN.fullmatch(stored_name):
         raise ValueError("Invalid stored database filename")
-    (database_file_settings.storage_path / stored_name).unlink(missing_ok=True)
+    root = database_file_settings.storage_path
+    (root / stored_name).unlink(missing_ok=True)
+    for suffix in ("-journal", "-shm", "-wal"):
+        (root / f"{stored_name}{suffix}").unlink(missing_ok=True)
 
 
 async def delete_stored_file(stored_name: str) -> None:
     await asyncio.to_thread(_delete_stored_file, stored_name)
+
+
+def runtime_path_for_stored_file(stored_name: str) -> Path:
+    if not _STORED_FILE_PATTERN.fullmatch(stored_name):
+        raise ValueError("Invalid stored database filename")
+    return database_file_settings.runtime_path / stored_name
 
 
 def _ensure_stored_file_permissions(known_names: set[str]) -> int:
@@ -131,9 +143,18 @@ def _delete_untracked_files(
     cutoff = time.time() - older_than_seconds
     deleted = 0
     for path in root.iterdir():
-        if path.name in known_names or not (
-            _STORED_FILE_PATTERN.fullmatch(path.name)
-            or _TEMP_FILE_PATTERN.fullmatch(path.name)
+        sidecar_match = _SIDECAR_FILE_PATTERN.fullmatch(path.name)
+        if (
+            path.name in known_names
+            or (
+                sidecar_match is not None
+                and sidecar_match.group("stored_name") in known_names
+            )
+            or not (
+                _STORED_FILE_PATTERN.fullmatch(path.name)
+                or _TEMP_FILE_PATTERN.fullmatch(path.name)
+                or sidecar_match
+            )
         ):
             continue
         try:

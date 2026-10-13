@@ -979,6 +979,28 @@ export function DatabaseConnectionForm({
 													The file is uploaded securely when you save this
 													connection.
 												</span>
+												{!sqliteFile &&
+												connection?.sqliteStoredName &&
+												connection.sqliteRuntimePath ? (
+													<dl className="grid gap-2 rounded-lg border border-hairline bg-sidebar/40 px-3.5 py-3 text-[11px] dark:border-white/5 dark:bg-white/2">
+														<div className="grid min-w-0 gap-1 sm:grid-cols-[110px_minmax(0,1fr)] sm:items-baseline">
+															<dt className="font-semibold text-meta dark:text-panel-dim">
+																Stored filename
+															</dt>
+															<dd className="truncate font-mono text-body dark:text-panel-body">
+																{connection.sqliteStoredName}
+															</dd>
+														</div>
+														<div className="grid min-w-0 gap-1 sm:grid-cols-[110px_minmax(0,1fr)] sm:items-baseline">
+															<dt className="font-semibold text-meta dark:text-panel-dim">
+																Connector path
+															</dt>
+															<dd className="truncate font-mono text-body dark:text-panel-body">
+																{connection.sqliteRuntimePath}
+															</dd>
+														</div>
+													</dl>
+												) : null}
 											</div>
 										) : (
 											<>

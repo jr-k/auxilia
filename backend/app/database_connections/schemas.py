@@ -70,6 +70,8 @@ class DatabaseConnectionResponse(SQLModel):
     username: str | None
     sqlite_file_id: UUID | None = None
     sqlite_file_name: str | None = None
+    sqlite_stored_name: str | None = None
+    sqlite_runtime_path: str | None = None
     sqlite_file_size_bytes: int | None = None
     ssl_mode: str | None = None
     connection_timeout: int
@@ -101,4 +103,6 @@ class DatabaseConnectorStatusResponse(SQLModel):
 class SQLiteFileResponse(SQLModel):
     id: UUID
     original_name: str
+    stored_name: str
+    runtime_path: str
     size_bytes: int
