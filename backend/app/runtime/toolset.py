@@ -445,9 +445,9 @@ class Toolset:
 
         MCP tool execution errors (``isError=True``) reach the model as
         ``ToolMessage(status="error")`` natively; transport/protocol failures
-        raise and are caught by ``ToolErrorMiddleware``. A transport that dies
-        mid-run fails that server's remaining calls the same way — the client
-        does not reconnect while its context is held.
+        raise and are caught by ``ToolErrorMiddleware``. The failing call is
+        not retried automatically because it may have caused a write, but the
+        next call reconnects if the remote session died.
         """
         if not prepared.connections:
             toolset = cls(tools=[])

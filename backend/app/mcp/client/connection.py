@@ -167,6 +167,42 @@ class LenientClientSession(ClientSession):
             )
 
 
+class RecoveringClient(Client[Any]):
+    """Reconnect a dead session while preserving active context-manager holds.
+
+    FastMCP keeps a reference count for reentrant ``async with client`` blocks.
+    If the remote session task dies while an outer block remains open, its next
+    ``__aenter__`` refuses to reconnect because that count is non-zero. Runtime
+    tools deliberately keep one outer hold for the whole agent run, so recover
+    that stale state and transfer its logical holds to the replacement session.
+    """
+
+    async def _connect(self) -> RecoveringClient:
+        retained_holds = 0
+        state = self._session_state
+        async with state.lock:
+            session_task = state.session_task
+            needs_session = session_task is None or session_task.done()
+            if needs_session and state.nesting_counter > 0:
+                retained_holds = state.nesting_counter
+                self._reset_session_state(full=True)
+
+        if retained_holds:
+            logger.warning(
+                "Reconnecting dead MCP session with %s active context hold(s)",
+                retained_holds,
+            )
+
+        await super()._connect()
+
+        if retained_holds:
+            async with state.lock:
+                session_task = state.session_task
+                if session_task is not None and not session_task.done():
+                    state.nesting_counter += retained_holds
+        return self
+
+
 class SessionKeepingTransport(StreamableHttpTransport):
     """``StreamableHttpTransport`` that leaves the session alive on exit.
 
@@ -241,7 +277,7 @@ def build_client(spec: ConnectionSpec, *, terminate_on_close: bool = True) -> Cl
         auth=spec.auth,
         httpx_client_factory=httpx_client_factory,
     )
-    client: Client[Any] = Client(
+    client: Client[Any] = RecoveringClient(
         transport, extensions=[advertise(UI_EXTENSION, UI_CAPABILITY)]
     )
     # FastMCP's own proxy swaps the session class the same way; the attribute
