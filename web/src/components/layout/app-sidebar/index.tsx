@@ -55,14 +55,21 @@ import { appearanceLogoUrl } from "@/lib/api/resources/appearance";
 import { useSkillsStore } from "@/stores/skills-store";
 import { formatRunAt } from "@/lib/triggers/schedule";
 import { useActiveRunThreadIds } from "@/hooks/use-active-runs";
+import { useRowSelection } from "@/hooks/use-row-selection";
 import { AgentAvatar } from "@/components/ui/agent-avatar";
 import { UserAvatar } from "@/components/ui/user-avatar";
+import {
+	BulkConfirmDialog,
+	type BulkFailure,
+} from "@/components/ui/bulk-confirm-dialog";
+import { SelectableLeading } from "@/components/ui/selectable-leading";
 import { RenameThreadDialog } from "@/components/layout/app-sidebar/rename-thread-dialog";
 import { AboutDialog } from "@/components/layout/app-sidebar/about-dialog";
 import { Thread } from "@/types/threads";
 import { useTheme } from "next-themes";
 import { WorkspaceSwitcher } from "@/components/layout/app-sidebar/workspace-switcher";
 import { useShowShortcutsInMenu } from "@/lib/user-preferences";
+import { getApiErrorMessage } from "@/lib/api/errors";
 
 const navItems: {
 	title: string;
@@ -145,9 +152,16 @@ export function AppSidebar() {
 	const { isMobile, setOpenMobile, toggleSidebar } = useSidebar();
 	const [renamingThread, setRenamingThread] = useState<Thread | null>(null);
 	const [aboutOpen, setAboutOpen] = useState(false);
+	const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
 	const activeRunThreadIds = useActiveRunThreadIds(threads);
 	const appearance = useAppearanceStore((state) => state.appearance);
 	const showShortcutsInMenu = useShowShortcutsInMenu();
+	const selection = useRowSelection({
+		orderedIds: threads.map((thread) => thread.id),
+	});
+	const selectedThreads = threads.filter((thread) =>
+		selection.selectedIds.has(thread.id),
+	);
 
 	useEffect(() => {
 		if (isMobile) setOpenMobile(false);
@@ -233,27 +247,53 @@ export function AppSidebar() {
 
 				<SidebarContent>
 					<SidebarGroup>
-						<button
-							onClick={() => {
-								if (agents.length > 0) {
-									const lastAgent = threads[0]
-										? agents.find((a) => a.id === threads[0].agentId)
-										: undefined;
-									router.push(`/agents/${(lastAgent ?? agents[0]).id}/chat`);
-									if (isMobile) setOpenMobile(false);
-								}
-							}}
-							disabled={agents.length === 0}
-							title="New thread"
-							className="flex h-9 w-full cursor-pointer items-center gap-[9px] rounded-lg border border-input bg-card pl-2 pr-2.5 text-[13.5px] font-semibold text-sidebar-foreground shadow-raised transition-colors hover:border-border-hover disabled:cursor-not-allowed disabled:opacity-50 group-data-[collapsible=icon]:w-[38px] group-data-[collapsible=icon]:px-1.75"
-						>
-							<IconSlot>
-								<SquarePen className="size-4" />
-							</IconSlot>
-							<span className="group-data-[collapsible=icon]:hidden">
-								New thread
-							</span>
-						</button>
+						<div className="flex items-center gap-1.5">
+							<button
+								onClick={() => {
+									if (agents.length > 0) {
+										const lastAgent = threads[0]
+											? agents.find((a) => a.id === threads[0].agentId)
+											: undefined;
+										router.push(`/agents/${(lastAgent ?? agents[0]).id}/chat`);
+										if (isMobile) setOpenMobile(false);
+									}
+								}}
+								disabled={agents.length === 0}
+								title="New thread"
+								className={`flex h-9 min-w-0 flex-1 cursor-pointer items-center gap-[9px] rounded-lg border border-input bg-card pl-2 pr-2.5 text-[13.5px] font-semibold text-sidebar-foreground shadow-raised transition-colors hover:border-border-hover disabled:cursor-not-allowed disabled:opacity-50 group-data-[collapsible=icon]:w-[38px] group-data-[collapsible=icon]:flex-none group-data-[collapsible=icon]:px-1.75 ${
+									selection.selectionMode
+										? "group-data-[collapsible=icon]:hidden"
+										: ""
+								}`}
+							>
+								<IconSlot>
+									<SquarePen className="size-4" />
+								</IconSlot>
+								<span className="truncate group-data-[collapsible=icon]:hidden">
+									New thread
+								</span>
+							</button>
+							{selection.selectionMode && (
+								<button
+									type="button"
+									title={`Delete ${selection.selectedCount} selected conversation${
+										selection.selectedCount === 1 ? "" : "s"
+									}`}
+									aria-label={`Delete ${selection.selectedCount} selected conversation${
+										selection.selectedCount === 1 ? "" : "s"
+									}`}
+									onClick={() => {
+										setBulkDeleteOpen(true);
+									}}
+									className="relative flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-destructive/20 bg-destructive/8 text-destructive shadow-raised transition-[background-color,border-color,transform] duration-150 hover:border-destructive/35 hover:bg-destructive/13 active:scale-[0.97] group-data-[collapsible=icon]:w-[38px] animate-in fade-in zoom-in-95"
+								>
+									<Trash2 className="size-4" />
+									<span className="absolute -right-1 -top-1 flex min-w-4 items-center justify-center rounded-full bg-destructive px-1 font-mono text-[9px] font-semibold leading-4 text-white ring-2 ring-sidebar">
+										{selection.selectedCount}
+									</span>
+								</button>
+							)}
+						</div>
 					</SidebarGroup>
 
 					<SidebarGroup className="flex-1 min-h-0 overflow-hidden pt-0">
@@ -296,7 +336,10 @@ export function AppSidebar() {
 												asChild
 												isActive={isActive}
 												tooltip={title}
-												className="h-12 rounded-[7px] focus-visible:ring-inset hover:bg-sidebar-hover data-[active=true]:bg-sidebar-accent group-data-[collapsible=icon]:h-12! group-data-[collapsible=icon]:w-[38px]! group-data-[collapsible=icon]:p-[5px]! group-data-[collapsible=icon]:data-[active=true]:bg-transparent"
+												data-selected={
+													selection.isSelected(thread.id) || undefined
+												}
+												className="h-12 rounded-[7px] focus-visible:ring-inset hover:bg-sidebar-hover data-[active=true]:bg-sidebar-accent data-[selected=true]:bg-sidebar-accent group-data-[collapsible=icon]:h-12! group-data-[collapsible=icon]:w-[38px]! group-data-[collapsible=icon]:p-[5px]! group-data-[collapsible=icon]:data-[active=true]:bg-transparent group-data-[collapsible=icon]:data-[selected=true]:bg-sidebar-accent"
 											>
 												<Link
 													href={`/agents/${thread.agentId}/chat/${thread.id}`}
@@ -304,39 +347,17 @@ export function AppSidebar() {
 													// prefetches on page load — dozens of requests for
 													// threads the user rarely opens.
 													prefetch={false}
-													onClick={() => {
+													onClick={(event) => {
+														if (selection.selectionMode) {
+															event.preventDefault();
+															selection.toggle(thread.id, event.shiftKey);
+															return;
+														}
 														if (isMobile) setOpenMobile(false);
 													}}
 													className="flex items-center gap-1.5 px-[5px]"
 												>
-													<span className="flex w-7 shrink-0 items-center justify-center">
-														{isTriggerThread ? (
-															<span
-																title="Started by a trigger"
-																className={`flex size-7 items-center justify-center rounded-[7px] border border-input bg-sidebar-accent ${
-																	isActive
-																		? "group-data-[collapsible=icon]:ring-2 group-data-[collapsible=icon]:ring-sidebar-ring"
-																		: ""
-																}`}
-															>
-																<AlarmClock className="size-3.5 text-sidebar-active-icon" />
-															</span>
-														) : (
-															<AgentAvatar
-																agentId={thread.agentId}
-																name={thread.agentName}
-																imageRevision={thread.agentImageRevision}
-																color={thread.agentColor}
-																emoji={thread.agentEmoji}
-																size="xs"
-																className={
-																	isActive
-																		? "group-data-[collapsible=icon]:ring-2 group-data-[collapsible=icon]:ring-sidebar-ring"
-																		: undefined
-																}
-															/>
-														)}
-													</span>
+													<span className="w-7 shrink-0" aria-hidden />
 													<div className="min-w-0 flex-1 group-data-[collapsible=icon]:hidden">
 														<div className="flex items-center gap-2">
 															<span
@@ -382,36 +403,75 @@ export function AppSidebar() {
 													</div>
 												</Link>
 											</SidebarMenuButton>
-											<DropdownMenu
-												trigger={
-													<SidebarMenuAction
-														showOnHover
-														className="cursor-pointer"
+											<SelectableLeading
+												selected={selection.isSelected(thread.id)}
+												selectionMode={selection.selectionMode}
+												label={`Select ${title}`}
+												onToggle={(shiftKey) => {
+													selection.toggle(thread.id, shiftKey);
+												}}
+												hoverOnSelf
+												className="absolute left-[5px] top-1/2 z-10 size-7 -translate-y-1/2"
+											>
+												{isTriggerThread ? (
+													<span
+														title="Started by a trigger"
+														className={`flex size-7 items-center justify-center rounded-[7px] border border-input bg-sidebar-accent ${
+															isActive
+																? "group-data-[collapsible=icon]:ring-2 group-data-[collapsible=icon]:ring-sidebar-ring"
+																: ""
+														}`}
 													>
-														<MoreVertical className="size-4" />
-														<span className="sr-only">More options</span>
-													</SidebarMenuAction>
-												}
-												side="right"
-												align="start"
-												items={[
-													{
-														label: "Rename",
-														icon: <Pencil />,
-														onClick: () => {
-															setRenamingThread(thread);
+														<AlarmClock className="size-3.5 text-sidebar-active-icon" />
+													</span>
+												) : (
+													<AgentAvatar
+														agentId={thread.agentId}
+														name={thread.agentName}
+														imageRevision={thread.agentImageRevision}
+														color={thread.agentColor}
+														emoji={thread.agentEmoji}
+														size="xs"
+														className={
+															isActive
+																? "group-data-[collapsible=icon]:ring-2 group-data-[collapsible=icon]:ring-sidebar-ring"
+																: undefined
+														}
+													/>
+												)}
+											</SelectableLeading>
+											{!selection.selectionMode && (
+												<DropdownMenu
+													trigger={
+														<SidebarMenuAction
+															showOnHover
+															className="cursor-pointer"
+														>
+															<MoreVertical className="size-4" />
+															<span className="sr-only">More options</span>
+														</SidebarMenuAction>
+													}
+													side="right"
+													align="start"
+													items={[
+														{
+															label: "Rename",
+															icon: <Pencil />,
+															onClick: () => {
+																setRenamingThread(thread);
+															},
 														},
-													},
-													{
-														label: "Delete",
-														icon: <Trash2 />,
-														destructive: true,
-														onClick: () => {
-															handleDeleteThread(thread.id);
+														{
+															label: "Delete",
+															icon: <Trash2 />,
+															destructive: true,
+															onClick: () => {
+																handleDeleteThread(thread.id);
+															},
 														},
-													},
-												]}
-											/>
+													]}
+												/>
+											)}
 										</SidebarMenuItem>
 									);
 								})}
@@ -609,6 +669,43 @@ export function AppSidebar() {
 				thread={renamingThread}
 				onOpenChange={(open) => {
 					if (!open) setRenamingThread(null);
+				}}
+			/>
+			<BulkConfirmDialog
+				open={bulkDeleteOpen}
+				onOpenChange={setBulkDeleteOpen}
+				title="Delete selected conversations?"
+				description="Their messages and run history will be removed permanently. This cannot be undone."
+				items={selectedThreads.map((thread) => ({
+					id: thread.id,
+					name:
+						thread.firstMessageContent?.trim() || "Untitled conversation",
+					note: thread.agentName ? `Agent: ${thread.agentName}` : undefined,
+				}))}
+				confirmLabel="Delete"
+				busyLabel="Deleting…"
+				onConfirm={async (items) => {
+					const results = await Promise.allSettled(
+						items.map((item) => threadsApi.deleteThread(item.id)),
+					);
+					const succeeded: string[] = [];
+					const failures: BulkFailure[] = [];
+					results.forEach((result, index) => {
+						const item = items.at(index);
+						if (!item) return;
+						if (result.status === "fulfilled") {
+							succeeded.push(item.id);
+							removeThread(item.id);
+						} else {
+							failures.push({
+								id: item.id,
+								name: item.name,
+								message: getApiErrorMessage(result.reason, "Delete failed."),
+							});
+						}
+					});
+					selection.remove(succeeded);
+					return failures;
 				}}
 			/>
 			<AboutDialog open={aboutOpen} onOpenChange={setAboutOpen} />
