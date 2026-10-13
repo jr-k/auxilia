@@ -2,7 +2,6 @@
 
 import { useState, useEffect, use } from "react";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -80,16 +79,18 @@ export default function InviteAcceptPage({
 			<Card className="w-full max-w-md">
 				<CardHeader className="text-center flex flex-col items-center">
 					<CardTitle className="text-2xl flex flex-col items-center justify-center">
-						<Image
+						{/* Browser-direct request keeps custom logos behind the backend proxy. */}
+						{/* eslint-disable-next-line @next/next/no-img-element */}
+						<img
 							src={
 								appearance.logoRevision
 									? appearanceLogoUrl(appearance.logoRevision)
 									: "/pwa-icon.svg"
 							}
-							alt={appearance.appName}
+							alt={`${appearance.appName} logo`}
 							width={48}
 							height={48}
-							className="mb-2"
+							className="mb-2 size-12 object-contain"
 						/>
 						<span className="text-2xl">Invalid invite</span>
 					</CardTitle>
@@ -115,16 +116,18 @@ export default function InviteAcceptPage({
 		<Card className="w-full max-w-md">
 			<CardHeader className="text-center flex flex-col items-center">
 				<CardTitle className="text-2xl flex flex-col items-center justify-center">
-					<Image
+					{/* Browser-direct request keeps custom logos behind the backend proxy. */}
+					{/* eslint-disable-next-line @next/next/no-img-element */}
+					<img
 						src={
 							appearance.logoRevision
 								? appearanceLogoUrl(appearance.logoRevision)
 								: "/pwa-icon.svg"
 						}
-						alt={appearance.appName}
+						alt={`${appearance.appName} logo`}
 						width={48}
 						height={48}
-						className="mb-2"
+						className="mb-2 size-12 object-contain"
 					/>
 					<span className="text-2xl">Join {appearance.appName}</span>
 				</CardTitle>
