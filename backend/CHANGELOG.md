@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.4](https://github.com/jr-k/auxilia/compare/backend-v0.11.3...backend-v0.11.4) (2026-10-13)
+
+
+### Bug Fixes
+
+* **database:** allow shared SQLite reads ([9d2d840](https://github.com/jr-k/auxilia/commit/9d2d840155ea0ecd3b41d402aba023486d891a91))
+
 ## [0.11.3](https://github.com/jr-k/auxilia/compare/backend-v0.11.2...backend-v0.11.3) (2026-10-13)
 
 
