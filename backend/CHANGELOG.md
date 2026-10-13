@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.3](https://github.com/jr-k/auxilia/compare/backend-v0.11.2...backend-v0.11.3) (2026-10-13)
+
+
+### Bug Fixes
+
+* **database:** clean obsolete SQLite uploads ([75f5323](https://github.com/jr-k/auxilia/commit/75f53234e82bce0e24c23298864048c7639df069))
+
 ## [0.11.2](https://github.com/jr-k/auxilia/compare/backend-v0.11.1...backend-v0.11.2) (2026-10-13)
 
 
