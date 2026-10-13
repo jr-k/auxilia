@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.7](https://github.com/jr-k/auxilia/compare/backend-v0.11.6...backend-v0.11.7) (2026-10-13)
+
+
+### Bug Fixes
+
+* **mcp:** request complete Metabase scopes ([d047f68](https://github.com/jr-k/auxilia/commit/d047f68633dfd9d37dd56d7af82563c3ba336458))
+
 ## [0.11.6](https://github.com/jr-k/auxilia/compare/backend-v0.11.5...backend-v0.11.6) (2026-10-13)
 
 
