@@ -18,6 +18,8 @@ _ALLOWED_SUFFIXES = {".db", ".sqlite", ".sqlite3"}
 _CHUNK_SIZE = 1024 * 1024
 _STORED_FILE_PATTERN = re.compile(r"^[0-9a-f]{32}\.sqlite3$")
 _TEMP_FILE_PATTERN = re.compile(r"^\.[0-9a-f]{32}\.sqlite3\.upload$")
+_SHARED_DIRECTORY_MODE = 0o755
+_SHARED_FILE_MODE = 0o644
 
 
 @dataclass(frozen=True)
@@ -44,6 +46,7 @@ def _clean_name(filename: str | None) -> str:
 def _copy_upload(stream: BinaryIO, original_name: str) -> StoredSQLiteFile:
     root = database_file_settings.storage_path
     root.mkdir(parents=True, exist_ok=True)
+    root.chmod(_SHARED_DIRECTORY_MODE)
     stored_name = f"{uuid4().hex}.sqlite3"
     temporary_path = root / f".{stored_name}.upload"
     final_path = root / stored_name
@@ -52,6 +55,7 @@ def _copy_upload(stream: BinaryIO, original_name: str) -> StoredSQLiteFile:
 
     try:
         with temporary_path.open("xb") as destination:
+            temporary_path.chmod(0o600)
             while chunk := stream.read(_CHUNK_SIZE):
                 size += len(chunk)
                 if size > database_file_settings.max_upload_bytes:
@@ -66,7 +70,7 @@ def _copy_upload(stream: BinaryIO, original_name: str) -> StoredSQLiteFile:
             raise DomainValidationError("The uploaded file is not a SQLite database")
 
         os.replace(temporary_path, final_path)
-        final_path.chmod(0o600)
+        final_path.chmod(_SHARED_FILE_MODE)
         return StoredSQLiteFile(
             original_name=original_name,
             stored_name=stored_name,
@@ -91,6 +95,29 @@ def _delete_stored_file(stored_name: str) -> None:
 
 async def delete_stored_file(stored_name: str) -> None:
     await asyncio.to_thread(_delete_stored_file, stored_name)
+
+
+def _ensure_stored_file_permissions(known_names: set[str]) -> int:
+    root = database_file_settings.storage_path
+    root.mkdir(parents=True, exist_ok=True)
+    root.chmod(_SHARED_DIRECTORY_MODE)
+    updated = 0
+    for stored_name in known_names:
+        if not _STORED_FILE_PATTERN.fullmatch(stored_name):
+            continue
+        path = root / stored_name
+        try:
+            if path.stat().st_mode & 0o777 == _SHARED_FILE_MODE:
+                continue
+            path.chmod(_SHARED_FILE_MODE)
+            updated += 1
+        except FileNotFoundError:
+            continue
+    return updated
+
+
+async def ensure_stored_file_permissions(known_names: set[str]) -> int:
+    return await asyncio.to_thread(_ensure_stored_file_permissions, known_names)
 
 
 def _delete_untracked_files(

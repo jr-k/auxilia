@@ -21,7 +21,10 @@ from app.database_connections.config import (
     build_dbhub_config,
     source_description,
 )
-from app.database_connections.files import delete_untracked_files
+from app.database_connections.files import (
+    delete_untracked_files,
+    ensure_stored_file_permissions,
+)
 from app.database_connections.models import (
     DatabaseConnectionDB,
     DatabaseConnectionStatus,
@@ -103,7 +106,10 @@ class DBHubReconciler:
         try:
             async with AsyncSessionLocal() as db:
                 known_names = await DatabaseFileRepository(db).list_stored_names()
+            updated = await ensure_stored_file_permissions(known_names)
             deleted = await delete_untracked_files(known_names)
+            if updated:
+                logger.info("Updated permissions on %s database file(s)", updated)
             if deleted:
                 logger.info("Removed %s orphaned database file(s)", deleted)
         except Exception:
