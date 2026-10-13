@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.12.2](https://github.com/jr-k/auxilia/compare/web-v0.12.1...web-v0.12.2) (2026-10-13)
+
+
+### Features
+
+* **chat:** add bulk conversation deletion ([19eab38](https://github.com/jr-k/auxilia/commit/19eab389f59d749110de4f8c1f7908ffcef9da6d))
+
+
+### Bug Fixes
+
+* **invites:** load custom logo through backend proxy ([dcfdc04](https://github.com/jr-k/auxilia/commit/dcfdc0409f5bb723441c39c414a6e119d572131a))
+
 ## [0.12.1](https://github.com/jr-k/auxilia/compare/web-v0.12.0...web-v0.12.1) (2026-10-13)
 
 
