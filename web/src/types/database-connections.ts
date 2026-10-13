@@ -1,7 +1,12 @@
 import type { ResourceVisibility } from "./visibility";
 
 export type DatabaseEngine =
-	"postgres" | "mysql" | "mariadb" | "sqlserver" | "oracle";
+	| "sqlite"
+	| "postgres"
+	| "mysql"
+	| "mariadb"
+	| "sqlserver"
+	| "oracle";
 
 export type DatabaseConnectionStatus = "pending" | "ready" | "error";
 
@@ -14,10 +19,13 @@ export interface DatabaseConnection {
 	description?: string | null;
 	group?: string | null;
 	engine: DatabaseEngine;
-	host: string;
-	port: number;
+	host: string | null;
+	port: number | null;
 	database: string;
-	username: string;
+	username: string | null;
+	sqliteFileId?: string | null;
+	sqliteFileName?: string | null;
+	sqliteFileSizeBytes?: number | null;
 	sslMode?: string | null;
 	connectionTimeout: number;
 	queryTimeout: number;
@@ -40,11 +48,12 @@ export interface DatabaseConnectionCreate {
 	description?: string | null;
 	group?: string | null;
 	engine: DatabaseEngine;
-	host: string;
-	port: number;
-	database: string;
-	username: string;
-	password: string;
+	host?: string | null;
+	port?: number | null;
+	database?: string | null;
+	username?: string | null;
+	password?: string | null;
+	sqliteFileId?: string | null;
 	sslMode?: string | null;
 	connectionTimeout?: number;
 	queryTimeout?: number;
@@ -55,6 +64,12 @@ export interface DatabaseConnectionCreate {
 }
 
 export type DatabaseConnectionUpdate = Partial<DatabaseConnectionCreate>;
+
+export interface SQLiteFile {
+	id: string;
+	originalName: string;
+	sizeBytes: number;
+}
 
 export interface DatabaseConnectorStatus {
 	enabled: boolean;

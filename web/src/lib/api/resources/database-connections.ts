@@ -4,6 +4,7 @@ import type {
 	DatabaseConnection,
 	DatabaseConnectionCreate,
 	DatabaseConnectionUpdate,
+	SQLiteFile,
 } from "@/types/database-connections";
 
 export async function listDatabaseConnections(): Promise<DatabaseConnection[]> {
@@ -28,6 +29,16 @@ export async function createDatabaseConnection(
 	const response = await api.post<DatabaseConnection>(
 		"/database-connections",
 		payload,
+	);
+	return response.data;
+}
+
+export async function uploadSQLiteFile(file: File): Promise<SQLiteFile> {
+	const form = new FormData();
+	form.append("file", file);
+	const response = await api.post<SQLiteFile>(
+		"/database-connections/sqlite-files",
+		form,
 	);
 	return response.data;
 }

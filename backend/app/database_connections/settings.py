@@ -19,4 +19,13 @@ class DBHubSettings(BaseSettings):
         return f"{self.url.rstrip('/')}/mcp"
 
 
+class DatabaseFileSettings(BaseSettings):
+    storage_path: Path = BACKEND_DIR.parent / ".runtime" / "databases"
+    runtime_path: Path = Path("/var/lib/auxilia/databases")
+    max_upload_bytes: int = 1024 * 1024 * 1024
+
+    model_config = settings_config(env_prefix="database_files_")
+
+
 dbhub_settings = DBHubSettings()
+database_file_settings = DatabaseFileSettings()

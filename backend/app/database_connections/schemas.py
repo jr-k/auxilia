@@ -12,11 +12,12 @@ class DatabaseConnectionCreate(SQLModel):
     description: str | None = Field(default=None, max_length=1000)
     group: str | None = Field(default=None, max_length=255)
     engine: DatabaseEngine
-    host: str = Field(min_length=1, max_length=255)
-    port: int = Field(ge=1, le=65535)
-    database: str = Field(min_length=1, max_length=255)
-    username: str = Field(min_length=1, max_length=255)
-    password: str = Field(min_length=1, exclude=True)
+    host: str | None = Field(default=None, min_length=1, max_length=255)
+    port: int | None = Field(default=None, ge=1, le=65535)
+    database: str | None = Field(default=None, min_length=1, max_length=255)
+    username: str | None = Field(default=None, min_length=1, max_length=255)
+    password: str | None = Field(default=None, min_length=1, exclude=True)
+    sqlite_file_id: UUID | None = None
     ssl_mode: str | None = Field(default=None, max_length=64)
     connection_timeout: int = Field(default=10, ge=1, le=300)
     query_timeout: int = Field(default=30, ge=1, le=3600)
@@ -36,6 +37,7 @@ class DatabaseConnectionPatch(SQLModel):
     database: str | None = Field(default=None, min_length=1, max_length=255)
     username: str | None = Field(default=None, min_length=1, max_length=255)
     password: str | None = Field(default=None, exclude=True)
+    sqlite_file_id: UUID | None = None
     ssl_mode: str | None = Field(default=None, max_length=64)
     connection_timeout: int | None = Field(default=None, ge=1, le=300)
     query_timeout: int | None = Field(default=None, ge=1, le=3600)
@@ -54,10 +56,13 @@ class DatabaseConnectionResponse(SQLModel):
     description: str | None = None
     group: str | None = None
     engine: DatabaseEngine
-    host: str
-    port: int
+    host: str | None
+    port: int | None
     database: str
-    username: str
+    username: str | None
+    sqlite_file_id: UUID | None = None
+    sqlite_file_name: str | None = None
+    sqlite_file_size_bytes: int | None = None
     ssl_mode: str | None = None
     connection_timeout: int
     query_timeout: int
@@ -83,3 +88,9 @@ class DatabaseConnectorStatusResponse(SQLModel):
     source_count: int
     last_error: str | None = None
     last_applied_at: datetime | None = None
+
+
+class SQLiteFileResponse(SQLModel):
+    id: UUID
+    original_name: str
+    size_bytes: int

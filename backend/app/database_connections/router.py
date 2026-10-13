@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, File, UploadFile
 
 from app.auth.dependencies import require_admin
 from app.database_connections.schemas import (
@@ -8,6 +8,7 @@ from app.database_connections.schemas import (
     DatabaseConnectionPatch,
     DatabaseConnectionResponse,
     DatabaseConnectorStatusResponse,
+    SQLiteFileResponse,
 )
 from app.database_connections.service import (
     DatabaseConnectionService,
@@ -45,6 +46,15 @@ async def create_database_connection(
     service: DatabaseConnectionService = Depends(get_database_connection_service),
 ) -> DatabaseConnectionResponse:
     return await service.create(data, current_user)
+
+
+@router.post("/sqlite-files", response_model=SQLiteFileResponse, status_code=201)
+async def upload_sqlite_file(
+    file: UploadFile = File(...),
+    current_user: UserDB = Depends(require_admin),
+    service: DatabaseConnectionService = Depends(get_database_connection_service),
+) -> SQLiteFileResponse:
+    return await service.upload_sqlite_file(file, current_user)
 
 
 @router.get("/{connection_id}", response_model=DatabaseConnectionResponse)

@@ -23,6 +23,7 @@ services:
       - "127.0.0.1:8080:8080"
     volumes:
       - ./.runtime/dbhub:/input:ro
+      - ./.runtime/databases:/var/lib/auxilia/databases
       - ./docker/dbhub-reloader.mjs:/opt/auxilia/dbhub-reloader.mjs:ro
     extra_hosts:
       - "host.docker.internal:host-gateway"

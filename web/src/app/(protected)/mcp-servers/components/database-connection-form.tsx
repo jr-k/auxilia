@@ -3,10 +3,12 @@
 import {
 	AlertCircle,
 	CheckCircle2,
+	Database,
 	Loader2,
 	RefreshCw,
 	ShieldCheck,
 	Trash2,
+	Upload,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -30,6 +32,7 @@ import {
 	deleteDatabaseConnection,
 	getDatabaseConnection,
 	reconcileDatabaseConnection,
+	uploadSQLiteFile,
 	updateDatabaseConnection,
 } from "@/lib/api/resources/database-connections";
 import * as mcpServersApi from "@/lib/api/resources/mcp-servers";
@@ -45,9 +48,15 @@ import { ServerIconTile } from "./server-icon-tile";
 const ENGINE_OPTIONS: Array<{
 	value: DatabaseEngine;
 	label: string;
-	defaultPort: number;
+	defaultPort?: number;
 	iconUrl: string;
 }> = [
+	{
+		value: "sqlite",
+		label: "SQLite",
+		iconUrl:
+			"https://cdn.jsdelivr.net/gh/devicons/devicon@v2.17.0/icons/sqlite/sqlite-original.svg",
+	},
 	{
 		value: "postgres",
 		label: "PostgreSQL",
@@ -90,6 +99,11 @@ const LABEL_CLASS =
 const INPUT_CLASS =
 	"w-full rounded-lg border border-input bg-card px-3 py-[9px] text-[13.5px] font-medium text-foreground outline-none transition-[border-color,box-shadow] placeholder:text-meta dark:placeholder:text-panel-dim focus:border-petrol focus:shadow-[0_0_0_3px_rgba(22,96,110,0.10)] disabled:cursor-not-allowed disabled:opacity-60";
 const MONO_INPUT_CLASS = `${INPUT_CLASS} font-mono text-[12.5px] font-normal`;
+
+function formatFileSize(size: number): string {
+	if (size < 1024 * 1024) return `${Math.max(1, Math.round(size / 1024))} KB`;
+	return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+}
 
 const STATUS_STYLES = {
 	pending: {
@@ -207,6 +221,10 @@ export function DatabaseConnectionForm({
 	const [deleting, setDeleting] = useState(false);
 	const [reconciling, setReconciling] = useState(false);
 	const [imageFile, setImageFile] = useState<File | null>(null);
+	const [sqliteFile, setSQLiteFile] = useState<File | null>(null);
+	const [stagedSQLiteFileId, setStagedSQLiteFileId] = useState<string | null>(
+		null,
+	);
 	const [removeImage, setRemoveImage] = useState(false);
 	const [pollingError, setPollingError] = useState<string | null>(null);
 	const [pollRevision, setPollRevision] = useState(0);
@@ -220,6 +238,13 @@ export function DatabaseConnectionForm({
 		(option) => option.value === form.engine,
 	);
 	const engineIconUrl = selectedEngine?.iconUrl;
+	const isSQLite = form.engine === "sqlite";
+	const sqliteFileName =
+		sqliteFile?.name ?? (isSQLite ? connection?.sqliteFileName : null);
+	const sqliteFileSize =
+		sqliteFile?.size ?? (isSQLite ? connection?.sqliteFileSizeBytes : null);
+	const hasReusablePassword =
+		connection?.engine !== "sqlite" && Boolean(connection?.hasPassword);
 
 	useEffect(() => {
 		void fetchMcpServers().catch(() => undefined);
@@ -293,6 +318,16 @@ export function DatabaseConnectionForm({
 		setForm((current) => ({ ...current, [key]: value }));
 	};
 
+	const selectSQLiteFile = (file: File | undefined) => {
+		if (!file) return;
+		if (!/\.(db|sqlite|sqlite3)$/i.test(file.name)) {
+			toast.error("Choose a .db, .sqlite, or .sqlite3 file");
+			return;
+		}
+		setSQLiteFile(file);
+		setStagedSQLiteFileId(null);
+	};
+
 	const handleEngineChange = (engine: DatabaseEngine) => {
 		setForm((current) => {
 			const previousDefaultPort = ENGINE_OPTIONS.find(
@@ -304,9 +339,16 @@ export function DatabaseConnectionForm({
 			return {
 				...current,
 				engine,
+				database:
+					engine !== "sqlite" &&
+					connection?.engine === "sqlite" &&
+					current.engine === "sqlite"
+						? ""
+						: current.database,
 				port:
+					current.engine === "sqlite" ||
 					current.port === String(previousDefaultPort)
-						? String(nextDefaultPort ?? current.port)
+						? String(nextDefaultPort ?? "")
 						: current.port,
 			};
 		});
@@ -334,17 +376,23 @@ export function DatabaseConnectionForm({
 		});
 	};
 
-	const buildPayload = (): DatabaseConnectionCreate => ({
+	const buildPayload = (
+		sqliteFileId?: string | null,
+	): DatabaseConnectionCreate => ({
 		name: form.name.trim(),
 		description: form.description.trim() || null,
 		group: form.group.trim() || null,
 		engine: form.engine,
-		host: form.host.trim(),
-		port: Number(form.port),
-		database: form.database.trim(),
-		username: form.username.trim(),
-		password: form.password,
-		sslMode: form.sslMode.trim() || null,
+		...(form.engine === "sqlite"
+			? { sqliteFileId }
+			: {
+					host: form.host.trim(),
+					port: Number(form.port),
+					database: form.database.trim(),
+					username: form.username.trim(),
+					password: form.password || null,
+					sslMode: form.sslMode.trim() || null,
+				}),
 		connectionTimeout: Number(form.connectionTimeout),
 		queryTimeout: Number(form.queryTimeout),
 		readonly: form.readonly,
@@ -353,18 +401,31 @@ export function DatabaseConnectionForm({
 		teamIds: form.teamIds,
 	});
 
+	const preparePayload = async (): Promise<DatabaseConnectionCreate> => {
+		if (form.engine !== "sqlite") return buildPayload();
+		let sqliteFileId = stagedSQLiteFileId ?? connection?.sqliteFileId;
+		if (sqliteFile && !stagedSQLiteFileId) {
+			const uploaded = await uploadSQLiteFile(sqliteFile);
+			sqliteFileId = uploaded.id;
+			setStagedSQLiteFileId(uploaded.id);
+		}
+		return buildPayload(sqliteFileId);
+	};
+
 	const saveExistingConnection = async (
 		current: DatabaseConnection,
 		payload: DatabaseConnectionCreate,
 	) => {
 		const databaseChanged =
-			Boolean(payload.password) ||
 			payload.engine !== current.engine ||
-			payload.host !== current.host ||
-			payload.port !== current.port ||
-			payload.database !== current.database ||
-			payload.username !== current.username ||
-			payload.sslMode !== current.sslMode ||
+			(payload.engine === "sqlite"
+				? payload.sqliteFileId !== current.sqliteFileId
+				: Boolean(payload.password) ||
+					payload.host !== current.host ||
+					payload.port !== current.port ||
+					payload.database !== current.database ||
+					payload.username !== current.username ||
+					payload.sslMode !== current.sslMode) ||
 			payload.connectionTimeout !== current.connectionTimeout ||
 			payload.queryTimeout !== current.queryTimeout ||
 			payload.readonly !== current.readonly ||
@@ -378,16 +439,22 @@ export function DatabaseConnectionForm({
 			...(payload.password ? { password: payload.password } : {}),
 		};
 		if (payload.engine !== current.engine) update.engine = payload.engine;
-		if (payload.host !== current.host) update.host = payload.host;
-		if (payload.port !== current.port) update.port = payload.port;
-		if (payload.database !== current.database) {
-			update.database = payload.database;
-		}
-		if (payload.username !== current.username) {
-			update.username = payload.username;
-		}
-		if (payload.sslMode !== current.sslMode) {
-			update.sslMode = payload.sslMode;
+		if (payload.engine === "sqlite") {
+			if (payload.sqliteFileId !== current.sqliteFileId) {
+				update.sqliteFileId = payload.sqliteFileId;
+			}
+		} else {
+			if (payload.host !== current.host) update.host = payload.host;
+			if (payload.port !== current.port) update.port = payload.port;
+			if (payload.database !== current.database) {
+				update.database = payload.database;
+			}
+			if (payload.username !== current.username) {
+				update.username = payload.username;
+			}
+			if (payload.sslMode !== current.sslMode) {
+				update.sslMode = payload.sslMode;
+			}
 		}
 		if (payload.connectionTimeout !== current.connectionTimeout) {
 			update.connectionTimeout = payload.connectionTimeout;
@@ -415,6 +482,8 @@ export function DatabaseConnectionForm({
 		}
 		setConnection(updated);
 		setForm((draft) => ({ ...draft, password: "" }));
+		setSQLiteFile(null);
+		setStagedSQLiteFileId(null);
 		setImageFile(null);
 		setRemoveImage(false);
 		refreshServerList();
@@ -425,7 +494,7 @@ export function DatabaseConnectionForm({
 		event.preventDefault();
 		setSaving(true);
 		try {
-			const payload = buildPayload();
+			const payload = await preparePayload();
 
 			if (isEditing) {
 				await saveExistingConnection(connection, payload);
@@ -451,7 +520,7 @@ export function DatabaseConnectionForm({
 		try {
 			const { updated, databaseChanged } = await saveExistingConnection(
 				connection,
-				buildPayload(),
+				await preparePayload(),
 			);
 			if (!databaseChanged) {
 				await reconcileDatabaseConnection(connection.id);
@@ -524,11 +593,13 @@ export function DatabaseConnectionForm({
 
 	const canSave = Boolean(
 		form.name.trim() &&
-			form.host.trim() &&
-			form.port &&
-			form.database.trim() &&
-			form.username.trim() &&
-			(isEditing || form.password) &&
+			(isSQLite
+				? sqliteFile || connection?.sqliteFileId
+				: form.host.trim() &&
+					form.port &&
+					form.database.trim() &&
+					form.username.trim() &&
+					(form.password || hasReusablePassword)) &&
 			form.maxRows &&
 			form.connectionTimeout &&
 			form.queryTimeout &&
@@ -726,7 +797,13 @@ export function DatabaseConnectionForm({
 												}}
 											/>
 										</div>
-										<div className="grid gap-[18px] border-t border-hairline bg-sidebar/60 p-5 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3 dark:border-white/5 dark:bg-white/3">
+										<div
+											className={`grid gap-[18px] border-t border-hairline bg-sidebar/60 p-5 dark:border-white/5 dark:bg-white/3 ${
+												isSQLite
+													? "sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2"
+													: "sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3"
+											}`}
+										>
 											<div className="flex flex-col gap-[7px]">
 												<label
 													htmlFor="database-max-rows"
@@ -747,6 +824,7 @@ export function DatabaseConnectionForm({
 													className={MONO_INPUT_CLASS}
 												/>
 											</div>
+											{!isSQLite ? (
 											<div className="flex flex-col gap-[7px]">
 												<label
 													htmlFor="database-connect-timeout"
@@ -770,6 +848,7 @@ export function DatabaseConnectionForm({
 													className={MONO_INPUT_CLASS}
 												/>
 											</div>
+											) : null}
 											<div className="flex flex-col gap-[7px]">
 												<label
 													htmlFor="database-query-timeout"
@@ -827,7 +906,9 @@ export function DatabaseConnectionForm({
 				<div className="flex min-w-0 shrink-0 flex-col gap-7 bg-sidebar p-7 md:min-h-0 md:flex-1 md:shrink md:overflow-y-auto dark:bg-white/[0.02] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
 								<EditorSection label="Connection details">
 									<div className="grid gap-[18px] rounded-[10px] border border-border bg-card p-5 sm:grid-cols-2">
-										<div className="flex flex-col gap-[7px]">
+										<div
+											className={`flex flex-col gap-[7px] ${isSQLite ? "sm:col-span-2" : ""}`}
+										>
 											<label htmlFor="database-engine" className={LABEL_CLASS}>
 												Engine
 											</label>
@@ -848,74 +929,144 @@ export function DatabaseConnectionForm({
 												))}
 											</select>
 										</div>
-										<div className="flex flex-col gap-[7px]">
-											<label htmlFor="database-port" className={LABEL_CLASS}>
-												Port
-											</label>
-											<input
-												id="database-port"
-												type="number"
-												min={1}
-												max={65535}
-												required
-												value={form.port}
-												placeholder={String(selectedEngine?.defaultPort ?? "")}
-												onChange={(event) => {
-													updateField("port", event.target.value);
-												}}
-												className={MONO_INPUT_CLASS}
-											/>
-										</div>
-										<div className="flex flex-col gap-[7px] sm:col-span-2">
-											<label htmlFor="database-host" className={LABEL_CLASS}>
-												Host
-											</label>
-											<input
-												id="database-host"
-												required
-												value={form.host}
-												onChange={(event) => {
-													updateField("host", event.target.value);
-												}}
-												placeholder="db.internal.example"
-												className={MONO_INPUT_CLASS}
-											/>
-											<span className="text-[11px] leading-5 text-meta dark:text-panel-dim">
-												Must be reachable from the Auxilia deployment.
-											</span>
-										</div>
-										<div className="flex flex-col gap-[7px]">
-											<label htmlFor="database-database" className={LABEL_CLASS}>
-												Database
-											</label>
-											<input
-												id="database-database"
-												required
-												value={form.database}
-												onChange={(event) => {
-													updateField("database", event.target.value);
-												}}
-												placeholder="analytics"
-												className={MONO_INPUT_CLASS}
-											/>
-										</div>
-										<div className="flex flex-col gap-[7px]">
-											<label htmlFor="database-ssl" className={LABEL_CLASS}>
-												SSL mode
-											</label>
-											<input
-												id="database-ssl"
-												value={form.sslMode}
-												onChange={(event) => {
-													updateField("sslMode", event.target.value);
-												}}
-												placeholder="require"
-												className={MONO_INPUT_CLASS}
-											/>
-										</div>
+										{isSQLite ? (
+											<div className="flex flex-col gap-[7px] sm:col-span-2">
+												<span className={LABEL_CLASS}>Database file</span>
+												<label
+													htmlFor="database-sqlite-file"
+													onDragOver={(event) => {
+														event.preventDefault();
+													}}
+													onDrop={(event) => {
+														event.preventDefault();
+														selectSQLiteFile(event.dataTransfer.files[0]);
+													}}
+													className="group flex cursor-pointer items-center gap-4 rounded-[10px] border border-dashed border-input bg-sidebar/60 p-4 transition-[border-color,background-color,box-shadow] hover:border-petrol hover:bg-petrol-tint/40 focus-within:border-petrol focus-within:shadow-[0_0_0_3px_rgba(22,96,110,0.10)] dark:bg-white/3 dark:hover:bg-white/5"
+												>
+													<div className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-hairline bg-card text-petrol shadow-sm dark:border-white/5 dark:text-panel-terminal">
+														{sqliteFileName ? (
+															<Database className="size-[18px]" />
+														) : (
+															<Upload className="size-[18px]" />
+														)}
+													</div>
+													<div className="min-w-0 flex-1">
+														<p className="truncate text-[13px] font-semibold text-foreground">
+															{sqliteFileName ??
+																"Drop a SQLite database here"}
+														</p>
+														<p className="mt-0.5 text-[11.5px] leading-5 text-meta dark:text-panel-dim">
+															{sqliteFileName
+																? `${sqliteFileSize ? formatFileSize(sqliteFileSize) : "SQLite database"} · Click to replace`
+																: ".db, .sqlite, or .sqlite3"}
+														</p>
+													</div>
+													<span className="rounded-md border border-input bg-card px-2.5 py-1.5 text-[11.5px] font-semibold text-body transition-colors group-hover:border-petrol/40 group-hover:text-petrol dark:text-panel-body">
+														{sqliteFileName ? "Replace" : "Choose file"}
+													</span>
+													<input
+														id="database-sqlite-file"
+														type="file"
+														accept=".db,.sqlite,.sqlite3,application/vnd.sqlite3,application/x-sqlite3"
+														className="sr-only"
+														onChange={(event) => {
+															selectSQLiteFile(event.target.files?.[0]);
+															event.currentTarget.value = "";
+														}}
+													/>
+												</label>
+												<span className="text-[11px] leading-5 text-meta dark:text-panel-dim">
+													The file is uploaded securely when you save this
+													connection.
+												</span>
+											</div>
+										) : (
+											<>
+												<div className="flex flex-col gap-[7px]">
+													<label
+														htmlFor="database-port"
+														className={LABEL_CLASS}
+													>
+														Port
+													</label>
+													<input
+														id="database-port"
+														type="number"
+														min={1}
+														max={65535}
+														required
+														value={form.port}
+														placeholder={String(
+															selectedEngine?.defaultPort ?? "",
+														)}
+														onChange={(event) => {
+															updateField("port", event.target.value);
+														}}
+														className={MONO_INPUT_CLASS}
+													/>
+												</div>
+												<div className="flex flex-col gap-[7px] sm:col-span-2">
+													<label
+														htmlFor="database-host"
+														className={LABEL_CLASS}
+													>
+														Host
+													</label>
+													<input
+														id="database-host"
+														required
+														value={form.host}
+														onChange={(event) => {
+															updateField("host", event.target.value);
+														}}
+														placeholder="db.internal.example"
+														className={MONO_INPUT_CLASS}
+													/>
+													<span className="text-[11px] leading-5 text-meta dark:text-panel-dim">
+														Must be reachable from the Auxilia deployment.
+													</span>
+												</div>
+												<div className="flex flex-col gap-[7px]">
+													<label
+														htmlFor="database-database"
+														className={LABEL_CLASS}
+													>
+														Database
+													</label>
+													<input
+														id="database-database"
+														required
+														value={form.database}
+														onChange={(event) => {
+															updateField("database", event.target.value);
+														}}
+														placeholder="analytics"
+														className={MONO_INPUT_CLASS}
+													/>
+												</div>
+												<div className="flex flex-col gap-[7px]">
+													<label
+														htmlFor="database-ssl"
+														className={LABEL_CLASS}
+													>
+														SSL mode
+													</label>
+													<input
+														id="database-ssl"
+														value={form.sslMode}
+														onChange={(event) => {
+															updateField("sslMode", event.target.value);
+														}}
+														placeholder="require"
+														className={MONO_INPUT_CLASS}
+													/>
+												</div>
+											</>
+										)}
 									</div>
 								</EditorSection>
 
+								{!isSQLite ? (
 								<EditorSection label="Credentials">
 									<div className="flex flex-col gap-[18px] rounded-[10px] border border-border bg-card p-5">
 										<div className="flex flex-col gap-[7px]">
@@ -936,7 +1087,7 @@ export function DatabaseConnectionForm({
 										<div className="flex flex-col gap-[7px]">
 											<label htmlFor="database-password" className={LABEL_CLASS}>
 												Password
-												{isEditing ? (
+												{hasReusablePassword ? (
 													<span className="font-normal text-meta dark:text-panel-dim">
 														{" "}
 														leave blank to keep
@@ -946,7 +1097,7 @@ export function DatabaseConnectionForm({
 											<input
 												id="database-password"
 												type="password"
-												required={!isEditing}
+												required={!hasReusablePassword}
 												autoComplete="new-password"
 												value={form.password}
 												onChange={(event) => {
@@ -960,6 +1111,7 @@ export function DatabaseConnectionForm({
 										</p>
 									</div>
 								</EditorSection>
+								) : null}
 				</div>
 			</form>
 		</div>

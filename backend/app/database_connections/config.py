@@ -2,7 +2,8 @@ from collections.abc import Iterable
 
 import tomli_w
 
-from app.database_connections.models import DatabaseConnectionDB
+from app.database_connections.models import DatabaseConnectionDB, DatabaseEngine
+from app.database_connections.settings import database_file_settings
 from app.database_connections.tools import DBHUB_TOOL_BASES
 
 
@@ -17,7 +18,7 @@ def source_description(connection: DatabaseConnectionDB) -> str:
 
 
 def build_dbhub_config(
-    connections: Iterable[tuple[DatabaseConnectionDB, str]],
+    connections: Iterable[tuple[DatabaseConnectionDB, str | None, str | None]],
 ) -> str:
     sources: list[dict[str, object]] = [
         {
@@ -34,25 +35,44 @@ def build_dbhub_config(
         }
     ]
 
-    for connection, password in connections:
-        source: dict[str, object] = {
-            "id": connection.source_id,
-            "description": source_description(connection),
-            "type": connection.engine.value,
-            "host": connection.host,
-            "port": connection.port,
-            "database": connection.database,
-            "user": connection.username,
-            "password": password,
-            "lazy": True,
-            "connection_timeout": connection.connection_timeout,
-            "query_timeout": connection.query_timeout,
-        }
-        if connection.ssl_mode:
-            source["sslmode"] = connection.ssl_mode
+    for connection, password, sqlite_stored_name in connections:
+        if connection.engine is DatabaseEngine.sqlite:
+            if sqlite_stored_name is None:
+                raise ValueError(f"Missing SQLite file for {connection.id}")
+            sqlite_path = database_file_settings.runtime_path / sqlite_stored_name
+            source: dict[str, object] = {
+                "id": connection.source_id,
+                "description": source_description(connection),
+                "dsn": f"sqlite://{sqlite_path}",
+                "lazy": True,
+                "query_timeout": connection.query_timeout,
+            }
+        else:
+            if password is None:
+                raise ValueError(f"Missing database password for {connection.id}")
+            source = {
+                "id": connection.source_id,
+                "description": source_description(connection),
+                "type": connection.engine.value,
+                "host": connection.host,
+                "port": connection.port,
+                "database": connection.database,
+                "user": connection.username,
+                "password": password,
+                "lazy": True,
+                "connection_timeout": connection.connection_timeout,
+                "query_timeout": connection.query_timeout,
+            }
+            if connection.ssl_mode:
+                source["sslmode"] = connection.ssl_mode
         sources.append(source)
 
         for tool_name in DBHUB_TOOL_BASES:
+            if (
+                connection.engine is DatabaseEngine.sqlite
+                and tool_name == "health_check"
+            ):
+                continue
             tool: dict[str, object] = {
                 "name": tool_name,
                 "source": connection.source_id,

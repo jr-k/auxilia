@@ -75,6 +75,9 @@ services:
       DBHUB_URL: http://dbhub:8080
       DBHUB_AUTH_TOKEN: ${DBHUB_AUTH_TOKEN:?Set DBHUB_AUTH_TOKEN}
       DBHUB_CONFIG_PATH: /var/lib/auxilia/dbhub/dbhub.toml
+      DATABASE_FILES_STORAGE_PATH: /var/lib/auxilia/databases
+      DATABASE_FILES_RUNTIME_PATH: /var/lib/auxilia/databases
+      DATABASE_FILES_MAX_UPLOAD_BYTES: ${DATABASE_FILES_MAX_UPLOAD_BYTES:-1073741824}
     depends_on:
       postgres:
         condition: service_healthy
@@ -86,6 +89,7 @@ services:
       - "host.docker.internal:host-gateway"
     volumes:
       - dbhub-config:/var/lib/auxilia/dbhub
+      - database-files:/var/lib/auxilia/databases
     restart: unless-stopped
     healthcheck:
       test:
@@ -124,6 +128,7 @@ services:
       ]
     volumes:
       - dbhub-config:/input:ro
+      - database-files:/var/lib/auxilia/databases
       - ../files/dbhub-reloader.mjs:/opt/auxilia/dbhub-reloader.mjs:ro
     depends_on:
       backend:
@@ -216,4 +221,6 @@ volumes:
   pgadmin_data:
     driver: local
   dbhub-config:
+    driver: local
+  database-files:
     driver: local

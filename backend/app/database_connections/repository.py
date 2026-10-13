@@ -1,12 +1,14 @@
 from collections.abc import Collection
 from uuid import UUID
 
+from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import col, select
 
 from app.database_connections.models import (
     DatabaseConnectionCredentialDB,
     DatabaseConnectionDB,
+    DatabaseFileDB,
     DBHubControlStateDB,
 )
 from app.repository import BaseRepository
@@ -96,13 +98,19 @@ class DatabaseConnectionRepository(BaseRepository[DatabaseConnectionDB]):
         self.db.add(credential)
         await self.db.flush()
 
-    async def get_password(self, connection_id: UUID) -> str:
+    async def get_password(self, connection_id: UUID) -> str | None:
         stmt = select(DatabaseConnectionCredentialDB.password_encrypted).where(
             DatabaseConnectionCredentialDB.database_connection_id == connection_id
         )
         result = await self.db.execute(stmt)
-        encrypted = result.scalar_one()
-        return decrypt_value(encrypted)
+        encrypted = result.scalar_one_or_none()
+        return decrypt_value(encrypted) if encrypted is not None else None
+
+    async def delete_password(self, connection_id: UUID) -> None:
+        stmt = delete(DatabaseConnectionCredentialDB).where(
+            col(DatabaseConnectionCredentialDB.database_connection_id) == connection_id
+        )
+        await self.db.execute(stmt)
 
     async def get_control_state(
         self, *, for_update: bool = False
@@ -125,3 +133,17 @@ class DatabaseConnectionRepository(BaseRepository[DatabaseConnectionDB]):
         self.db.add(state)
         await self.db.flush()
         return state.desired_revision
+
+
+class DatabaseFileRepository(BaseRepository[DatabaseFileDB]):
+    def __init__(self, db: AsyncSession, workspace_id: UUID):
+        super().__init__(DatabaseFileDB, db)
+        self.workspace_id = workspace_id
+
+    async def get_scoped(self, file_id: UUID) -> DatabaseFileDB | None:
+        stmt = select(DatabaseFileDB).where(
+            DatabaseFileDB.id == file_id,
+            DatabaseFileDB.workspace_id == self.workspace_id,
+        )
+        result = await self.db.execute(stmt)
+        return result.scalar_one_or_none()

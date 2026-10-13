@@ -3,13 +3,14 @@ from enum import Enum
 from urllib.parse import quote
 from uuid import UUID
 
-from sqlalchemy import DateTime
+from sqlalchemy import BigInteger, DateTime
 from sqlmodel import Column, Enum as SAEnum, Field, SQLModel
 
 from app.models import BaseDBModel
 
 
 class DatabaseEngine(str, Enum):
+    sqlite = "sqlite"
     postgres = "postgres"
     mysql = "mysql"
     mariadb = "mariadb"
@@ -18,6 +19,7 @@ class DatabaseEngine(str, Enum):
 
 
 DATABASE_ENGINE_ICON_URLS: dict[DatabaseEngine, str] = {
+    DatabaseEngine.sqlite: "https://cdn.jsdelivr.net/gh/devicons/devicon@v2.17.0/icons/sqlite/sqlite-original.svg",
     DatabaseEngine.postgres: "https://cdn.jsdelivr.net/gh/devicons/devicon@v2.17.0/icons/postgresql/postgresql-original.svg",
     DatabaseEngine.mysql: "https://cdn.jsdelivr.net/gh/devicons/devicon@v2.17.0/icons/mysql/mysql-original.svg",
     DatabaseEngine.mariadb: "https://cdn.jsdelivr.net/gh/devicons/devicon@v2.17.0/icons/mariadb/mariadb-original.svg",
@@ -52,10 +54,17 @@ class DatabaseConnectionBase(SQLModel):
             nullable=False,
         )
     )
-    host: str = Field(max_length=255, nullable=False)
-    port: int = Field(nullable=False)
+    host: str | None = Field(default=None, max_length=255, nullable=True)
+    port: int | None = Field(default=None, nullable=True)
     database: str = Field(max_length=255, nullable=False)
-    username: str = Field(max_length=255, nullable=False)
+    username: str | None = Field(default=None, max_length=255, nullable=True)
+    sqlite_file_id: UUID | None = Field(
+        default=None,
+        foreign_key="database_files.id",
+        ondelete="RESTRICT",
+        nullable=True,
+        index=True,
+    )
     ssl_mode: str | None = Field(default=None, max_length=64)
     connection_timeout: int = Field(default=10, ge=1, le=300)
     query_timeout: int = Field(default=30, ge=1, le=3600)
@@ -87,6 +96,8 @@ class DatabaseConnectionDB(DatabaseConnectionBase, BaseDBModel, table=True):
 
     @property
     def display_endpoint(self) -> str:
+        if self.engine == DatabaseEngine.sqlite:
+            return f"sqlite:///{quote(self.database, safe='')}"
         scheme = {
             DatabaseEngine.postgres: "postgresql",
             DatabaseEngine.mysql: "mysql",
@@ -94,6 +105,9 @@ class DatabaseConnectionDB(DatabaseConnectionBase, BaseDBModel, table=True):
             DatabaseEngine.sqlserver: "sqlserver",
             DatabaseEngine.oracle: "oracle",
         }[self.engine]
+        assert self.host is not None
+        assert self.port is not None
+        assert self.username is not None
         host = (
             f"[{self.host}]"
             if ":" in self.host
@@ -103,6 +117,20 @@ class DatabaseConnectionDB(DatabaseConnectionBase, BaseDBModel, table=True):
         username = quote(self.username, safe="")
         database = quote(self.database, safe="")
         return f"{scheme}://{username}@{host}:{self.port}/{database}"
+
+
+class DatabaseFileDB(BaseDBModel, table=True):
+    __tablename__ = "database_files"
+
+    workspace_id: UUID = Field(
+        foreign_key="workspaces.id", ondelete="CASCADE", nullable=False, index=True
+    )
+    owner_id: UUID = Field(
+        foreign_key="users.id", ondelete="CASCADE", nullable=False, index=True
+    )
+    original_name: str = Field(max_length=255, nullable=False)
+    stored_name: str = Field(max_length=64, nullable=False, unique=True)
+    size_bytes: int = Field(sa_column=Column(BigInteger, nullable=False))
 
 
 class DatabaseConnectionCredentialDB(BaseDBModel, table=True):

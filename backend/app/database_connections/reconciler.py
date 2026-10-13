@@ -20,8 +20,15 @@ from app.database_connections.config import (
     build_dbhub_config,
     source_description,
 )
-from app.database_connections.models import DatabaseConnectionStatus
-from app.database_connections.repository import DatabaseConnectionRepository
+from app.database_connections.models import (
+    DatabaseConnectionDB,
+    DatabaseConnectionStatus,
+    DatabaseEngine,
+)
+from app.database_connections.repository import (
+    DatabaseConnectionRepository,
+    DatabaseFileRepository,
+)
 from app.database_connections.settings import dbhub_settings
 from app.database_connections.tools import allowed_tool_names
 from app.mcp.servers.repository import MCPServerRepository
@@ -44,6 +51,28 @@ def _write_in_place(path: Path, content: str) -> None:
     path.chmod(0o600)
 
 
+async def _hydrate_connections(
+    repository: DatabaseConnectionRepository,
+    connections: list[DatabaseConnectionDB],
+) -> list[tuple[DatabaseConnectionDB, str | None, str | None]]:
+    hydrated: list[tuple[DatabaseConnectionDB, str | None, str | None]] = []
+    for connection in connections:
+        stored_name = None
+        if connection.sqlite_file_id is not None:
+            database_file = await DatabaseFileRepository(
+                repository.db, connection.workspace_id
+            ).get_scoped(connection.sqlite_file_id)
+            stored_name = database_file.stored_name if database_file else None
+        hydrated.append(
+            (
+                connection,
+                await repository.get_password(connection.id),
+                stored_name,
+            )
+        )
+    return hydrated
+
+
 class DBHubReconciler:
     def __init__(self) -> None:
         self._loop = PeriodicLoop(
@@ -62,10 +91,7 @@ class DBHubReconciler:
         async with AsyncSessionLocal() as db:
             repository = DatabaseConnectionRepository(db)
             connections = await repository.list_all()
-            hydrated = [
-                (connection, await repository.get_password(connection.id))
-                for connection in connections
-            ]
+            hydrated = await _hydrate_connections(repository, connections)
             return build_dbhub_config(hydrated)
 
     async def _set_failure(self, error_type: str) -> None:
@@ -115,10 +141,7 @@ class DBHubReconciler:
                 ):
                     return
                 desired_revision = state.desired_revision
-                hydrated = [
-                    (connection, await repository.get_password(connection.id))
-                    for connection in connections
-                ]
+                hydrated = await _hydrate_connections(repository, connections)
                 content = build_dbhub_config(hydrated)
 
                 await asyncio.to_thread(
@@ -129,7 +152,12 @@ class DBHubReconciler:
                 sources, tool_state = await asyncio.gather(
                     list_dbhub_sources(),
                     inspect_dbhub_tools(
-                        [connection.source_id for connection in connections]
+                        [connection.source_id for connection in connections],
+                        sqlite_source_ids=[
+                            connection.source_id
+                            for connection in connections
+                            if connection.engine is DatabaseEngine.sqlite
+                        ],
                     ),
                 )
                 tool_names, healthy_sources = tool_state
@@ -145,6 +173,8 @@ class DBHubReconciler:
                 current_connections = await repository.list_all()
                 for connection in current_connections:
                     allowed = allowed_tool_names(connection.id)
+                    if connection.engine is DatabaseEngine.sqlite:
+                        allowed.discard(f"health_check_{connection.source_id}")
                     applied = sources.get(connection.source_id) == source_description(
                         connection
                     ) and allowed.issubset(tool_names)
