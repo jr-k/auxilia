@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.1](https://github.com/jr-k/auxilia/compare/web-v0.12.0...web-v0.12.1) (2026-10-13)
+
+
+### Features
+
+* **databases:** refine managed connection actions ([f3a4e58](https://github.com/jr-k/auxilia/commit/f3a4e58f32713a4e1d962ab41759ed6bc6ab6fea))
+
 ## [0.12.0](https://github.com/jr-k/auxilia/compare/web-v0.11.58...web-v0.12.0) (2026-10-12)
 
 
