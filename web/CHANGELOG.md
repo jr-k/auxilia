@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.12.7](https://github.com/jr-k/auxilia/compare/web-v0.12.6...web-v0.12.7) (2026-10-14)
+
+
+### Features
+
+* **chat:** preserve attachments in queued prompts ([5ff9efa](https://github.com/jr-k/auxilia/commit/5ff9efad97774759075c6640960240ba4f3e0b03))
+* **database:** expose independently configurable write tools ([0dd3a04](https://github.com/jr-k/auxilia/commit/0dd3a04076c69bd900ea436e0b28629a14bea62b))
+
 ## [0.12.6](https://github.com/jr-k/auxilia/compare/web-v0.12.5...web-v0.12.6) (2026-10-14)
 
 
