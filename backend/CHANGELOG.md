@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.14](https://github.com/jr-k/auxilia/compare/backend-v0.11.13...backend-v0.11.14) (2026-10-14)
+
+
+### Features
+
+* **agents:** configure MCP defaults and sandbox icons ([#126](https://github.com/jr-k/auxilia/issues/126)) ([f3c4143](https://github.com/jr-k/auxilia/commit/f3c414365da27ca402f9619bfdc15c2be1a57347))
+
 ## [0.11.13](https://github.com/jr-k/auxilia/compare/backend-v0.11.12...backend-v0.11.13) (2026-10-14)
 
 
