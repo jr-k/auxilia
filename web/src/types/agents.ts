@@ -122,7 +122,16 @@ export interface AgentResourceMCPServer {
 	configured: boolean;
 }
 
+export interface AgentResourceSandbox {
+	id: string;
+	name: string;
+	description: string | null;
+	provider: SandboxProviderType;
+}
+
 export interface AgentResources {
 	mcpServers: AgentResourceMCPServer[];
 	skills: AgentSkill[];
+	sandboxes: AgentResourceSandbox[];
+	subagents: SubagentInfo[];
 }

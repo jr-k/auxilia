@@ -181,9 +181,11 @@ class AgentResourceMCPServerResponse(SQLModel):
     configured: bool
 
 
-class AgentResourcesResponse(SQLModel):
-    mcp_servers: list[AgentResourceMCPServerResponse]
-    skills: list[AgentSkillResponse]
+class AgentResourceSandboxResponse(SQLModel):
+    id: UUID
+    name: str
+    description: str | None = None
+    provider: SandboxProviderType
 
 
 class AgentSandboxResponse(SQLModel):
@@ -230,6 +232,13 @@ class SubagentResponse(SQLModel):
     color: str | None = None
     image_revision: UUID | None = None
     description: str | None = None
+
+
+class AgentResourcesResponse(SQLModel):
+    mcp_servers: list[AgentResourceMCPServerResponse]
+    skills: list[AgentSkillResponse]
+    sandboxes: list[AgentResourceSandboxResponse]
+    subagents: list[SubagentResponse]
 
 
 class AgentOwnerInfo(SQLModel):

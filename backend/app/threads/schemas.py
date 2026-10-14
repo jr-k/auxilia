@@ -18,6 +18,8 @@ class ThreadCreate(SQLModel):
     first_message_content: str | None = None
     disabled_mcp_server_ids: list[UUID] = Field(default_factory=list)
     disabled_skill_ids: list[UUID] = Field(default_factory=list)
+    disabled_sandbox_ids: list[UUID] = Field(default_factory=list)
+    disabled_subagent_ids: list[UUID] = Field(default_factory=list)
 
 
 class ThreadPatch(SQLModel):
@@ -33,6 +35,8 @@ class ThreadModelUpdate(SQLModel):
 class ThreadResourcesPatch(SQLModel):
     disabled_mcp_server_ids: list[UUID] = Field(default_factory=list)
     disabled_skill_ids: list[UUID] = Field(default_factory=list)
+    disabled_sandbox_ids: list[UUID] = Field(default_factory=list)
+    disabled_subagent_ids: list[UUID] = Field(default_factory=list)
 
 
 class ThreadResponse(ThreadBase):
@@ -57,6 +61,8 @@ class ThreadResponse(ThreadBase):
     model_available: bool = True
     disabled_mcp_server_ids: list[UUID] = Field(default_factory=list)
     disabled_skill_ids: list[UUID] = Field(default_factory=list)
+    disabled_sandbox_ids: list[UUID] = Field(default_factory=list)
+    disabled_subagent_ids: list[UUID] = Field(default_factory=list)
 
 
 class AgentThreadResponse(ThreadResponse):

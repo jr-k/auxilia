@@ -24,6 +24,8 @@ import type { ThreadResourceSettings } from "@/types/threads";
 const EMPTY_RESOURCE_SETTINGS: ThreadResourceSettings = {
 	disabledMcpServerIds: [],
 	disabledSkillIds: [],
+	disabledSandboxIds: [],
+	disabledSubagentIds: [],
 };
 
 const StarterChatPage = () => {

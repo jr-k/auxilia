@@ -33,7 +33,7 @@ describe("models resource", () => {
 		vi.mocked(api.put).mockResolvedValue({ data: undefined });
 		await setModelEnabled("openai", "gpt/4o mini", false);
 		expect(api.put).toHaveBeenCalledWith(
-			"/model-providers/models/openai/gpt%2F4o%20mini",
+			"/model-providers/models/openai/gpt/4o%20mini",
 			{ isEnabled: false },
 		);
 	});

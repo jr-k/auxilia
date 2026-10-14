@@ -135,6 +135,8 @@ class ThreadRepository(BaseRepository[ThreadDB]):
         thread_id: str,
         disabled_mcp_server_ids: list[str],
         disabled_skill_ids: list[str],
+        disabled_sandbox_ids: list[str],
+        disabled_subagent_ids: list[str],
     ) -> None:
         stmt = (
             update(ThreadDB)
@@ -142,6 +144,8 @@ class ThreadRepository(BaseRepository[ThreadDB]):
             .values(
                 disabled_mcp_server_ids=disabled_mcp_server_ids,
                 disabled_skill_ids=disabled_skill_ids,
+                disabled_sandbox_ids=disabled_sandbox_ids,
+                disabled_subagent_ids=disabled_subagent_ids,
             )
         )
         if self.workspace_id is not None:

@@ -56,6 +56,7 @@ def is_mcp_reauth_error(error: str | None) -> bool:
         error and error.startswith(_MCP_REAUTH_NAMED_PREFIX)
     )
 
+
 # Terminal states stamp `threads.last_run_status` and TTL the run's Redis
 # ephemera. `interrupted` is terminal *for this run* — resuming a HITL
 # interrupt creates a new run.
