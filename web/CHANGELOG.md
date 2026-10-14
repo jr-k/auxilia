@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.11](https://github.com/jr-k/auxilia/compare/web-v0.12.10...web-v0.12.11) (2026-10-14)
+
+
+### Features
+
+* **agents:** manage conversation execution resources ([#124](https://github.com/jr-k/auxilia/issues/124)) ([b6182c9](https://github.com/jr-k/auxilia/commit/b6182c9564b76572a7bac20d4a3a729248286606))
+
 ## [0.12.10](https://github.com/jr-k/auxilia/compare/web-v0.12.9...web-v0.12.10) (2026-10-14)
 
 
