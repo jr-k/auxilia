@@ -394,25 +394,24 @@ export default function AgentMCPServer({
 					) : configurableTools.length > 0 ? (
 						// Show ~5-6 tool rows; longer lists scroll within the card.
 						<div className="max-h-80 overflow-y-auto [scrollbar-width:thin]">
-							{!readOnly && (
-								<div className="flex items-center gap-3 border-b border-hover bg-petrol-tint/55 px-4 py-3 dark:bg-white/5 dark:border-white/5">
-									<div className="min-w-0 flex-1">
-										<p className="text-[12.5px] font-semibold text-foreground">
-											New conversations
-										</p>
-										<p className="mt-0.5 text-[11.5px] text-muted-foreground">
-											Enable this MCP server by default
-										</p>
-									</div>
-									<Switch
-										checked={binding.enabledByDefault ?? true}
-										onCheckedChange={(checked) => {
-											onDefaultEnabledChange?.(checked);
-										}}
-										aria-label={`Enable ${server.name} by default in new conversations`}
-									/>
+							<div className="flex items-center gap-3 border-b border-hover bg-petrol-tint/55 px-4 py-3 dark:border-white/5 dark:bg-white/5">
+								<div className="min-w-0 flex-1">
+									<p className="text-[12.5px] font-semibold text-foreground">
+										New conversations
+									</p>
+									<p className="mt-0.5 text-[11.5px] text-muted-foreground">
+										Enable this MCP server by default
+									</p>
 								</div>
-							)}
+								<Switch
+									checked={binding.enabledByDefault ?? true}
+									disabled={readOnly}
+									onCheckedChange={(checked) => {
+										onDefaultEnabledChange?.(checked);
+									}}
+									aria-label={`Enable ${server.name} by default in new conversations`}
+								/>
+							</div>
 							{configurableTools.map((tool) => (
 								<AgentMCPTool
 									key={tool.name}

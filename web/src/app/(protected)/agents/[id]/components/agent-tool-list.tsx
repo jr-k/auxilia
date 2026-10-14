@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { Plus } from "lucide-react";
+import { ChevronsUpDown, Plus } from "lucide-react";
 import { MCPServer } from "@/types/mcp-servers";
 import { ToolStatus } from "@/types/agents";
 import { Sandbox } from "@/types/sandboxes";
@@ -212,41 +212,45 @@ export default function AgentToolList({
 		<div className="flex min-h-0 flex-col gap-8">
 			<section>
 				<div className="mb-3 flex min-h-[24px] shrink-0 items-center justify-between">
-					<span className="text-[10.5px] font-semibold text-label dark:text-muted-foreground">
-						MCP Servers{" "}
-						<span className="tracking-normal text-meta dark:text-panel-dim">
-							{enabledServers.length}
+					<div className="flex items-center gap-2.5">
+						<span className="text-[10.5px] font-semibold text-label dark:text-muted-foreground">
+							MCP Servers{" "}
+							<span className="tracking-normal text-meta dark:text-panel-dim">
+								{enabledServers.length}
+							</span>
 						</span>
-					</span>
-					<div className="flex items-center gap-3">
 						{enabledServers.length > 0 && (
-							<button
-								type="button"
-								className="cursor-pointer text-[12.5px] font-semibold text-petrol transition-opacity hover:opacity-80 dark:text-panel-terminal"
-								onClick={() => {
-									setExpandedServerIds(
-										allServersExpanded
-											? new Set()
-											: new Set(enabledServers.map((server) => server.id)),
-									);
-								}}
-							>
-								{allServersExpanded ? "Collapse all" : "Expand all"}
-							</button>
-						)}
-						{!readOnly && (
-							<button
-								type="button"
-								className="flex cursor-pointer items-center gap-1 text-[12.5px] font-semibold text-petrol transition-opacity hover:opacity-80 dark:text-panel-terminal"
-								onClick={() => {
-									openResourceDialog("mcp");
-								}}
-							>
-								<Plus className="size-3" />
-								Add server
-							</button>
+							<>
+								<span className="h-3 w-px bg-border" aria-hidden="true" />
+								<button
+									type="button"
+									className="flex cursor-pointer items-center gap-1 text-[11.5px] font-medium text-meta transition-colors hover:text-foreground dark:text-panel-dim dark:hover:text-foreground"
+									onClick={() => {
+										setExpandedServerIds(
+											allServersExpanded
+												? new Set()
+												: new Set(enabledServers.map((server) => server.id)),
+										);
+									}}
+								>
+									<ChevronsUpDown className="size-3" />
+									{allServersExpanded ? "Collapse all" : "Expand all"}
+								</button>
+							</>
 						)}
 					</div>
+					{!readOnly && (
+						<button
+							type="button"
+							className="flex cursor-pointer items-center gap-1 text-[12.5px] font-semibold text-petrol transition-opacity hover:opacity-80 dark:text-panel-terminal"
+							onClick={() => {
+								openResourceDialog("mcp");
+							}}
+						>
+							<Plus className="size-3" />
+							Add server
+						</button>
+					)}
 				</div>
 				{enabledServers.length > 0 ? (
 					<div className="flex flex-col gap-2.5">
