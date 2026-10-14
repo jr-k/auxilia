@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.8](https://github.com/jr-k/auxilia/compare/backend-v0.11.7...backend-v0.11.8) (2026-10-14)
+
+
+### Bug Fixes
+
+* **mcp:** load provider quirks from catalog entries ([7f485ad](https://github.com/jr-k/auxilia/commit/7f485adc766eb07bc2193d652bcb4e04c5dfb85c))
+
 ## [0.11.7](https://github.com/jr-k/auxilia/compare/backend-v0.11.6...backend-v0.11.7) (2026-10-13)
 
 
