@@ -10,7 +10,6 @@ import {
   NeedsApprovalBadge,
   StepCode,
   StepSection,
-  TERMINAL_ICON,
   humanizeToolName,
   isSandboxTool,
   summarizeToolArgs,
@@ -18,7 +17,10 @@ import {
 import { cn } from "@/lib/utils";
 import { fetchThreadMessage } from "@/lib/api/thread-messages";
 import { mcpServerImageUrl } from "@/lib/api/resources/mcp-servers";
+import { sandboxImageUrl } from "@/lib/api/resources/sandboxes";
+import { SANDBOX_PROVIDER_ICONS } from "@/lib/sandbox-providers";
 import type { MCPServer } from "@/types/mcp-servers";
+import type { AgentResourceSandbox } from "@/types/agents";
 import type { HitlDecision } from "@/hooks/use-hitl-approvals";
 import {
   type ToolCallView,
@@ -30,6 +32,7 @@ type ToolIdentity = {
   serverName: string;
   toolName: string;
   icon: string | undefined;
+  sourceKind?: string;
 };
 
 export type DescribeTool = (toolName: string) => ToolIdentity;
@@ -40,6 +43,7 @@ export function useDescribeTool(
     MCPServer,
     "id" | "name" | "iconUrl" | "imageRevision"
   >[],
+  sandbox?: AgentResourceSandbox,
 ): DescribeTool {
   return useMemo(() => {
     const known = mcpServers
@@ -47,7 +51,16 @@ export function useDescribeTool(
       .sort((a, b) => b.length - a.length);
     return (name: string) => {
       if (isSandboxTool(name)) {
-        return { serverName: "Code execution", toolName: name, icon: TERMINAL_ICON };
+        return {
+          serverName: sandbox?.name ?? "Code execution",
+          toolName: name,
+          icon: sandbox
+            ? sandbox.imageRevision
+              ? sandboxImageUrl(sandbox.id, sandbox.imageRevision)
+              : SANDBOX_PROVIDER_ICONS[sandbox.provider]
+            : undefined,
+          sourceKind: "Sandbox",
+        };
       }
       const { serverName, toolName } = getToolMetadata(name, known);
       const server = mcpServers.find((candidate) => candidate.name === serverName);
@@ -56,6 +69,7 @@ export function useDescribeTool(
           serverName: "Auxilia Search",
           toolName: "find_tools",
           icon: "/pwa-icon.svg",
+          sourceKind: "Built-in",
         };
       }
       if (!server && /^load_mcp_tools(?:_\d+)?$/.test(name)) {
@@ -63,6 +77,7 @@ export function useDescribeTool(
           serverName: "Auxilia Search",
           toolName: "load_tools",
           icon: "/pwa-icon.svg",
+          sourceKind: "Built-in",
         };
       }
       return {
@@ -72,9 +87,10 @@ export function useDescribeTool(
           server?.imageRevision != null
             ? mcpServerImageUrl(server.id, server.imageRevision)
             : server?.iconUrl,
+        sourceKind: "MCP server",
       };
     };
-  }, [mcpServers]);
+  }, [mcpServers, sandbox]);
 }
 
 type ToolStepApproval = {
@@ -101,7 +117,7 @@ export const ToolStep = memo(function ToolStep({
   nested = false,
   approval,
 }: ToolStepProps) {
-  const { serverName, toolName, icon } = describe(tc.name);
+  const { serverName, toolName, icon, sourceKind } = describe(tc.name);
   const awaiting = state === "awaiting-approval";
   const showResult =
     state === "rejected" || state === "error" || tc.output !== undefined;
@@ -122,7 +138,9 @@ export const ToolStep = memo(function ToolStep({
   return (
     <ChainStep
       nested={nested}
-      node={<ChainStepIcon icon={icon} name={serverName} />}
+      node={
+        <ChainStepIcon icon={icon} name={serverName} kind={sourceKind} />
+      }
       title={humanizeToolName(toolName)}
       summary={summarizeToolArgs(tc.args)}
       meta={meta}

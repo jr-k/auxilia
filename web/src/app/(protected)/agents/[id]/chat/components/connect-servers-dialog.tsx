@@ -342,7 +342,7 @@ export function ConnectServersDialog({
 
 	return (
 		<Dialog open={open} onOpenChange={handleOpenChange}>
-			<DialogContent className="gap-4 sm:max-w-[540px]">
+			<DialogContent className="gap-4 sm:max-w-[820px]">
 				<DialogHeader>
 					<DialogTitle>Conversation resources</DialogTitle>
 					<DialogDescription>
@@ -351,55 +351,84 @@ export function ConnectServersDialog({
 					</DialogDescription>
 				</DialogHeader>
 
-				<div
-					role="tablist"
-					aria-label="Agent resource type"
-					className="grid grid-cols-4 rounded-full bg-hover p-1 dark:bg-white/5"
-				>
-					{(
-						[
-							["servers", "MCP servers", PlugIcon],
-							["skills", "Skills", SparklesIcon],
-							["sandboxes", "Sandbox", BoxIcon],
-							["subagents", "Subagents", GitForkIcon],
-						] as const
-					).map(([tab, label, Icon]) => {
-						const isActive = activeTab === tab;
-						return (
-							<button
-								key={tab}
-								type="button"
-								role="tab"
-								aria-selected={isActive}
-								onClick={() => {
-									setActiveTab(tab);
-								}}
-								className={cn(
-									"flex h-9 cursor-pointer items-center justify-center gap-2 rounded-full text-[12.5px] font-semibold transition-all",
-									isActive
-										? "bg-card text-foreground shadow-sm dark:bg-white/10"
-										: "text-meta hover:text-foreground dark:text-panel-dim",
-								)}
-							>
-								<Icon className="size-3.5" />
-								{label}
-								{resourcesAgentId === agentId && (
-									<span className="text-[10.5px] font-medium opacity-60">
-										{tab === "servers"
-											? `${enabledServerCount}/${servers.length}`
-											: tab === "skills"
-												? `${enabledSkillCount}/${skills.length}`
-												: tab === "sandboxes"
-													? `${enabledSandboxCount}/${sandboxes.length}`
-													: `${enabledSubagentCount}/${subagents.length}`}
-									</span>
-								)}
-							</button>
-						);
-					})}
-				</div>
+				<div className="flex h-[500px] min-h-0 overflow-hidden rounded-[14px] border border-hairline bg-card shadow-[0_1px_2px_rgba(20,35,38,0.03)] dark:border-white/8 dark:bg-white/[0.025]">
+					<div className="flex w-[220px] shrink-0 flex-col border-r border-hairline bg-sidebar/70 p-2.5 dark:border-white/8 dark:bg-white/[0.025]">
+						<div
+							role="tablist"
+							aria-label="Agent resource type"
+							aria-orientation="vertical"
+							className="flex flex-col gap-1"
+						>
+							{(
+								[
+									["servers", "MCP servers", PlugIcon],
+									["skills", "Skills", SparklesIcon],
+									["sandboxes", "Sandbox", BoxIcon],
+									["subagents", "Subagents", GitForkIcon],
+								] as const
+							).map(([tab, label, Icon]) => {
+								const isActive = activeTab === tab;
+								const count =
+									tab === "servers"
+										? `${enabledServerCount}/${servers.length}`
+										: tab === "skills"
+											? `${enabledSkillCount}/${skills.length}`
+											: tab === "sandboxes"
+												? `${enabledSandboxCount}/${sandboxes.length}`
+												: `${enabledSubagentCount}/${subagents.length}`;
+								return (
+									<button
+										key={tab}
+										type="button"
+										role="tab"
+										aria-selected={isActive}
+										aria-controls="conversation-resource-panel"
+										onClick={() => {
+											setActiveTab(tab);
+										}}
+										className={cn(
+											"group flex w-full cursor-pointer items-center gap-2.5 rounded-[10px] px-2.5 py-2.5 text-left transition-[background-color,color,box-shadow]",
+											isActive
+												? "bg-card text-foreground shadow-[0_1px_4px_rgba(20,35,38,0.09)] ring-1 ring-border/70 dark:bg-white/10 dark:ring-white/10"
+												: "text-meta hover:bg-card/70 hover:text-foreground dark:text-panel-dim dark:hover:bg-white/5",
+										)}
+									>
+										<span
+											className={cn(
+												"flex size-7 shrink-0 items-center justify-center rounded-[8px] border transition-colors",
+												isActive
+													? "border-petrol/20 bg-petrol/8 text-petrol dark:text-panel-terminal"
+													: "border-border/70 bg-card text-meta group-hover:text-foreground dark:border-white/8 dark:bg-white/5",
+											)}
+										>
+											<Icon className="size-3.5" />
+										</span>
+										<span className="min-w-0 flex-1 truncate text-[12.5px] font-semibold">
+											{label}
+										</span>
+										{resourcesAgentId === agentId && (
+											<span
+												className={cn(
+													"shrink-0 rounded-full px-1.5 py-0.5 font-mono text-[9.5px] font-semibold tabular-nums",
+													isActive
+														? "bg-petrol/10 text-petrol dark:text-panel-terminal"
+														: "bg-hover text-meta dark:bg-white/5 dark:text-panel-dim",
+												)}
+											>
+												{count}
+											</span>
+										)}
+									</button>
+								);
+							})}
+						</div>
+					</div>
 
-				<div className="h-[480px] overflow-y-auto [scrollbar-width:thin]">
+					<div
+						id="conversation-resource-panel"
+						role="tabpanel"
+						className="min-w-0 flex-1 overflow-y-auto p-3 [scrollbar-width:thin]"
+					>
 					{isLoadingResources ? (
 						<div className="flex min-h-[180px] items-center justify-center gap-2 text-[13px] text-meta dark:text-panel-dim">
 							<LoaderIcon className="size-4 animate-spin" />
@@ -712,6 +741,7 @@ export function ConnectServersDialog({
 							description="This agent has no subagent enabled."
 						/>
 					)}
+					</div>
 				</div>
 			</DialogContent>
 		</Dialog>
