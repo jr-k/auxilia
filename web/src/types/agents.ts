@@ -18,6 +18,7 @@ interface AgentMCPServer extends MCPServer {
 /** One agent↔sandbox binding, flattened with the sandbox's display fields. */
 export interface AgentSandbox {
 	sandboxId: string;
+	enabledByDefault?: boolean;
 	tools: Record<string, ToolStatus> | null;
 	name: string;
 	provider: SandboxProviderType;
@@ -77,6 +78,7 @@ export interface SubagentInfo {
 	color?: string | null;
 	imageRevision?: string | null;
 	description?: string | null;
+	enabledByDefault?: boolean;
 }
 
 export interface AgentOwner {
@@ -134,6 +136,7 @@ export interface AgentResourceSandbox {
 	description: string | null;
 	provider: SandboxProviderType;
 	imageRevision: string | null;
+	enabledByDefault: boolean;
 }
 
 export interface AgentResources {

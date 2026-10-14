@@ -508,6 +508,7 @@ class SkillRepository(BaseRepository[SkillDB]):
                 col(SkillDB.color),
                 col(SkillDB.image_revision),
                 json_script_count(SkillDB.files).label("script_count"),
+                col(AgentSkillDB.enabled_by_default),
             )
             .join(AgentSkillDB, col(AgentSkillDB.skill_id) == col(SkillDB.id))
             .where(col(AgentSkillDB.agent_id) == agent_id)
@@ -529,17 +530,21 @@ class SkillRepository(BaseRepository[SkillDB]):
                 col(SkillDB.color),
                 col(SkillDB.image_revision),
                 json_script_count(SkillDB.files).label("script_count"),
+                col(AgentSkillDB.enabled_by_default),
             )
             .join(AgentSkillDB, col(AgentSkillDB.skill_id) == col(SkillDB.id))
             .where(col(AgentSkillDB.agent_id).in_(ids))
-            .distinct()
-            .order_by(col(SkillDB.name), col(SkillDB.id))
+            .order_by(col(SkillDB.name), col(SkillDB.id), col(AgentSkillDB.agent_id))
         )
         return (await self.db.execute(stmt)).all()
 
     async def list_attached_ids(self, agent_id: UUID) -> set[UUID]:
         stmt = select(AgentSkillDB.skill_id).where(AgentSkillDB.agent_id == agent_id)
         return set((await self.db.execute(stmt)).scalars().all())
+
+    async def list_attached_links(self, agent_id: UUID) -> list[AgentSkillDB]:
+        stmt = select(AgentSkillDB).where(AgentSkillDB.agent_id == agent_id)
+        return list((await self.db.execute(stmt)).scalars().all())
 
     async def list_attached_ids_for_agents(
         self, agent_ids: Iterable[UUID]
@@ -548,6 +553,18 @@ class SkillRepository(BaseRepository[SkillDB]):
         if not ids:
             return set()
         stmt = select(AgentSkillDB.skill_id).where(col(AgentSkillDB.agent_id).in_(ids))
+        return set((await self.db.execute(stmt)).scalars().all())
+
+    async def list_disabled_by_default_ids_for_agents(
+        self, agent_ids: Iterable[UUID]
+    ) -> set[UUID]:
+        ids = list(agent_ids)
+        if not ids:
+            return set()
+        stmt = select(AgentSkillDB.skill_id).where(
+            col(AgentSkillDB.agent_id).in_(ids),
+            AgentSkillDB.enabled_by_default == False,  # noqa: E712
+        )
         return set((await self.db.execute(stmt)).scalars().all())
 
     async def is_attached(self, skill_id: UUID) -> bool:
@@ -562,9 +579,31 @@ class SkillRepository(BaseRepository[SkillDB]):
         stmt = delete(AgentSkillDB).where(col(AgentSkillDB.skill_id) == skill_id)
         await self.db.execute(stmt)
 
-    async def add_links(self, agent_id: UUID, skill_ids: Iterable[UUID]) -> None:
+    async def add_links(
+        self,
+        agent_id: UUID,
+        skill_ids: Iterable[UUID],
+        *,
+        disabled_by_default: set[UUID] | None = None,
+    ) -> None:
+        disabled = disabled_by_default or set()
         for skill_id in skill_ids:
-            self.db.add(AgentSkillDB(agent_id=agent_id, skill_id=skill_id))
+            self.db.add(
+                AgentSkillDB(
+                    agent_id=agent_id,
+                    skill_id=skill_id,
+                    enabled_by_default=skill_id not in disabled,
+                )
+            )
+        await self.db.flush()
+
+    async def set_link_default(
+        self, link: AgentSkillDB, *, enabled_by_default: bool
+    ) -> None:
+        if link.enabled_by_default == enabled_by_default:
+            return
+        link.enabled_by_default = enabled_by_default
+        self.db.add(link)
         await self.db.flush()
 
     async def delete_links(self, agent_id: UUID, skill_ids: Iterable[UUID]) -> None:

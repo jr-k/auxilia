@@ -37,9 +37,15 @@ export interface AgentWrite {
 		enabledByDefault: boolean;
 		tools: Record<string, string> | null;
 	}[];
-	sandboxes: { sandboxId: string; tools: Record<string, string> | null }[];
+	sandboxes: {
+		sandboxId: string;
+		enabledByDefault: boolean;
+		tools: Record<string, string> | null;
+	}[];
 	subagentIds: string[];
+	disabledSubagentIdsByDefault?: string[];
 	skillIds: string[];
+	disabledSkillIdsByDefault?: string[];
 }
 
 /** Fields `PATCH /agents/{id}` accepts outside the config draft. */

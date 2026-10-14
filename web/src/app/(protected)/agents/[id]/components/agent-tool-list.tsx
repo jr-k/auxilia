@@ -195,7 +195,9 @@ export default function AgentToolList({
 
 	const handleAddSandbox = (sandboxId: string) => {
 		// One sandbox per agent: adding replaces any existing binding.
-		onSandboxesChange?.([{ sandboxId, tools: null }]);
+		onSandboxesChange?.([
+			{ sandboxId, enabledByDefault: true, tools: null },
+		]);
 	};
 
 	const handleRemoveSandbox = (sandboxId: string) => {
@@ -316,16 +318,31 @@ export default function AgentToolList({
 				</div>
 				{enabledSandboxes.length > 0 ? (
 					<div className="flex flex-col gap-2.5">
-						{enabledSandboxes.map((sandbox) => (
-							<AgentSandbox
-								key={sandbox.id}
-								sandbox={sandbox}
-								readOnly={readOnly}
-								onRemove={() => {
-									requestRemoveSandbox(sandbox.id);
-								}}
-							/>
-						))}
+						{enabledSandboxes.map((sandbox) => {
+							const binding = sandboxes.find(
+								(candidate) => candidate.sandboxId === sandbox.id,
+							);
+							return (
+								<AgentSandbox
+									key={sandbox.id}
+									sandbox={sandbox}
+									enabledByDefault={binding?.enabledByDefault ?? true}
+									readOnly={readOnly}
+									onDefaultEnabledChange={(enabled) => {
+										onSandboxesChange?.(
+											sandboxes.map((candidate) =>
+												candidate.sandboxId === sandbox.id
+													? { ...candidate, enabledByDefault: enabled }
+													: candidate,
+											),
+										);
+									}}
+									onRemove={() => {
+										requestRemoveSandbox(sandbox.id);
+									}}
+								/>
+							);
+						})}
 					</div>
 				) : (
 					<div className="rounded-[10px] border border-dashed border-input px-4 py-6 text-center text-[13px] text-meta dark:text-panel-dim">

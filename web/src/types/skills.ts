@@ -274,6 +274,7 @@ export interface AgentSkill {
 	color: string | null;
 	imageRevision: string | null;
 	scriptCount: number;
+	enabledByDefault?: boolean;
 }
 
 /**

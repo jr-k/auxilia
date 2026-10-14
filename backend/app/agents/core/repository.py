@@ -247,7 +247,7 @@ class AgentRepository(BaseRepository[AgentDB]):
         # row's `created_at` so subagents come back in a stable order; the parent matches
         # the first disjunct and joins to a NULL link, hence `nullsfirst`.
         stmt = (
-            select(AgentDB, AgentSubagentDB.created_at)
+            select(AgentDB, AgentSubagentDB)
             .outerjoin(
                 AgentSubagentDB,
                 (AgentSubagentDB.subagent_id == AgentDB.id)
@@ -274,16 +274,16 @@ class AgentRepository(BaseRepository[AgentDB]):
         rows = (await self.db.execute(stmt)).all()
 
         parent: AgentDB | None = None
-        subagent_rows: list[AgentDB] = []
-        for agent, link_created_at in rows:
-            if link_created_at is None and agent.id == agent_id:
+        subagent_rows: list[tuple[AgentDB, AgentSubagentDB]] = []
+        for agent, link in rows:
+            if link is None and agent.id == agent_id:
                 parent = agent
-            else:
-                subagent_rows.append(agent)
+            elif link is not None:
+                subagent_rows.append((agent, link))
         if parent is None:
             return None
 
-        agent_ids = [parent.id, *(a.id for a in subagent_rows)]
+        agent_ids = [parent.id, *(agent.id for agent, _ in subagent_rows)]
 
         bindings_by_agent: dict[UUID, list[AgentMCPServerDB]] = defaultdict(list)
         stmt = (
@@ -298,9 +298,13 @@ class AgentRepository(BaseRepository[AgentDB]):
         # the same as only-one; the dict just avoids asserting that here.
         sandbox_by_agent: dict[UUID, SandboxSpec] = {}
         for link, sandbox in await self.list_sandbox_bindings(agent_ids):
-            sandbox_by_agent[link.agent_id] = SandboxSpec(row=sandbox, tools=link.tools)
+            sandbox_by_agent[link.agent_id] = SandboxSpec(
+                row=sandbox,
+                tools=link.tools,
+                enabled_by_default=link.enabled_by_default,
+            )
 
-        def to_spec(agent: AgentDB) -> AgentSpec:
+        def to_spec(agent: AgentDB, *, enabled_by_default: bool = True) -> AgentSpec:
             return AgentSpec(
                 id=agent.id,
                 workspace_id=agent.workspace_id,
@@ -313,11 +317,15 @@ class AgentRepository(BaseRepository[AgentDB]):
                 default_reasoning_effort=agent.default_reasoning_effort,
                 mcp_servers=bindings_by_agent.get(agent.id, []),
                 sandbox=sandbox_by_agent.get(agent.id),
+                enabled_by_default=enabled_by_default,
             )
 
         return RunSpec(
             agent=to_spec(parent),
-            subagents=[to_spec(a) for a in subagent_rows],
+            subagents=[
+                to_spec(agent, enabled_by_default=link.enabled_by_default)
+                for agent, link in subagent_rows
+            ],
         )
 
     async def list_by_ids(self, ids: Iterable[UUID]) -> list[AgentDB]:
@@ -580,13 +588,30 @@ class AgentRepository(BaseRepository[AgentDB]):
         return result.scalar_one_or_none() is not None
 
     async def create_subagent_link(
-        self, supervisor_id: UUID, subagent_id: UUID
+        self,
+        supervisor_id: UUID,
+        subagent_id: UUID,
+        *,
+        enabled_by_default: bool = True,
     ) -> AgentSubagentDB:
-        link = AgentSubagentDB(supervisor_id=supervisor_id, subagent_id=subagent_id)
+        link = AgentSubagentDB(
+            supervisor_id=supervisor_id,
+            subagent_id=subagent_id,
+            enabled_by_default=enabled_by_default,
+        )
         self.db.add(link)
         await self.db.flush()
         await self.db.refresh(link)
         return link
+
+    async def set_subagent_default(
+        self, link: AgentSubagentDB, *, enabled_by_default: bool
+    ) -> None:
+        if link.enabled_by_default == enabled_by_default:
+            return
+        link.enabled_by_default = enabled_by_default
+        self.db.add(link)
+        await self.db.flush()
 
     async def delete_subagent_link(self, link: AgentSubagentDB) -> None:
         await self.db.delete(link)
@@ -653,8 +678,12 @@ class AgentRepository(BaseRepository[AgentDB]):
 
         if existing:
             if existing.sandbox_id == wanted.sandbox_id:
-                if existing.tools != wanted.tools:
+                if (
+                    existing.tools != wanted.tools
+                    or existing.enabled_by_default != wanted.enabled_by_default
+                ):
                     existing.tools = wanted.tools
+                    existing.enabled_by_default = wanted.enabled_by_default
                     self.db.add(existing)
                     await self.db.flush()
                 return
@@ -665,7 +694,10 @@ class AgentRepository(BaseRepository[AgentDB]):
 
         link = AgentSandboxDB.model_validate(
             AgentSandboxBase(
-                agent_id=agent_id, sandbox_id=wanted.sandbox_id, tools=wanted.tools
+                agent_id=agent_id,
+                sandbox_id=wanted.sandbox_id,
+                enabled_by_default=wanted.enabled_by_default,
+                tools=wanted.tools,
             )
         )
         self.db.add(link)

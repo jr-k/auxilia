@@ -81,6 +81,7 @@ class AgentSandboxBase(SQLModel):
     # (DELETE /sandboxes/{id}?detach_agents=true). Threads are never bound
     # to a sandbox — only agents are.
     sandbox_id: UUID = Field(foreign_key="sandboxes.id", index=True, nullable=False)
+    enabled_by_default: bool = Field(default=True, nullable=False)
     tools: dict[str, ToolStatus] | None = Field(
         default=None, sa_column=Column(JSONB, nullable=True)
     )
@@ -198,3 +199,4 @@ class AgentSubagentDB(BaseDBModel, table=True):
     subagent_id: UUID = Field(
         foreign_key="agents.id", ondelete="CASCADE", nullable=False
     )
+    enabled_by_default: bool = Field(default=True, nullable=False)

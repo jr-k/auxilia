@@ -543,12 +543,25 @@ class SkillService(BaseService[SkillDB, SkillRepository]):
     async def list_for_agents(
         self, agent_ids: Iterable[UUID]
     ) -> list[AgentSkillResponse]:
-        return [
-            AgentSkillResponse(**row._mapping)
-            for row in await self.repository.list_attached_for_agents(agent_ids)
-        ]
+        by_id: dict[UUID, AgentSkillResponse] = {}
+        for row in await self.repository.list_attached_for_agents(agent_ids):
+            skill = AgentSkillResponse(**row._mapping)
+            existing = by_id.get(skill.id)
+            if existing is None:
+                by_id[skill.id] = skill
+            elif not skill.enabled_by_default:
+                by_id[skill.id] = existing.model_copy(
+                    update={"enabled_by_default": False}
+                )
+        return list(by_id.values())
 
-    async def set_for_agent(self, agent_id: UUID, skill_ids: Iterable[UUID]) -> None:
+    async def set_for_agent(
+        self,
+        agent_id: UUID,
+        skill_ids: Iterable[UUID],
+        *,
+        disabled_by_default: Iterable[UUID] = (),
+    ) -> None:
         """Whole-set replace of an agent's skills, from the config save.
 
         There is no graph-wide name check here, and there is nothing for one
@@ -559,6 +572,7 @@ class SkillService(BaseService[SkillDB, SkillRepository]):
         that changed under a run.
         """
         wanted = set(skill_ids)
+        disabled = set(disabled_by_default) & wanted
         if wanted - await self.repository.list_existing_ids(wanted):
             raise NotFoundError(self.not_found_message)
         if wanted:
@@ -603,12 +617,26 @@ class SkillService(BaseService[SkillDB, SkillRepository]):
                         else set()
                     ),
                 )
-        current = await self.repository.list_attached_ids(agent_id)
-        if wanted == current:
-            return
-        await self.repository.delete_links(agent_id, current - wanted)
-        await self.repository.add_links(agent_id, wanted - current)
-        await self._stage_skills_changed()
+        current_links = await self.repository.list_attached_links(agent_id)
+        current = {link.skill_id for link in current_links}
+        changed = wanted != current
+        if changed:
+            await self.repository.delete_links(agent_id, current - wanted)
+            await self.repository.add_links(
+                agent_id,
+                wanted - current,
+                disabled_by_default=disabled,
+            )
+        for link in current_links:
+            if link.skill_id in wanted:
+                enabled = link.skill_id not in disabled
+                if link.enabled_by_default != enabled:
+                    changed = True
+                    await self.repository.set_link_default(
+                        link, enabled_by_default=enabled
+                    )
+        if changed:
+            await self._stage_skills_changed()
 
 
 def _reject_files(data: SkillSave) -> None:

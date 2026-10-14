@@ -30,6 +30,7 @@ class SandboxSpec:
 
     row: SandboxDB
     tools: dict[str, ToolStatus] | None
+    enabled_by_default: bool = True
 
 
 @dataclass(frozen=True)
@@ -48,6 +49,7 @@ class AgentSpec:
     tool_discovery_mode: ToolDiscoveryMode = ToolDiscoveryMode.disabled
     default_model_id: str | None = None
     default_reasoning_effort: str | None = None
+    enabled_by_default: bool = True
 
 
 @dataclass(frozen=True)

@@ -198,6 +198,15 @@ const StarterChatPage = () => {
 									disabledMcpServerIds: resources.mcpServers
 										.filter((server) => !server.enabledByDefault)
 										.map((server) => server.id),
+									disabledSkillIds: resources.skills
+										.filter((skill) => skill.enabledByDefault === false)
+										.map((skill) => skill.id),
+									disabledSandboxIds: resources.sandboxes
+										.filter((sandbox) => !sandbox.enabledByDefault)
+										.map((sandbox) => sandbox.id),
+									disabledSubagentIds: resources.subagents
+										.filter((subagent) => subagent.enabledByDefault === false)
+										.map((subagent) => subagent.id),
 								},
 							},
 				);

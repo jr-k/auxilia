@@ -159,6 +159,15 @@ class ThreadService(BaseService[ThreadDB, ThreadRepository]):
                 )
             ):
                 reasoning_effort = default_effort
+        disabled_skill_ids_for_thread = (
+            data.disabled_skill_ids
+            if "disabled_skill_ids" in data.model_fields_set
+            else list(
+                await SkillRepository(
+                    self.db, self.workspace_id
+                ).list_disabled_by_default_ids_for_agents(spec.all_agent_ids)
+            )
+        )
         (
             disabled_mcp_server_ids,
             disabled_skill_ids,
@@ -175,9 +184,28 @@ class ThreadService(BaseService[ThreadDB, ThreadRepository]):
                     if not binding.enabled_by_default
                 ]
             ),
-            data.disabled_skill_ids,
-            data.disabled_sandbox_ids,
-            data.disabled_subagent_ids,
+            disabled_skill_ids_for_thread,
+            (
+                data.disabled_sandbox_ids
+                if "disabled_sandbox_ids" in data.model_fields_set
+                else list(
+                    {
+                        agent_spec.sandbox.row.id
+                        for agent_spec in [spec.agent, *spec.subagents]
+                        if agent_spec.sandbox is not None
+                        and not agent_spec.sandbox.enabled_by_default
+                    }
+                )
+            ),
+            (
+                data.disabled_subagent_ids
+                if "disabled_subagent_ids" in data.model_fields_set
+                else [
+                    subagent.id
+                    for subagent in spec.subagents
+                    if not subagent.enabled_by_default
+                ]
+            ),
         )
         # Strict at selection time (unlike model availability, which is only
         # flagged): an undeclared effort level is a client bug, and letting it
