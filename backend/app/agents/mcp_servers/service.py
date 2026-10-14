@@ -6,14 +6,24 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.core.repository import AgentRepository
 from app.agents.mcp_servers.repository import AgentMCPServerRepository
-from app.agents.models import AgentDB, AgentMCPServerBase, AgentMCPServerDB
+from app.agents.models import (
+    AgentDB,
+    AgentMCPServerBase,
+    AgentMCPServerDB,
+    ToolStatus,
+)
 from app.agents.schemas import (
     AgentMCPServerConfig,
     AgentMCPServerCreate,
     AgentMCPServerPatch,
 )
 from app.database import get_db
-from app.database_connections.tools import filter_managed_tools
+from app.database_connections.tools import (
+    DBHUB_MANAGED_BY,
+    filter_managed_tools,
+    read_sql_tool_name,
+    write_sql_tool_name,
+)
 from app.exceptions import DomainValidationError, NotFoundError
 from app.mcp.client.connectivity import connect_to_server, is_authorized
 from app.mcp.servers.models import MCPAuthType, MCPServerDB
@@ -140,6 +150,12 @@ class AgentMCPServerService(BaseService[AgentMCPServerDB, AgentMCPServerReposito
         *,
         raise_on_error: bool = False,
     ) -> None:
+        if mcp_server.managed_by == DBHUB_MANAGED_BY and mcp_server.disabled_tools:
+            # Pending/error database connections deliberately hide their live
+            # tools. Treat that as "not syncable", not an empty tool universe:
+            # replacing the map with {} would erase approval gates and later
+            # re-enable recovered tools with permissive defaults.
+            return
         try:
             async with connect_to_server(
                 mcp_server, user_id, self.workspace_id, self.db
@@ -158,8 +174,26 @@ class AgentMCPServerService(BaseService[AgentMCPServerDB, AgentMCPServerReposito
             # Merge, don't clobber: the server's tool list is the key
             # universe, but a curated status survives a re-sync.
             existing = db_link.tools or {}
+            defaults: dict[str, ToolStatus] = {}
+            if (
+                mcp_server.managed_by == DBHUB_MANAGED_BY
+                and mcp_server.managed_resource_id is not None
+            ):
+                # Before read and write SQL became separate tools, the read
+                # name represented both capabilities. Carry that choice to the
+                # new write tool so an existing approval gate is not lost.
+                defaults[write_sql_tool_name(mcp_server.managed_resource_id)] = (
+                    existing.get(
+                        read_sql_tool_name(mcp_server.managed_resource_id),
+                        ToolStatus.always_allow,
+                    )
+                )
             db_link.tools = {
-                name: existing.get(name, "always_allow") for name in fetched_names
+                name: existing.get(
+                    name,
+                    defaults.get(name, ToolStatus.always_allow),
+                )
+                for name in fetched_names
             }
             self.db.add(db_link)
             await self.db.flush()

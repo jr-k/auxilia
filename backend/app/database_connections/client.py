@@ -41,7 +41,7 @@ async def list_dbhub_source_ids() -> set[str]:
 async def inspect_dbhub_tools(
     source_ids: Collection[str],
     *,
-    sqlite_source_ids: Collection[str] = (),
+    execute_check_source_ids: Collection[str] = (),
 ) -> tuple[set[str], set[str]]:
     spec = ConnectionSpec(
         url=dbhub_settings.mcp_url,
@@ -49,10 +49,10 @@ async def inspect_dbhub_tools(
     )
     async with open_client(spec) as client:
         tool_names = {tool.name for tool in await client.list_tools()}
-        sqlite_ids = set(sqlite_source_ids)
+        execute_check_ids = set(execute_check_source_ids)
         checks = []
         for source_id in source_ids:
-            if source_id in sqlite_ids:
+            if source_id in execute_check_ids:
                 tool_name = f"execute_sql_{source_id}"
                 arguments = {"sql": "SELECT 1"}
             else:

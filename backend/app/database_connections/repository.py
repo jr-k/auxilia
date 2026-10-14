@@ -15,6 +15,9 @@ from app.repository import BaseRepository
 from app.utils.encryption import decrypt_value, encrypt_value
 
 
+DBHUB_RECONCILE_PENDING = "GeneratedConfigPending"
+
+
 class DatabaseConnectionRepository(BaseRepository[DatabaseConnectionDB]):
     def __init__(self, db: AsyncSession, workspace_id: UUID | None = None):
         super().__init__(DatabaseConnectionDB, db)
@@ -129,7 +132,12 @@ class DatabaseConnectionRepository(BaseRepository[DatabaseConnectionDB]):
     async def bump_desired_revision(self) -> int:
         state = await self.get_control_state(for_update=True)
         state.desired_revision += 1
-        state.last_error = None
+        # New reconcilers use this marker as pending work. Mirroring the global
+        # applied revision fences older replicas during a rolling upgrade:
+        # their legacy loop sees an equal pair and cannot rewrite the former
+        # unrestricted single-source topology.
+        state.applied_revision = state.desired_revision
+        state.last_error = DBHUB_RECONCILE_PENDING
         self.db.add(state)
         await self.db.flush()
         return state.desired_revision

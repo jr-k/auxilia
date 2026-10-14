@@ -10,15 +10,61 @@ DBHUB_TOOL_BASES = (
     "explain_sql",
     "health_check",
 )
+DBHUB_WRITE_SOURCE_SUFFIX = "_write"
 
 
 def source_id_for_connection(connection_id: UUID) -> str:
     return f"db_{connection_id.hex}"
 
 
-def allowed_tool_names(connection_id: UUID) -> set[str]:
+def write_source_id_for_connection(connection_id: UUID) -> str:
+    return f"{source_id_for_connection(connection_id)}{DBHUB_WRITE_SOURCE_SUFFIX}"
+
+
+def read_sql_tool_name(connection_id: UUID) -> str:
+    return f"execute_sql_{source_id_for_connection(connection_id)}"
+
+
+def write_sql_tool_name(connection_id: UUID) -> str:
+    return f"execute_sql_{write_source_id_for_connection(connection_id)}"
+
+
+def configured_source_ids(
+    connection_id: UUID, *, writes_enabled: bool
+) -> tuple[str, ...]:
     source_id = source_id_for_connection(connection_id)
-    return {f"{name}_{source_id}" for name in DBHUB_TOOL_BASES}
+    if not writes_enabled:
+        return (source_id,)
+    return (source_id, write_source_id_for_connection(connection_id))
+
+
+def configured_tool_names(
+    connection_id: UUID,
+    *,
+    writes_enabled: bool,
+    sqlite: bool,
+) -> set[str]:
+    source_id = source_id_for_connection(connection_id)
+    names = {
+        f"{name}_{source_id}"
+        for name in DBHUB_TOOL_BASES
+        if not (sqlite and name == "health_check")
+    }
+    if writes_enabled:
+        names.add(write_sql_tool_name(connection_id))
+    return names
+
+
+def allowed_tool_names(connection_id: UUID) -> set[str]:
+    # The live DBHub list remains authoritative: read-only connections do not
+    # configure the write source, so its tool cannot be returned or called.
+    # Keeping the full potential set here lets a write-enabled connection expose
+    # both SQL tools without another database read at every MCP filtering seam.
+    return configured_tool_names(
+        connection_id,
+        writes_enabled=True,
+        sqlite=False,
+    )
 
 
 def filter_managed_tools(server, tools):

@@ -21,6 +21,7 @@ from app.database_connections.models import (
     DatabaseFileDB,
 )
 from app.database_connections.repository import (
+    DBHUB_RECONCILE_PENDING,
     DatabaseConnectionRepository,
     DatabaseFileRepository,
 )
@@ -35,6 +36,7 @@ from app.database_connections.schemas import (
 from app.database_connections.settings import dbhub_settings
 from app.database_connections.tools import (
     DBHUB_MANAGED_BY,
+    DBHUB_WRITE_SOURCE_SUFFIX,
     allowed_tool_names,
     source_id_for_connection,
 )
@@ -194,7 +196,14 @@ class DatabaseConnectionService(
         source_count = 0
         if dbhub_settings.enabled and dbhub_settings.auth_token:
             try:
-                source_count = len(await list_dbhub_source_ids())
+                source_ids = await list_dbhub_source_ids()
+                # A write-enabled logical connection has a second DBHub source
+                # so its read and write tools can be configured independently.
+                source_count = sum(
+                    source_id != "_auxilia_bootstrap"
+                    and not source_id.endswith(DBHUB_WRITE_SOURCE_SUFFIX)
+                    for source_id in source_ids
+                )
                 reachable = True
             except Exception:  # noqa: BLE001 — status reports unreachability
                 reachable = False
@@ -202,9 +211,13 @@ class DatabaseConnectionService(
             enabled=dbhub_settings.enabled,
             reachable=reachable,
             desired_revision=state.desired_revision,
-            applied_revision=state.applied_revision,
-            source_count=max(0, source_count - 1),
-            last_error=state.last_error,
+            applied_revision=state.last_successful_revision,
+            source_count=source_count,
+            last_error=(
+                None
+                if state.last_error == DBHUB_RECONCILE_PENDING
+                else state.last_error
+            ),
             last_applied_at=state.last_applied_at,
         )
 

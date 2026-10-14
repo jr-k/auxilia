@@ -59,6 +59,9 @@ export default function AgentMCPServer({
 	const [isCheckingConnection, setIsCheckingConnection] = useState(true);
 	const [toolsUnavailable, setToolsUnavailable] = useState(false);
 	const [detailsOpen, setDetailsOpen] = useState(false);
+	const managedDatabaseUnavailable =
+		server.managedBy === "database" &&
+		Boolean(server.disabledTools && server.disabledTools.length > 0);
 
 	// Auto-expand when the user needs to connect or inspect an unavailable server.
 	useEffect(() => {
@@ -107,10 +110,10 @@ export default function AgentMCPServer({
 	// covers persistence there.
 	const seedFromFetched = useCallback(
 		(fetchedTools: MCPServerTool[]) => {
-			if (readOnly) return;
+			if (readOnly || managedDatabaseUnavailable) return;
 			onSeedTools?.(fetchedTools.map((tool) => tool.name));
 		},
-		[readOnly, onSeedTools],
+		[readOnly, managedDatabaseUnavailable, onSeedTools],
 	);
 
 	// Read mode has no draft, so a saved map that disagrees with the server's
@@ -125,7 +128,13 @@ export default function AgentMCPServer({
 			// member may view this page but sync-tools writes the agent's tool
 			// map, and the API now rejects that below editor. Skipping keeps a
 			// viewer from firing a request that can only 403.
-			if (!readOnly || !agentId || !canEdit) return;
+			if (
+				!readOnly ||
+				!agentId ||
+				!canEdit ||
+				managedDatabaseUnavailable
+			)
+				return;
 			const existing = binding.tools;
 			const upToDate =
 				existing !== null &&
@@ -145,7 +154,15 @@ export default function AgentMCPServer({
 				console.error("Failed to sync tools:", error);
 			}
 		},
-		[readOnly, canEdit, agentId, binding.tools, server.id, onToolsPersisted],
+		[
+			readOnly,
+			canEdit,
+			agentId,
+			binding.tools,
+			server.id,
+			managedDatabaseUnavailable,
+			onToolsPersisted,
+		],
 	);
 
 	// Keep `fetchTools` stable (identity keyed only on server.id) so a sibling

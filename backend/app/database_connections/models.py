@@ -151,6 +151,7 @@ class DBHubControlStateDB(BaseDBModel, table=True):
     key: str = Field(default="global", max_length=32, nullable=False, unique=True)
     desired_revision: int = Field(default=0, nullable=False)
     applied_revision: int = Field(default=0, nullable=False)
+    last_successful_revision: int = Field(default=0, nullable=False)
     last_error: str | None = Field(default=None, max_length=1000)
     last_applied_at: datetime | None = Field(
         default=None,
