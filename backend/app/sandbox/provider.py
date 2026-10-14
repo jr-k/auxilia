@@ -31,8 +31,8 @@ from app.utils.encryption import decrypt_value
 
 logger = logging.getLogger(__name__)
 
-# Lifetime asked of providers that have a TTL (OpenSandbox). Every run of a
-# thread reconnects and renews, so this only bounds an abandoned thread.
+# Default lifetime asked of providers that have a TTL. OpenSandbox can
+# override it from process settings, including disabling automatic expiry.
 DEFAULT_TIMEOUT_MINUTES = 30
 
 
@@ -89,7 +89,7 @@ def open_sandbox(
         except Exception as exc:
             raise provider.unavailable(f"reconnect failed: {_reason(exc)}") from exc
     try:
-        backend = provider.create(timeout_minutes=DEFAULT_TIMEOUT_MINUTES)
+        backend = provider.create(timeout_minutes=provider.lifetime_minutes)
     except Exception as exc:
         raise provider.unavailable(f"create failed: {_reason(exc)}") from exc
     return SandboxSession(backend=backend, sandbox_id=backend.id, replaced=replaced)
@@ -135,6 +135,11 @@ class BaseSandboxProvider(ABC):
 
     def unavailable(self, reason: str) -> SandboxUnavailableError:
         return SandboxUnavailableError(self.sandbox_id, self.name, reason)
+
+    @property
+    def lifetime_minutes(self) -> int:
+        """Requested lifetime for a newly created provider sandbox."""
+        return DEFAULT_TIMEOUT_MINUTES
 
     def check_available(self) -> None:
         """Raise `SandboxUnavailableError` unless the provider answers a cheap

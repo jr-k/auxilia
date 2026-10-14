@@ -15,6 +15,7 @@ from opensandbox.models.sandboxes import Host, SandboxFilter, Volume
 from opensandbox.sync.manager import SandboxManagerSync
 
 from app.sandbox.opensandbox.backend import OpenSandbox
+from app.sandbox.opensandbox.settings import open_sandbox_settings
 from app.sandbox.provider import BaseSandboxProvider, SandboxGoneError
 from app.sandbox.schemas import OpenSandboxConfig
 
@@ -23,9 +24,13 @@ logger = logging.getLogger(__name__)
 
 
 class OpenSandboxProvider(BaseSandboxProvider):
-    """Sandbox lifecycle on the OpenSandbox API (create / connect + TTL renew)."""
+    """OpenSandbox lifecycle with configurable expiration."""
 
     config: OpenSandboxConfig
+
+    @property
+    def lifetime_minutes(self) -> int:
+        return open_sandbox_settings.ttl_minutes
 
     def _probe(self) -> None:
         # One page of one sandbox: authenticated, cheap, proves the API is up.
@@ -38,7 +43,9 @@ class OpenSandboxProvider(BaseSandboxProvider):
     def _create_backend(self, *, timeout_minutes: int) -> OpenSandbox:
         sandbox = SandboxSync.create(
             self.config.default_image,
-            timeout=timedelta(minutes=timeout_minutes),
+            timeout=(
+                timedelta(minutes=timeout_minutes) if timeout_minutes > 0 else None
+            ),
             volumes=_parse_volume_mounts(self.config.volume_mounts) or None,
             connection_config=self._connection_config(),
         )
@@ -65,7 +72,9 @@ class OpenSandboxProvider(BaseSandboxProvider):
         # files still exist, and replacing it would discard the thread's work
         # over a passing wobble. Those propagate and `open_sandbox` reports
         # them as SandboxUnavailableError; only the 404 above means gone.
-        sandbox.renew(timeout=timedelta(minutes=30))
+        # A zero TTL means OpenSandbox owns it until explicit/manual cleanup.
+        if self.lifetime_minutes > 0:
+            sandbox.renew(timeout=timedelta(minutes=self.lifetime_minutes))
         return OpenSandbox(sandbox=sandbox, timeout=self.config.timeout)
 
     def _connection_config(self) -> ConnectionConfigSync:
