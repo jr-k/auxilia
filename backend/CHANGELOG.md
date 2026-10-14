@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.11](https://github.com/jr-k/auxilia/compare/backend-v0.11.10...backend-v0.11.11) (2026-10-14)
+
+
+### Features
+
+* **sandbox:** configure OpenSandbox lifetime ([2797d13](https://github.com/jr-k/auxilia/commit/2797d13efe64eecb3fafa617a69f08255bb8cf17))
+
 ## [0.11.10](https://github.com/jr-k/auxilia/compare/backend-v0.11.9...backend-v0.11.10) (2026-10-14)
 
 
