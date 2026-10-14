@@ -231,6 +231,9 @@ export function DatabaseConnectionForm({
 	const isEditing = connection !== undefined;
 	const connectionId = connection?.id;
 	const connectionStatus = connection?.status;
+	const cancelHref = connection
+		? `/mcp-servers/${connection.mcpServerId}`
+		: "/mcp-servers";
 	const invalidTeamSelection =
 		form.visibility === "teams" && form.teamIds.length === 0;
 	const mutating = saving || deleting || reconciling;
@@ -617,7 +620,7 @@ export function DatabaseConnectionForm({
 				<HeaderButton
 					disabled={mutating}
 					onClick={() => {
-						router.push("/mcp-servers");
+						router.push(cancelHref);
 					}}
 				>
 					Cancel
