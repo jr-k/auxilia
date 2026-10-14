@@ -228,16 +228,14 @@ export const ChainRail = ({
 export const ChainStepIcon = ({
 	icon,
 	name,
-	label,
 }: {
 	icon?: string | null;
 	name: string;
-	label?: string;
 }) => (
 	<Tooltip delayDuration={180}>
 		<TooltipTrigger asChild>
 			<span
-				aria-label={label ?? name}
+				aria-label={name}
 				className="relative z-[1] flex size-[22px] shrink-0 cursor-help items-center justify-center rounded-[6px] border border-border bg-card transition-[border-color,box-shadow,transform] hover:-translate-y-px hover:border-petrol/35 hover:shadow-[0_3px_10px_rgba(20,64,70,0.12)]"
 			>
 				{icon ? (
@@ -261,9 +259,7 @@ export const ChainStepIcon = ({
 			sideOffset={8}
 			className="flex max-w-64 items-center gap-2 rounded-[8px] border border-white/10 bg-[#122326] px-2.5 py-1.5 text-white shadow-[0_10px_28px_rgba(7,25,28,0.28)] [&_svg]:fill-[#122326] [&_svg]:bg-[#122326]"
 		>
-			<span className="truncate text-[11.5px] font-semibold">
-				{label ?? name}
-			</span>
+			<span className="truncate text-[11.5px] font-semibold">{name}</span>
 		</TooltipContent>
 	</Tooltip>
 );

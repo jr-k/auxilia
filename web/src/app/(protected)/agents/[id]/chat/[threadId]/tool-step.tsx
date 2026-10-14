@@ -134,11 +134,7 @@ export const ToolStep = memo(function ToolStep({
     <ChainStep
       nested={nested}
       node={
-        <ChainStepIcon
-          icon={icon}
-          name={serverName}
-          label={humanizeToolName(toolName)}
-        />
+        <ChainStepIcon icon={icon} name={serverName} />
       }
       title={humanizeToolName(toolName)}
       summary={summarizeToolArgs(tc.args)}
