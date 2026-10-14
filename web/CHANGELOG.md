@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.18](https://github.com/jr-k/auxilia/compare/web-v0.12.17...web-v0.12.18) (2026-10-14)
+
+
+### Bug Fixes
+
+* **web:** simplify tool log tooltips ([#138](https://github.com/jr-k/auxilia/issues/138)) ([c44e5ab](https://github.com/jr-k/auxilia/commit/c44e5ab3c967ba0841ed71510100ed0e188e1417))
+
 ## [0.12.17](https://github.com/jr-k/auxilia/compare/web-v0.12.16...web-v0.12.17) (2026-10-14)
 
 
