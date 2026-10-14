@@ -70,13 +70,13 @@ def _merge_candidate_names(_left: list[str], right: list[str] | Overwrite) -> li
 class LocalToolDiscoveryState(AgentState[Any], total=False):
     selected_mcp_tools: Annotated[
         list[str],
-        _merge_tool_names,
         PrivateStateAttr,
+        _merge_tool_names,
     ]
     mcp_tool_candidates: Annotated[
         list[str],
-        _merge_candidate_names,
         PrivateStateAttr,
+        _merge_candidate_names,
     ]
 
 
