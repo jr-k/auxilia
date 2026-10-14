@@ -13,6 +13,7 @@ import {
 import { SearchBar } from "@/components/ui/search-bar";
 import { SkillAvatar } from "@/components/ui/skill-avatar";
 import { SkillRequirementChip } from "@/app/(protected)/skills/components/skill-requirement-chip";
+import { handleKeyboardListNavigation } from "@/lib/keyboard-list-navigation";
 import { useSkillsStore } from "@/stores/skills-store";
 import type { AgentSkill } from "@/types/skills";
 
@@ -190,7 +191,10 @@ export default function AgentSkillList({
 
 			{!readOnly && (
 				<Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-					<DialogContent className="sm:max-w-[560px] max-h-[600px]">
+					<DialogContent
+						className="sm:max-w-[560px] max-h-[600px]"
+						onKeyDown={handleKeyboardListNavigation}
+					>
 						<DialogHeader>
 							<DialogTitle>Add skill</DialogTitle>
 							<DialogDescription>
@@ -238,6 +242,7 @@ export default function AgentSkillList({
 											</div>
 											<button
 												type="button"
+												data-keyboard-option="true"
 												aria-label={`Add ${candidate.name}`}
 												className="flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-[7px] border border-input text-label outline-none transition-colors hover:border-border-hover hover:text-ink dark:border-white/10 dark:hover:bg-white/10 dark:hover:text-panel-button"
 												onClick={() => {

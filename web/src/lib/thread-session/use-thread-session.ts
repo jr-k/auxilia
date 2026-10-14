@@ -193,6 +193,10 @@ export function useThreadSession({
 	useEffect(() => {
 		latestStream.current = stream;
 	}, [stream]);
+	const [dismissedStreamError, setDismissedStreamError] = useState<{
+		threadId: string;
+		error: unknown;
+	} | null>(null);
 
 	// --- interrupts: hold identity while the set is unchanged ----------------
 	const [held, setHeld] = useState(EMPTY_HELD);
@@ -241,7 +245,10 @@ export function useThreadSession({
 	// --- actions ----------------------------------------------------------------
 	const userActed = useCallback(() => {
 		dispatch({ type: "user-acted" });
-	}, []);
+		if (stream.error != null) {
+			setDismissedStreamError({ threadId, error: stream.error });
+		}
+	}, [stream.error, threadId]);
 
 	const send = useCallback(
 		async (message: PromptInputMessage) => {
@@ -416,6 +423,11 @@ export function useThreadSession({
 		: stream.isLoading || submissionPending
 			? "streaming"
 			: "idle";
+	const visibleStreamError =
+		dismissedStreamError?.threadId === threadId &&
+		Object.is(dismissedStreamError.error, stream.error)
+			? null
+			: stream.error;
 
 	return {
 		meta: state.meta,
@@ -424,7 +436,7 @@ export function useThreadSession({
 			status: runStatus,
 			isLoading: stream.isLoading || submissionPending,
 			isStarting: submissionStarting,
-			error: stream.error,
+			error: visibleStreamError,
 			rehydratedError: state.rehydratedError,
 		},
 		transcript: { messages, toolCalls, subagents: stream.subagents, todos, stream: selectorStream },

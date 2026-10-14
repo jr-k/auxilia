@@ -21,6 +21,7 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/dialog";
+import { handleKeyboardListNavigation } from "@/lib/keyboard-list-navigation";
 
 interface AddAgentToolDialogProps {
 	open: boolean;
@@ -58,6 +59,8 @@ function AvailableMCPServerCard({ server, onAdd }: AvailableMCPServerCardProps) 
 				</h3>
 			</div>
 			<button
+				type="button"
+				data-keyboard-option="true"
 				className="flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-[7px] border border-input text-label outline-none transition-colors hover:border-border-hover hover:text-ink focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 dark:border-white/10 dark:hover:bg-white/10 dark:hover:text-panel-button"
 				onClick={() => {
 					onAdd(server.id);
@@ -96,6 +99,8 @@ function AvailableSandboxCard({
 				</span>
 			</div>
 			<button
+				type="button"
+				data-keyboard-option="true"
 				className="flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-[7px] border border-input text-label outline-none transition-colors hover:border-border-hover hover:text-ink focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 dark:border-white/10 dark:hover:bg-white/10 dark:hover:text-panel-button"
 				onClick={() => {
 					onAdd(sandbox.id);
@@ -267,7 +272,10 @@ export default function AddAgentToolDialog({
 }: AddAgentToolDialogProps) {
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent className="sm:max-w-[560px]">
+			<DialogContent
+				className="sm:max-w-[560px]"
+				onKeyDown={handleKeyboardListNavigation}
+			>
 				<DialogHeader>
 					<DialogTitle>Add tool</DialogTitle>
 					<DialogDescription>

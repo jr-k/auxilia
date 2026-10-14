@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { Trash2, ChevronDown } from "lucide-react";
 import * as agentsApi from "@/lib/api/resources/agents";
 import * as usersApi from "@/lib/api/resources/users";
 import { SearchBar } from "@/components/ui/search-bar";
 import { DropdownMenu } from "@/components/ui/dropdown-menu";
 import { UserAvatar } from "@/components/ui/user-avatar";
+import { handleKeyboardListNavigation } from "@/lib/keyboard-list-navigation";
 import type { User as WorkspaceUser } from "@/types/users";
 
 type PermissionLevel = agentsApi.GrantLevel;
@@ -44,6 +45,7 @@ export default function AgentPermissionsPanel({
 	const [search, setSearch] = useState("");
 	const [isSaving, setIsSaving] = useState(false);
 	const [isLoading, setIsLoading] = useState(false);
+	const searchRootRef = useRef<HTMLDivElement>(null);
 
 	const snapshotOf = (perms: PermissionRow[]) =>
 		JSON.stringify([...perms].sort((a, b) => a.userId.localeCompare(b.userId)));
@@ -103,6 +105,9 @@ export default function AgentPermissionsPanel({
 	const addUser = (userId: string) => {
 		setPermissions((prev) => [...prev, { userId, permission: "member" }]);
 		setSearch("");
+		requestAnimationFrame(() => {
+			searchRootRef.current?.querySelector("input")?.focus();
+		});
 	};
 
 	const removeUser = (userId: string) => {
@@ -145,7 +150,18 @@ export default function AgentPermissionsPanel({
 			</div>
 
 			<>
-					<div className="relative">
+					<div
+						ref={searchRootRef}
+						className="relative"
+						onKeyDown={(event) => {
+							if (event.key === "Escape" && search.trim()) {
+								event.preventDefault();
+								setSearch("");
+								return;
+							}
+							handleKeyboardListNavigation(event);
+						}}
+					>
 						<SearchBar
 							placeholder="Search users by name or email…"
 							value={search}
@@ -153,12 +169,18 @@ export default function AgentPermissionsPanel({
 						/>
 
 						{search.trim() && searchResults.length > 0 && (
-							<div className="absolute left-0 right-0 top-full z-10 mt-2 max-h-[200px] overflow-y-auto rounded-[10px] border border-border bg-popover shadow-composer [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+							<div
+								role="listbox"
+								className="absolute left-0 right-0 top-full z-10 mt-2 max-h-[200px] overflow-y-auto rounded-[10px] border border-border bg-popover shadow-composer [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+							>
 								{searchResults.map((user) => (
 									<button
 										key={user.id}
 										type="button"
-										className="flex w-full cursor-pointer items-center gap-3 border-b border-hover px-4 py-2.5 text-left transition-colors last:border-b-0 hover:bg-sidebar dark:border-white/5"
+										role="option"
+										aria-selected={false}
+										data-keyboard-option="true"
+										className="flex w-full cursor-pointer items-center gap-3 border-b border-hover px-4 py-2.5 text-left outline-none transition-colors last:border-b-0 hover:bg-sidebar focus-visible:bg-sidebar focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-petrol/35 dark:border-white/5"
 										onClick={() => { addUser(user.id); }}
 									>
 										<UserAvatar

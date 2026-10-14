@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { useAgentsStore } from "@/stores/agents-store";
 import { AgentAvatar } from "@/components/ui/agent-avatar";
 import { SearchBar } from "@/components/ui/search-bar";
+import { handleKeyboardListNavigation } from "@/lib/keyboard-list-navigation";
 import {
 	Dialog,
 	DialogContent,
@@ -92,7 +93,10 @@ export function AgentPicker({ value, onChange, disabled }: AgentPickerProps) {
 					{row}
 				</button>
 			</DialogTrigger>
-			<DialogContent className="gap-0 p-0">
+			<DialogContent
+				className="gap-0 p-0"
+				onKeyDown={handleKeyboardListNavigation}
+			>
 				{/* Header */}
 				<div className="px-6 pt-6">
 					<DialogTitle>Select an agent</DialogTitle>
@@ -111,17 +115,24 @@ export function AgentPicker({ value, onChange, disabled }: AgentPickerProps) {
 				</div>
 
 				{/* Agent list */}
-				<div className="px-3 pt-2 pb-4 max-h-[340px] overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+				<div
+					role="listbox"
+					className="px-3 pt-2 pb-4 max-h-[340px] overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+				>
 					{selectableAgents.map((agent) => {
 						const isActive = agent.id === value;
 						return (
-							<div
+							<button
 								key={agent.id}
+								type="button"
+								role="option"
+								data-keyboard-option="true"
+								aria-selected={isActive}
 								className={cn(
-									"flex items-center gap-3.5 px-3 py-2.5 rounded-[10px] cursor-pointer transition-all duration-200 group",
+									"flex w-full items-center gap-3.5 px-3 py-2.5 rounded-[10px] cursor-pointer text-left outline-none transition-all duration-200 group focus-visible:ring-2 focus-visible:ring-petrol/35",
 									isActive
 										? "bg-petrol-tint dark:bg-white/5"
-										: "hover:bg-hover dark:hover:bg-white/5",
+										: "hover:bg-hover focus-visible:bg-hover dark:hover:bg-white/5 dark:focus-visible:bg-white/5",
 								)}
 								onClick={() => {
 									onChange(agent.id);
@@ -146,7 +157,7 @@ export function AgentPicker({ value, onChange, disabled }: AgentPickerProps) {
 										strokeWidth={3}
 									/>
 								)}
-							</div>
+							</button>
 						);
 					})}
 					{selectableAgents.length === 0 && (

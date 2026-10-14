@@ -108,12 +108,11 @@ export function ResourceScopeFilterDropdown({
 						<p className="px-3 pb-1 pt-1 text-[9.5px] font-semibold uppercase tracking-[0.08em] text-meta">
 							Visibility
 						</p>
-						<button
-							type="button"
-							onClick={() => {
+						<DropdownMenuPrimitive.Item
+							onSelect={() => {
 								choose("all");
 							}}
-							className="flex w-full cursor-pointer items-center gap-2.5 rounded-[5px] px-3 py-2 text-left hover:bg-sidebar dark:hover:bg-white/5"
+							className="flex w-full cursor-pointer select-none items-center gap-2.5 rounded-[5px] px-3 py-2 text-left outline-none focus:bg-sidebar dark:focus:bg-white/5"
 						>
 							<Layers3 className="size-4 shrink-0 text-meta" />
 							<span className="min-w-0 flex-1">
@@ -127,16 +126,16 @@ export function ResourceScopeFilterDropdown({
 							{value === "all" && (
 								<Check className="size-3.5 shrink-0 text-petrol" />
 							)}
-						</button>
+						</DropdownMenuPrimitive.Item>
 						{VISIBILITY_OPTIONS.map(
 							({ value: optionValue, label, description, Icon }) => (
-								<button
+								<DropdownMenuPrimitive.Item
 									key={optionValue}
-									type="button"
-									onClick={() => {
+									onSelect={(event) => {
+										if (optionValue === "teams") event.preventDefault();
 										choose(optionValue);
 									}}
-									className="flex w-full cursor-pointer items-center gap-2.5 rounded-[5px] px-3 py-2 text-left hover:bg-sidebar dark:hover:bg-white/5"
+									className="flex w-full cursor-pointer select-none items-center gap-2.5 rounded-[5px] px-3 py-2 text-left outline-none focus:bg-sidebar dark:focus:bg-white/5"
 								>
 									<Icon className="size-4 shrink-0 text-meta" />
 									<span className="min-w-0 flex-1">
@@ -150,7 +149,7 @@ export function ResourceScopeFilterDropdown({
 									{value === optionValue && (
 										<Check className="size-3.5 shrink-0 text-petrol" />
 									)}
-								</button>
+								</DropdownMenuPrimitive.Item>
 							),
 						)}
 					</div>
@@ -165,7 +164,20 @@ export function ResourceScopeFilterDropdown({
 										setQuery(event.target.value);
 									}}
 									onKeyDown={(event) => {
-										event.stopPropagation();
+										if (event.key === "Enter" && filteredTeams[0]) {
+											event.preventDefault();
+											const firstTeam = filteredTeams[0];
+											onChange(
+												"teams",
+												teamIds.includes(firstTeam.id)
+													? teamIds.filter(
+															(teamId) => teamId !== firstTeam.id,
+														)
+													: [...teamIds, firstTeam.id],
+											);
+											return;
+										}
+										if (event.key.length === 1) event.stopPropagation();
 									}}
 									placeholder="Search teams…"
 									className="h-8 w-full rounded-[5px] border border-input bg-background pl-8 pr-2 text-[12px] outline-none focus:border-petrol"
@@ -175,10 +187,10 @@ export function ResourceScopeFilterDropdown({
 								{filteredTeams.map((team) => {
 									const checked = teamIds.includes(team.id);
 									return (
-										<button
+										<DropdownMenuPrimitive.Item
 											key={team.id}
-											type="button"
-											onClick={() => {
+											onSelect={(event) => {
+												event.preventDefault();
 												onChange(
 													"teams",
 													checked
@@ -186,7 +198,7 @@ export function ResourceScopeFilterDropdown({
 														: [...teamIds, team.id],
 												);
 											}}
-											className="flex w-full cursor-pointer items-center gap-2 rounded-[5px] px-2.5 py-2 text-left text-[12.5px] hover:bg-sidebar dark:hover:bg-white/5"
+											className="flex w-full cursor-pointer select-none items-center gap-2 rounded-[5px] px-2.5 py-2 text-left text-[12.5px] outline-none focus:bg-sidebar dark:focus:bg-white/5"
 										>
 											<span
 												className="size-2.5 shrink-0 rounded-full"
@@ -198,7 +210,7 @@ export function ResourceScopeFilterDropdown({
 											{checked && (
 												<Check className="size-3.5 shrink-0 text-petrol" />
 											)}
-										</button>
+										</DropdownMenuPrimitive.Item>
 									);
 								})}
 								{filteredTeams.length === 0 && (

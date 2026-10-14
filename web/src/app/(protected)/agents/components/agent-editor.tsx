@@ -174,6 +174,7 @@ export default function AgentEditor({
 	// open it ("Turn on code execution") on a skill whose scripts need one.
 	const [addToolOpen, setAddToolOpen] = useState(false);
 	const emojiPickerRef = useRef<HTMLDivElement>(null);
+	const emojiTriggerRef = useRef<HTMLButtonElement>(null);
 
 	const setField = <K extends keyof AgentFormState>(
 		key: K,
@@ -230,6 +231,9 @@ export default function AgentEditor({
 	const handleEmojiClick = (emojiData: EmojiClickData) => {
 		setField("emoji", emojiData.emoji);
 		setShowEmojiPicker(false);
+		requestAnimationFrame(() => {
+			emojiTriggerRef.current?.focus();
+		});
 	};
 
 	const handleSave = async () => {
@@ -596,12 +600,28 @@ export default function AgentEditor({
 								"relative shrink-0",
 								!readOnly && "mt-[22px]",
 							)}
+							onKeyDown={(event) => {
+								if (event.key !== "Escape" || !showEmojiPicker) return;
+								event.preventDefault();
+								event.stopPropagation();
+								setShowEmojiPicker(false);
+								requestAnimationFrame(() => {
+									emojiTriggerRef.current?.focus();
+								});
+							}}
 						>
 							<button
+								ref={emojiTriggerRef}
 								type="button"
 								disabled={readOnly}
 								aria-label={readOnly ? undefined : "Change agent identity"}
+								aria-expanded={readOnly ? undefined : showEmojiPicker}
 								title={readOnly ? undefined : "Change identity"}
+								onKeyDown={(event) => {
+									if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+									event.preventDefault();
+									setShowEmojiPicker(true);
+								}}
 								onClick={() => {
 									setShowEmojiPicker(!showEmojiPicker);
 								}}
@@ -631,6 +651,8 @@ export default function AgentEditor({
 							{showEmojiPicker && (
 								<div
 									ref={emojiPickerRef}
+									role="region"
+									aria-label="Change agent identity"
 									className="absolute left-0 top-full z-50 mt-2"
 								>
 									<div className="rounded-t-lg border border-b-0 border-border bg-card p-3">
@@ -651,6 +673,7 @@ export default function AgentEditor({
 										/>
 									</div>
 									<EmojiPicker
+										autoFocusSearch
 										onEmojiClick={handleEmojiClick}
 										theme={resolvedTheme === "dark" ? Theme.DARK : Theme.LIGHT}
 										skinTonesDisabled

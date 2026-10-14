@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { ChevronDown, Folder, Plus, X } from "lucide-react";
+import { handleKeyboardListNavigation } from "@/lib/keyboard-list-navigation";
 import { normalizeGroup } from "@/lib/groups";
 import { cn } from "@/lib/utils";
 
@@ -14,6 +15,7 @@ interface GroupPickerProps {
 export function GroupPicker({ value, groups, onChange }: GroupPickerProps) {
 	const rootRef = useRef<HTMLDivElement>(null);
 	const inputRef = useRef<HTMLInputElement>(null);
+	const triggerRef = useRef<HTMLButtonElement>(null);
 	const [open, setOpen] = useState(false);
 	const [query, setQuery] = useState("");
 	const [activeIndex, setActiveIndex] = useState(0);
@@ -48,10 +50,27 @@ export function GroupPicker({ value, groups, onChange }: GroupPickerProps) {
 		onChange(group);
 		setQuery("");
 		setOpen(false);
+		requestAnimationFrame(() => {
+			triggerRef.current?.focus();
+		});
 	};
 
 	return (
-		<div ref={rootRef} className="relative">
+		<div
+			ref={rootRef}
+			className="relative"
+			onKeyDown={(event) => {
+				if (event.key === "Escape" && open) {
+					event.preventDefault();
+					setOpen(false);
+					requestAnimationFrame(() => {
+						triggerRef.current?.focus();
+					});
+					return;
+				}
+				handleKeyboardListNavigation(event);
+			}}
+		>
 			<label className="mb-1.5 block text-[11px] font-semibold text-label dark:text-muted-foreground">
 				Group <span className="font-normal text-meta">(Optional)</span>
 			</label>
@@ -63,9 +82,15 @@ export function GroupPicker({ value, groups, onChange }: GroupPickerProps) {
 				)}
 			>
 				<button
+					ref={triggerRef}
 					type="button"
 					aria-haspopup="listbox"
 					aria-expanded={open}
+					onKeyDown={(event) => {
+						if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+						event.preventDefault();
+						setOpen(true);
+					}}
 					onClick={() => {
 						setOpen((current) => !current);
 					}}
@@ -118,7 +143,11 @@ export function GroupPicker({ value, groups, onChange }: GroupPickerProps) {
 							}}
 							onKeyDown={(event) => {
 								if (event.key === "Escape") {
+									event.preventDefault();
 									setOpen(false);
+									requestAnimationFrame(() => {
+										triggerRef.current?.focus();
+									});
 									return;
 								}
 								if (event.key === "ArrowDown") {
@@ -148,8 +177,12 @@ export function GroupPicker({ value, groups, onChange }: GroupPickerProps) {
 								key={group}
 								type="button"
 								role="option"
+								data-keyboard-option="true"
 								aria-selected={value === group}
 								onMouseEnter={() => {
+									setActiveIndex(index);
+								}}
+								onFocus={() => {
 									setActiveIndex(index);
 								}}
 								onClick={() => {
@@ -169,7 +202,13 @@ export function GroupPicker({ value, groups, onChange }: GroupPickerProps) {
 						{canCreate && (
 							<button
 								type="button"
+								role="option"
+								data-keyboard-option="true"
+								aria-selected={false}
 								onMouseEnter={() => {
+									setActiveIndex(filtered.length);
+								}}
+								onFocus={() => {
 									setActiveIndex(filtered.length);
 								}}
 								onClick={() => {

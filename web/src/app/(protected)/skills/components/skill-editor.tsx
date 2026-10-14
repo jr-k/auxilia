@@ -216,6 +216,7 @@ export default function SkillEditor({
 	const [imageFile, setImageFile] = useState<File | null>(null);
 	const [removeImage, setRemoveImage] = useState(false);
 	const identityPickerRef = useRef<HTMLDivElement>(null);
+	const identityTriggerRef = useRef<HTMLButtonElement>(null);
 	const currentImageUrl =
 		skill?.id && skill.imageRevision
 			? skillsApi.skillImageUrl(skill.id, skill.imageRevision)
@@ -280,6 +281,9 @@ export default function SkillEditor({
 	const selectEmoji = (data: EmojiClickData) => {
 		setDraft((current) => ({ ...current, emoji: data.emoji }));
 		setShowIdentityPicker(false);
+		requestAnimationFrame(() => {
+			identityTriggerRef.current?.focus();
+		});
 	};
 
 	const handleSave = async () => {
@@ -504,8 +508,18 @@ export default function SkillEditor({
 								"relative shrink-0",
 								!(readOnly || sourced || locked) && "mt-[22px]",
 							)}
+							onKeyDown={(event) => {
+								if (event.key !== "Escape" || !showIdentityPicker) return;
+								event.preventDefault();
+								event.stopPropagation();
+								setShowIdentityPicker(false);
+								requestAnimationFrame(() => {
+									identityTriggerRef.current?.focus();
+								});
+							}}
 						>
 							<button
+								ref={identityTriggerRef}
 								type="button"
 								disabled={readOnly || locked}
 								aria-label={
@@ -513,6 +527,14 @@ export default function SkillEditor({
 										? undefined
 										: "Change skill identity"
 								}
+								aria-expanded={
+									readOnly || locked ? undefined : showIdentityPicker
+								}
+								onKeyDown={(event) => {
+									if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+									event.preventDefault();
+									setShowIdentityPicker(true);
+								}}
 								onClick={() => {
 									setShowIdentityPicker((current) => !current);
 								}}
@@ -543,7 +565,11 @@ export default function SkillEditor({
 								)}
 							</button>
 							{showIdentityPicker && (
-								<div className="absolute left-0 top-full z-50 mt-2">
+								<div
+									role="region"
+									aria-label="Change skill identity"
+									className="absolute left-0 top-full z-50 mt-2"
+								>
 									<div className="rounded-t-lg border border-b-0 border-border bg-card p-3">
 										<ImageUpload
 											currentUrl={currentImageUrl}
@@ -561,6 +587,7 @@ export default function SkillEditor({
 										/>
 									</div>
 									<EmojiPicker
+										autoFocusSearch
 										onEmojiClick={selectEmoji}
 										theme={
 											resolvedTheme === "dark"

@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/dialog";
 import { SearchBar } from "@/components/ui/search-bar";
 import { AgentAvatar } from "@/components/ui/agent-avatar";
+import { handleKeyboardListNavigation } from "@/lib/keyboard-list-navigation";
 import type { Agent } from "@/types/agents";
 import { useAgentsStore } from "@/stores/agents-store";
 
@@ -41,7 +42,10 @@ export function SelectAgentDialog({
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent className="gap-0 p-0">
+			<DialogContent
+				className="gap-0 p-0"
+				onKeyDown={handleKeyboardListNavigation}
+			>
 				{/* Header */}
 				<div className="px-6 pt-6">
 					<DialogTitle>Chat with an agent</DialogTitle>
@@ -60,11 +64,18 @@ export function SelectAgentDialog({
 				</div>
 
 				{/* Agent list */}
-				<div className="px-3 pt-2 pb-4 max-h-[340px] overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+				<div
+					role="listbox"
+					className="px-3 pt-2 pb-4 max-h-[340px] overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+				>
 					{filteredAgents.map((agent) => (
-						<div
+						<button
 							key={agent.id}
-							className="flex items-center gap-3.5 px-3 py-2.5 rounded-[8px] hover:bg-hover dark:hover:bg-white/5 cursor-pointer transition-colors group"
+							type="button"
+							role="option"
+							aria-selected={false}
+							data-keyboard-option="true"
+							className="flex w-full items-center gap-3.5 px-3 py-2.5 rounded-[8px] hover:bg-hover focus-visible:bg-hover dark:hover:bg-white/5 dark:focus-visible:bg-white/5 cursor-pointer text-left outline-none transition-colors group focus-visible:ring-2 focus-visible:ring-petrol/35"
 							onClick={() => { handleSelectAgent(agent); }}
 						>
 							<AgentAvatar
@@ -79,7 +90,7 @@ export function SelectAgentDialog({
 							<span className="text-[13.5px] font-semibold text-ink dark:text-panel-button truncate">
 								{agent.name}
 							</span>
-						</div>
+						</button>
 					))}
 					{filteredAgents.length === 0 && (
 						<p className="text-center text-[13px] text-meta dark:text-panel-dim font-medium py-8">

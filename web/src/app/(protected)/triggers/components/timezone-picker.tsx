@@ -97,6 +97,12 @@ export default function TimezonePicker({
 									setQuery(event.target.value);
 								}}
 								onKeyDown={(event) => {
+									if (event.key === "Enter" && timezones[0]) {
+										event.preventDefault();
+										onChange(timezones[0]);
+										handleOpenChange(false);
+										return;
+									}
 									if (event.key.length === 1) {
 										event.stopPropagation();
 									}

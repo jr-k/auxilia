@@ -11,6 +11,7 @@ import {
 	DialogTitle,
 } from "@/components/ui/dialog";
 import { SearchBar } from "@/components/ui/search-bar";
+import { handleKeyboardListNavigation } from "@/lib/keyboard-list-navigation";
 
 interface AddAgentSubagentDialogProps {
 	open: boolean;
@@ -64,6 +65,7 @@ function AgentCandidateCard({
 			</div>
 			<button
 				type="button"
+				data-keyboard-option="true"
 				className="flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-[7px] border border-input text-label outline-none transition-colors hover:border-border-hover hover:text-ink focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none dark:border-white/10 dark:hover:bg-white/10 dark:hover:text-panel-button"
 				onClick={() => {
 					onAdd(candidate.id);
@@ -136,7 +138,10 @@ export default function AddAgentSubagentDialog({
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent className="sm:max-w-[560px] max-h-[600px]">
+			<DialogContent
+				className="sm:max-w-[560px] max-h-[600px]"
+				onKeyDown={handleKeyboardListNavigation}
+			>
 				<DialogHeader>
 					<DialogTitle>Add subagent</DialogTitle>
 				</DialogHeader>

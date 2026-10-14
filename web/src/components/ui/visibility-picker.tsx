@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Building2, Check, ChevronDown, LockKeyhole, Search, Users } from "lucide-react";
 import * as teamsApi from "@/lib/api/resources/teams";
+import { handleKeyboardListNavigation } from "@/lib/keyboard-list-navigation";
 import { cn } from "@/lib/utils";
 import type { Team } from "@/types/users";
 import type { ResourceVisibility } from "@/types/visibility";
@@ -25,6 +26,7 @@ export function VisibilityPicker({
 	onChange,
 }: VisibilityPickerProps) {
 	const rootRef = useRef<HTMLDivElement>(null);
+	const triggerRef = useRef<HTMLButtonElement>(null);
 	const [open, setOpen] = useState(false);
 	const [query, setQuery] = useState("");
 	const [teams, setTeams] = useState<Team[]>([]);
@@ -62,18 +64,48 @@ export function VisibilityPicker({
 
 	const chooseVisibility = (next: ResourceVisibility) => {
 		onChange(next, next === "teams" ? teamIds : []);
-		if (next !== "teams") setOpen(false);
+		if (next !== "teams") {
+			setOpen(false);
+			requestAnimationFrame(() => {
+				triggerRef.current?.focus();
+			});
+		}
 	};
 
 	return (
-		<div ref={rootRef} className="relative">
+		<div
+			ref={rootRef}
+			className="relative"
+			onKeyDown={(event) => {
+				if (event.key === "Escape" && open) {
+					event.preventDefault();
+					setOpen(false);
+					requestAnimationFrame(() => {
+						triggerRef.current?.focus();
+					});
+					return;
+				}
+				handleKeyboardListNavigation(event);
+			}}
+		>
 			<label className="mb-1.5 block text-[11px] font-semibold text-label dark:text-muted-foreground">
 				Visibility
 			</label>
 			<button
+				ref={triggerRef}
 				type="button"
 				aria-haspopup="listbox"
 				aria-expanded={open}
+				onKeyDown={(event) => {
+					if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+					event.preventDefault();
+					setOpen(true);
+					requestAnimationFrame(() => {
+						rootRef.current
+							?.querySelector<HTMLElement>('[data-keyboard-option="true"]')
+							?.focus();
+					});
+				}}
 				onClick={() => {
 					setOpen((current) => !current);
 				}}
@@ -88,15 +120,18 @@ export function VisibilityPicker({
 
 			{open && (
 				<div className="absolute left-0 right-0 top-full z-50 mt-1 overflow-hidden rounded-xl border border-border bg-card shadow-[0_14px_40px_rgba(16,24,32,0.14)] dark:border-white/10">
-					<div className="p-1.5">
+					<div role="listbox" className="p-1.5">
 						{OPTIONS.map(({ value, label, description, Icon }) => (
 							<button
 								key={value}
 								type="button"
+								role="option"
+								data-keyboard-option="true"
+								aria-selected={visibility === value}
 								onClick={() => {
 									chooseVisibility(value);
 								}}
-								className="flex w-full cursor-pointer items-center gap-2.5 rounded-lg px-3 py-2 text-left hover:bg-sidebar dark:hover:bg-white/5"
+								className="flex w-full cursor-pointer items-center gap-2.5 rounded-lg px-3 py-2 text-left outline-none hover:bg-sidebar focus-visible:bg-sidebar focus-visible:ring-2 focus-visible:ring-petrol/35 dark:hover:bg-white/5 dark:focus-visible:bg-white/5"
 							>
 								<Icon className="size-4 text-meta" />
 								<span className="min-w-0 flex-1">
@@ -108,7 +143,10 @@ export function VisibilityPicker({
 						))}
 					</div>
 					{visibility === "teams" && (
-						<div className="border-t border-border p-2 dark:border-white/10">
+						<div
+							className="border-t border-border p-2 dark:border-white/10"
+							onKeyDown={handleKeyboardListNavigation}
+						>
 							<div className="relative mb-1.5">
 								<Search className="absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-meta" />
 								<input
@@ -120,13 +158,20 @@ export function VisibilityPicker({
 									className="h-8 w-full rounded-lg border border-input bg-background pl-8 pr-2 text-[12px] outline-none focus:border-petrol"
 								/>
 							</div>
-							<div className="max-h-44 overflow-y-auto">
+							<div
+								role="listbox"
+								aria-multiselectable="true"
+								className="max-h-44 overflow-y-auto"
+							>
 								{filtered.map((team) => {
 									const checked = teamIds.includes(team.id);
 									return (
 										<button
 											key={team.id}
 											type="button"
+											role="option"
+											data-keyboard-option="true"
+											aria-selected={checked}
 											onClick={() => {
 												onChange(
 													"teams",
@@ -135,7 +180,7 @@ export function VisibilityPicker({
 														: [...teamIds, team.id],
 												);
 											}}
-											className="flex w-full cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-left text-[12.5px] hover:bg-sidebar dark:hover:bg-white/5"
+											className="flex w-full cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-left text-[12.5px] outline-none hover:bg-sidebar focus-visible:bg-sidebar focus-visible:ring-2 focus-visible:ring-petrol/35 dark:hover:bg-white/5 dark:focus-visible:bg-white/5"
 										>
 											<span
 												className="size-2.5 rounded-full"

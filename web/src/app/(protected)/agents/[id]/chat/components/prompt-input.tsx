@@ -2,6 +2,7 @@
 
 import { cn } from "@/lib/utils";
 import { ModelSelectorLogo } from "@/components/ai-elements/model-selector";
+import { handleKeyboardListNavigation } from "@/lib/keyboard-list-navigation";
 import {
 	PromptInput,
 	PromptInputAddAttachmentButton,
@@ -1098,7 +1099,10 @@ const ChatPromptInput = ({
 										)}
 									</PromptInputButton>
 								</DialogTrigger>
-								<DialogContent className="gap-0 p-0">
+								<DialogContent
+									className="gap-0 p-0"
+									onKeyDown={handleKeyboardListNavigation}
+								>
 									<div className="px-6 pt-6 pb-4">
 										<DialogTitle>Select a model</DialogTitle>
 										<DialogDescription className="mt-1.5">
@@ -1114,7 +1118,10 @@ const ChatPromptInput = ({
 										/>
 									</div>
 
-									<div className="px-4 pb-5 max-h-[55vh] overflow-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+									<div
+										role="listbox"
+										className="px-4 pb-5 max-h-[55vh] overflow-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+									>
 										{!hasModelResults ? (
 											<div className="px-4 py-8 text-center text-[13px] text-meta dark:text-panel-dim">
 												No models found.
@@ -1133,6 +1140,9 @@ const ChatPromptInput = ({
 																	<button
 																		key={m.id}
 																		type="button"
+																		role="option"
+																		data-keyboard-option="true"
+																		aria-selected={isActive}
 																		disabled={
 																			modelUpdatePending || modelChangeDisabled
 																		}
@@ -1140,7 +1150,7 @@ const ChatPromptInput = ({
 																			void handleModelChange(m.id);
 																		}}
 																		className={cn(
-																			"flex w-full items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer transition-colors text-left outline-none",
+																			"flex w-full items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer transition-colors text-left outline-none focus-visible:bg-hover focus-visible:ring-2 focus-visible:ring-petrol/35 dark:focus-visible:bg-white/5",
 																			"text-[13.5px] font-medium text-foreground",
 																			isActive
 																				? "bg-petrol-tint dark:bg-white/10"

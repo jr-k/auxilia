@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { getApiErrorMessage } from "@/lib/api/errors";
 import * as agentsApi from "@/lib/api/resources/agents";
+import { handleKeyboardListNavigation } from "@/lib/keyboard-list-navigation";
 import { useAppearanceStore } from "@/stores/appearance-store";
 import type {
 	AgentSlackBotSettings,
@@ -242,7 +243,10 @@ export default function AgentSlackBotCard({ agentId, canManage, readOnly }: Prop
 			</div>
 
 			<Dialog open={pickerOpen} onOpenChange={setPickerOpen}>
-				<DialogContent className="gap-0 overflow-hidden p-0 sm:max-w-[480px]">
+				<DialogContent
+					className="gap-0 overflow-hidden p-0 sm:max-w-[480px]"
+					onKeyDown={handleKeyboardListNavigation}
+				>
 					<DialogHeader className="border-b border-border px-5 py-4 pr-14 dark:border-white/10">
 						<DialogTitle>Add Side-Channel</DialogTitle>
 						<DialogDescription className="mt-0.5">
@@ -252,6 +256,7 @@ export default function AgentSlackBotCard({ agentId, canManage, readOnly }: Prop
 					<div className="p-5">
 						<button
 							type="button"
+							data-keyboard-option="true"
 							onClick={chooseSlack}
 							className="group flex w-full cursor-pointer items-center gap-3 rounded-[10px] border border-border bg-card p-3.5 text-left transition-all hover:border-petrol/35 hover:bg-petrol/[0.035] dark:border-white/10"
 						>
