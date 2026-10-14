@@ -1,6 +1,13 @@
 "use client";
 
-import { Fragment, memo, useCallback, useMemo } from "react";
+import {
+  Fragment,
+  memo,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import Image from "next/image";
 import type { BaseMessage } from "@langchain/core/messages";
 import {
@@ -57,7 +64,9 @@ import {
 } from "@/components/ui/collapsible";
 import { useMcpServersStore } from "@/stores/mcp-servers-store";
 import { useAgentsStore } from "@/stores/agents-store";
+import * as agentsApi from "@/lib/api/resources/agents";
 import type { HitlDecision, HitlResponse } from "@/hooks/use-hitl-approvals";
+import type { AgentResourceSandbox } from "@/types/agents";
 import type { QueuedPrompt } from "@/types/runs";
 import { McpAppWidget } from "../components/mcp-app-widget";
 import {
@@ -86,6 +95,7 @@ import { threadMapAnchor } from "./thread-map";
 import { type DescribeTool, ToolStep, useDescribeTool } from "./tool-step";
 
 export type ConversationBodyProps = {
+  agentId: string;
   /** Throttled `stream.messages` (or the hydrated history when idle). */
   messages: BaseMessage[];
   /** `pairToolCalls(messages, stream.toolCalls)`, memoized by the page. */
@@ -121,6 +131,7 @@ export type ConversationBodyProps = {
  * either throttled or identity-stable between ticks.
  */
 export const ConversationBody = memo(function ConversationBody({
+  agentId,
   messages,
   toolCalls,
   subagents,
@@ -142,7 +153,35 @@ export const ConversationBody = memo(function ConversationBody({
 }: ConversationBodyProps) {
   const { mcpServers } = useMcpServersStore();
   const workspaceAgents = useAgentsStore((s) => s.agents);
-  const describe = useDescribeTool(mcpServers);
+  const [sandboxIdentity, setSandboxIdentity] = useState<{
+    agentId: string;
+    sandbox: AgentResourceSandbox | undefined;
+  } | null>(null);
+  const sandbox =
+    sandboxIdentity?.agentId === agentId
+      ? sandboxIdentity.sandbox
+      : undefined;
+  const describe = useDescribeTool(mcpServers, sandbox);
+
+  useEffect(() => {
+    let active = true;
+    void agentsApi
+      .getAgentResources(agentId)
+      .then((resources) => {
+        if (active) {
+          setSandboxIdentity({
+            agentId,
+            sandbox: resources.sandboxes[0],
+          });
+        }
+      })
+      .catch(() => {
+        if (active) setSandboxIdentity({ agentId, sandbox: undefined });
+      });
+    return () => {
+      active = false;
+    };
+  }, [agentId]);
 
   const findAgent = useCallback(
     (subagentType: string) =>

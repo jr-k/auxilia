@@ -264,6 +264,7 @@ const ChatPage = () => {
         <Conversation>
           <ConversationContent className="max-w-4xl mx-auto w-full pb-16 lg:px-10 sm:px-6 px-2">
             <ConversationBody
+              agentId={agentId}
               messages={transcript.messages}
               toolCalls={transcript.toolCalls}
               subagents={transcript.subagents}
