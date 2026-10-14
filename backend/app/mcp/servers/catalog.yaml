@@ -21,6 +21,8 @@
 #                   replaced with the customer's instance endpoint
 #   service_credential_providers - optional machine identities confirmed to
 #                   work with this exact endpoint
+#   quirks        - optional runtime OAuth/transport compatibility policies;
+#                   each policy always matches the server entry that owns it
 
 schema_version: 1
 
@@ -176,6 +178,15 @@ servers:
       - google_service_account
     icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/bigquery.png"
     supports_dcr: false
+    quirks:
+      - name: google-oauth
+        match:
+          issuers:
+            - "https://accounts.google.com/"
+        oauth:
+          authorization_params:
+            access_type: offline
+            prompt: consent
     description: >-
       MCP helps accelerate the AI agent building process by giving LLM-powered
       applications direct access to your analytics data through a defined set of
@@ -238,6 +249,19 @@ servers:
     auth_type: oauth2
     icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/calendar.png"
     supports_dcr: false
+    quirks:
+      - name: google-oauth
+        match:
+          issuers:
+            - "https://accounts.google.com/"
+        oauth:
+          authorization_params:
+            access_type: offline
+            prompt: consent
+      - name: google-workspace-http-status
+        transport:
+          jsonrpc_success_statuses:
+            - 403
     description: >-
       Google Calendar is Google's scheduling and calendar service. Its MCP
       server lets an AI assistant list calendars and events, check availability
@@ -308,6 +332,15 @@ servers:
       - google_service_account
     icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/cloud-logging.png"
     supports_dcr: false
+    quirks:
+      - name: google-oauth
+        match:
+          issuers:
+            - "https://accounts.google.com/"
+        oauth:
+          authorization_params:
+            access_type: offline
+            prompt: consent
     description: >-
       The Cloud Logging remote MCP server lets agents and API applications
       interact with your log entries. The Cloud Logging remote MCP server is
@@ -452,6 +485,19 @@ servers:
     auth_type: oauth2
     icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/drive.png"
     supports_dcr: false
+    quirks:
+      - name: google-oauth
+        match:
+          issuers:
+            - "https://accounts.google.com/"
+        oauth:
+          authorization_params:
+            access_type: offline
+            prompt: consent
+      - name: google-workspace-http-status
+        transport:
+          jsonrpc_success_statuses:
+            - 403
     description: >-
       Google Drive is Google's cloud file storage and sharing service. Its MCP
       server lets an AI assistant search files, read and download file content
@@ -645,6 +691,12 @@ servers:
       - github_app
     icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/github.png"
     supports_dcr: false
+    quirks:
+      - name: github-copilot-form-deferral
+        transport:
+          header_csv_values:
+            X-MCP-Features:
+              - mcp_apps_disable_form_deferral
     description: >-
       The GitHub MCP Server connects AI tools directly to GitHub's platform.
       This gives AI agents, assistants, and chatbots the ability to read
@@ -665,6 +717,27 @@ servers:
     auth_type: oauth2
     icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/gmail.png"
     supports_dcr: false
+    quirks:
+      - name: google-oauth
+        match:
+          issuers:
+            - "https://accounts.google.com/"
+        oauth:
+          authorization_params:
+            access_type: offline
+            prompt: consent
+      - name: google-workspace-http-status
+        transport:
+          jsonrpc_success_statuses:
+            - 403
+      - name: gmail-oauth
+        oauth:
+          scope: >-
+            openid
+            https://www.googleapis.com/auth/userinfo.email
+            https://www.googleapis.com/auth/gmail.readonly
+            https://www.googleapis.com/auth/gmail.compose
+            https://www.googleapis.com/auth/gmail.modify
     description: >-
       Gmail is Google's email service. Its MCP server lets an AI assistant
       search and read messages and threads, create drafts, and organize mail
@@ -686,6 +759,15 @@ servers:
       - google_service_account
     icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/google-compute-engine.png"
     supports_dcr: false
+    quirks:
+      - name: google-oauth
+        match:
+          issuers:
+            - "https://accounts.google.com/"
+        oauth:
+          authorization_params:
+            access_type: offline
+            prompt: consent
     description: >-
       Inspect and manage Compute Engine resources with OAuth scopes and existing
       Google Cloud IAM permissions.
@@ -695,6 +777,19 @@ servers:
     auth_type: oauth2
     icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/google-docs.png"
     supports_dcr: false
+    quirks:
+      - name: google-oauth
+        match:
+          issuers:
+            - "https://accounts.google.com/"
+        oauth:
+          authorization_params:
+            access_type: offline
+            prompt: consent
+      - name: google-workspace-http-status
+        transport:
+          jsonrpc_success_statuses:
+            - 403
     description: >-
       Google Docs is Google's collaborative document editor. Its remote MCP
       server lets an AI assistant find, read, create, and edit documents while
@@ -705,6 +800,19 @@ servers:
     auth_type: oauth2
     icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/google-sheets.png"
     supports_dcr: false
+    quirks:
+      - name: google-oauth
+        match:
+          issuers:
+            - "https://accounts.google.com/"
+        oauth:
+          authorization_params:
+            access_type: offline
+            prompt: consent
+      - name: google-workspace-http-status
+        transport:
+          jsonrpc_success_statuses:
+            - 403
     description: >-
       Google Sheets is Google's collaborative spreadsheet application. Its
       remote MCP server lets an AI assistant inspect and update spreadsheets,
@@ -1194,6 +1302,30 @@ servers:
     description: >-
       Creates, validates, and renders Mermaid diagrams through Mermaid Chart's
       hosted service.
+
+  - name: "Metabase"
+    url: "https://your-metabase.example.com/api/metabase-mcp"
+    auth_type: oauth2
+    requires_url_configuration: true
+    supports_dcr: true
+    quirks:
+      - name: metabase-oauth
+        match:
+          advertised_scope_markers:
+            - agent:resource:read
+            - agent:content:read
+            - agent:query:run
+        oauth:
+          scope: >-
+            agent:resource:read
+            agent:content:read
+            agent:query:run
+            agent:content:write
+            agent:sql:run
+            agent:delivery:write
+    description: >-
+      Connects to a self-hosted Metabase instance to query data, inspect
+      analytics content, and create questions, dashboards, and subscriptions.
 
   - name: "Microsoft Learn"
     url: "https://learn.microsoft.com/api/mcp"
@@ -1709,6 +1841,19 @@ servers:
     auth_type: oauth2
     icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/slides.png"
     supports_dcr: false
+    quirks:
+      - name: google-oauth
+        match:
+          issuers:
+            - "https://accounts.google.com/"
+        oauth:
+          authorization_params:
+            access_type: offline
+            prompt: consent
+      - name: google-workspace-http-status
+        transport:
+          jsonrpc_success_statuses:
+            - 403
     description: >-
       Google Slides offers a remote Model Context Protocol (MCP) server that
       allows AI agents to securely interact with Google Slides data.
@@ -1780,6 +1925,15 @@ servers:
     auth_type: oauth2
     icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/supabase.png"
     supports_dcr: true
+    quirks:
+      - name: supabase-oauth
+        match:
+          server_urls:
+            - "https://mcp.supabase.com/mcp"
+          issuers:
+            - "https://api.supabase.com/"
+        oauth:
+          token_endpoint_auth_method: client_secret_post
     description: >-
       The Model Context Protocol (MCP) is a standard for connecting Large
       Language Models (LLMs) to platforms like Supabase. Once connected, your AI

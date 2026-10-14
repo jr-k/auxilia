@@ -1,9 +1,9 @@
-"""The official MCP server catalog — the curated list shown in "add server".
+"""The official MCP server catalog and provider compatibility policies.
 
-Reference data only: an entry is a template, and installing one copies its
-fields into a fresh ``mcp_servers`` row. Nothing links back to the catalog, so
-``url`` is used only to count how many instances were created from the same
-endpoint. A catalog template may be installed more than once.
+Server entries are install templates: installing one copies its fields into a
+fresh ``mcp_servers`` row. Compatibility quirks are different: the runtime
+reads the current catalog and matches them dynamically by endpoint, issuer, or
+advertised scopes, including for manually configured servers.
 
 The canonical file is external (a hand-editable YAML behind a CDN,
 ``MCP_CATALOG_URL``) so adding a server needs neither a migration nor a
@@ -13,6 +13,7 @@ validation rules, and the bundled snapshot.
 """
 
 import re
+from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 from urllib.parse import urlparse
@@ -23,6 +24,7 @@ from pydantic import BaseModel, Field, model_validator
 
 from app.auth.settings import auth_settings
 from app.exceptions import DomainValidationError
+from app.mcp.compatibility import MCPCompatibilityQuirk, bind_quirk_to_server
 from app.mcp.servers.models import MCPAuthType, ServiceCredentialProvider
 from app.mcp.servers.settings import mcp_server_settings
 from app.utils.remote_catalog import RemoteCatalog
@@ -33,19 +35,6 @@ from app.utils.remote_catalog import RemoteCatalog
 _BUNDLED_PATH = Path(__file__).parent / "catalog.yaml"
 _HTTP_HEADER_NAME = re.compile(r"^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$")
 _AUXILIA_TEMPLATE_URL = "https://your-auxilia.example.com/mcp"
-
-_KNOWN_SERVICE_CREDENTIAL_PROVIDERS: dict[str, list[ServiceCredentialProvider]] = {
-    "https://bigquery.googleapis.com/mcp": [
-        ServiceCredentialProvider.google_service_account
-    ],
-    "https://logging.googleapis.com/mcp": [
-        ServiceCredentialProvider.google_service_account
-    ],
-    "https://compute.googleapis.com/mcp": [
-        ServiceCredentialProvider.google_service_account
-    ],
-    "https://api.githubcopilot.com/mcp": [ServiceCredentialProvider.github_app],
-}
 
 
 class OfficialServer(BaseModel):
@@ -76,13 +65,10 @@ class OfficialServer(BaseModel):
     service_credential_providers: list[ServiceCredentialProvider] = Field(
         default_factory=list
     )
+    quirks: list[MCPCompatibilityQuirk] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def validate_entry(self) -> "OfficialServer":
-        if not self.service_credential_providers:
-            self.service_credential_providers = list(
-                _KNOWN_SERVICE_CREDENTIAL_PROVIDERS.get(self.url, ())
-            )
         if not self.name.strip():
             raise ValueError("server name must not be empty")
         bad_url = ValueError(f"url {self.url!r} must be an absolute http(s) URL")
@@ -142,6 +128,9 @@ class OfficialServer(BaseModel):
             raise ValueError(
                 f"{self.name!r} has duplicate service credential providers"
             )
+        quirk_names = [quirk.name for quirk in self.quirks]
+        if len(set(quirk_names)) != len(quirk_names):
+            raise ValueError(f"{self.name!r} has duplicate compatibility quirks")
         return self
 
 
@@ -150,7 +139,7 @@ class CatalogDocument(BaseModel):
     servers: list[OfficialServer]
 
     @model_validator(mode="after")
-    def servers_non_empty_and_unique(self) -> "CatalogDocument":
+    def entries_are_non_empty_and_unique(self) -> "CatalogDocument":
         if not self.servers:
             raise ValueError("catalog has no servers")
         # URL and name are list keys for catalog templates. Configured workspace
@@ -167,20 +156,35 @@ class CatalogDocument(BaseModel):
         return self
 
 
-def parse_catalog(text: str) -> list[OfficialServer]:
-    """Parse + validate a catalog YAML. Raises ValueError on any problem —
-    callers treat the file as all-or-nothing."""
+def _parse_document(text: str) -> CatalogDocument:
     try:
         data = yaml.safe_load(text)
     except yaml.YAMLError as exc:
         raise ValueError(f"catalog is not valid YAML: {exc}") from exc
     if not isinstance(data, dict):
         raise ValueError("catalog root must be a mapping")
-    return CatalogDocument.model_validate(data).servers
+    return CatalogDocument.model_validate(data)
+
+
+def parse_catalog(text: str) -> list[OfficialServer]:
+    """Parse + validate the server templates from one complete catalog."""
+    return _parse_document(text).servers
+
+
+def _server_quirks(
+    servers: list[OfficialServer],
+) -> list[MCPCompatibilityQuirk]:
+    return [
+        bind_quirk_to_server(quirk, server.url)
+        for server in servers
+        for quirk in server.quirks
+    ]
 
 
 _catalog: RemoteCatalog[OfficialServer] = RemoteCatalog(
-    prefix="mcp:catalog",
+    # v2 adds runtime quirks to each cached server item. A new namespace keeps
+    # pre-v2 Redis payloads from silently validating with empty default lists.
+    prefix="mcp:catalog:v2",
     item_model=OfficialServer,
     parse=parse_catalog,
     key=lambda s: s.url,
@@ -192,6 +196,12 @@ _catalog: RemoteCatalog[OfficialServer] = RemoteCatalog(
 def bundled_catalog() -> list[OfficialServer]:
     """The snapshot shipped with the backend — the fallback of last resort."""
     return _catalog.bundled()
+
+
+@lru_cache(maxsize=1)
+def bundled_compatibility_quirks() -> tuple[MCPCompatibilityQuirk, ...]:
+    """Compatibility fallback used before an async catalog lookup is available."""
+    return tuple(_server_quirks(_catalog.bundled()))
 
 
 async def get_catalog() -> list[OfficialServer]:
@@ -210,6 +220,11 @@ async def get_catalog() -> list[OfficialServer]:
         else entry
         for entry in catalog
     ]
+
+
+async def get_compatibility_quirks() -> list[MCPCompatibilityQuirk]:
+    """Current catalog-managed runtime compatibility policies."""
+    return _server_quirks(await _catalog.get())
 
 
 async def sync_catalog() -> dict:

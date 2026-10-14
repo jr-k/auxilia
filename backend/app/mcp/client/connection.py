@@ -35,7 +35,6 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from typing import Any
-from urllib.parse import urlsplit
 
 import httpx2
 from fastmcp.client import Client
@@ -49,6 +48,7 @@ from mcp.types import CallToolResult
 from typing_extensions import Unpack
 
 from app.mcp.client.exceptions import as_oauth_required
+from app.mcp.compatibility import MCPCompatibilityQuirk, matching_quirks
 
 
 logger = logging.getLogger(__name__)
@@ -65,54 +65,6 @@ _fastmcp_logger.propagate = True
 # https://github.com/modelcontextprotocol/ext-apps (spec 2026-01-26).
 UI_EXTENSION = "io.modelcontextprotocol/ui"
 UI_CAPABILITY = {"mimeTypes": ["text/html;profile=mcp-app"]}
-GOOGLE_WORKSPACE_MCP_HOST_SUFFIX = "mcp.googleapis.com"
-GITHUB_COPILOT_MCP_HOST = "api.githubcopilot.com"
-GITHUB_DISABLE_FORM_DEFERRAL = "mcp_apps_disable_form_deferral"
-
-
-def _uses_google_workspace_status_quirk(url: str) -> bool:
-    hostname = urlsplit(url).hostname
-    return bool(hostname and hostname.endswith(GOOGLE_WORKSPACE_MCP_HOST_SUFFIX))
-
-
-async def _accept_google_workspace_jsonrpc_success(
-    response: httpx2.Response,
-) -> None:
-    """Correct Google Workspace MCP successes incorrectly sent as HTTP 403."""
-    if response.status_code != 403:
-        return
-    if not _uses_google_workspace_status_quirk(str(response.request.url)):
-        return
-
-    await response.aread()
-    try:
-        payload = response.json()
-    except ValueError:
-        return
-    if (
-        isinstance(payload, dict)
-        and payload.get("jsonrpc") == "2.0"
-        and "result" in payload
-        and "error" not in payload
-    ):
-        logger.warning(
-            "Treating Google Workspace MCP HTTP 403 as success because it "
-            "contains a successful JSON-RPC result"
-        )
-        response.status_code = 200
-
-
-def _google_workspace_httpx_client_factory(
-    headers: dict[str, str] | None = None,
-    timeout: httpx2.Timeout | None = None,
-    auth: httpx2.Auth | None = None,
-    **_kwargs: Any,
-) -> httpx2.AsyncClient:
-    client = create_mcp_http_client(headers=headers, timeout=timeout, auth=auth)
-    client.event_hooks.setdefault("response", []).append(
-        _accept_google_workspace_jsonrpc_success
-    )
-    return client
 
 
 @dataclass(frozen=True)
@@ -127,26 +79,82 @@ class ConnectionSpec:
     url: str
     headers: dict[str, str] | None = None
     auth: httpx2.Auth | None = None
+    quirks: tuple[MCPCompatibilityQuirk, ...] = ()
+
+
+def _matching_transport_quirks(
+    spec: ConnectionSpec,
+) -> list[MCPCompatibilityQuirk]:
+    return [
+        quirk
+        for quirk in matching_quirks(spec.quirks, server_url=spec.url)
+        if quirk.transport is not None
+    ]
+
+
+def _jsonrpc_success_hook(
+    statuses: frozenset[int],
+) -> Any:
+    async def accept_jsonrpc_success(response: httpx2.Response) -> None:
+        if response.status_code not in statuses:
+            return
+        await response.aread()
+        try:
+            payload = response.json()
+        except ValueError:
+            return
+        if (
+            isinstance(payload, dict)
+            and payload.get("jsonrpc") == "2.0"
+            and "result" in payload
+            and "error" not in payload
+        ):
+            logger.warning(
+                "Treating MCP HTTP %s as success because it contains a "
+                "successful JSON-RPC result",
+                response.status_code,
+            )
+            response.status_code = 200
+
+    return accept_jsonrpc_success
+
+
+def _compatibility_httpx_client_factory(
+    statuses: frozenset[int],
+) -> Any:
+    def factory(
+        headers: dict[str, str] | None = None,
+        timeout: httpx2.Timeout | None = None,
+        auth: httpx2.Auth | None = None,
+        **_kwargs: Any,
+    ) -> httpx2.AsyncClient:
+        client = create_mcp_http_client(headers=headers, timeout=timeout, auth=auth)
+        client.event_hooks.setdefault("response", []).append(
+            _jsonrpc_success_hook(statuses)
+        )
+        return client
+
+    return factory
 
 
 def _transport_headers(spec: ConnectionSpec) -> dict[str, str] | None:
     """Apply endpoint-specific transport features without changing stored URLs."""
     headers = dict(spec.headers or {})
-    if urlsplit(spec.url).hostname == GITHUB_COPILOT_MCP_HOST:
-        # GitHub otherwise defers writes to an MCP App form. Auxilia's own
-        # HITL gate handles confirmation; executing directly avoids a deferred
-        # result that can never complete when no interactive form is mounted.
-        key = next(
-            (name for name in headers if name.lower() == "x-mcp-features"),
-            "X-MCP-Features",
-        )
-        features = {
-            feature.strip()
-            for feature in headers.get(key, "").split(",")
-            if feature.strip()
-        }
-        features.add(GITHUB_DISABLE_FORM_DEFERRAL)
-        headers[key] = ",".join(sorted(features))
+    for quirk in _matching_transport_quirks(spec):
+        if quirk.transport is None:
+            continue
+        for header, configured_values in quirk.transport.header_csv_values.items():
+            key = next(
+                (name for name in headers if name.lower() == header.lower()),
+                header,
+            )
+            values = {
+                value.strip()
+                for value in headers.get(key, "").split(",")
+                if value.strip()
+            }
+            values.update(configured_values)
+            headers[key] = ",".join(sorted(values))
     return headers or None
 
 
@@ -266,10 +274,14 @@ def build_client(spec: ConnectionSpec, *, terminate_on_close: bool = True) -> Cl
     transport_cls: type[StreamableHttpTransport] = (
         StreamableHttpTransport if terminate_on_close else SessionKeepingTransport
     )
+    statuses = frozenset(
+        status
+        for quirk in _matching_transport_quirks(spec)
+        if quirk.transport is not None
+        for status in quirk.transport.jsonrpc_success_statuses
+    )
     httpx_client_factory = (
-        _google_workspace_httpx_client_factory
-        if _uses_google_workspace_status_quirk(spec.url)
-        else None
+        _compatibility_httpx_client_factory(statuses) if statuses else None
     )
     transport = transport_cls(
         spec.url,

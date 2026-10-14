@@ -20,15 +20,15 @@ This is the model the TypeScript SDK ships natively (``auth()`` returning
 inside its httpx auth generator, so :meth:`initiate_authorization` drives that
 generator by hand rather than copying its discovery sequence (python-sdk#1743
 tracks exposing it). Nothing here duplicates SDK flow logic; the overrides are
-the two ends of the split plus the per-provider deviations in ``OAUTH_QUIRKS``.
+the two ends of the split plus catalog-managed compatibility policies.
 """
 
 from __future__ import annotations
 
 import logging
 import secrets
-from collections.abc import AsyncGenerator, Mapping, Sequence
-from dataclasses import dataclass, field
+from collections.abc import AsyncGenerator, Sequence
+from contextvars import ContextVar
 from datetime import UTC, datetime
 from urllib.parse import parse_qsl, urlencode, urljoin
 
@@ -57,6 +57,8 @@ from pydantic import AnyHttpUrl, AnyUrl
 
 from app.auth.settings import auth_settings
 from app.mcp.client.exceptions import OAuthAuthorizationRequired
+from app.mcp.compatibility import MCPCompatibilityQuirk, matching_quirks
+from app.mcp.servers.catalog import bundled_compatibility_quirks
 
 
 logger = logging.getLogger(__name__)
@@ -70,12 +72,11 @@ def _validate_metadata_issuer_tolerantly(
     ``issuers_match``, which its flow applies only on the no-PRM path.
 
     On the PRM path the SDK byte-compares the PRM's ``authorization_servers``
-    entry against the AS metadata's ``issuer``. Google publishes the first
-    with a trailing slash and the second without, so its own metadata is
-    rejected ("issuer mismatch: https://accounts.google.com !=
-    https://accounts.google.com/"). The TypeScript SDK's ``issuersMatch`` is
-    slash-tolerant everywhere; this makes the Python flow agree with it.
-    Anything but a trailing-slash-only difference still fails as before.
+    entry against the AS metadata's ``issuer``. Providers that render one with
+    a trailing slash and the other without reject their own metadata. The
+    TypeScript SDK's ``issuersMatch`` is slash-tolerant everywhere; this makes
+    the Python flow agree with it. Anything but a trailing-slash-only
+    difference still fails as before.
 
     Installed into the SDK's flow module below, since the flow calls the
     module-level function and offers no hook. Drop when upstream tolerates
@@ -102,93 +103,10 @@ AUTH_METHOD_NONE = "none"
 OAUTH_USER_AGENT = "auxilia"
 
 
-@dataclass(frozen=True)
-class OAuthQuirk:
-    """One provider's deviation from what the specs alone would give us.
-
-    Matched on the **issuer** when the provider is only known after metadata
-    discovery, and on the **server URL** when the deviation has to apply before
-    (or without) discovery — the OAuth callback, for instance, exchanges a code
-    on a fresh provider. Both keys exist because both moments exist, and a
-    quirk may set both: the Supabase one used to be written twice, once per
-    key, in two different layers, where the copies could disagree about which
-    servers they covered (design review §4.1).
-
-    Fields are the things a quirk can change, all optional:
-
-    * ``token_endpoint_auth_method`` — how the token request authenticates.
-    * ``authorization_params`` — extra query params on the authorize URL.
-    * ``scope`` — a fixed scope string, used when the server advertises none
-      usable (see :func:`quirk_scope`).
-    * ``advertised_scope_markers`` + ``request_all_advertised_scopes`` —
-      identify a provider by its scope vocabulary and request its complete
-      advertised set rather than only the baseline challenge.
-    """
-
-    name: str
-    issuer: str | None = None
-    server_url: str | None = None
-    token_endpoint_auth_method: str | None = None
-    authorization_params: Mapping[str, str] = field(default_factory=dict)
-    scope: str | None = None
-    advertised_scope_markers: frozenset[str] = frozenset()
-    request_all_advertised_scopes: bool = False
-
-
-OAUTH_QUIRKS: tuple[OAuthQuirk, ...] = (
-    OAuthQuirk(
-        name="supabase",
-        issuer="https://api.supabase.com/",
-        server_url="https://mcp.supabase.com/mcp",
-        # Rejects client_secret_basic on the token endpoint.
-        token_endpoint_auth_method=AUTH_METHOD_POST,
-    ),
-    OAuthQuirk(
-        name="google",
-        issuer="https://accounts.google.com/",
-        # Google returns a refresh token only when both are present, and only
-        # on a consent screen the user actually sees — drop `prompt` and a
-        # returning user silently gets an access token that cannot be renewed.
-        authorization_params={"access_type": "offline", "prompt": "consent"},
-    ),
-    OAuthQuirk(
-        name="gmail",
-        server_url="https://gmailmcp.googleapis.com/mcp/v1",
-        # Google's MCP endpoint advertises no usable scopes, so they are named
-        # here. TODO: discover these instead of hardcoding them.
-        scope=(
-            "openid "
-            "https://www.googleapis.com/auth/userinfo.email "
-            "https://www.googleapis.com/auth/gmail.readonly "
-            "https://www.googleapis.com/auth/gmail.compose "
-            "https://www.googleapis.com/auth/gmail.modify"
-        ),
-    ),
-    OAuthQuirk(
-        name="metabase",
-        advertised_scope_markers=frozenset(
-            {
-                "agent:resource:read",
-                "agent:content:read",
-                "agent:query:run",
-            }
-        ),
-        # Metabase's initial 401 challenges only for its locked baseline scopes.
-        # Optional write/SQL/delivery scopes therefore never reach its consent
-        # screen unless the client prefers the complete PRM advertisement.
-        request_all_advertised_scopes=True,
-    ),
+_scope_quirks: ContextVar[tuple[MCPCompatibilityQuirk, ...] | None] = ContextVar(
+    "mcp_oauth_scope_quirks",
+    default=None,
 )
-
-
-def _issuer_key(issuer: str | AnyHttpUrl | None) -> str | None:
-    """Issuers compare with a normalised trailing slash: pydantic renders a
-    root URL with one, the quirk table is written with one, and an
-    authorization server may declare itself without one."""
-    if issuer is None:
-        return None
-    text = str(issuer)
-    return text if text.endswith("/") else f"{text}/"
 
 
 def resolve_quirks(
@@ -196,44 +114,45 @@ def resolve_quirks(
     server_url: str | AnyUrl | None = None,
     issuer: str | AnyHttpUrl | None = None,
     advertised_scopes: Sequence[str] | None = None,
-) -> list[OAuthQuirk]:
+    quirks: Sequence[MCPCompatibilityQuirk] | None = None,
+) -> list[MCPCompatibilityQuirk]:
     """Every quirk matching this server — by URL, issuer, or scope vocabulary.
 
     A caller passes whichever keys it holds at that point in the flow; a quirk
     matches when any key it declares matches one that was passed.
     """
-    url = str(server_url) if server_url is not None else None
-    issuer_url = _issuer_key(issuer)
-    scope_set = frozenset(advertised_scopes or ())
-    return [
-        quirk
-        for quirk in OAUTH_QUIRKS
-        if (quirk.server_url is not None and quirk.server_url == url)
-        or (quirk.issuer is not None and _issuer_key(quirk.issuer) == issuer_url)
-        or (
-            bool(quirk.advertised_scope_markers)
-            and quirk.advertised_scope_markers.issubset(scope_set)
-        )
-    ]
+    return matching_quirks(
+        quirks if quirks is not None else bundled_compatibility_quirks(),
+        server_url=str(server_url) if server_url is not None else None,
+        issuer=str(issuer) if issuer is not None else None,
+        advertised_scopes=advertised_scopes,
+    )
 
 
 def quirk_token_endpoint_auth_method(
-    *, server_url: str | AnyUrl | None = None, issuer: str | AnyHttpUrl | None = None
+    *,
+    server_url: str | AnyUrl | None = None,
+    issuer: str | AnyHttpUrl | None = None,
+    quirks: Sequence[MCPCompatibilityQuirk] | None = None,
 ) -> str | None:
     """The token-endpoint auth method this server needs, if it needs one."""
-    for quirk in resolve_quirks(server_url=server_url, issuer=issuer):
-        if quirk.token_endpoint_auth_method:
-            return quirk.token_endpoint_auth_method
+    for quirk in resolve_quirks(server_url=server_url, issuer=issuer, quirks=quirks):
+        if quirk.oauth and quirk.oauth.token_endpoint_auth_method:
+            return quirk.oauth.token_endpoint_auth_method
     return None
 
 
 def quirk_authorization_params(
-    *, server_url: str | AnyUrl | None = None, issuer: str | AnyHttpUrl | None = None
+    *,
+    server_url: str | AnyUrl | None = None,
+    issuer: str | AnyHttpUrl | None = None,
+    quirks: Sequence[MCPCompatibilityQuirk] | None = None,
 ) -> dict[str, str]:
     """Extra authorize-URL params for this server (empty for most)."""
     params: dict[str, str] = {}
-    for quirk in resolve_quirks(server_url=server_url, issuer=issuer):
-        params.update(quirk.authorization_params)
+    for quirk in resolve_quirks(server_url=server_url, issuer=issuer, quirks=quirks):
+        if quirk.oauth:
+            params.update(quirk.oauth.authorization_params)
     return params
 
 
@@ -242,17 +161,17 @@ def quirk_scope(
     server_url: str | AnyUrl | None = None,
     issuer: str | AnyHttpUrl | None = None,
     advertised_scopes: Sequence[str] | None = None,
+    quirks: Sequence[MCPCompatibilityQuirk] | None = None,
 ) -> str | None:
     """A fixed scope string for this server, overriding discovery."""
     for quirk in resolve_quirks(
         server_url=server_url,
         issuer=issuer,
         advertised_scopes=advertised_scopes,
+        quirks=quirks,
     ):
-        if quirk.scope:
-            return quirk.scope
-        if quirk.request_all_advertised_scopes and advertised_scopes:
-            return " ".join(dict.fromkeys(advertised_scopes))
+        if quirk.oauth and quirk.oauth.scope:
+            return quirk.oauth.scope
     return None
 
 
@@ -265,10 +184,9 @@ def _select_oauth_scopes(
     """Apply provider policy before dynamic client registration.
 
     The SDK normally gives a ``WWW-Authenticate`` challenge priority over the
-    protected resource's complete scope advertisement. Metabase challenges with
-    only its locked baseline, so its optional permissions would never appear on
-    the first consent screen. Detect its published scope vocabulary and request
-    the complete advertised set while leaving every other provider untouched.
+    protected resource's scope advertisement. A catalog policy can replace that
+    baseline when a provider otherwise leaves optional permissions off its
+    first consent screen.
     """
     selected = _sdk_get_client_metadata_scopes(
         www_authenticate_scope,
@@ -281,7 +199,10 @@ def _select_oauth_scopes(
         if protected_resource_metadata is not None
         else None
     )
-    expanded = quirk_scope(advertised_scopes=advertised_scopes)
+    expanded = quirk_scope(
+        advertised_scopes=advertised_scopes,
+        quirks=_scope_quirks.get(),
+    )
     if expanded is None:
         return selected
     return " ".join(dict.fromkeys([*expanded.split(), *((selected or "").split())]))
@@ -399,11 +320,15 @@ class WebOAuthClientProvider(OAuthClientProvider):
         *args,
         client_id: str | None = None,
         client_secret: str | None = None,
+        quirks: Sequence[MCPCompatibilityQuirk] | None = None,
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
         self._client_id = client_id
         self._client_secret = client_secret
+        self._quirks = tuple(
+            quirks if quirks is not None else bundled_compatibility_quirks()
+        )
 
     async def async_auth_flow(
         self, request: httpx2.Request
@@ -415,6 +340,7 @@ class WebOAuthClientProvider(OAuthClientProvider):
         ``User-Agent``, including standards-based metadata discovery, so add one
         without overriding a caller-supplied value.
         """
+        token = _scope_quirks.set(self._quirks)
         flow = super().async_auth_flow(request)
         try:
             outgoing = await flow.__anext__()
@@ -426,6 +352,7 @@ class WebOAuthClientProvider(OAuthClientProvider):
             return
         finally:
             await flow.aclose()
+            _scope_quirks.reset(token)
 
     def _issuer(self) -> AnyHttpUrl | None:
         metadata = self.context.oauth_metadata
@@ -465,7 +392,9 @@ class WebOAuthClientProvider(OAuthClientProvider):
         # its own copy of this — it exchanges a code on a fresh provider whose
         # metadata discovery has not run, so only the URL is known there.
         auth_method = quirk_token_endpoint_auth_method(
-            server_url=self.context.server_url, issuer=self._issuer()
+            server_url=self.context.server_url,
+            issuer=self._issuer(),
+            quirks=self._quirks,
         )
         if auth_method:
             # Worded without "token"/"secret": Codacy's semgrep rule reads a
@@ -563,8 +492,8 @@ class WebOAuthClientProvider(OAuthClientProvider):
                 )
                 return False
             # The AS rejected the refresh token. That is final — revoked,
-            # rotated away by a concurrent refresh, or expired (Metabase
-            # answers 400 for all three) — so drop the stored pair: the next
+            # rotated away by a concurrent refresh, or expired — so drop the
+            # stored pair: the next
             # check then prompts a clean re-authorization instead of retrying
             # the dead token on every poll and every run.
             logger.warning(
@@ -778,10 +707,12 @@ class WebOAuthClientProvider(OAuthClientProvider):
             auth_endpoint = urljoin(auth_base_url, "/authorize")
 
         # The SDK's scope-selection step has run by now and overwritten
-        # client_metadata.scope with what discovery found, so a fixed scope
-        # (Gmail advertises none) has to be applied here.
+        # client_metadata.scope with what discovery found, so a catalog-fixed
+        # scope has to be applied here.
         fixed_scope = quirk_scope(
-            server_url=self.context.server_url, issuer=self._issuer()
+            server_url=self.context.server_url,
+            issuer=self._issuer(),
+            quirks=self._quirks,
         )
         if fixed_scope:
             self.context.client_metadata.scope = fixed_scope
@@ -805,7 +736,9 @@ class WebOAuthClientProvider(OAuthClientProvider):
         }
         auth_params.update(
             quirk_authorization_params(
-                server_url=self.context.server_url, issuer=self._issuer()
+                server_url=self.context.server_url,
+                issuer=self._issuer(),
+                quirks=self._quirks,
             )
         )
         if self.context.should_include_resource_param(self.context.protocol_version):

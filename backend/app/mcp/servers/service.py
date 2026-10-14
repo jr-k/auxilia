@@ -766,9 +766,9 @@ class MCPServerService(BaseService[MCPServerDB, MCPServerRepository]):
             raise NotFoundError("MCP server not found")
 
         provider = await build_oauth_provider(mcp_server, storage, self.repository)
-        # The provider loads its stored state and applies the per-provider
-        # OAuth quirks (`OAUTH_QUIRKS` in `client/auth.py`) itself, including
-        # the token-endpoint auth method this exchange needs.
+        # The provider loads its stored state and applies the current catalog's
+        # compatibility policy itself, including the client-auth method this
+        # exchange needs.
         await provider.manual_exchange(code, state)
 
         return {

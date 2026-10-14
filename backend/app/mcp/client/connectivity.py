@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from collections.abc import AsyncIterator, Collection
+from collections.abc import AsyncIterator, Collection, Sequence
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from uuid import UUID
@@ -43,6 +43,8 @@ from app.mcp.client.service_credentials import (
     service_credential_config,
 )
 from app.mcp.client.storage import RedisTokenStorage, TokenStorageFactory
+from app.mcp.compatibility import MCPCompatibilityQuirk, matching_quirks
+from app.mcp.servers.catalog import get_compatibility_quirks
 from app.mcp.servers.models import (
     MCPAuthType,
     MCPServerDB,
@@ -82,7 +84,13 @@ async def build_oauth_provider(
         if repository is not None
         else None
     )
-    return provider_with_credentials(mcp_server, storage, static_credentials(row))
+    quirks = await get_compatibility_quirks()
+    return provider_with_credentials(
+        mcp_server,
+        storage,
+        static_credentials(row),
+        quirks=quirks,
+    )
 
 
 @dataclass(frozen=True)
@@ -114,6 +122,8 @@ def provider_with_credentials(
     mcp_server: MCPServerDB,
     storage: RedisTokenStorage,
     credentials: StaticClientCredentials | None,
+    *,
+    quirks: Sequence[MCPCompatibilityQuirk] | None = None,
 ) -> WebOAuthClientProvider:
     """The provider construction itself, once the credentials are in hand.
 
@@ -137,6 +147,7 @@ def provider_with_credentials(
         client_id=client_id,
         client_secret=client_secret,
         client_metadata_url=oauth_client_metadata_url(),
+        quirks=quirks,
     )
 
 
@@ -181,9 +192,16 @@ async def resolve_connection(
     and both formatted a missing API key straight into the header as the
     literal ``Bearer None``. Adding an auth scheme is one ``match`` arm.
     """
+    quirks = await get_compatibility_quirks()
+    transport_quirks = tuple(
+        quirk
+        for quirk in matching_quirks(quirks, server_url=server.url)
+        if quirk.transport is not None
+    )
+
     match server.auth_type:
         case MCPAuthType.none:
-            return ConnectionSpec(url=server.url)
+            return ConnectionSpec(url=server.url, quirks=transport_quirks)
 
         case MCPAuthType.api_key:
             api_keys = credentials.api_keys if credentials is not None else None
@@ -201,7 +219,9 @@ async def resolve_connection(
                     "but has no API key stored"
                 )
             return ConnectionSpec(
-                url=server.url, headers={"Authorization": f"Bearer {key}"}
+                url=server.url,
+                headers={"Authorization": f"Bearer {key}"},
+                quirks=transport_quirks,
             )
 
         case MCPAuthType.oauth2:
@@ -217,7 +237,12 @@ async def resolve_connection(
                 )
                 if memo is not None:
                     memo[server.id] = static
-            provider = provider_with_credentials(server, storage, static)
+            provider = provider_with_credentials(
+                server,
+                storage,
+                static,
+                quirks=quirks,
+            )
             # Static registrations must reach storage before anything uses the
             # provider: the callback and the refresh path run in later requests
             # with fresh providers and can only recover them from there. No-op
@@ -228,7 +253,11 @@ async def resolve_connection(
                 await provider.persist_client_info()
                 if credentials is not None:
                     credentials.persisted.add(server.id)
-            return ConnectionSpec(url=server.url, auth=provider)
+            return ConnectionSpec(
+                url=server.url,
+                auth=provider,
+                quirks=transport_quirks,
+            )
 
         case MCPAuthType.service_identity | MCPAuthType.custom_http:
             memo = credentials.service if credentials is not None else None
@@ -253,7 +282,11 @@ async def resolve_connection(
                     f"{server.auth_type.value} "
                     "auth but has no credentials stored"
                 )
-            return ConnectionSpec(url=server.url, auth=build_service_auth(config))
+            return ConnectionSpec(
+                url=server.url,
+                auth=build_service_auth(config),
+                quirks=transport_quirks,
+            )
 
         case _:
             # Unreachable while the arms above cover `MCPAuthType`. Kept as a

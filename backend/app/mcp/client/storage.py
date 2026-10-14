@@ -101,9 +101,9 @@ class RedisTokenStorage(TokenStorage):
         return stored.token_payload
 
     async def set_tokens(self, tokens: OAuthToken) -> None:
-        # Google only issues a refresh_token on the first authorization; refresh
-        # responses omit it. Carry the stored refresh_token forward so a silent
-        # refresh never wipes it (otherwise the next expiry forces a full re-auth).
+        # Some providers issue a refresh_token only on the first authorization.
+        # Carry it forward when a refresh response omits it, or the next expiry
+        # would force a full re-authorization.
         if not tokens.refresh_token:
             existing = await self.get_stored_token()
             if existing and existing.token_payload.refresh_token:
