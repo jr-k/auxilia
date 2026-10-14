@@ -104,6 +104,17 @@ export function ConnectServersDialog({
 	const enabledSkillCount = skills.filter(
 		(skill) => !disabledSkillIds.has(skill.id),
 	).length;
+	const allServersEnabled =
+		servers.length > 0 &&
+		servers.every((server) => !disabledServerIds.has(server.id));
+	const someServersEnabled = servers.some(
+		(server) => !disabledServerIds.has(server.id),
+	);
+	const allSkillsEnabled =
+		skills.length > 0 && skills.every((skill) => !disabledSkillIds.has(skill.id));
+	const someSkillsEnabled = skills.some(
+		(skill) => !disabledSkillIds.has(skill.id),
+	);
 	const isLoadingResources =
 		open && resourcesAgentId !== agentId && loadFailedFor !== agentId;
 
@@ -253,6 +264,25 @@ export function ConnectServersDialog({
 		});
 	};
 
+	const setAllResourcesEnabled = (type: ResourceTab, enabled: boolean) => {
+		const disabledKey =
+			type === "servers" ? "disabledMcpServerIds" : "disabledSkillIds";
+		const resourceIds =
+			type === "servers"
+				? servers.map((server) => server.id)
+				: skills.map((skill) => skill.id);
+		const disabledIds = new Set(resourceSettings[disabledKey]);
+		for (const id of resourceIds) {
+			if (enabled) disabledIds.delete(id);
+			else disabledIds.add(id);
+		}
+		rangeAnchorRef.current[type] = null;
+		onResourceSettingsChange({
+			...resourceSettings,
+			[disabledKey]: [...disabledIds],
+		});
+	};
+
 	return (
 		<Dialog open={open} onOpenChange={handleOpenChange}>
 			<DialogContent className="gap-4 sm:max-w-[540px]">
@@ -315,6 +345,20 @@ export function ConnectServersDialog({
 					) : activeTab === "servers" ? (
 						servers.length > 0 ? (
 							<div className="flex flex-col gap-2">
+								<ResourceAllToggle
+									checked={
+										allServersEnabled
+											? true
+											: someServersEnabled
+												? "indeterminate"
+												: false
+									}
+									disabled={resourceSettingsSaving}
+									label="All MCP servers"
+									onCheckedChange={(checked) => {
+										setAllResourcesEnabled("servers", checked);
+									}}
+								/>
 								{orderedServers.map((server, index) => {
 									const isEnabled = !disabledServerIds.has(server.id);
 									const isDisconnected =
@@ -398,6 +442,20 @@ export function ConnectServersDialog({
 						)
 					) : skills.length > 0 ? (
 						<div className="flex flex-col gap-2">
+							<ResourceAllToggle
+								checked={
+									allSkillsEnabled
+										? true
+										: someSkillsEnabled
+											? "indeterminate"
+											: false
+								}
+								disabled={resourceSettingsSaving}
+								label="All skills"
+								onCheckedChange={(checked) => {
+									setAllResourcesEnabled("skills", checked);
+								}}
+							/>
 							{skills.map((skill) => {
 								const isEnabled = !disabledSkillIds.has(skill.id);
 								return (
@@ -458,6 +516,32 @@ export function ConnectServersDialog({
 				</div>
 			</DialogContent>
 		</Dialog>
+	);
+}
+
+function ResourceAllToggle({
+	checked,
+	disabled,
+	label,
+	onCheckedChange,
+}: {
+	checked: boolean | "indeterminate";
+	disabled: boolean;
+	label: string;
+	onCheckedChange: (checked: boolean) => void;
+}) {
+	return (
+		<div className="flex items-center justify-end gap-2 px-1 pb-1">
+			<span className="text-[11.5px] font-semibold text-meta dark:text-panel-dim">
+				{label}
+			</span>
+			<Checkbox
+				checked={checked}
+				disabled={disabled}
+				onCheckedChange={onCheckedChange}
+				aria-label={`${checked === true ? "Disable" : "Enable"} ${label.toLowerCase()} for this conversation`}
+			/>
+		</div>
 	);
 }
 
