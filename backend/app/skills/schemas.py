@@ -427,6 +427,7 @@ class AgentSkillResponse(BaseModel):
     color: str | None = None
     image_revision: UUID | None = None
     script_count: int = 0
+    enabled_by_default: bool = True
 
 
 def is_script(path: str) -> bool:

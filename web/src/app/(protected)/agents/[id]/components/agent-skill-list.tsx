@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Plus, X } from "lucide-react";
+import { ChevronRight, Plus, X } from "lucide-react";
 import {
 	Dialog,
 	DialogContent,
@@ -16,15 +16,18 @@ import { SkillRequirementChip } from "@/app/(protected)/skills/components/skill-
 import { handleKeyboardListNavigation } from "@/lib/keyboard-list-navigation";
 import { useSkillsStore } from "@/stores/skills-store";
 import type { AgentSkill } from "@/types/skills";
+import { Switch } from "@/components/ui/switch";
 
 interface AgentSkillListProps {
 	skillIds: string[];
+	disabledByDefaultIds?: string[];
 	/** Display info for ids the store may not know yet (from agent.skills). */
 	fallbackSkills?: AgentSkill[];
 	/** Whether the agent has a sandbox bound — what a skill's scripts need. */
 	runsCode: boolean;
 	readOnly?: boolean;
 	onChange?: (skillIds: string[]) => void;
+	onDefaultEnabledChange?: (skillId: string, enabled: boolean) => void;
 	/** Edit mode: open the tool picker on its sandbox choice. */
 	onEnableCodeExecution?: () => void;
 }
@@ -41,16 +44,19 @@ interface AgentSkillListProps {
  */
 export default function AgentSkillList({
 	skillIds,
+	disabledByDefaultIds = [],
 	fallbackSkills = [],
 	runsCode,
 	readOnly,
 	onChange,
+	onDefaultEnabledChange,
 	onEnableCodeExecution,
 }: AgentSkillListProps) {
 	const skills = useSkillsStore((state) => state.skills);
 	const fetchSkills = useSkillsStore((state) => state.fetchSkills);
 	const [dialogOpen, setDialogOpen] = useState(false);
 	const [search, setSearch] = useState("");
+	const [expandedIds, setExpandedIds] = useState<Set<string>>(() => new Set());
 
 	useEffect(() => {
 		fetchSkills().catch(() => {});
@@ -110,12 +116,27 @@ export default function AgentSkillList({
 				<div className="flex flex-col gap-2.5">
 					{enabled.map((skill) => {
 						const scriptsInactive = skill.scriptCount > 0 && !runsCode;
+						const isExpanded = expandedIds.has(skill.id);
+						const enabledByDefault = !disabledByDefaultIds.includes(skill.id);
 						return (
 							<div
 								key={skill.id}
-								className="rounded-[10px] border border-border bg-card px-4 py-3"
+								className="overflow-hidden rounded-[10px] border border-border bg-card"
 							>
-								<div className="flex items-center gap-3">
+								<button
+									type="button"
+									aria-expanded={isExpanded}
+									aria-label={isExpanded ? "Collapse" : "Expand"}
+									className="flex w-full cursor-pointer items-center gap-3 px-4 py-3 text-left"
+									onClick={() => {
+										setExpandedIds((current) => {
+											const next = new Set(current);
+											if (isExpanded) next.delete(skill.id);
+											else next.add(skill.id);
+											return next;
+										});
+									}}
+								>
 									<SkillAvatar
 										skillId={skill.id}
 										name={skill.name}
@@ -126,12 +147,9 @@ export default function AgentSkillList({
 									/>
 									<div className="min-w-0 flex-1">
 										<div className="flex min-w-0 items-center gap-2">
-											<Link
-												href={`/skills/${skill.id}`}
-												className="truncate text-[12.5px] font-semibold text-petrol hover:underline dark:text-panel-terminal"
-											>
+											<span className="truncate text-[12.5px] font-semibold text-foreground">
 												{skill.name}
-											</Link>
+											</span>
 											{skill.scriptCount > 0 && (
 												<SkillRequirementChip scriptCount={skill.scriptCount} />
 											)}
@@ -142,33 +160,41 @@ export default function AgentSkillList({
 											</p>
 										)}
 									</div>
-									{!readOnly && (
-										<button
-											type="button"
-											aria-label={`Remove ${skill.name}`}
-											className="cursor-pointer rounded p-1 text-meta transition-colors hover:text-destructive dark:text-panel-dim"
-											onClick={() => {
-												onChange?.(skillIds.filter((id) => id !== skill.id));
-											}}
-										>
-											<X className="size-3.5" />
-										</button>
-									)}
-								</div>
-								{scriptsInactive &&
-									(readOnly ? (
-										<p className="mt-2 pl-[38px] text-[11px] leading-[1.5] text-meta dark:text-panel-dim">
-											scripts inactive, this agent doesn&apos;t run code. Instructions
-											still apply.
-										</p>
-									) : (
-										<div className="mt-2.5 ml-[38px] flex items-center gap-2.5 rounded-[7px] border border-[#F0DCC2] bg-[#FDF9F0] px-3 py-2 dark:border-[#7A5C1E]/40 dark:bg-[#7A5C1E]/10">
-											<span className="min-w-0 flex-1 text-[11.5px] leading-[1.45] text-[#7A5C1E] dark:text-[#E8C27A]">
-												Attached, but its {skill.scriptCount} script
-												{skill.scriptCount === 1 ? "" : "s"} won&apos;t run here, this
-												agent doesn&apos;t run code. Instructions still apply.
-											</span>
-											{onEnableCodeExecution && (
+									<ChevronRight
+										aria-hidden="true"
+										className={`size-4 shrink-0 text-meta transition-transform dark:text-panel-dim ${
+											isExpanded ? "rotate-90" : ""
+										}`}
+									/>
+								</button>
+								{isExpanded && (
+									<div className="border-t border-hover dark:border-white/5">
+										<div className="flex items-center gap-3 bg-petrol-tint/55 px-4 py-3 dark:bg-white/5">
+											<div className="min-w-0 flex-1">
+												<p className="text-[12.5px] font-semibold text-foreground">
+													New conversations
+												</p>
+												<p className="mt-0.5 text-[11.5px] text-muted-foreground">
+													Enable this skill by default
+												</p>
+											</div>
+											<Switch
+												checked={enabledByDefault}
+												disabled={readOnly}
+												onCheckedChange={(checked) => {
+													onDefaultEnabledChange?.(skill.id, checked);
+												}}
+												aria-label={`Enable ${skill.name} by default in new conversations`}
+											/>
+										</div>
+										{scriptsInactive && (
+											<div className="mx-4 my-3 flex items-center gap-2.5 rounded-[7px] border border-[#F0DCC2] bg-[#FDF9F0] px-3 py-2 dark:border-[#7A5C1E]/40 dark:bg-[#7A5C1E]/10">
+												<span className="min-w-0 flex-1 text-[11.5px] leading-[1.45] text-[#7A5C1E] dark:text-[#E8C27A]">
+													Its {skill.scriptCount} script
+													{skill.scriptCount === 1 ? "" : "s"} won&apos;t run here,
+													this agent doesn&apos;t run code. Instructions still apply.
+												</span>
+												{!readOnly && onEnableCodeExecution && (
 												<button
 													type="button"
 													className="shrink-0 cursor-pointer rounded-[6px] border border-[#E2C89A] bg-card px-2.5 py-[5px] text-[11.5px] font-semibold text-[#7A5C1E] transition-colors hover:bg-[#FBF3E2] dark:border-[#7A5C1E]/50 dark:text-[#E8C27A] dark:hover:bg-[#7A5C1E]/20"
@@ -176,9 +202,33 @@ export default function AgentSkillList({
 												>
 													Turn on code execution
 												</button>
+												)}
+											</div>
+										)}
+										<div className="flex items-center justify-between border-t border-hover px-4 py-2 dark:border-white/5">
+											<Link
+												href={`/skills/${skill.id}`}
+												className="rounded-[7px] px-3 py-1.5 text-[12.5px] font-semibold text-petrol transition-opacity hover:opacity-80 dark:text-panel-terminal"
+											>
+												View skill
+											</Link>
+											{!readOnly && (
+												<button
+													type="button"
+													className="flex cursor-pointer items-center gap-1 rounded-[7px] px-3 py-1.5 text-[12.5px] font-semibold text-[#B04A3A] transition-colors hover:bg-[#FBEFED] dark:hover:bg-[#B04A3A]/10"
+													onClick={() => {
+														onChange?.(
+															skillIds.filter((id) => id !== skill.id),
+														);
+													}}
+												>
+													<X className="size-3.5" />
+													Disable {skill.name}
+												</button>
 											)}
 										</div>
-									))}
+									</div>
+								)}
 							</div>
 						);
 					})}

@@ -90,6 +90,7 @@ class AgentMCPServerConfig(SQLModel):
 
 class AgentSandboxConfig(SQLModel):
     sandbox_id: UUID
+    enabled_by_default: bool = True
     tools: dict[str, ToolStatus] | None = None
 
 
@@ -113,8 +114,10 @@ class AgentConfig(SQLModel):
     mcp_servers: list[AgentMCPServerConfig] = []
     sandboxes: list[AgentSandboxConfig] = []
     subagent_ids: list[UUID] = []
+    disabled_subagent_ids_by_default: list[UUID] = []
     # Skills enabled on the agent — whole-set, like the other bindings.
     skill_ids: list[UUID] = []
+    disabled_skill_ids_by_default: list[UUID] = []
 
     @field_validator("group")
     @classmethod
@@ -191,6 +194,7 @@ class AgentResourceSandboxResponse(SQLModel):
     description: str | None = None
     provider: SandboxProviderType
     image_revision: UUID | None = None
+    enabled_by_default: bool
 
 
 class AgentSandboxResponse(SQLModel):
@@ -198,6 +202,7 @@ class AgentSandboxResponse(SQLModel):
     fields so the editor never joins client-side."""
 
     sandbox_id: UUID
+    enabled_by_default: bool = True
     tools: dict[str, ToolStatus] | None = None
     name: str
     provider: SandboxProviderType
@@ -238,6 +243,7 @@ class SubagentResponse(SQLModel):
     color: str | None = None
     image_revision: UUID | None = None
     description: str | None = None
+    enabled_by_default: bool = True
 
 
 class AgentResourcesResponse(SQLModel):

@@ -193,6 +193,12 @@ class AgentService(BaseService[AgentDB, AgentRepository]):
                 description=sandbox.description,
                 provider=sandbox.provider,
                 image_revision=sandbox.image_revision,
+                enabled_by_default=all(
+                    spec_agent.sandbox.enabled_by_default
+                    for spec_agent in [spec.agent, *spec.subagents]
+                    if spec_agent.sandbox is not None
+                    and spec_agent.sandbox.row.id == sandbox.id
+                ),
             )
             for sandbox in sandbox_rows
         ]
@@ -208,6 +214,7 @@ class AgentService(BaseService[AgentDB, AgentRepository]):
                 color=subagent.color,
                 image_revision=subagent.image_revision,
                 description=subagent.description,
+                enabled_by_default=spec_subagent.enabled_by_default,
             )
             for spec_subagent in spec.subagents
             if (subagent := subagents_by_id.get(spec_subagent.id)) is not None
@@ -372,6 +379,7 @@ class AgentService(BaseService[AgentDB, AgentRepository]):
                 sandbox_map[link.agent_id].append(
                     AgentSandboxResponse(
                         sandbox_id=sandbox.id,
+                        enabled_by_default=link.enabled_by_default,
                         tools=link.tools,
                         name=sandbox.name,
                         provider=sandbox.provider,
@@ -497,8 +505,23 @@ class AgentService(BaseService[AgentDB, AgentRepository]):
             await self.set_teams(agent.id, config.team_ids)
         await self.mcp_server_service.set_for_agent(agent.id, config.mcp_servers)
         await self.set_sandboxes(agent.id, config.sandboxes)
-        await self.set_subagents(agent.id, config.subagent_ids, user_role=user_role)
-        await self.skill_service.set_for_agent(agent.id, config.skill_ids)
+        if config.disabled_subagent_ids_by_default:
+            await self.set_subagents(
+                agent.id,
+                config.subagent_ids,
+                disabled_by_default=config.disabled_subagent_ids_by_default,
+                user_role=user_role,
+            )
+        else:
+            await self.set_subagents(agent.id, config.subagent_ids, user_role=user_role)
+        if config.disabled_skill_ids_by_default:
+            await self.skill_service.set_for_agent(
+                agent.id,
+                config.skill_ids,
+                disabled_by_default=config.disabled_skill_ids_by_default,
+            )
+        else:
+            await self.skill_service.set_for_agent(agent.id, config.skill_ids)
         response = await self.get(
             agent.id, user_id=owner_id, user_role=user_role, user_team_id=user_team_id
         )
@@ -692,8 +715,23 @@ class AgentService(BaseService[AgentDB, AgentRepository]):
         )
         await self.mcp_server_service.set_for_agent(agent_id, config.mcp_servers)
         await self.set_sandboxes(agent_id, config.sandboxes)
-        await self.set_subagents(agent_id, config.subagent_ids, user_role=user_role)
-        await self.skill_service.set_for_agent(agent_id, config.skill_ids)
+        if config.disabled_subagent_ids_by_default:
+            await self.set_subagents(
+                agent_id,
+                config.subagent_ids,
+                disabled_by_default=config.disabled_subagent_ids_by_default,
+                user_role=user_role,
+            )
+        else:
+            await self.set_subagents(agent_id, config.subagent_ids, user_role=user_role)
+        if config.disabled_skill_ids_by_default:
+            await self.skill_service.set_for_agent(
+                agent_id,
+                config.skill_ids,
+                disabled_by_default=config.disabled_skill_ids_by_default,
+            )
+        else:
+            await self.skill_service.set_for_agent(agent_id, config.skill_ids)
         response = await self.get(
             agent_id, user_id=user_id, user_role=user_role, user_team_id=user_team_id
         )
@@ -1128,11 +1166,13 @@ class AgentService(BaseService[AgentDB, AgentRepository]):
     # -- Subagents -------------------------------------------------------------
     #
     # A binding of the aggregate, like permissions and teams: the link rows carry
-    # nothing but the pair, so there is no service of their own — the
-    # validations below are the whole behaviour.
+    # the pair plus its new-conversation default, so there is no service of their
+    # own — the validations below are the whole behaviour.
 
     @staticmethod
-    def _to_subagent_response(agent: AgentDB) -> SubagentResponse:
+    def _to_subagent_response(
+        agent: AgentDB, *, enabled_by_default: bool = True
+    ) -> SubagentResponse:
         return SubagentResponse(
             id=agent.id,
             name=agent.name,
@@ -1140,6 +1180,7 @@ class AgentService(BaseService[AgentDB, AgentRepository]):
             color=agent.color,
             image_revision=agent.image_revision,
             description=agent.description,
+            enabled_by_default=enabled_by_default,
         )
 
     async def _list_subagent_data(
@@ -1165,14 +1206,20 @@ class AgentService(BaseService[AgentDB, AgentRepository]):
                 sub = agents.get(link.subagent_id)
                 if sub:
                     subagents_map[link.supervisor_id].append(
-                        self._to_subagent_response(sub)
+                        self._to_subagent_response(
+                            sub, enabled_by_default=link.enabled_by_default
+                        )
                     )
             if link.subagent_id in agent_ids_set:
                 is_subagent_ids.add(link.subagent_id)
         return subagents_map, is_subagent_ids
 
     async def create_subagent(
-        self, supervisor_id: UUID, subagent_id: UUID
+        self,
+        supervisor_id: UUID,
+        subagent_id: UUID,
+        *,
+        enabled_by_default: bool = True,
     ) -> AgentSubagentDB:
         """Link one subagent under a supervisor; idempotent for an existing
         link. Graphs are one level deep: a supervisor cannot itself be a
@@ -1245,7 +1292,16 @@ class AgentService(BaseService[AgentDB, AgentRepository]):
         existing = await self.repository.get_subagent_link(supervisor_id, subagent_id)
         if existing:
             return existing
-        created = await self.repository.create_subagent_link(supervisor_id, subagent_id)
+        if enabled_by_default:
+            created = await self.repository.create_subagent_link(
+                supervisor_id, subagent_id
+            )
+        else:
+            created = await self.repository.create_subagent_link(
+                supervisor_id,
+                subagent_id,
+                enabled_by_default=False,
+            )
         await self._stage_agents_changed()
         return created
 
@@ -1261,20 +1317,18 @@ class AgentService(BaseService[AgentDB, AgentRepository]):
         agent_id: UUID,
         subagent_ids: list[UUID],
         *,
+        disabled_by_default: list[UUID] | None = None,
         user_role: WorkspaceRole | None,
     ) -> None:
         """Whole-set replace of an agent's subagents, routed through
         `create_subagent` so the self-link / archived / cycle validations
         keep firing. Admin-gated only when the set actually changes — an
         editor saving an agent whose subagents they didn't touch passes."""
-        current = {
-            link.subagent_id
-            for link in await self.repository.list_subagent_links(agent_id)
-        }
+        current_links = await self.repository.list_subagent_links(agent_id)
+        current = {link.subagent_id for link in current_links}
         wanted = set(subagent_ids)
-        if current == wanted:
-            return
-        if user_role != WorkspaceRole.admin:
+        disabled = set(disabled_by_default or []) & wanted
+        if current != wanted and user_role != WorkspaceRole.admin:
             raise PermissionDeniedError("Only admins can modify subagents")
         # Removals first, so every validation an addition runs sees the graph
         # this save asks for and not a transient union of the two. One
@@ -1282,7 +1336,25 @@ class AgentService(BaseService[AgentDB, AgentRepository]):
         for subagent_id in current - wanted:
             await self.delete_subagent(agent_id, subagent_id)
         for subagent_id in wanted - current:
-            await self.create_subagent(agent_id, subagent_id)
+            if subagent_id in disabled:
+                await self.create_subagent(
+                    agent_id,
+                    subagent_id,
+                    enabled_by_default=False,
+                )
+            else:
+                await self.create_subagent(agent_id, subagent_id)
+        defaults_changed = False
+        for link in current_links:
+            if link.subagent_id in wanted:
+                enabled = link.subagent_id not in disabled
+                if link.enabled_by_default != enabled:
+                    defaults_changed = True
+                    await self.repository.set_subagent_default(
+                        link, enabled_by_default=enabled
+                    )
+        if defaults_changed:
+            await self._stage_agents_changed()
 
     # -- Sandbox binding -------------------------------------------------------
 

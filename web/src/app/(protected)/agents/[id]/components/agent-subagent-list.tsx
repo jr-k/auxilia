@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, X, Info, ArrowUpRight } from "lucide-react";
+import { ChevronRight, Plus, X, Info, ArrowUpRight } from "lucide-react";
 import { SubagentInfo } from "@/types/agents";
 import { useAgentsStore } from "@/stores/agents-store";
 import { AgentAvatar } from "@/components/ui/agent-avatar";
@@ -11,16 +11,19 @@ import {
 	useOpenAgentEditor,
 } from "@/hooks/use-open-agent-editor";
 import AddAgentSubagentDialog from "./add-agent-subagent-dialog";
+import { Switch } from "@/components/ui/switch";
 
 interface AgentSubagentListProps {
 	agentId: string;
 	/** True when this agent is itself used as a subagent elsewhere. */
 	isSubagent: boolean;
 	subagentIds: string[];
+	disabledByDefaultIds?: string[];
 	/** Display info for ids the store may not know (from agent.subagents). */
 	fallbackSubagents?: SubagentInfo[];
 	readOnly?: boolean;
 	onChange?: (subagentIds: string[]) => void;
+	onDefaultEnabledChange?: (subagentId: string, enabled: boolean) => void;
 	/** Asked before a row navigates away to the subagent's page; return false
 	 * to stay (the editor uses it to guard an unsaved draft). */
 	confirmLeave?: () => boolean | Promise<boolean>;
@@ -30,13 +33,16 @@ export default function AgentSubagentList({
 	agentId,
 	isSubagent,
 	subagentIds,
+	disabledByDefaultIds = [],
 	fallbackSubagents = [],
 	readOnly,
 	onChange,
+	onDefaultEnabledChange,
 	confirmLeave,
 }: AgentSubagentListProps) {
 	const allAgents = useAgentsStore((state) => state.agents);
 	const [dialogOpen, setDialogOpen] = useState(false);
+	const [expandedIds, setExpandedIds] = useState<Set<string>>(() => new Set());
 	const { openAgentEditor, forbiddenOpen, setForbiddenOpen } =
 		useOpenAgentEditor();
 
@@ -113,20 +119,26 @@ export default function AgentSubagentList({
 			</div>
 			{subagents.length > 0 ? (
 				<div className="flex flex-col gap-2.5">
-					{subagents.map((sub) => (
-						// The row itself is inert; the link and the remove control
-						// are siblings so neither nests inside the other. The link
-						// carries the card's padding so its hit area is the whole
-						// card minus the remove control, matching the hover.
-						<div
-							key={sub.id}
-							className="group flex items-center rounded-[10px] border border-border bg-card transition-colors hover:border-border-hover hover:bg-hover dark:hover:bg-white/5"
-						>
+					{subagents.map((sub) => {
+						const isExpanded = expandedIds.has(sub.id);
+						const enabledByDefault = !disabledByDefaultIds.includes(sub.id);
+						return (
+							<div
+								key={sub.id}
+								className="overflow-hidden rounded-[10px] border border-border bg-card"
+							>
 							<button
 								type="button"
-								className="flex min-w-0 flex-1 cursor-pointer items-center gap-3 rounded-[10px] px-4 py-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-petrol/40"
+								aria-expanded={isExpanded}
+								aria-label={isExpanded ? "Collapse" : "Expand"}
+								className="flex w-full cursor-pointer items-center gap-3 px-4 py-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-petrol/40"
 								onClick={() => {
-									handleOpen(sub.id);
+									setExpandedIds((current) => {
+										const next = new Set(current);
+										if (isExpanded) next.delete(sub.id);
+										else next.add(sub.id);
+										return next;
+									});
 								}}
 							>
 								<AgentAvatar
@@ -150,25 +162,62 @@ export default function AgentSubagentList({
 										)}
 									</span>
 								</span>
-								<ArrowUpRight
-									aria-hidden
-									className="size-3.5 shrink-0 text-meta opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 dark:text-panel-dim"
+								<ChevronRight
+									aria-hidden="true"
+									className={`size-4 shrink-0 text-meta transition-transform dark:text-panel-dim ${
+										isExpanded ? "rotate-90" : ""
+									}`}
 								/>
 							</button>
-							{!readOnly && (
-								<button
-									type="button"
-									aria-label={`Remove ${sub.name}`}
-									className="mr-2.5 flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-[7px] text-meta transition-colors hover:bg-hover hover:text-foreground dark:text-panel-dim dark:hover:bg-white/10"
-									onClick={() => {
-										handleRemove(sub.id);
-									}}
-								>
-									<X className="size-3.5" />
-								</button>
+							{isExpanded && (
+								<div className="border-t border-hover dark:border-white/5">
+									<div className="flex items-center gap-3 bg-petrol-tint/55 px-4 py-3 dark:bg-white/5">
+										<div className="min-w-0 flex-1">
+											<p className="text-[12.5px] font-semibold text-foreground">
+												New conversations
+											</p>
+											<p className="mt-0.5 text-[11.5px] text-muted-foreground">
+												Enable this subagent by default
+											</p>
+										</div>
+										<Switch
+											checked={enabledByDefault}
+											disabled={readOnly}
+											onCheckedChange={(checked) => {
+												onDefaultEnabledChange?.(sub.id, checked);
+											}}
+											aria-label={`Enable ${sub.name} by default in new conversations`}
+										/>
+									</div>
+									<div className="flex items-center justify-between border-t border-hover px-4 py-2 dark:border-white/5">
+										<button
+											type="button"
+											className="flex cursor-pointer items-center gap-1 rounded-[7px] px-3 py-1.5 text-[12.5px] font-semibold text-petrol transition-opacity hover:opacity-80 dark:text-panel-terminal"
+											onClick={() => {
+												handleOpen(sub.id);
+											}}
+										>
+											Open subagent
+											<ArrowUpRight className="size-3.5" />
+										</button>
+										{!readOnly && (
+											<button
+												type="button"
+												className="flex cursor-pointer items-center gap-1 rounded-[7px] px-3 py-1.5 text-[12.5px] font-semibold text-[#B04A3A] transition-colors hover:bg-[#FBEFED] dark:hover:bg-[#B04A3A]/10"
+												onClick={() => {
+													handleRemove(sub.id);
+												}}
+											>
+												<X className="size-3.5" />
+												Disable {sub.name}
+											</button>
+										)}
+									</div>
+								</div>
 							)}
-						</div>
-					))}
+							</div>
+						);
+					})}
 				</div>
 			) : (
 				<div className="rounded-[10px] border border-dashed border-input px-4 py-8 text-center text-[13px] text-meta dark:text-panel-dim">

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { ChevronRight } from "lucide-react";
 import { humanizeToolName } from "@/components/ai-elements/chain-of-thought";
 import { SandboxIcon } from "@/components/sandbox-icon";
+import { Switch } from "@/components/ui/switch";
 import { SANDBOX_PROVIDER_LABELS } from "@/lib/sandbox-providers";
 import type { Sandbox } from "@/types/sandboxes";
 
@@ -21,14 +22,18 @@ const SANDBOX_TOOLS = [
 
 interface AgentSandboxProps {
 	sandbox: Sandbox;
+	enabledByDefault: boolean;
 	readOnly?: boolean;
+	onDefaultEnabledChange?: (enabled: boolean) => void;
 	/** Draft update: detach this sandbox from the agent. */
 	onRemove?: () => void;
 }
 
 export default function AgentSandbox({
 	sandbox,
+	enabledByDefault,
 	readOnly,
+	onDefaultEnabledChange,
 	onRemove,
 }: AgentSandboxProps) {
 	// Matches the MCP server cards: collapsed on page open.
@@ -36,7 +41,15 @@ export default function AgentSandbox({
 
 	return (
 		<div className="overflow-hidden rounded-[10px] border border-border bg-card">
-			<div className="flex items-center gap-2.5 bg-card px-4 py-3">
+			<button
+				type="button"
+				onClick={() => {
+					setIsExpanded(!isExpanded);
+				}}
+				aria-label={isExpanded ? "Collapse" : "Expand"}
+				aria-expanded={isExpanded}
+				className="flex w-full cursor-pointer items-center gap-2.5 bg-card px-4 py-3 text-left"
+			>
 				<span className="flex size-[26px] shrink-0 items-center justify-center rounded-[6px] border border-border bg-card">
 					<SandboxIcon
 						sandboxId={sandbox.id}
@@ -51,24 +64,34 @@ export default function AgentSandbox({
 				<span className="shrink-0 rounded-[4px] bg-hover px-2 py-0.5 text-[9.5px] font-semibold text-subtle dark:bg-white/10 dark:text-panel-dim">
 					{SANDBOX_PROVIDER_LABELS[sandbox.provider]}
 				</span>
-				<button
-					onClick={() => {
-						setIsExpanded(!isExpanded);
-					}}
-					aria-label={isExpanded ? "Collapse" : "Expand"}
-					aria-expanded={isExpanded}
-					className="ml-auto cursor-pointer p-1 text-meta transition-colors hover:text-foreground dark:text-panel-dim"
-				>
-					<ChevronRight
-						className={`size-4 transition-transform ${
-							isExpanded ? "rotate-90" : ""
-						}`}
-					/>
-				</button>
-			</div>
+				<ChevronRight
+					aria-hidden="true"
+					className={`ml-auto mr-1 size-4 text-meta transition-all dark:text-panel-dim ${
+						isExpanded ? "rotate-90" : ""
+					}`}
+				/>
+			</button>
 
 			{isExpanded && (
 				<div className="border-t border-hover dark:border-white/5">
+					<div className="flex items-center gap-3 border-b border-hover bg-petrol-tint/55 px-4 py-3 dark:border-white/5 dark:bg-white/5">
+						<div className="min-w-0 flex-1">
+							<p className="text-[12.5px] font-semibold text-foreground">
+								New conversations
+							</p>
+							<p className="mt-0.5 text-[11.5px] text-muted-foreground">
+								Enable this sandbox by default
+							</p>
+						</div>
+						<Switch
+							checked={enabledByDefault}
+							disabled={readOnly}
+							onCheckedChange={(checked) => {
+								onDefaultEnabledChange?.(checked);
+							}}
+							aria-label={`Enable ${sandbox.name} by default in new conversations`}
+						/>
+					</div>
 					<div className="max-h-80 overflow-y-auto [scrollbar-width:thin]">
 						{SANDBOX_TOOLS.map((tool) => (
 							<div

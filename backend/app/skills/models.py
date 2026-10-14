@@ -241,3 +241,4 @@ class AgentSkillDB(TimestampMixin, SQLModel, table=True):
     skill_id: UUID = Field(
         foreign_key="skills.id", ondelete="CASCADE", primary_key=True, index=True
     )
+    enabled_by_default: bool = Field(default=True, nullable=False)

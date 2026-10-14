@@ -11,6 +11,7 @@ export interface AgentMCPServerForm {
 
 export interface AgentSandboxForm {
 	sandboxId: string;
+	enabledByDefault?: boolean;
 	tools: Record<string, ToolStatus> | null;
 }
 
@@ -32,7 +33,9 @@ export interface AgentFormState {
 	/** At most one — list-shaped to match the API. */
 	sandboxes: AgentSandboxForm[];
 	subagentIds: string[];
+	disabledSubagentIdsByDefault: string[];
 	skillIds: string[];
+	disabledSkillIdsByDefault: string[];
 }
 
 /** Blank draft for the create page (`/agents/new`). */
@@ -53,7 +56,9 @@ export function defaultAgentForm(): AgentFormState {
 		mcpServers: [],
 		sandboxes: [],
 		subagentIds: [],
+		disabledSubagentIdsByDefault: [],
 		skillIds: [],
+		disabledSkillIdsByDefault: [],
 	};
 }
 
@@ -78,10 +83,17 @@ export function fromAgent(agent: Agent): AgentFormState {
 		})),
 		sandboxes: (agent.sandboxes || []).map((sandbox) => ({
 			sandboxId: sandbox.sandboxId,
+			enabledByDefault: sandbox.enabledByDefault ?? true,
 			tools: sandbox.tools ? { ...sandbox.tools } : null,
 		})),
 		subagentIds: (agent.subagents || []).map((sub) => sub.id),
+		disabledSubagentIdsByDefault: (agent.subagents || [])
+			.filter((sub) => sub.enabledByDefault === false)
+			.map((sub) => sub.id),
 		skillIds: (agent.skills || []).map((skill) => skill.id),
+		disabledSkillIdsByDefault: (agent.skills || [])
+			.filter((skill) => skill.enabledByDefault === false)
+			.map((skill) => skill.id),
 	};
 }
 
@@ -126,10 +138,17 @@ export function toPayload(form: AgentFormState) {
 			.sort((a, b) => a.sandboxId.localeCompare(b.sandboxId))
 			.map((sandbox) => ({
 				sandboxId: sandbox.sandboxId,
+				enabledByDefault: sandbox.enabledByDefault ?? true,
 				tools: sortTools(sandbox.tools),
 			})),
 		subagentIds: [...form.subagentIds].sort(),
+		disabledSubagentIdsByDefault: form.disabledSubagentIdsByDefault
+			.filter((id) => form.subagentIds.includes(id))
+			.sort(),
 		skillIds: [...form.skillIds].sort(),
+		disabledSkillIdsByDefault: form.disabledSkillIdsByDefault
+			.filter((id) => form.skillIds.includes(id))
+			.sort(),
 	};
 }
 

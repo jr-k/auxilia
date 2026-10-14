@@ -353,10 +353,17 @@ export default function AgentEditor({
 				})),
 				sandboxes: (source.sandboxes ?? []).map((sandbox) => ({
 					sandboxId: sandbox.sandboxId,
+					enabledByDefault: sandbox.enabledByDefault ?? true,
 					tools: sandbox.tools,
 				})),
 				subagentIds: source.subagents.map((subagent) => subagent.id),
+				disabledSubagentIdsByDefault: source.subagents
+					.filter((subagent) => subagent.enabledByDefault === false)
+					.map((subagent) => subagent.id),
 				skillIds: (source.skills ?? []).map((skill) => skill.id),
+				disabledSkillIdsByDefault: (source.skills ?? [])
+					.filter((skill) => skill.enabledByDefault === false)
+					.map((skill) => skill.id),
 			});
 			let imageCopyFailed = false;
 			if (source.imageRevision) {
@@ -437,10 +444,28 @@ export default function AgentEditor({
 			<AgentSkillList
 				readOnly={readOnly}
 				skillIds={form.skillIds}
+				disabledByDefaultIds={form.disabledSkillIdsByDefault}
 				fallbackSkills={agent?.skills ?? []}
 				runsCode={form.sandboxes.length > 0}
 				onChange={(skillIds) => {
-					setField("skillIds", skillIds);
+					setForm((current) => ({
+						...current,
+						skillIds,
+						disabledSkillIdsByDefault:
+							current.disabledSkillIdsByDefault.filter((id) =>
+								skillIds.includes(id),
+							),
+					}));
+				}}
+				onDefaultEnabledChange={(skillId, enabled) => {
+					setForm((current) => ({
+						...current,
+						disabledSkillIdsByDefault: enabled
+							? current.disabledSkillIdsByDefault.filter(
+									(id) => id !== skillId,
+								)
+							: [...new Set([...current.disabledSkillIdsByDefault, skillId])],
+					}));
 				}}
 				onEnableCodeExecution={() => {
 					setAddToolOpen(true);
@@ -459,9 +484,32 @@ export default function AgentEditor({
 					agentId={agent?.id ?? ""}
 					isSubagent={agent?.isSubagent ?? false}
 					subagentIds={form.subagentIds}
+					disabledByDefaultIds={form.disabledSubagentIdsByDefault}
 					fallbackSubagents={agent?.subagents ?? []}
 					onChange={(subagentIds) => {
-						setField("subagentIds", subagentIds);
+						setForm((current) => ({
+							...current,
+							subagentIds,
+							disabledSubagentIdsByDefault:
+								current.disabledSubagentIdsByDefault.filter((id) =>
+									subagentIds.includes(id),
+								),
+						}));
+					}}
+					onDefaultEnabledChange={(subagentId, enabled) => {
+						setForm((current) => ({
+							...current,
+							disabledSubagentIdsByDefault: enabled
+								? current.disabledSubagentIdsByDefault.filter(
+										(id) => id !== subagentId,
+									)
+								: [
+										...new Set([
+											...current.disabledSubagentIdsByDefault,
+											subagentId,
+										]),
+									],
+						}));
 					}}
 					confirmLeave={() =>
 						!isDirtyRef.current
