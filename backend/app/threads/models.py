@@ -94,6 +94,12 @@ class ThreadDB(ThreadBase, TimestampMixin, table=True):
     disabled_skill_ids: list[str] = Field(
         default_factory=list, sa_column=_json_list_column()
     )
+    disabled_sandbox_ids: list[str] = Field(
+        default_factory=list, sa_column=_json_list_column()
+    )
+    disabled_subagent_ids: list[str] = Field(
+        default_factory=list, sa_column=_json_list_column()
+    )
     # Terminal status of the thread's most recent run, stamped in the same
     # transaction as the run's terminal update. NULL = no finished run
     # recorded. Server-stamped only — deliberately not on ThreadBase so it

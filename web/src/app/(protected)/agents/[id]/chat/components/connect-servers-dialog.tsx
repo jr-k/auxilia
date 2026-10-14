@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import {
 	Fragment,
@@ -19,13 +20,12 @@ import {
 import * as agentsApi from "@/lib/api/resources/agents";
 import * as mcpServersApi from "@/lib/api/resources/mcp-servers";
 import type { MCPServer } from "@/types/mcp-servers";
-import type {
-	AgentResourceMCPServer,
-	AgentResources,
-} from "@/types/agents";
+import type { AgentResourceMCPServer, AgentResources } from "@/types/agents";
 import type { ThreadResourceSettings } from "@/types/threads";
 import {
+	BoxIcon,
 	ExternalLinkIcon,
+	GitForkIcon,
 	LoaderIcon,
 	PlugIcon,
 	SparklesIcon,
@@ -33,8 +33,13 @@ import {
 import { toast } from "sonner";
 import { ServerIconTile } from "@/app/(protected)/mcp-servers/components/server-icon-tile";
 import { SkillAvatar } from "@/components/ui/skill-avatar";
+import { AgentAvatar } from "@/components/ui/agent-avatar";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
+import {
+	SANDBOX_PROVIDER_ICONS,
+	SANDBOX_PROVIDER_LABELS,
+} from "@/lib/sandbox-providers";
 
 interface ConnectServersDialogProps {
 	open: boolean;
@@ -47,7 +52,7 @@ interface ConnectServersDialogProps {
 	resourceSettingsSaving?: boolean;
 }
 
-type ResourceTab = "servers" | "skills";
+type ResourceTab = "servers" | "skills" | "sandboxes" | "subagents";
 
 export function ConnectServersDialog({
 	open,
@@ -71,6 +76,8 @@ export function ConnectServersDialog({
 	const rangeAnchorRef = useRef<Record<ResourceTab, string | null>>({
 		servers: null,
 		skills: null,
+		sandboxes: null,
+		subagents: null,
 	});
 
 	const disconnectedIds = useMemo(
@@ -79,6 +86,8 @@ export function ConnectServersDialog({
 	);
 	const servers = resources?.mcpServers ?? [];
 	const skills = resources?.skills ?? [];
+	const sandboxes = resources?.sandboxes ?? [];
+	const subagents = resources?.subagents ?? [];
 	const orderedServers = useMemo(
 		() =>
 			[...(resources?.mcpServers ?? [])].sort((left, right) => {
@@ -98,11 +107,25 @@ export function ConnectServersDialog({
 		() => new Set(resourceSettings.disabledSkillIds),
 		[resourceSettings.disabledSkillIds],
 	);
+	const disabledSandboxIds = useMemo(
+		() => new Set(resourceSettings.disabledSandboxIds),
+		[resourceSettings.disabledSandboxIds],
+	);
+	const disabledSubagentIds = useMemo(
+		() => new Set(resourceSettings.disabledSubagentIds),
+		[resourceSettings.disabledSubagentIds],
+	);
 	const enabledServerCount = servers.filter(
 		(server) => !disabledServerIds.has(server.id),
 	).length;
 	const enabledSkillCount = skills.filter(
 		(skill) => !disabledSkillIds.has(skill.id),
+	).length;
+	const enabledSandboxCount = sandboxes.filter(
+		(sandbox) => !disabledSandboxIds.has(sandbox.id),
+	).length;
+	const enabledSubagentCount = subagents.filter(
+		(subagent) => !disabledSubagentIds.has(subagent.id),
 	).length;
 	const allServersEnabled =
 		servers.length > 0 &&
@@ -111,9 +134,22 @@ export function ConnectServersDialog({
 		(server) => !disabledServerIds.has(server.id),
 	);
 	const allSkillsEnabled =
-		skills.length > 0 && skills.every((skill) => !disabledSkillIds.has(skill.id));
+		skills.length > 0 &&
+		skills.every((skill) => !disabledSkillIds.has(skill.id));
 	const someSkillsEnabled = skills.some(
 		(skill) => !disabledSkillIds.has(skill.id),
+	);
+	const allSandboxesEnabled =
+		sandboxes.length > 0 &&
+		sandboxes.every((sandbox) => !disabledSandboxIds.has(sandbox.id));
+	const someSandboxesEnabled = sandboxes.some(
+		(sandbox) => !disabledSandboxIds.has(sandbox.id),
+	);
+	const allSubagentsEnabled =
+		subagents.length > 0 &&
+		subagents.every((subagent) => !disabledSubagentIds.has(subagent.id));
+	const someSubagentsEnabled = subagents.some(
+		(subagent) => !disabledSubagentIds.has(subagent.id),
 	);
 	const isLoadingResources =
 		open && resourcesAgentId !== agentId && loadFailedFor !== agentId;
@@ -129,7 +165,12 @@ export function ConnectServersDialog({
 		if (!nextOpen) {
 			clearPolling();
 			setConnectingId(null);
-			rangeAnchorRef.current = { servers: null, skills: null };
+			rangeAnchorRef.current = {
+				servers: null,
+				skills: null,
+				sandboxes: null,
+				subagents: null,
+			};
 		}
 		onOpenChange(nextOpen);
 	};
@@ -230,17 +271,26 @@ export function ConnectServersDialog({
 		shiftKey = false,
 	) => {
 		const disabledKey =
-			type === "servers" ? "disabledMcpServerIds" : "disabledSkillIds";
+			type === "servers"
+				? "disabledMcpServerIds"
+				: type === "skills"
+					? "disabledSkillIds"
+					: type === "sandboxes"
+						? "disabledSandboxIds"
+						: "disabledSubagentIds";
 		const orderedIds =
 			type === "servers"
 				? orderedServers
 						.filter(
 							(server) =>
-								!disconnectedIds.has(server.id) ||
-								connectedIds.has(server.id),
+								!disconnectedIds.has(server.id) || connectedIds.has(server.id),
 						)
 						.map((server) => server.id)
-				: skills.map((skill) => skill.id);
+				: type === "skills"
+					? skills.map((skill) => skill.id)
+					: type === "sandboxes"
+						? sandboxes.map((sandbox) => sandbox.id)
+						: subagents.map((subagent) => subagent.id);
 		const previousAnchor = rangeAnchorRef.current[type];
 		rangeAnchorRef.current[type] = resourceId;
 		let targetIds = [resourceId];
@@ -266,11 +316,21 @@ export function ConnectServersDialog({
 
 	const setAllResourcesEnabled = (type: ResourceTab, enabled: boolean) => {
 		const disabledKey =
-			type === "servers" ? "disabledMcpServerIds" : "disabledSkillIds";
+			type === "servers"
+				? "disabledMcpServerIds"
+				: type === "skills"
+					? "disabledSkillIds"
+					: type === "sandboxes"
+						? "disabledSandboxIds"
+						: "disabledSubagentIds";
 		const resourceIds =
 			type === "servers"
 				? servers.map((server) => server.id)
-				: skills.map((skill) => skill.id);
+				: type === "skills"
+					? skills.map((skill) => skill.id)
+					: type === "sandboxes"
+						? sandboxes.map((sandbox) => sandbox.id)
+						: subagents.map((subagent) => subagent.id);
 		const disabledIds = new Set(resourceSettings[disabledKey]);
 		for (const id of resourceIds) {
 			if (enabled) disabledIds.delete(id);
@@ -289,20 +349,22 @@ export function ConnectServersDialog({
 				<DialogHeader>
 					<DialogTitle>Conversation resources</DialogTitle>
 					<DialogDescription>
-						Choose which MCP servers and skills are available in this
-						conversation.
+						Choose which MCP servers, skills, sandboxes and subagents are
+						available in this conversation.
 					</DialogDescription>
 				</DialogHeader>
 
 				<div
 					role="tablist"
 					aria-label="Agent resource type"
-					className="grid grid-cols-2 rounded-full bg-hover p-1 dark:bg-white/5"
+					className="grid grid-cols-4 rounded-full bg-hover p-1 dark:bg-white/5"
 				>
 					{(
 						[
 							["servers", "MCP servers", PlugIcon],
 							["skills", "Skills", SparklesIcon],
+							["sandboxes", "Sandbox", BoxIcon],
+							["subagents", "Subagents", GitForkIcon],
 						] as const
 					).map(([tab, label, Icon]) => {
 						const isActive = activeTab === tab;
@@ -328,7 +390,11 @@ export function ConnectServersDialog({
 									<span className="text-[10.5px] font-medium opacity-60">
 										{tab === "servers"
 											? `${enabledServerCount}/${servers.length}`
-											: `${enabledSkillCount}/${skills.length}`}
+											: tab === "skills"
+												? `${enabledSkillCount}/${skills.length}`
+												: tab === "sandboxes"
+													? `${enabledSandboxCount}/${sandboxes.length}`
+													: `${enabledSubagentCount}/${subagents.length}`}
 									</span>
 								)}
 							</button>
@@ -440,77 +506,215 @@ export function ConnectServersDialog({
 								description="This agent has no MCP server enabled."
 							/>
 						)
-					) : skills.length > 0 ? (
+					) : activeTab === "skills" ? (
+						skills.length > 0 ? (
+							<div className="flex flex-col gap-2">
+								<ResourceAllToggle
+									checked={
+										allSkillsEnabled
+											? true
+											: someSkillsEnabled
+												? "indeterminate"
+												: false
+									}
+									disabled={resourceSettingsSaving}
+									label="All skills"
+									onCheckedChange={(checked) => {
+										setAllResourcesEnabled("skills", checked);
+									}}
+								/>
+								{skills.map((skill) => {
+									const isEnabled = !disabledSkillIds.has(skill.id);
+									return (
+										<div
+											key={skill.id}
+											className="flex items-center gap-3 rounded-[10px] border border-hairline bg-sidebar p-3 dark:bg-white/5"
+										>
+											<Link
+												href={`/skills/${skill.id}`}
+												target="_blank"
+												rel="noreferrer"
+												className="group flex min-w-0 flex-1 items-center gap-3 rounded-md"
+											>
+												<SkillAvatar
+													skillId={skill.id}
+													name={skill.name}
+													emoji={skill.emoji}
+													color={skill.color}
+													imageRevision={skill.imageRevision}
+													size="sm"
+												/>
+												<div className="min-w-0 flex-1">
+													<p className="truncate text-[13px] font-semibold text-ink dark:text-panel-button">
+														{skill.name}
+													</p>
+													{skill.description && (
+														<p className="mt-0.5 truncate text-[11.5px] text-meta dark:text-panel-dim">
+															{skill.description}
+														</p>
+													)}
+												</div>
+												<ExternalLinkIcon className="size-3.5 shrink-0 text-meta transition-colors group-hover:text-petrol dark:text-panel-dim" />
+											</Link>
+											<Checkbox
+												checked={isEnabled}
+												disabled={resourceSettingsSaving}
+												onCheckedChange={(checked, event) => {
+													setResourceEnabled(
+														"skills",
+														skill.id,
+														checked,
+														event.shiftKey,
+													);
+												}}
+												aria-label={`${isEnabled ? "Disable" : "Enable"} ${skill.name} for this conversation`}
+											/>
+										</div>
+									);
+								})}
+							</div>
+						) : (
+							<EmptyState
+								icon={SparklesIcon}
+								title="No skills"
+								description="This agent has no skill enabled."
+							/>
+						)
+					) : activeTab === "sandboxes" ? (
+						sandboxes.length > 0 ? (
+							<div className="flex flex-col gap-2">
+								<ResourceAllToggle
+									checked={
+										allSandboxesEnabled
+											? true
+											: someSandboxesEnabled
+												? "indeterminate"
+												: false
+									}
+									disabled={resourceSettingsSaving}
+									label="All sandboxes"
+									onCheckedChange={(checked) => {
+										setAllResourcesEnabled("sandboxes", checked);
+									}}
+								/>
+								{sandboxes.map((sandbox) => {
+									const isEnabled = !disabledSandboxIds.has(sandbox.id);
+									return (
+										<div
+											key={sandbox.id}
+											className="flex items-center gap-3 rounded-[10px] border border-hairline bg-sidebar p-3 dark:bg-white/5"
+										>
+											<span className="flex size-8 shrink-0 items-center justify-center rounded-[7px] border border-border bg-card">
+												<Image
+													unoptimized
+													width={17}
+													height={17}
+													src={SANDBOX_PROVIDER_ICONS[sandbox.provider]}
+													alt={SANDBOX_PROVIDER_LABELS[sandbox.provider]}
+													className="rounded-[2px] object-contain"
+												/>
+											</span>
+											<div className="min-w-0 flex-1">
+												<p className="truncate text-[13px] font-semibold text-ink dark:text-panel-button">
+													{sandbox.name}
+												</p>
+												<p className="mt-0.5 truncate text-[11.5px] text-meta dark:text-panel-dim">
+													{SANDBOX_PROVIDER_LABELS[sandbox.provider]}
+												</p>
+											</div>
+											<div className="ml-auto flex shrink-0 items-center gap-2">
+												<ConnectionStatusBadge />
+												<Checkbox
+													checked={isEnabled}
+													disabled={resourceSettingsSaving}
+													onCheckedChange={(checked, event) => {
+														setResourceEnabled(
+															"sandboxes",
+															sandbox.id,
+															checked,
+															event.shiftKey,
+														);
+													}}
+													aria-label={`${isEnabled ? "Disable" : "Enable"} ${sandbox.name} for this conversation`}
+												/>
+											</div>
+										</div>
+									);
+								})}
+							</div>
+						) : (
+							<EmptyState
+								icon={BoxIcon}
+								title="No sandboxes"
+								description="This agent has no sandbox enabled."
+							/>
+						)
+					) : subagents.length > 0 ? (
 						<div className="flex flex-col gap-2">
 							<ResourceAllToggle
 								checked={
-									allSkillsEnabled
+									allSubagentsEnabled
 										? true
-										: someSkillsEnabled
+										: someSubagentsEnabled
 											? "indeterminate"
 											: false
 								}
 								disabled={resourceSettingsSaving}
-								label="All skills"
+								label="All subagents"
 								onCheckedChange={(checked) => {
-									setAllResourcesEnabled("skills", checked);
+									setAllResourcesEnabled("subagents", checked);
 								}}
 							/>
-							{skills.map((skill) => {
-								const isEnabled = !disabledSkillIds.has(skill.id);
+							{subagents.map((subagent) => {
+								const isEnabled = !disabledSubagentIds.has(subagent.id);
 								return (
 									<div
-										key={skill.id}
+										key={subagent.id}
 										className="flex items-center gap-3 rounded-[10px] border border-hairline bg-sidebar p-3 dark:bg-white/5"
 									>
-										<Link
-											href={`/skills/${skill.id}`}
-											target="_blank"
-											rel="noreferrer"
-											className="group flex min-w-0 flex-1 items-center gap-3 rounded-md"
-										>
-											<SkillAvatar
-												skillId={skill.id}
-												name={skill.name}
-												emoji={skill.emoji}
-												color={skill.color}
-												imageRevision={skill.imageRevision}
-												size="sm"
-											/>
-											<div className="min-w-0 flex-1">
-												<p className="truncate text-[13px] font-semibold text-ink dark:text-panel-button">
-													{skill.name}
-												</p>
-												{skill.description && (
-													<p className="mt-0.5 truncate text-[11.5px] text-meta dark:text-panel-dim">
-														{skill.description}
-													</p>
-												)}
-											</div>
-											<ExternalLinkIcon className="size-3.5 shrink-0 text-meta transition-colors group-hover:text-petrol dark:text-panel-dim" />
-										</Link>
-										<Checkbox
-											checked={isEnabled}
-											disabled={resourceSettingsSaving}
-											onCheckedChange={(checked, event) => {
-												setResourceEnabled(
-													"skills",
-													skill.id,
-													checked,
-													event.shiftKey,
-												);
-											}}
-											aria-label={`${isEnabled ? "Disable" : "Enable"} ${skill.name} for this conversation`}
+										<AgentAvatar
+											agentId={subagent.id}
+											name={subagent.name}
+											emoji={subagent.emoji}
+											color={subagent.color}
+											imageRevision={subagent.imageRevision}
+											size="sm"
 										/>
+										<div className="min-w-0 flex-1">
+											<p className="truncate text-[13px] font-semibold text-ink dark:text-panel-button">
+												{subagent.name}
+											</p>
+											{subagent.description && (
+												<p className="mt-0.5 truncate text-[11.5px] text-meta dark:text-panel-dim">
+													{subagent.description}
+												</p>
+											)}
+										</div>
+										<div className="ml-auto flex shrink-0 items-center gap-2">
+											<ConnectionStatusBadge />
+											<Checkbox
+												checked={isEnabled}
+												disabled={resourceSettingsSaving}
+												onCheckedChange={(checked, event) => {
+													setResourceEnabled(
+														"subagents",
+														subagent.id,
+														checked,
+														event.shiftKey,
+													);
+												}}
+												aria-label={`${isEnabled ? "Disable" : "Enable"} ${subagent.name} for this conversation`}
+											/>
+										</div>
 									</div>
 								);
 							})}
 						</div>
 					) : (
 						<EmptyState
-							icon={SparklesIcon}
-							title="No skills"
-							description="This agent has no skill enabled."
+							icon={GitForkIcon}
+							title="No subagents"
+							description="This agent has no subagent enabled."
 						/>
 					)}
 				</div>

@@ -36,6 +36,8 @@ import type { ThreadResourceSettings } from "@/types/threads";
 const EMPTY_RESOURCE_SETTINGS: ThreadResourceSettings = {
   disabledMcpServerIds: [],
   disabledSkillIds: [],
+  disabledSandboxIds: [],
+  disabledSubagentIds: [],
 };
 
 /**
@@ -179,6 +181,8 @@ const ChatPage = () => {
         ? {
             disabledMcpServerIds: thread.disabledMcpServerIds ?? [],
             disabledSkillIds: thread.disabledSkillIds ?? [],
+            disabledSandboxIds: thread.disabledSandboxIds ?? [],
+            disabledSubagentIds: thread.disabledSubagentIds ?? [],
           }
         : EMPTY_RESOURCE_SETTINGS;
 
@@ -194,6 +198,8 @@ const ChatPage = () => {
         settings: {
           disabledMcpServerIds: updated.disabledMcpServerIds ?? [],
           disabledSkillIds: updated.disabledSkillIds ?? [],
+          disabledSandboxIds: updated.disabledSandboxIds ?? [],
+          disabledSubagentIds: updated.disabledSubagentIds ?? [],
         },
       });
     } catch (error) {

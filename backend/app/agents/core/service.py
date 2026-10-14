@@ -30,6 +30,7 @@ from app.agents.schemas import (
     AgentPatch,
     AgentPermissionCreate,
     AgentResourceMCPServerResponse,
+    AgentResourceSandboxResponse,
     AgentResourcesResponse,
     AgentResponse,
     AgentSandboxConfig,
@@ -177,7 +178,40 @@ class AgentService(BaseService[AgentDB, AgentRepository]):
             if (server := server_rows.get(server_id)) is not None
         ]
         skills = await self.skill_service.list_for_agents(spec.all_agent_ids)
-        return AgentResourcesResponse(mcp_servers=mcp_servers, skills=skills)
+        sandbox_rows = {
+            sandbox.id: sandbox for sandbox in spec.all_sandbox_rows
+        }.values()
+        sandboxes = [
+            AgentResourceSandboxResponse(
+                id=sandbox.id,
+                name=sandbox.name,
+                description=sandbox.description,
+                provider=sandbox.provider,
+            )
+            for sandbox in sandbox_rows
+        ]
+        subagent_rows = await self.repository.list_by_ids(
+            subagent.id for subagent in spec.subagents
+        )
+        subagents_by_id = {subagent.id: subagent for subagent in subagent_rows}
+        subagents = [
+            SubagentResponse(
+                id=subagent.id,
+                name=subagent.name,
+                emoji=subagent.emoji,
+                color=subagent.color,
+                image_revision=subagent.image_revision,
+                description=subagent.description,
+            )
+            for spec_subagent in spec.subagents
+            if (subagent := subagents_by_id.get(spec_subagent.id)) is not None
+        ]
+        return AgentResourcesResponse(
+            mcp_servers=mcp_servers,
+            skills=skills,
+            sandboxes=sandboxes,
+            subagents=subagents,
+        )
 
     async def set_image(self, agent_id: UUID, image: ProcessedImage) -> UUID:
         await self._get_scoped(agent_id)

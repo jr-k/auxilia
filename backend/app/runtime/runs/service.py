@@ -278,7 +278,28 @@ class RunService:
         )
         if spec is None:
             raise NotFoundError("Agent not found")
-        await ensure_sandboxes_available(spec.all_sandbox_rows)
+        disabled_sandbox_ids = {
+            UUID(sandbox_id) for sandbox_id in thread.disabled_sandbox_ids
+        }
+        disabled_subagent_ids = {
+            UUID(subagent_id) for subagent_id in thread.disabled_subagent_ids
+        }
+        enabled_specs = [
+            spec.agent,
+            *(
+                subagent
+                for subagent in spec.subagents
+                if subagent.id not in disabled_subagent_ids
+            ),
+        ]
+        await ensure_sandboxes_available(
+            [
+                agent_spec.sandbox.row
+                for agent_spec in enabled_specs
+                if agent_spec.sandbox is not None
+                and agent_spec.sandbox.row.id not in disabled_sandbox_ids
+            ]
+        )
         return thread
 
     async def get(self, run_id: str, workspace_id: UUID | None = None) -> RunDB:

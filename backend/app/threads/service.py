@@ -162,10 +162,14 @@ class ThreadService(BaseService[ThreadDB, ThreadRepository]):
         (
             disabled_mcp_server_ids,
             disabled_skill_ids,
+            disabled_sandbox_ids,
+            disabled_subagent_ids,
         ) = await self._normalize_resource_ids(
             spec,
             data.disabled_mcp_server_ids,
             data.disabled_skill_ids,
+            data.disabled_sandbox_ids,
+            data.disabled_subagent_ids,
         )
         # Strict at selection time (unlike model availability, which is only
         # flagged): an undeclared effort level is a client bug, and letting it
@@ -186,6 +190,8 @@ class ThreadService(BaseService[ThreadDB, ThreadRepository]):
                     "reasoning_effort",
                     "disabled_mcp_server_ids",
                     "disabled_skill_ids",
+                    "disabled_sandbox_ids",
+                    "disabled_subagent_ids",
                 },
             ),
             model_id=model_id,
@@ -196,6 +202,8 @@ class ThreadService(BaseService[ThreadDB, ThreadRepository]):
             trigger_id=trigger_id,
             disabled_mcp_server_ids=disabled_mcp_server_ids,
             disabled_skill_ids=disabled_skill_ids,
+            disabled_sandbox_ids=disabled_sandbox_ids,
+            disabled_subagent_ids=disabled_subagent_ids,
         )
         self.db.add(thread)
         await self.db.flush()
@@ -250,21 +258,33 @@ class ThreadService(BaseService[ThreadDB, ThreadRepository]):
         (
             disabled_mcp_server_ids,
             disabled_skill_ids,
+            disabled_sandbox_ids,
+            disabled_subagent_ids,
         ) = await self._normalize_resource_ids(
             spec,
             data.disabled_mcp_server_ids,
             data.disabled_skill_ids,
+            data.disabled_sandbox_ids,
+            data.disabled_subagent_ids,
             tolerated_mcp_ids={
                 UUID(resource_id) for resource_id in thread.disabled_mcp_server_ids
             },
             tolerated_skill_ids={
                 UUID(resource_id) for resource_id in thread.disabled_skill_ids
             },
+            tolerated_sandbox_ids={
+                UUID(resource_id) for resource_id in thread.disabled_sandbox_ids
+            },
+            tolerated_subagent_ids={
+                UUID(resource_id) for resource_id in thread.disabled_subagent_ids
+            },
         )
         await self.repository.set_resources(
             thread_id,
             disabled_mcp_server_ids,
             disabled_skill_ids,
+            disabled_sandbox_ids,
+            disabled_subagent_ids,
         )
         return await self.get_with_agent(thread_id)
 
@@ -273,29 +293,53 @@ class ThreadService(BaseService[ThreadDB, ThreadRepository]):
         spec: RunSpec,
         disabled_mcp_server_ids: list[UUID],
         disabled_skill_ids: list[UUID],
+        disabled_sandbox_ids: list[UUID],
+        disabled_subagent_ids: list[UUID],
         *,
         tolerated_mcp_ids: set[UUID] | None = None,
         tolerated_skill_ids: set[UUID] | None = None,
-    ) -> tuple[list[str], list[str]]:
+        tolerated_sandbox_ids: set[UUID] | None = None,
+        tolerated_subagent_ids: set[UUID] | None = None,
+    ) -> tuple[list[str], list[str], list[str], list[str]]:
         mcp_ids = list(dict.fromkeys(disabled_mcp_server_ids))
         skill_ids = list(dict.fromkeys(disabled_skill_ids))
+        sandbox_ids = list(dict.fromkeys(disabled_sandbox_ids))
+        subagent_ids = list(dict.fromkeys(disabled_subagent_ids))
         available_mcp_ids = {binding.mcp_server_id for binding in spec.all_mcp_bindings}
         available_skill_ids = await SkillRepository(
             self.db, self.workspace_id
         ).list_attached_ids_for_agents(spec.all_agent_ids)
+        available_sandbox_ids = {sandbox.id for sandbox in spec.all_sandbox_rows}
+        available_subagent_ids = {subagent.id for subagent in spec.subagents}
         unknown_mcp_ids = (
             set(mcp_ids) - available_mcp_ids - (tolerated_mcp_ids or set())
         )
         unknown_skill_ids = (
             set(skill_ids) - available_skill_ids - (tolerated_skill_ids or set())
         )
-        if unknown_mcp_ids or unknown_skill_ids:
+        unknown_sandbox_ids = (
+            set(sandbox_ids) - available_sandbox_ids - (tolerated_sandbox_ids or set())
+        )
+        unknown_subagent_ids = (
+            set(subagent_ids)
+            - available_subagent_ids
+            - (tolerated_subagent_ids or set())
+        )
+        if (
+            unknown_mcp_ids
+            or unknown_skill_ids
+            or unknown_sandbox_ids
+            or unknown_subagent_ids
+        ):
             raise DomainValidationError(
                 "Thread resources must belong to the agent or one of its subagents."
             )
-        return [str(resource_id) for resource_id in mcp_ids], [
-            str(resource_id) for resource_id in skill_ids
-        ]
+        return (
+            [str(resource_id) for resource_id in mcp_ids],
+            [str(resource_id) for resource_id in skill_ids],
+            [str(resource_id) for resource_id in sandbox_ids],
+            [str(resource_id) for resource_id in subagent_ids],
+        )
 
     async def delete(self, thread_id: str) -> ThreadDB:
         thread = await self.get_or_404(thread_id)

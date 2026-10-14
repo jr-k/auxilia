@@ -632,8 +632,14 @@ class Agent:
         disabled_mcp_server_ids = {
             UUID(server_id) for server_id in thread.disabled_mcp_server_ids
         }
+        disabled_sandbox_ids = {
+            UUID(sandbox_id) for sandbox_id in thread.disabled_sandbox_ids
+        }
+        disabled_subagent_ids = {
+            UUID(subagent_id) for subagent_id in thread.disabled_subagent_ids
+        }
 
-        def filter_mcp_bindings(agent_spec: AgentSpec) -> AgentSpec:
+        def filter_resources(agent_spec: AgentSpec) -> AgentSpec:
             return replace(
                 agent_spec,
                 mcp_servers=[
@@ -641,11 +647,21 @@ class Agent:
                     for binding in agent_spec.mcp_servers
                     if binding.mcp_server_id not in disabled_mcp_server_ids
                 ],
+                sandbox=(
+                    None
+                    if agent_spec.sandbox is not None
+                    and agent_spec.sandbox.row.id in disabled_sandbox_ids
+                    else agent_spec.sandbox
+                ),
             )
 
         spec = RunSpec(
-            agent=filter_mcp_bindings(spec.agent),
-            subagents=[filter_mcp_bindings(subagent) for subagent in spec.subagents],
+            agent=filter_resources(spec.agent),
+            subagents=[
+                filter_resources(subagent)
+                for subagent in spec.subagents
+                if subagent.id not in disabled_subagent_ids
+            ],
         )
 
         # Every MCP server the graph touches, in one query — the parent's and

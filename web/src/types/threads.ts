@@ -27,6 +27,8 @@ export interface Thread {
 	modelAvailable?: boolean;
 	disabledMcpServerIds?: string[];
 	disabledSkillIds?: string[];
+	disabledSandboxIds?: string[];
+	disabledSubagentIds?: string[];
 	updatedAt?: string;
 }
 
@@ -52,11 +54,15 @@ export interface ThreadCreate {
 	firstMessageContent?: string;
 	disabledMcpServerIds?: string[];
 	disabledSkillIds?: string[];
+	disabledSandboxIds?: string[];
+	disabledSubagentIds?: string[];
 }
 
 export interface ThreadResourceSettings {
 	disabledMcpServerIds: string[];
 	disabledSkillIds: string[];
+	disabledSandboxIds: string[];
+	disabledSubagentIds: string[];
 }
 
 export interface AgentThread extends Thread {
