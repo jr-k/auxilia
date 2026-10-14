@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.17](https://github.com/jr-k/auxilia/compare/web-v0.12.16...web-v0.12.17) (2026-10-14)
+
+
+### Features
+
+* **agents:** configure resource conversation defaults ([#136](https://github.com/jr-k/auxilia/issues/136)) ([6216ef5](https://github.com/jr-k/auxilia/commit/6216ef586d812d563d362d5bed4147d3be174761))
+
 ## [0.12.16](https://github.com/jr-k/auxilia/compare/web-v0.12.15...web-v0.12.16) (2026-10-14)
 
 
