@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { ChevronsUpDown, Plus } from "lucide-react";
+import { Tooltip } from "react-tooltip";
 import { MCPServer } from "@/types/mcp-servers";
 import { ToolStatus } from "@/types/agents";
 import { Sandbox } from "@/types/sandboxes";
@@ -12,6 +13,7 @@ import ConfirmDialog from "@/components/ui/confirm-dialog";
 import { AgentMCPServerForm, AgentSandboxForm } from "../../lib/agent-form";
 import * as mcpServersApi from "@/lib/api/resources/mcp-servers";
 import * as sandboxesApi from "@/lib/api/resources/sandboxes";
+import { THREE_STATE_TOGGLE_TOOLTIP_ID } from "@/components/ui/three-state-toggle";
 
 interface AgentToolListProps {
 	/** Saved agent id — undefined in create mode (`/agents/new`). */
@@ -369,6 +371,12 @@ export default function AgentToolList({
 					onAddSandbox={handleAddSandbox}
 				/>
 			)}
+			<Tooltip
+				id={THREE_STATE_TOGGLE_TOOLTIP_ID}
+				place="top"
+				delayShow={300}
+				className="z-50 rounded-lg! bg-ink! px-2! py-1! text-xs! text-white!"
+			/>
 		</div>
 	);
 }

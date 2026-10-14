@@ -1,10 +1,9 @@
 "use client";
 
-import React from "react";
 import { cn } from "@/lib/utils";
-import { Tooltip } from "react-tooltip";
 
 export type ToggleState = "always_allow" | "needs_approval" | "disabled";
+export const THREE_STATE_TOGGLE_TOOLTIP_ID = "three-state-toggle-tooltip";
 
 const states: {
 	id: ToggleState;
@@ -110,39 +109,30 @@ export function ThreeStateToggle({
 			{states.map((state) => {
 				const Icon = iconMap[state.icon];
 				const isSelected = value === state.id;
-				const tooltipId = `three-state-toggle-${state.id}`;
 
 				return (
-					<React.Fragment key={state.id}>
-						<button
-							type="button"
-							onClick={() => {
-								onChange(state.id);
-							}}
-							className={cn(
-								"relative z-10 flex h-6 w-8 items-center justify-center rounded-full",
-								"transition-colors duration-200 cursor-pointer",
-								isSelected
-									? "text-foreground"
-									: "text-faint hover:text-label dark:text-panel-dim",
-							)}
-							aria-label={state.label}
-							aria-pressed={isSelected}
-							data-tooltip-id={tooltipId}
-							data-tooltip-content={state.label}
-						>
-							<span className="scale-[0.6]">
-								<Icon />
-							</span>
-						</button>
-
-						<Tooltip
-							id={tooltipId}
-							place="top"
-							delayShow={300}
-							className="z-50 text-xs! py-1! px-2! rounded-lg! bg-ink! text-white!"
-						/>
-					</React.Fragment>
+					<button
+						key={state.id}
+						type="button"
+						onClick={() => {
+							onChange(state.id);
+						}}
+						className={cn(
+							"relative z-10 flex h-6 w-8 items-center justify-center rounded-full",
+							"transition-colors duration-200 cursor-pointer",
+							isSelected
+								? "text-foreground"
+								: "text-faint hover:text-label dark:text-panel-dim",
+						)}
+						aria-label={state.label}
+						aria-pressed={isSelected}
+						data-tooltip-id={THREE_STATE_TOGGLE_TOOLTIP_ID}
+						data-tooltip-content={state.label}
+					>
+						<span className="scale-[0.6]">
+							<Icon />
+						</span>
+					</button>
 				);
 			})}
 		</div>

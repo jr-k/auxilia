@@ -1,6 +1,12 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import {
+	useState,
+	useEffect,
+	useCallback,
+	useRef,
+	type UIEvent,
+} from "react";
 import {
 	MCPServer,
 	MCPServerTool,
@@ -41,6 +47,90 @@ interface AgentMCPServerProps {
 	onToolsPersisted?: (tools: Record<string, ToolStatus>) => void;
 	/** Draft update: detach this server. */
 	onRemove?: () => void;
+}
+
+const TOOL_RENDER_BATCH_SIZE = 8;
+
+interface ProgressiveToolListProps {
+	serverName: string;
+	tools: MCPServerTool[];
+	binding: AgentMCPServerForm;
+	readOnly?: boolean;
+	onDefaultEnabledChange?: (enabled: boolean) => void;
+	statusFor: (toolName: string) => ToolStatus;
+	onStatusChange: (toolName: string, status: ToolStatus) => void;
+}
+
+function ProgressiveToolList({
+	serverName,
+	tools,
+	binding,
+	readOnly,
+	onDefaultEnabledChange,
+	statusFor,
+	onStatusChange,
+}: ProgressiveToolListProps) {
+	const [visibleToolCount, setVisibleToolCount] = useState(
+		TOOL_RENDER_BATCH_SIZE,
+	);
+	const visibleTools = tools.slice(0, visibleToolCount);
+	const remainingToolCount = tools.length - visibleTools.length;
+
+	const handleScroll = (event: UIEvent<HTMLDivElement>) => {
+		const { scrollTop, clientHeight, scrollHeight } = event.currentTarget;
+		if (
+			remainingToolCount > 0 &&
+			scrollHeight - scrollTop - clientHeight < 80
+		) {
+			setVisibleToolCount((current) =>
+				Math.min(current + TOOL_RENDER_BATCH_SIZE, tools.length),
+			);
+		}
+	};
+
+	return (
+		<div
+			className="max-h-80 overflow-y-auto [scrollbar-width:thin]"
+			onScroll={handleScroll}
+		>
+			<div className="flex items-center gap-3 border-b border-hover bg-petrol-tint/55 px-4 py-3 dark:border-white/5 dark:bg-white/5">
+				<div className="min-w-0 flex-1">
+					<p className="text-[12.5px] font-semibold text-foreground">
+						New conversations
+					</p>
+					<p className="mt-0.5 text-[11.5px] text-muted-foreground">
+						Enable this MCP server by default
+					</p>
+				</div>
+				<Switch
+					checked={binding.enabledByDefault ?? true}
+					disabled={readOnly}
+					onCheckedChange={(checked) => {
+						onDefaultEnabledChange?.(checked);
+					}}
+					aria-label={`Enable ${serverName} by default in new conversations`}
+				/>
+			</div>
+			{visibleTools.map((tool) => (
+				<AgentMCPTool
+					key={tool.name}
+					toolName={tool.name}
+					toolDescription={tool.description ?? undefined}
+					status={statusFor(tool.name)}
+					readOnly={readOnly}
+					onStatusChange={(status) => {
+						onStatusChange(tool.name, status);
+					}}
+				/>
+			))}
+			{remainingToolCount > 0 && (
+				<div className="border-t border-hover px-4 py-2 text-center text-[11px] text-meta dark:border-white/5 dark:text-panel-dim">
+					{remainingToolCount} more tool
+					{remainingToolCount === 1 ? "" : "s"} · scroll to load
+				</div>
+			)}
+		</div>
+	);
 }
 
 export default function AgentMCPServer({
@@ -392,39 +482,15 @@ export default function AgentMCPServer({
 							</button>
 						</div>
 					) : configurableTools.length > 0 ? (
-						// Show ~5-6 tool rows; longer lists scroll within the card.
-						<div className="max-h-80 overflow-y-auto [scrollbar-width:thin]">
-							<div className="flex items-center gap-3 border-b border-hover bg-petrol-tint/55 px-4 py-3 dark:border-white/5 dark:bg-white/5">
-								<div className="min-w-0 flex-1">
-									<p className="text-[12.5px] font-semibold text-foreground">
-										New conversations
-									</p>
-									<p className="mt-0.5 text-[11.5px] text-muted-foreground">
-										Enable this MCP server by default
-									</p>
-								</div>
-								<Switch
-									checked={binding.enabledByDefault ?? true}
-									disabled={readOnly}
-									onCheckedChange={(checked) => {
-										onDefaultEnabledChange?.(checked);
-									}}
-									aria-label={`Enable ${server.name} by default in new conversations`}
-								/>
-							</div>
-							{configurableTools.map((tool) => (
-								<AgentMCPTool
-									key={tool.name}
-									toolName={tool.name}
-									toolDescription={tool.description ?? undefined}
-									status={statusFor(tool.name)}
-									readOnly={readOnly}
-									onStatusChange={(status) => {
-										handleStatusChange(tool.name, status);
-									}}
-								/>
-							))}
-						</div>
+						<ProgressiveToolList
+							serverName={server.name}
+							tools={configurableTools}
+							binding={binding}
+							readOnly={readOnly}
+							onDefaultEnabledChange={onDefaultEnabledChange}
+							statusFor={statusFor}
+							onStatusChange={handleStatusChange}
+						/>
 					) : (
 						<div className="px-4 py-3 text-[13px] text-muted-foreground">
 							No enabled tools available
