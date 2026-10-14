@@ -32,7 +32,11 @@ export interface AgentWrite {
 	defaultModelId?: string | null;
 	defaultReasoningEffort?: string | null;
 	teamIds: string[];
-	mcpServers: { mcpServerId: string; tools: Record<string, string> | null }[];
+	mcpServers: {
+		mcpServerId: string;
+		enabledByDefault: boolean;
+		tools: Record<string, string> | null;
+	}[];
 	sandboxes: { sandboxId: string; tools: Record<string, string> | null }[];
 	subagentIds: string[];
 	skillIds: string[];
