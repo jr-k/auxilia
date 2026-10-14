@@ -61,6 +61,27 @@ export async function updateSandbox(
 	return response.data;
 }
 
+export function sandboxImageUrl(sandboxId: string, revision: string): string {
+	return `/api/backend/sandboxes/${sandboxId}/image?v=${encodeURIComponent(revision)}`;
+}
+
+export async function uploadSandboxImage(
+	sandboxId: string,
+	file: File,
+): Promise<string> {
+	const form = new FormData();
+	form.append("file", file);
+	const response = await api.put<{ imageRevision: string }>(
+		`/sandboxes/${sandboxId}/image`,
+		form,
+	);
+	return response.data.imageRevision;
+}
+
+export async function deleteSandboxImage(sandboxId: string): Promise<void> {
+	await api.delete(`/sandboxes/${sandboxId}/image`);
+}
+
 /** Delete a sandbox. Refused while agents still bind it unless `detachAgents`. */
 export async function deleteSandbox(
 	sandboxId: string,

@@ -84,6 +84,7 @@ class AgentPatch(SQLModel):
 
 class AgentMCPServerConfig(SQLModel):
     mcp_server_id: UUID
+    enabled_by_default: bool = True
     tools: dict[str, ToolStatus] | None = None
 
 
@@ -148,10 +149,12 @@ class AgentConfig(SQLModel):
 
 
 class AgentMCPServerCreate(SQLModel):
+    enabled_by_default: bool = True
     tools: dict[str, ToolStatus] | None = None
 
 
 class AgentMCPServerPatch(SQLModel):
+    enabled_by_default: bool | None = None
     tools: dict[str, ToolStatus] | None = None
 
 
@@ -179,6 +182,7 @@ class AgentResourceMCPServerResponse(SQLModel):
     image_revision: UUID | None = None
     description: str | None = None
     configured: bool
+    enabled_by_default: bool
 
 
 class AgentResourceSandboxResponse(SQLModel):
@@ -186,6 +190,7 @@ class AgentResourceSandboxResponse(SQLModel):
     name: str
     description: str | None = None
     provider: SandboxProviderType
+    image_revision: UUID | None = None
 
 
 class AgentSandboxResponse(SQLModel):
@@ -197,6 +202,7 @@ class AgentSandboxResponse(SQLModel):
     name: str
     provider: SandboxProviderType
     url: str
+    image_revision: UUID | None = None
 
 
 class AgentPermissionResponse(SQLModel):

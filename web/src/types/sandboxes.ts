@@ -8,6 +8,7 @@ export interface Sandbox {
 	url: string;
 	/** Provider-specific config (camelCase — the axios client converts). */
 	config: Record<string, unknown>;
+	imageRevision?: string | null;
 	hasSecret: boolean;
 	createdAt: string;
 	updatedAt: string;

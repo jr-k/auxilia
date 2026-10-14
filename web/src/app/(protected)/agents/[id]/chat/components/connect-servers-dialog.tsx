@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import {
 	Fragment,
@@ -35,11 +34,9 @@ import { ServerIconTile } from "@/app/(protected)/mcp-servers/components/server-
 import { SkillAvatar } from "@/components/ui/skill-avatar";
 import { AgentAvatar } from "@/components/ui/agent-avatar";
 import { Checkbox } from "@/components/ui/checkbox";
+import { SandboxIcon } from "@/components/sandbox-icon";
 import { cn } from "@/lib/utils";
-import {
-	SANDBOX_PROVIDER_ICONS,
-	SANDBOX_PROVIDER_LABELS,
-} from "@/lib/sandbox-providers";
+import { SANDBOX_PROVIDER_LABELS } from "@/lib/sandbox-providers";
 
 interface ConnectServersDialogProps {
 	open: boolean;
@@ -605,13 +602,11 @@ export function ConnectServersDialog({
 											className="flex items-center gap-3 rounded-[10px] border border-hairline bg-sidebar p-3 dark:bg-white/5"
 										>
 											<span className="flex size-8 shrink-0 items-center justify-center rounded-[7px] border border-border bg-card">
-												<Image
-													unoptimized
-													width={17}
-													height={17}
-													src={SANDBOX_PROVIDER_ICONS[sandbox.provider]}
-													alt={SANDBOX_PROVIDER_LABELS[sandbox.provider]}
-													className="rounded-[2px] object-contain"
+												<SandboxIcon
+													sandboxId={sandbox.id}
+													imageRevision={sandbox.imageRevision}
+													provider={sandbox.provider}
+													size={17}
 												/>
 											</span>
 											<div className="min-w-0 flex-1">

@@ -2,16 +2,13 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
 import { Plus } from "lucide-react";
+import { SandboxIcon } from "@/components/sandbox-icon";
 import { getApiErrorMessage } from "@/lib/api/errors";
 import * as mcpServersApi from "@/lib/api/resources/mcp-servers";
 import { MCPServer } from "@/types/mcp-servers";
 import { Sandbox } from "@/types/sandboxes";
-import {
-	SANDBOX_PROVIDER_ICONS,
-	SANDBOX_PROVIDER_LABELS,
-} from "@/lib/sandbox-providers";
+import { SANDBOX_PROVIDER_LABELS } from "@/lib/sandbox-providers";
 import { ServerIconTile } from "@/app/(protected)/mcp-servers/components/server-icon-tile";
 import {
 	Dialog,
@@ -83,12 +80,11 @@ function AvailableSandboxCard({
 }) {
 	return (
 		<div className="flex items-center gap-3 rounded-[10px] border border-hairline bg-canvas px-4 py-3 transition-colors hover:bg-sidebar dark:bg-white/5 dark:hover:bg-white/10">
-			<Image
-				unoptimized
-				src={SANDBOX_PROVIDER_ICONS[sandbox.provider]}
-				alt={SANDBOX_PROVIDER_LABELS[sandbox.provider]}
-				width={24}
-				height={24}
+			<SandboxIcon
+				sandboxId={sandbox.id}
+				imageRevision={sandbox.imageRevision}
+				provider={sandbox.provider}
+				size={24}
 				className="shrink-0 rounded-md"
 			/>
 			<div className="flex min-w-0 flex-1 flex-col gap-0.5">

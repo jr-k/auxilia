@@ -8,6 +8,8 @@ export type ToolDiscoveryMode = "disabled" | "automatic" | "local";
 
 interface AgentMCPServer extends MCPServer {
 	mcpServerId: string;
+	/** Detail responses only; defaults to true for older/list projections. */
+	enabledByDefault?: boolean;
 	/** Absent on list responses; the detail response carries the full map
 	 * (null = never synced). */
 	tools?: Record<string, ToolStatus> | null;
@@ -20,6 +22,7 @@ export interface AgentSandbox {
 	name: string;
 	provider: SandboxProviderType;
 	url: string;
+	imageRevision: string | null;
 }
 
 /** An agent still bound to a workspace resource (sandbox, MCP server) —
@@ -35,7 +38,9 @@ export interface BoundAgent {
 export type AgentPermission = "owner" | "admin" | "editor" | "member";
 
 /** Can this viewer configure the agent (edit instructions, MCP tools)? */
-export const canConfigureAgent = (permission?: AgentPermission | null): boolean =>
+export const canConfigureAgent = (
+	permission?: AgentPermission | null,
+): boolean =>
 	permission === "owner" || permission === "admin" || permission === "editor";
 
 /** Bot credentials remain server-side; this is the safe agent settings projection. */
@@ -120,6 +125,7 @@ export interface AgentResourceMCPServer {
 	imageRevision: string | null;
 	description: string | null;
 	configured: boolean;
+	enabledByDefault: boolean;
 }
 
 export interface AgentResourceSandbox {
@@ -127,6 +133,7 @@ export interface AgentResourceSandbox {
 	name: string;
 	description: string | null;
 	provider: SandboxProviderType;
+	imageRevision: string | null;
 }
 
 export interface AgentResources {

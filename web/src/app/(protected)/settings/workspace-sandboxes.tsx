@@ -1,15 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import Image from "next/image";
 import { Pencil, Plus, Trash2 } from "lucide-react";
 import { HeaderButton } from "@/components/layout/subpage-header";
 import { useConfirmDialog } from "@/components/providers/dialog-provider";
 import ResourceInUseDialog from "@/components/resource-in-use-dialog";
-import {
-	SANDBOX_PROVIDER_ICONS,
-	SANDBOX_PROVIDER_LABELS,
-} from "@/lib/sandbox-providers";
+import { SandboxIcon } from "@/components/sandbox-icon";
+import { SANDBOX_PROVIDER_LABELS } from "@/lib/sandbox-providers";
 import * as sandboxesApi from "@/lib/api/resources/sandboxes";
 import { useAgentsStore } from "@/stores/agents-store";
 import type { BoundAgent } from "@/types/agents";
@@ -236,13 +233,11 @@ export default function WorkspaceSandboxes({
 							className="flex items-center gap-3 border-b border-hairline px-4 py-3 transition-colors last:border-b-0 hover:bg-sidebar dark:border-white/5 dark:hover:bg-white/5"
 						>
 							<span className="flex size-[26px] shrink-0 items-center justify-center rounded-[6px] border border-border bg-card dark:border-white/10">
-								<Image
-									unoptimized
-									width={14}
-									height={14}
-									src={SANDBOX_PROVIDER_ICONS[sandbox.provider]}
-									alt={SANDBOX_PROVIDER_LABELS[sandbox.provider]}
-									className="rounded-[2px] object-contain"
+								<SandboxIcon
+									sandboxId={sandbox.id}
+									imageRevision={sandbox.imageRevision}
+									provider={sandbox.provider}
+									size={14}
 								/>
 							</span>
 							<div className="min-w-0 flex-1">

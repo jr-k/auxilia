@@ -1,6 +1,7 @@
 from enum import Enum
 from uuid import UUID
 
+import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Column, Enum as SAEnum, Field, SQLModel
 
@@ -36,3 +37,21 @@ class SandboxDB(SandboxBase, BaseDBModel, table=True):
     __tablename__ = "sandboxes"
 
     encrypted_secret: str | None = Field(default=None)
+    image_revision: UUID | None = Field(default=None, nullable=True)
+
+
+class SandboxImageDB(BaseDBModel, table=True):
+    __tablename__ = "sandbox_images"
+    __table_args__ = (
+        sa.UniqueConstraint("sandbox_id", name="uq_sandbox_image_sandbox_id"),
+    )
+
+    sandbox_id: UUID = Field(
+        foreign_key="sandboxes.id",
+        ondelete="CASCADE",
+        nullable=False,
+        index=True,
+    )
+    data: bytes = Field(sa_column=Column(sa.LargeBinary, nullable=False))
+    media_type: str = Field(max_length=50, nullable=False)
+    sha256: str = Field(max_length=64, nullable=False)

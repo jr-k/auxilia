@@ -4,6 +4,7 @@ import type { ResourceVisibility } from "@/types/visibility";
 
 export interface AgentMCPServerForm {
 	mcpServerId: string;
+	enabledByDefault?: boolean;
 	/** Complete per-tool map, or null = never synced (server not connected). */
 	tools: Record<string, ToolStatus> | null;
 }
@@ -72,6 +73,7 @@ export function fromAgent(agent: Agent): AgentFormState {
 		defaultReasoningEffort: agent.defaultReasoningEffort ?? null,
 		mcpServers: (agent.mcpServers || []).map((server) => ({
 			mcpServerId: server.mcpServerId,
+			enabledByDefault: server.enabledByDefault ?? true,
 			tools: server.tools ? { ...server.tools } : null,
 		})),
 		sandboxes: (agent.sandboxes || []).map((sandbox) => ({
@@ -117,6 +119,7 @@ export function toPayload(form: AgentFormState) {
 			.sort((a, b) => a.mcpServerId.localeCompare(b.mcpServerId))
 			.map((server) => ({
 				mcpServerId: server.mcpServerId,
+				enabledByDefault: server.enabledByDefault ?? true,
 				tools: sortTools(server.tools),
 			})),
 		sandboxes: [...form.sandboxes]

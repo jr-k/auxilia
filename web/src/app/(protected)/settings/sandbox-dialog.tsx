@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
+import { toast } from "sonner";
 import { SANDBOX_PROVIDER_ICONS } from "@/lib/sandbox-providers";
 import {
 	Dialog,
@@ -13,6 +14,7 @@ import {
 	DialogTitle,
 } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
+import { ImageUpload } from "@/components/ui/image-upload";
 import * as sandboxesApi from "@/lib/api/resources/sandboxes";
 import { getApiErrorMessage } from "@/lib/api/errors";
 import type {
@@ -249,6 +251,8 @@ export default function SandboxDialog({
 }: SandboxDialogProps) {
 	const [form, setForm] = useState<SandboxFormState>(defaultForm());
 	const [secretHint, setSecretHint] = useState<SandboxSecretHint | null>(null);
+	const [imageFile, setImageFile] = useState<File | null>(null);
+	const [removeImage, setRemoveImage] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const [isSaving, setIsSaving] = useState(false);
 	const [testStatus, setTestStatus] =
@@ -277,6 +281,8 @@ export default function SandboxDialog({
 		setTestStatus("idle");
 		setTestMessage(null);
 		setSecretHint(null);
+		setImageFile(null);
+		setRemoveImage(false);
 		if (sandbox?.hasSecret) {
 			sandboxesApi
 				.getSandboxSecretHint(sandbox.id)
@@ -320,9 +326,25 @@ export default function SandboxDialog({
 		setError(null);
 		try {
 			const payload = buildPayload();
-			const saved = isEdit
+			let saved = isEdit
 				? await sandboxesApi.updateSandbox(sandbox.id, payload)
 				: await sandboxesApi.createSandbox({ ...payload, provider: form.provider });
+			try {
+				if (imageFile) {
+					const imageRevision = await sandboxesApi.uploadSandboxImage(
+						saved.id,
+						imageFile,
+					);
+					saved = { ...saved, imageRevision };
+				} else if (removeImage && saved.imageRevision) {
+					await sandboxesApi.deleteSandboxImage(saved.id);
+					saved = { ...saved, imageRevision: null };
+				}
+			} catch {
+				toast.warning(
+					`${saved.name} was saved, but its image could not be updated.`,
+				);
+			}
 			onSaved(saved);
 			onOpenChange(false);
 		} catch (err: unknown) {
@@ -435,6 +457,37 @@ export default function SandboxDialog({
 									))}
 								</div>
 							</div>
+
+							<ImageUpload
+								currentUrl={
+									sandbox?.imageRevision && !removeImage
+										? sandboxesApi.sandboxImageUrl(
+												sandbox.id,
+												sandbox.imageRevision,
+											)
+										: spec.icon
+								}
+								file={imageFile}
+								onFileChange={(file) => {
+									setImageFile(file);
+									if (file) setRemoveImage(false);
+								}}
+								onRemove={() => {
+									if (imageFile) {
+										setImageFile(null);
+										return;
+									}
+									if (sandbox?.imageRevision) {
+										setRemoveImage(true);
+									}
+								}}
+								label="Sandbox icon"
+								disabled={isSaving}
+								removable={
+									Boolean(sandbox?.imageRevision) && !removeImage
+								}
+								className="rounded-[12px] border border-hairline bg-sidebar p-3 dark:border-white/5"
+							/>
 
 							<Field id="sandbox-name" label="Name">
 								<input

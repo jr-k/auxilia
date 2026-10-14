@@ -101,6 +101,7 @@ export default function AgentToolList({
 	const bindingFor = (serverId: string): AgentMCPServerForm =>
 		mcpServers.find((s) => s.mcpServerId === serverId) ?? {
 			mcpServerId: serverId,
+			enabledByDefault: true,
 			tools: null,
 		};
 
@@ -110,6 +111,16 @@ export default function AgentToolList({
 	) => {
 		onMcpServersChange?.((prev) =>
 			prev.map((s) => (s.mcpServerId === serverId ? { ...s, tools } : s)),
+		);
+	};
+
+	const handleDefaultEnabledChange = (serverId: string, enabled: boolean) => {
+		onMcpServersChange?.((prev) =>
+			prev.map((server) =>
+				server.mcpServerId === serverId
+					? { ...server, enabledByDefault: enabled }
+					: server,
+			),
 		);
 	};
 
@@ -155,7 +166,10 @@ export default function AgentToolList({
 		onMcpServersChange?.((prev) =>
 			prev.some((s) => s.mcpServerId === serverId)
 				? prev
-				: [...prev, { mcpServerId: serverId, tools: null }],
+				: [
+						...prev,
+						{ mcpServerId: serverId, enabledByDefault: true, tools: null },
+					],
 		);
 	};
 
@@ -211,6 +225,9 @@ export default function AgentToolList({
 								canEdit={canEdit}
 								onToolsChange={(tools) => {
 									handleToolsChange(server.id, tools);
+								}}
+								onDefaultEnabledChange={(enabled) => {
+									handleDefaultEnabledChange(server.id, enabled);
 								}}
 								onSeedTools={(fetchedNames) => {
 									handleSeedTools(server.id, fetchedNames);
@@ -286,8 +303,8 @@ export default function AgentToolList({
 						<span className="text-[12px] font-semibold text-petrol dark:text-panel-terminal">
 							{scriptSkillNames.join(", ")}
 						</span>
-						. {scriptSkillNames.length === 1 ? "It stays" : "They stay"} enabled,
-						the instructions keep applying, the scripts are skipped.
+						. {scriptSkillNames.length === 1 ? "It stays" : "They stay"}{" "}
+						enabled, the instructions keep applying, the scripts are skipped.
 					</>
 				}
 				confirmLabel="Turn off"
