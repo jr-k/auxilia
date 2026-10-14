@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.10](https://github.com/jr-k/auxilia/compare/backend-v0.11.9...backend-v0.11.10) (2026-10-14)
+
+
+### Bug Fixes
+
+* **runtime:** merge parallel MCP tool discoveries ([854fadf](https://github.com/jr-k/auxilia/commit/854fadfe4579560510880008fc1a37457412184b))
+
 ## [0.11.9](https://github.com/jr-k/auxilia/compare/backend-v0.11.8...backend-v0.11.9) (2026-10-14)
 
 

@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.9](https://github.com/jr-k/auxilia/compare/web-v0.12.8...web-v0.12.9) (2026-10-14)
+
+
+### Features
+
+* **chat:** toggle all conversation resources ([c98bfd4](https://github.com/jr-k/auxilia/commit/c98bfd4578e3b1a2052b1e574dc6b23eb70e7108))
+
 ## [0.12.8](https://github.com/jr-k/auxilia/compare/web-v0.12.7...web-v0.12.8) (2026-10-14)
 
 
