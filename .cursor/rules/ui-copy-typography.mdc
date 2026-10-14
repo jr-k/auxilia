@@ -1,0 +1,21 @@
+---
+description: Keep user-visible UI text naturally cased and normally spaced
+globs: web/src/**/*.tsx
+alwaysApply: false
+---
+
+# UI copy typography
+
+- Write user-visible labels and copy in natural sentence or title case.
+- Do not use Tailwind `uppercase` or `tracking-*` classes on user-visible text.
+- Do not hard-code labels in all caps to imitate an eyebrow or technical badge.
+- Preserve the canonical capitalization of acronyms such as MCP, API, CPU, and OAuth.
+- Decorative single-letter avatar fallbacks and logos are exempt.
+
+```tsx
+// Bad
+<span className="uppercase tracking-[0.12em]">MCP server</span>
+
+// Good
+<span>MCP server</span>
+```

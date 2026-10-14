@@ -32,7 +32,6 @@ type ToolIdentity = {
   serverName: string;
   toolName: string;
   icon: string | undefined;
-  sourceKind?: string;
 };
 
 export type DescribeTool = (toolName: string) => ToolIdentity;
@@ -59,7 +58,6 @@ export function useDescribeTool(
               ? sandboxImageUrl(sandbox.id, sandbox.imageRevision)
               : SANDBOX_PROVIDER_ICONS[sandbox.provider]
             : undefined,
-          sourceKind: "Sandbox",
         };
       }
       const { serverName, toolName } = getToolMetadata(name, known);
@@ -69,7 +67,6 @@ export function useDescribeTool(
           serverName: "Auxilia Search",
           toolName: "find_tools",
           icon: "/pwa-icon.svg",
-          sourceKind: "Built-in",
         };
       }
       if (!server && /^load_mcp_tools(?:_\d+)?$/.test(name)) {
@@ -77,7 +74,6 @@ export function useDescribeTool(
           serverName: "Auxilia Search",
           toolName: "load_tools",
           icon: "/pwa-icon.svg",
-          sourceKind: "Built-in",
         };
       }
       return {
@@ -87,7 +83,6 @@ export function useDescribeTool(
           server?.imageRevision != null
             ? mcpServerImageUrl(server.id, server.imageRevision)
             : server?.iconUrl,
-        sourceKind: "MCP server",
       };
     };
   }, [mcpServers, sandbox]);
@@ -117,7 +112,7 @@ export const ToolStep = memo(function ToolStep({
   nested = false,
   approval,
 }: ToolStepProps) {
-  const { serverName, toolName, icon, sourceKind } = describe(tc.name);
+  const { serverName, toolName, icon } = describe(tc.name);
   const awaiting = state === "awaiting-approval";
   const showResult =
     state === "rejected" || state === "error" || tc.output !== undefined;
@@ -139,7 +134,11 @@ export const ToolStep = memo(function ToolStep({
     <ChainStep
       nested={nested}
       node={
-        <ChainStepIcon icon={icon} name={serverName} kind={sourceKind} />
+        <ChainStepIcon
+          icon={icon}
+          name={serverName}
+          label={humanizeToolName(toolName)}
+        />
       }
       title={humanizeToolName(toolName)}
       summary={summarizeToolArgs(tc.args)}
