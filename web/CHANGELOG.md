@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.16](https://github.com/jr-k/auxilia/compare/web-v0.12.15...web-v0.12.16) (2026-10-14)
+
+
+### Performance Improvements
+
+* **agents:** optimize MCP tool expansion ([#134](https://github.com/jr-k/auxilia/issues/134)) ([6194b59](https://github.com/jr-k/auxilia/commit/6194b5994751f8babae407debb475bfff0542d44))
+
 ## [0.12.15](https://github.com/jr-k/auxilia/compare/web-v0.12.14...web-v0.12.15) (2026-10-14)
 
 
