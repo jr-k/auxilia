@@ -33,6 +33,41 @@
 
 This fork builds on the [original auxilia project](https://github.com/keurcien/auxilia) with a shorter development cycle. The goal is to turn feedback from real agent deployments into small, production-ready releases quickly, then harden the capabilities that prove useful. That faster loop has expanded auxilia from a shared MCP client into a complete platform for building, operating, and governing agents as a team.
 
+## ✨ What this fork adds
+
+This list covers only capabilities introduced by this fork. Existing upstream features such as scheduled triggers, sandboxes, skills, subagents, and durable runs are intentionally not repeated.
+
+**Workspace and administration**
+
+- 🏷️ **White-label instances**: customize the application name and logo throughout the product, including authentication screens, invitations, browser metadata, and the generated PWA manifest.
+- 🏢 **Multi-workspace administration**: create, switch, edit, and delete isolated workspaces, each with its own members, resources, branding, integrations, and credentials.
+- ⚙️ **In-app instance configuration**: manage model provider credentials, Google authentication, Slack, Langfuse, OAuth callbacks, and other deployment settings without editing environment variables.
+- 🗂️ **Resource organization and visibility**: hierarchical groups, personal or workspace visibility scopes, team filters, bulk actions, and clearer ownership across agents, skills, triggers, and MCP servers.
+- 👤 **Richer user management**: profile pictures, password management, TOTP two-factor authentication, navigation and response preferences, a user grid, and detailed usage statistics.
+
+**Chat and product experience**
+
+- ⏭️ **Prompt queue**: send follow-up prompts while an agent is running, preserve pending submissions, and play an optional sound when the queue completes.
+- 🎛️ **Conversation-level resources**: inspect and change the MCP servers and other resources enabled for an individual conversation.
+- 📊 **Runtime and usage insights**: live run controls and statistics, per-conversation usage, user-level analytics, profile thread management, and bulk conversation deletion.
+- 📱 **Responsive UX overhaul**: improved mobile layouts, resource pickers, related-resource navigation, OAuth and destructive flows, bulk management, and state preservation across the app.
+- 🔄 **Realtime workspace sync**: propagate workspace and resource changes across tabs and active sessions over SSE without requiring a refresh.
+
+**Automation and integrations**
+
+- 🔗 **Webhook triggers**: start agents from external systems through a unique POST endpoint, with optional per-call agent, model, and instruction overrides.
+- 🗄️ **Managed databases**: connect PostgreSQL, MySQL, MariaDB, SQL Server, and Oracle as managed MCP data sources, with encrypted credentials, read-only controls, query limits, and connection health.
+- 📄 **SQLite file uploads**: upload SQLite databases directly, expose them as managed data sources, and safely maintain their files and sidecars.
+- 💬 **Advanced Slack agents**: dedicated bots per agent, private messages, thread context, configurable tool callouts, multiple side channels, progress updates, and MCP error reporting.
+- 📧 **Gmail and native web search**: give agents first-class Gmail tools and provider-native web search with relevant MCP context.
+
+**MCP and models**
+
+- 🔐 **Enterprise MCP authentication**: shared service identities, provider-specific credentials such as Google Compute service accounts, CIMD support, provider quirks, and workspace-managed OAuth configuration.
+- 🧰 **Expanded MCP management**: server-level tool controls, instance-specific servers, a dedicated connection test dialog, richer deletion flows, and a much larger official catalog with hosted icons.
+- 🔁 **Auxilia as an MCP server**: expose authenticated workspace administration tools through MCP and connect clients through auxilia's OAuth authorization server.
+- 🧠 **More model control**: Ollama support, guided model onboarding, agent-level defaults, configurable tool discovery, and improved model-aware chat flows.
+
 ## 🤔 Why auxilia
 
 Most MCP clients are desktop apps tied to a single user: every teammate reinvents the same agent, alone, in their own tool. auxilia is the middle ground between "everyone has their own ChatGPT tab" and building a custom AI platform:
@@ -75,41 +110,6 @@ credentials are encrypted in PostgreSQL.
 > credentials and TOTP secrets unreadable.
 
 Developing? `make dev` runs PostgreSQL, Redis, the FastAPI backend (migrations applied) and the Next.js frontend in parallel, all with hot reload. Full walkthrough in the [Get Started guide](https://auxilia-docs.vercel.app/get-started).
-
-## ✨ What this fork adds
-
-This list covers only capabilities introduced by this fork. Existing upstream features such as scheduled triggers, sandboxes, skills, subagents, and durable runs are intentionally not repeated.
-
-**Workspace and administration**
-
-- 🏷️ **White-label instances**: customize the application name and logo throughout the product, including authentication screens, invitations, browser metadata, and the generated PWA manifest.
-- 🏢 **Multi-workspace administration**: create, switch, edit, and delete isolated workspaces, each with its own members, resources, branding, integrations, and credentials.
-- ⚙️ **In-app instance configuration**: manage model provider credentials, Google authentication, Slack, Langfuse, OAuth callbacks, and other deployment settings without editing environment variables.
-- 🗂️ **Resource organization and visibility**: hierarchical groups, personal or workspace visibility scopes, team filters, bulk actions, and clearer ownership across agents, skills, triggers, and MCP servers.
-- 👤 **Richer user management**: profile pictures, password management, TOTP two-factor authentication, navigation and response preferences, a user grid, and detailed usage statistics.
-
-**Chat and product experience**
-
-- ⏭️ **Prompt queue**: send follow-up prompts while an agent is running, preserve pending submissions, and play an optional sound when the queue completes.
-- 🎛️ **Conversation-level resources**: inspect and change the MCP servers and other resources enabled for an individual conversation.
-- 📊 **Runtime and usage insights**: live run controls and statistics, per-conversation usage, user-level analytics, profile thread management, and bulk conversation deletion.
-- 📱 **Responsive UX overhaul**: improved mobile layouts, resource pickers, related-resource navigation, OAuth and destructive flows, bulk management, and state preservation across the app.
-- 🔄 **Realtime workspace sync**: propagate workspace and resource changes across tabs and active sessions over SSE without requiring a refresh.
-
-**Automation and integrations**
-
-- 🔗 **Webhook triggers**: start agents from external systems through a unique POST endpoint, with optional per-call agent, model, and instruction overrides.
-- 🗄️ **Managed databases**: connect PostgreSQL, MySQL, MariaDB, SQL Server, and Oracle as managed MCP data sources, with encrypted credentials, read-only controls, query limits, and connection health.
-- 📄 **SQLite file uploads**: upload SQLite databases directly, expose them as managed data sources, and safely maintain their files and sidecars.
-- 💬 **Advanced Slack agents**: dedicated bots per agent, private messages, thread context, configurable tool callouts, multiple side channels, progress updates, and MCP error reporting.
-- 📧 **Gmail and native web search**: give agents first-class Gmail tools and provider-native web search with relevant MCP context.
-
-**MCP and models**
-
-- 🔐 **Enterprise MCP authentication**: shared service identities, provider-specific credentials such as Google Compute service accounts, CIMD support, provider quirks, and workspace-managed OAuth configuration.
-- 🧰 **Expanded MCP management**: server-level tool controls, instance-specific servers, a dedicated connection test dialog, richer deletion flows, and a much larger official catalog with hosted icons.
-- 🔁 **Auxilia as an MCP server**: expose authenticated workspace administration tools through MCP and connect clients through auxilia's OAuth authorization server.
-- 🧠 **More model control**: Ollama support, guided model onboarding, agent-level defaults, configurable tool discovery, and improved model-aware chat flows.
 
 ## 🤝 Integrations
 
