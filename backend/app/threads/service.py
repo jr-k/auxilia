@@ -166,7 +166,15 @@ class ThreadService(BaseService[ThreadDB, ThreadRepository]):
             disabled_subagent_ids,
         ) = await self._normalize_resource_ids(
             spec,
-            data.disabled_mcp_server_ids,
+            (
+                data.disabled_mcp_server_ids
+                if "disabled_mcp_server_ids" in data.model_fields_set
+                else [
+                    binding.mcp_server_id
+                    for binding in spec.all_mcp_bindings
+                    if not binding.enabled_by_default
+                ]
+            ),
             data.disabled_skill_ids,
             data.disabled_sandbox_ids,
             data.disabled_subagent_ids,

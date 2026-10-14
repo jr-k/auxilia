@@ -147,6 +147,7 @@ class SandboxResponse(SQLModel):
     provider: SandboxProviderType
     url: str
     config: dict
+    image_revision: UUID | None = None
     has_secret: bool = False
     created_at: datetime
     updated_at: datetime

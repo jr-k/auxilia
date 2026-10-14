@@ -1,6 +1,7 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, File, Header, UploadFile
+from fastapi.responses import Response
 
 from app.agents.core.service import AgentService, get_agent_service
 from app.auth.dependencies import get_current_user, require_admin
@@ -17,6 +18,7 @@ from app.sandbox.schemas import (
 from app.sandbox.service import SandboxService, get_sandbox_service
 from app.threads.service import ThreadService, get_thread_service
 from app.users.models import UserDB
+from app.utils.images import image_response, process_uploaded_image
 
 
 sandboxes_router = APIRouter(prefix="/sandboxes", tags=["sandboxes"])
@@ -65,6 +67,42 @@ async def get_sandbox(
     service: SandboxService = Depends(get_sandbox_service),
 ) -> SandboxResponse:
     return await service.get_response(sandbox_id)
+
+
+@sandboxes_router.get("/{sandbox_id}/image", response_class=Response)
+async def get_sandbox_image(
+    sandbox_id: UUID,
+    if_none_match: str | None = Header(default=None),
+    _: UserDB = Depends(get_current_user),
+    service: SandboxService = Depends(get_sandbox_service),
+) -> Response:
+    image = await service.get_image(sandbox_id)
+    return image_response(
+        data=image.data,
+        media_type=image.media_type,
+        digest=image.sha256,
+        if_none_match=if_none_match,
+    )
+
+
+@sandboxes_router.put("/{sandbox_id}/image")
+async def set_sandbox_image(
+    sandbox_id: UUID,
+    file: UploadFile = File(...),
+    _: UserDB = Depends(require_admin),
+    service: SandboxService = Depends(get_sandbox_service),
+) -> dict[str, UUID]:
+    image = await process_uploaded_image(file)
+    return {"image_revision": await service.set_image(sandbox_id, image)}
+
+
+@sandboxes_router.delete("/{sandbox_id}/image", status_code=204)
+async def delete_sandbox_image(
+    sandbox_id: UUID,
+    _: UserDB = Depends(require_admin),
+    service: SandboxService = Depends(get_sandbox_service),
+) -> None:
+    await service.delete_image(sandbox_id)
 
 
 @sandboxes_router.get(

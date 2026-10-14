@@ -348,6 +348,7 @@ export default function AgentEditor({
 				teamIds: source.teamIds,
 				mcpServers: source.mcpServers.map((server) => ({
 					mcpServerId: server.mcpServerId,
+					enabledByDefault: server.enabledByDefault ?? true,
 					tools: server.tools ?? null,
 				})),
 				sandboxes: (source.sandboxes ?? []).map((sandbox) => ({

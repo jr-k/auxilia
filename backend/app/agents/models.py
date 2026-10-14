@@ -64,6 +64,7 @@ class AgentMCPServerBase(SQLModel):
     # No cascade on the server side: deleting a bound MCP server is refused
     # until the admin detaches it from its agents.
     mcp_server_id: UUID = Field(foreign_key="mcp_servers.id", nullable=False)
+    enabled_by_default: bool = Field(default=True, nullable=False)
     tools: dict[str, ToolStatus] | None = Field(
         default=None, sa_column=Column(JSONB, nullable=True)
     )

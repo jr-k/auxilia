@@ -1,13 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
 import { ChevronRight } from "lucide-react";
 import { humanizeToolName } from "@/components/ai-elements/chain-of-thought";
-import {
-	SANDBOX_PROVIDER_ICONS,
-	SANDBOX_PROVIDER_LABELS,
-} from "@/lib/sandbox-providers";
+import { SandboxIcon } from "@/components/sandbox-icon";
+import { SANDBOX_PROVIDER_LABELS } from "@/lib/sandbox-providers";
 import type { Sandbox } from "@/types/sandboxes";
 
 // The filesystem tools deepagents gives a sandboxed agent. The sandbox
@@ -41,13 +38,11 @@ export default function AgentSandbox({
 		<div className="overflow-hidden rounded-[10px] border border-border bg-card">
 			<div className="flex items-center gap-2.5 bg-card px-4 py-3">
 				<span className="flex size-[26px] shrink-0 items-center justify-center rounded-[6px] border border-border bg-card">
-					<Image
-						unoptimized
-						width={14}
-						height={14}
-						src={SANDBOX_PROVIDER_ICONS[sandbox.provider]}
-						alt={SANDBOX_PROVIDER_LABELS[sandbox.provider]}
-						className="rounded-[2px] object-contain"
+					<SandboxIcon
+						sandboxId={sandbox.id}
+						imageRevision={sandbox.imageRevision}
+						provider={sandbox.provider}
+						size={14}
 					/>
 				</span>
 				<span className="truncate text-[13.5px] font-semibold text-foreground">

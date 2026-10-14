@@ -1,5 +1,5 @@
 import asyncio
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from fastapi import Depends
 from pydantic import ValidationError
@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.exceptions import DomainValidationError, NotFoundError, SandboxUnavailableError
-from app.sandbox.models import SandboxDB, SandboxProviderType
+from app.sandbox.models import SandboxDB, SandboxImageDB, SandboxProviderType
 from app.sandbox.provider import build_provider_from_config
 from app.sandbox.repository import SandboxRepository
 from app.sandbox.schemas import (
@@ -24,6 +24,7 @@ from app.sandbox.schemas import (
 )
 from app.service import BaseService
 from app.utils.encryption import decrypt_value, encrypt_value
+from app.utils.images import ProcessedImage
 from app.workspaces.dependencies import get_active_workspace_id
 
 
@@ -154,6 +155,29 @@ class SandboxService(BaseService[SandboxDB, SandboxRepository]):
             raise DomainValidationError(
                 "This sandbox is used by agents; detach it first."
             ) from exc
+
+    async def get_image(self, sandbox_id: UUID) -> SandboxImageDB:
+        await self.get_scoped(sandbox_id)
+        image = await self.repository.get_image(sandbox_id)
+        if image is None:
+            raise NotFoundError("Sandbox image not found")
+        return image
+
+    async def set_image(self, sandbox_id: UUID, image: ProcessedImage) -> UUID:
+        await self.get_scoped(sandbox_id)
+        revision = uuid4()
+        await self.repository.set_image(
+            sandbox_id,
+            data=image.data,
+            media_type=image.media_type,
+            sha256=image.sha256,
+            revision=revision,
+        )
+        return revision
+
+    async def delete_image(self, sandbox_id: UUID) -> None:
+        await self.get_scoped(sandbox_id)
+        await self.repository.delete_image(sandbox_id)
 
     async def get_secret_hint(self, sandbox_id: UUID) -> SandboxSecretHint:
         row = await self.get_scoped(sandbox_id)

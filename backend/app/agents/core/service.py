@@ -173,6 +173,11 @@ class AgentService(BaseService[AgentDB, AgentRepository]):
                 image_revision=server.image_revision,
                 description=server.description,
                 configured=configured_by_id[server_id],
+                enabled_by_default=all(
+                    binding.enabled_by_default
+                    for binding in spec.all_mcp_bindings
+                    if binding.mcp_server_id == server_id
+                ),
             )
             for server_id in server_ids
             if (server := server_rows.get(server_id)) is not None
@@ -187,6 +192,7 @@ class AgentService(BaseService[AgentDB, AgentRepository]):
                 name=sandbox.name,
                 description=sandbox.description,
                 provider=sandbox.provider,
+                image_revision=sandbox.image_revision,
             )
             for sandbox in sandbox_rows
         ]
@@ -370,6 +376,7 @@ class AgentService(BaseService[AgentDB, AgentRepository]):
                         name=sandbox.name,
                         provider=sandbox.provider,
                         url=sandbox.url,
+                        image_revision=sandbox.image_revision,
                     )
                 )
         owner_ids = list({a.owner_id for a in agents})

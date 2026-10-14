@@ -12,6 +12,7 @@ import MCPToolsDialog from "./mcp-tools-dialog";
 import { AgentMCPServerForm } from "../../lib/agent-form";
 import * as mcpServersApi from "@/lib/api/resources/mcp-servers";
 import { ServerIconTile } from "@/app/(protected)/mcp-servers/components/server-icon-tile";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface AgentMCPServerProps {
 	/** Saved agent id — undefined in create mode. */
@@ -23,6 +24,8 @@ interface AgentMCPServerProps {
 	canEdit?: boolean;
 	/** Draft update: the complete per-tool map for this server. */
 	onToolsChange?: (tools: Record<string, ToolStatus>) => void;
+	/** Draft update: whether new conversations start with this server enabled. */
+	onDefaultEnabledChange?: (enabled: boolean) => void;
 	/**
 	 * Draft update: merge freshly fetched tool names into the binding's map.
 	 * Applied against the latest state (existing statuses win), so parallel
@@ -45,6 +48,7 @@ export default function AgentMCPServer({
 	readOnly,
 	canEdit = true,
 	onToolsChange,
+	onDefaultEnabledChange,
 	onSeedTools,
 	onToolsPersisted,
 	onRemove,
@@ -54,7 +58,6 @@ export default function AgentMCPServer({
 	const [isExpanded, setIsExpanded] = useState(false);
 	const [tools, setTools] = useState<MCPServerTool[]>([]);
 	const [isLoading, setIsLoading] = useState(false);
-	const [toolsFetched, setToolsFetched] = useState(false);
 	const [isConnected, setIsConnected] = useState(false);
 	const [isCheckingConnection, setIsCheckingConnection] = useState(true);
 	const [toolsUnavailable, setToolsUnavailable] = useState(false);
@@ -62,13 +65,6 @@ export default function AgentMCPServer({
 	const managedDatabaseUnavailable =
 		server.managedBy === "database" &&
 		Boolean(server.disabledTools && server.disabledTools.length > 0);
-
-	// Auto-expand when the user needs to connect or inspect an unavailable server.
-	useEffect(() => {
-		if (!isCheckingConnection && (!isConnected || toolsUnavailable)) {
-			setIsExpanded(true);
-		}
-	}, [isCheckingConnection, isConnected, toolsUnavailable]);
 
 	const handleToggleExpand = () => {
 		setIsExpanded(!isExpanded);
@@ -220,12 +216,7 @@ export default function AgentMCPServer({
 								}
 								const fetchedTools = retry.tools;
 								setTools(fetchedTools);
-								setToolsFetched(true);
 								setToolsUnavailable(false);
-								// Only after toolsFetched, in the same batch —
-								// flipping isConnected first re-renders with
-								// toolsFetched=false and the mount effect starts a
-								// duplicate fetch.
 								setIsConnected(true);
 								setIsLoading(false);
 								seedRef.current(fetchedTools);
@@ -241,6 +232,7 @@ export default function AgentMCPServer({
 								// card sticking at NOT CONNECTED with polling dead.
 								setIsConnected(true);
 								setToolsUnavailable(true);
+								setIsExpanded(true);
 								setIsLoading(false);
 							}
 
@@ -265,13 +257,13 @@ export default function AgentMCPServer({
 			}
 
 			setTools(result.tools);
-			setToolsFetched(true);
 			seedRef.current(result.tools);
 			await persistRef.current(result.tools);
 		} catch (error: unknown) {
 			console.error("Failed to fetch tools:", error);
 			setTools([]);
 			setToolsUnavailable(true);
+			setIsExpanded(true);
 		} finally {
 			setIsLoading(false);
 		}
@@ -282,25 +274,25 @@ export default function AgentMCPServer({
 	};
 
 	useEffect(() => {
-		setIsCheckingConnection(true);
 		mcpServersApi
 			.isMcpServerConnected(server.id)
-			.then(setIsConnected)
+			.then((connected) => {
+				setIsConnected(connected);
+				if (connected) {
+					void fetchTools();
+				} else {
+					setIsExpanded(true);
+				}
+			})
 			.catch((error: unknown) => {
 				console.error("Failed to check connection status:", error);
 				setIsConnected(false);
+				setIsExpanded(true);
 			})
 			.finally(() => {
 				setIsCheckingConnection(false);
 			});
-	}, [server.id]);
-
-	// Fetch tools on initial load if the server is connected
-	useEffect(() => {
-		if (!toolsFetched && isConnected) {
-			fetchTools();
-		}
-	}, [toolsFetched, isConnected, fetchTools]);
+	}, [server.id, fetchTools]);
 
 	const disabledTools = new Set(server.disabledTools ?? []);
 	const configurableTools = tools.filter((tool) => !disabledTools.has(tool.name));
@@ -396,6 +388,25 @@ export default function AgentMCPServer({
 					) : configurableTools.length > 0 ? (
 						// Show ~5-6 tool rows; longer lists scroll within the card.
 						<div className="max-h-80 overflow-y-auto [scrollbar-width:thin]">
+							{!readOnly && (
+								<div className="flex items-center gap-3 border-b border-hover bg-petrol-tint/55 px-4 py-3 dark:bg-white/5 dark:border-white/5">
+									<div className="min-w-0 flex-1">
+										<p className="text-[12.5px] font-semibold text-foreground">
+											New conversations
+										</p>
+										<p className="mt-0.5 text-[11.5px] text-muted-foreground">
+											Enable this MCP server by default
+										</p>
+									</div>
+									<Checkbox
+										checked={binding.enabledByDefault ?? true}
+										onCheckedChange={(checked) => {
+											onDefaultEnabledChange?.(checked);
+										}}
+										aria-label={`Enable ${server.name} by default in new conversations`}
+									/>
+								</div>
+							)}
 							{configurableTools.map((tool) => (
 								<AgentMCPTool
 									key={tool.name}

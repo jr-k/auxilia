@@ -216,8 +216,14 @@ class AgentMCPServerService(BaseService[AgentMCPServerDB, AgentMCPServerReposito
 
         existing = await self.repository.get(agent_id, server_id)
         if existing:
+            changed = False
             if data.tools is not None:
                 existing.tools = data.tools
+                changed = True
+            if existing.enabled_by_default != data.enabled_by_default:
+                existing.enabled_by_default = data.enabled_by_default
+                changed = True
+            if changed:
                 self.db.add(existing)
                 await self.db.flush()
                 await self.db.refresh(existing)
@@ -228,6 +234,7 @@ class AgentMCPServerService(BaseService[AgentMCPServerDB, AgentMCPServerReposito
             AgentMCPServerBase(
                 agent_id=agent_id,
                 mcp_server_id=server_id,
+                enabled_by_default=data.enabled_by_default,
                 tools=None,
             )
         )
@@ -260,7 +267,7 @@ class AgentMCPServerService(BaseService[AgentMCPServerDB, AgentMCPServerReposito
 
         if data.tools is not None:
             existing_tools = link.tools or {}
-            data = AgentMCPServerPatch(tools={**existing_tools, **data.tools})
+            data = data.model_copy(update={"tools": {**existing_tools, **data.tools}})
 
         updated = await self.repository.update(link, data)
         await self._stage_agents_changed()
@@ -282,14 +289,19 @@ class AgentMCPServerService(BaseService[AgentMCPServerDB, AgentMCPServerReposito
             await self._ensure_scope_compatible(agent_id, server)
             link = by_server.get(config.mcp_server_id)
             if link:
-                if link.tools != config.tools:
+                if (
+                    link.tools != config.tools
+                    or link.enabled_by_default != config.enabled_by_default
+                ):
                     link.tools = config.tools
+                    link.enabled_by_default = config.enabled_by_default
                     self.db.add(link)
             else:
                 await self.repository.create(
                     AgentMCPServerBase(
                         agent_id=agent_id,
                         mcp_server_id=config.mcp_server_id,
+                        enabled_by_default=config.enabled_by_default,
                         tools=config.tools,
                     )
                 )

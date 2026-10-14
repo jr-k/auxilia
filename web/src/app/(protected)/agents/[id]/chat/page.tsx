@@ -41,9 +41,9 @@ const StarterChatPage = () => {
 	// default. Pinned onto the thread at creation, like the model.
 	const [reasoningEffort, setReasoningEffort] = useState<string | null>(null);
 	const [resourceSettingsState, setResourceSettingsState] = useState<{
-		agentId: string;
+		agentId: string | null;
 		settings: ThreadResourceSettings;
-	}>({ agentId, settings: EMPTY_RESOURCE_SETTINGS });
+	}>({ agentId: null, settings: EMPTY_RESOURCE_SETTINGS });
 	const resourceSettings =
 		resourceSettingsState.agentId === agentId
 			? resourceSettingsState.settings
@@ -89,6 +89,10 @@ const StarterChatPage = () => {
 		const submittedAgentId = agentId;
 		const submittedAgent = currentAgent;
 		const submittedAgentRequestId = agentRequestIdRef.current;
+		const submittedResourceSettings =
+			resourceSettingsState.agentId === submittedAgentId
+				? resourceSettingsState.settings
+				: null;
 
 		try {
 			// Generate thread ID on frontend
@@ -106,7 +110,7 @@ const StarterChatPage = () => {
 				modelId,
 				reasoningEffort,
 				firstMessageContent: textContent,
-				...resourceSettings,
+				...(submittedResourceSettings ?? {}),
 			});
 			if (agentRequestIdRef.current !== submittedAgentRequestId) {
 				usePendingMessageStore.getState().consumePendingMessage(threadId);
@@ -177,10 +181,26 @@ const StarterChatPage = () => {
 		const requestId = ++agentRequestIdRef.current;
 		const fetchAgent = async () => {
 			try {
-				const fetchedAgent = await agentsApi.getAgent(agentId);
+				const [fetchedAgent, resources] = await Promise.all([
+					agentsApi.getAgent(agentId),
+					agentsApi.getAgentResources(agentId),
+				]);
 				if (requestId !== agentRequestIdRef.current) return;
 				setAgent(fetchedAgent);
 				setLoadedAgentId(agentId);
+				setResourceSettingsState((current) =>
+					current.agentId === agentId
+						? current
+						: {
+								agentId,
+								settings: {
+									...EMPTY_RESOURCE_SETTINGS,
+									disabledMcpServerIds: resources.mcpServers
+										.filter((server) => !server.enabledByDefault)
+										.map((server) => server.id),
+								},
+							},
+				);
 				setStarterAgent({
 					name: fetchedAgent.name,
 					emoji: fetchedAgent.emoji ?? null,
