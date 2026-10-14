@@ -67,10 +67,18 @@ export default function AgentToolList({
 	const [allMCPServers, setAllMCPServers] = useState<MCPServer[]>([]);
 	const [allSandboxes, setAllSandboxes] = useState<Sandbox[]>([]);
 	const [internalDialogOpen, setInternalDialogOpen] = useState(false);
+	const [dialogResourceKind, setDialogResourceKind] = useState<
+		"all" | "mcp" | "sandbox"
+	>("all");
 	const dialogOpen = addDialogOpen ?? internalDialogOpen;
 	const setDialogOpen = (open: boolean) => {
+		if (!open) setDialogResourceKind("all");
 		setInternalDialogOpen(open);
 		onAddDialogOpenChange?.(open);
+	};
+	const openResourceDialog = (kind: "mcp" | "sandbox") => {
+		setDialogResourceKind(kind);
+		setDialogOpen(true);
 	};
 	// The sandbox whose removal is waiting on the skills warning.
 	const [sandboxToRemove, setSandboxToRemove] = useState<string | null>(null);
@@ -168,67 +176,101 @@ export default function AgentToolList({
 		handleRemoveSandbox(sandboxId);
 	};
 
-	const hasTools = enabledSandboxes.length > 0 || enabledServers.length > 0;
-
 	return (
-		<div className="flex min-h-0 flex-col">
-			<div className="mb-3 flex min-h-[24px] shrink-0 items-center justify-between">
-				<span className="text-[10.5px] font-semibold text-label dark:text-muted-foreground">
-					Tools{" "}
-					<span className="tracking-normal text-meta dark:text-panel-dim">
-						{enabledServers.length + enabledSandboxes.length}
+		<div className="flex min-h-0 flex-col gap-8">
+			<section>
+				<div className="mb-3 flex min-h-[24px] shrink-0 items-center justify-between">
+					<span className="text-[10.5px] font-semibold text-label dark:text-muted-foreground">
+						MCP Servers{" "}
+						<span className="tracking-normal text-meta dark:text-panel-dim">
+							{enabledServers.length}
+						</span>
 					</span>
-				</span>
-				{!readOnly && (
-					<button
-						className="flex cursor-pointer items-center gap-1 text-[12.5px] font-semibold text-petrol transition-opacity hover:opacity-80 dark:text-panel-terminal"
-						onClick={() => { setDialogOpen(true); }}
-					>
-						<Plus className="size-3" />
-						Add tool
-					</button>
+					{!readOnly && (
+						<button
+							type="button"
+							className="flex cursor-pointer items-center gap-1 text-[12.5px] font-semibold text-petrol transition-opacity hover:opacity-80 dark:text-panel-terminal"
+							onClick={() => {
+								openResourceDialog("mcp");
+							}}
+						>
+							<Plus className="size-3" />
+							Add server
+						</button>
+					)}
+				</div>
+				{enabledServers.length > 0 ? (
+					<div className="flex flex-col gap-2.5">
+						{enabledServers.map((server) => (
+							<AgentMCPServer
+								key={server.id}
+								agentId={agentId}
+								server={server}
+								binding={bindingFor(server.id)}
+								readOnly={readOnly}
+								canEdit={canEdit}
+								onToolsChange={(tools) => {
+									handleToolsChange(server.id, tools);
+								}}
+								onSeedTools={(fetchedNames) => {
+									handleSeedTools(server.id, fetchedNames);
+								}}
+								onToolsPersisted={(tools) => {
+									onBindingPersisted?.(server.id, tools);
+								}}
+								onRemove={() => {
+									handleRemoveServer(server.id);
+								}}
+							/>
+						))}
+					</div>
+				) : (
+					<div className="rounded-[10px] border border-dashed border-input px-4 py-6 text-center text-[13px] text-meta dark:text-panel-dim">
+						No MCP servers enabled
+					</div>
 				)}
-			</div>
-			{hasTools ? (
-				<div className="flex flex-col gap-2.5">
-					{enabledSandboxes.map((sandbox) => (
-						<AgentSandbox
-							key={sandbox.id}
-							sandbox={sandbox}
-							readOnly={readOnly}
-							onRemove={() => {
-								requestRemoveSandbox(sandbox.id);
+			</section>
+
+			<section>
+				<div className="mb-3 flex min-h-[24px] shrink-0 items-center justify-between">
+					<span className="text-[10.5px] font-semibold text-label dark:text-muted-foreground">
+						Sandboxes{" "}
+						<span className="tracking-normal text-meta dark:text-panel-dim">
+							{enabledSandboxes.length}
+						</span>
+					</span>
+					{!readOnly && enabledSandboxes.length === 0 && (
+						<button
+							type="button"
+							className="flex cursor-pointer items-center gap-1 text-[12.5px] font-semibold text-petrol transition-opacity hover:opacity-80 dark:text-panel-terminal"
+							onClick={() => {
+								openResourceDialog("sandbox");
 							}}
-						/>
-					))}
-					{enabledServers.map((server) => (
-						<AgentMCPServer
-							key={server.id}
-							agentId={agentId}
-							server={server}
-							binding={bindingFor(server.id)}
-							readOnly={readOnly}
-							canEdit={canEdit}
-							onToolsChange={(tools) => {
-								handleToolsChange(server.id, tools);
-							}}
-							onSeedTools={(fetchedNames) => {
-								handleSeedTools(server.id, fetchedNames);
-							}}
-							onToolsPersisted={(tools) => {
-								onBindingPersisted?.(server.id, tools);
-							}}
-							onRemove={() => {
-								handleRemoveServer(server.id);
-							}}
-						/>
-					))}
+						>
+							<Plus className="size-3" />
+							Add sandbox
+						</button>
+					)}
 				</div>
-			) : (
-				<div className="rounded-[10px] border border-dashed border-input px-4 py-8 text-center text-[13px] text-meta dark:text-panel-dim">
-					No tools enabled
-				</div>
-			)}
+				{enabledSandboxes.length > 0 ? (
+					<div className="flex flex-col gap-2.5">
+						{enabledSandboxes.map((sandbox) => (
+							<AgentSandbox
+								key={sandbox.id}
+								sandbox={sandbox}
+								readOnly={readOnly}
+								onRemove={() => {
+									requestRemoveSandbox(sandbox.id);
+								}}
+							/>
+						))}
+					</div>
+				) : (
+					<div className="rounded-[10px] border border-dashed border-input px-4 py-6 text-center text-[13px] text-meta dark:text-panel-dim">
+						No sandbox enabled
+					</div>
+				)}
+			</section>
 
 			<ConfirmDialog
 				open={sandboxToRemove !== null}
@@ -259,6 +301,7 @@ export default function AgentToolList({
 				<AddAgentToolDialog
 					open={dialogOpen}
 					onOpenChange={setDialogOpen}
+					resourceKind={dialogResourceKind}
 					attachedServerIds={mcpServers.map((s) => s.mcpServerId)}
 					attachedSandboxIds={sandboxes.map((s) => s.sandboxId)}
 					sandboxes={allSandboxes}

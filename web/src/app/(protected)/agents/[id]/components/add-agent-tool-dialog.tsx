@@ -26,6 +26,7 @@ import { handleKeyboardListNavigation } from "@/lib/keyboard-list-navigation";
 interface AddAgentToolDialogProps {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
+	resourceKind?: "all" | "mcp" | "sandbox";
 	/** Servers already attached in the draft. */
 	attachedServerIds: string[];
 	/** Sandboxes already attached in the draft (at most one). */
@@ -90,11 +91,11 @@ function AvailableSandboxCard({
 				height={24}
 				className="shrink-0 rounded-md"
 			/>
-			<div className="min-w-0 flex-1">
-				<h3 className="truncate text-[13.5px] font-semibold text-ink dark:text-panel-button">
+			<div className="flex min-w-0 flex-1 flex-col gap-0.5">
+				<h3 className="truncate text-[13.5px] leading-tight font-semibold text-ink dark:text-panel-button">
 					{sandbox.name}
 				</h3>
-				<span className="text-[9.5px] font-semibold text-meta dark:text-panel-dim">
+				<span className="text-[9.5px] leading-tight font-semibold text-meta dark:text-panel-dim">
 					{SANDBOX_PROVIDER_LABELS[sandbox.provider]}
 				</span>
 			</div>
@@ -264,6 +265,7 @@ function MCPServerSection({
 export default function AddAgentToolDialog({
 	open,
 	onOpenChange,
+	resourceKind = "all",
 	attachedServerIds,
 	attachedSandboxIds,
 	sandboxes,
@@ -277,23 +279,37 @@ export default function AddAgentToolDialog({
 				onKeyDown={handleKeyboardListNavigation}
 			>
 				<DialogHeader>
-					<DialogTitle>Add tool</DialogTitle>
+					<DialogTitle>
+						{resourceKind === "mcp"
+							? "Add MCP server"
+							: resourceKind === "sandbox"
+								? "Add sandbox"
+								: "Add tool"}
+					</DialogTitle>
 					<DialogDescription>
-						Extend your agent&apos;s capabilities
+						{resourceKind === "mcp"
+							? "Connect tools from a workspace MCP server."
+							: resourceKind === "sandbox"
+								? "Give this agent an isolated code execution environment."
+								: "Extend your agent's capabilities."}
 					</DialogDescription>
 				</DialogHeader>
 				<div className="overflow-y-auto max-h-[450px] space-y-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-					<MCPServerSection
-						attachedServerIds={attachedServerIds}
-						onOpenChange={onOpenChange}
-						onAddServer={onAddServer}
-					/>
-					<SandboxSection
-						sandboxes={sandboxes}
-						attachedSandboxIds={attachedSandboxIds}
-						onOpenChange={onOpenChange}
-						onAddSandbox={onAddSandbox}
-					/>
+					{resourceKind !== "sandbox" && (
+						<MCPServerSection
+							attachedServerIds={attachedServerIds}
+							onOpenChange={onOpenChange}
+							onAddServer={onAddServer}
+						/>
+					)}
+					{resourceKind !== "mcp" && (
+						<SandboxSection
+							sandboxes={sandboxes}
+							attachedSandboxIds={attachedSandboxIds}
+							onOpenChange={onOpenChange}
+							onAddSandbox={onAddSandbox}
+						/>
+					)}
 				</div>
 			</DialogContent>
 		</Dialog>
