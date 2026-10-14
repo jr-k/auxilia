@@ -31,7 +31,7 @@ from app.runtime.runs.liveness import DispatcherLiveness, RunLiveness
 from app.runtime.runs.models import RunDB
 from app.runtime.runs.service import RunService
 from app.runtime.runs.settings import run_settings
-from app.runtime.runs.state import MCP_REAUTH_ERROR, RunStatus
+from app.runtime.runs.state import RunStatus, mcp_reauth_error
 from app.threads.models import ThreadDB
 from app.users.models import UserDB
 from app.workspaces.repository import WorkspaceRepository
@@ -152,8 +152,8 @@ class RunWorker:
             # URL, which tells a Slack or web reader nothing — stamp the same
             # error the pre-flight uses, so the reconnect affordance appears on
             # both paths.
-            if as_oauth_required(exc) is not None:
-                return RunStatus.error, MCP_REAUTH_ERROR
+            if oauth := as_oauth_required(exc):
+                return RunStatus.error, mcp_reauth_error(oauth.server_name)
             # Some failures stringify to "" (CancelledError leaks, closed
             # resources) — fall back to the type name so the UI and the run
             # record never carry a blank error. The record outlives the event

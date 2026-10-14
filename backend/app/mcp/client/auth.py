@@ -320,12 +320,14 @@ class WebOAuthClientProvider(OAuthClientProvider):
         *args,
         client_id: str | None = None,
         client_secret: str | None = None,
+        server_name: str | None = None,
         quirks: Sequence[MCPCompatibilityQuirk] | None = None,
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
         self._client_id = client_id
         self._client_secret = client_secret
+        self._server_name = server_name
         self._quirks = tuple(
             quirks if quirks is not None else bundled_compatibility_quirks()
         )
@@ -746,7 +748,10 @@ class WebOAuthClientProvider(OAuthClientProvider):
         if self.context.client_metadata.scope:
             auth_params["scope"] = self.context.client_metadata.scope
 
-        raise OAuthAuthorizationRequired(f"{auth_endpoint}?{urlencode(auth_params)}")
+        raise OAuthAuthorizationRequired(
+            f"{auth_endpoint}?{urlencode(auth_params)}",
+            server_name=self._server_name,
+        )
 
     async def manual_exchange(self, code: str, state: str) -> None:
         """Finish the authorization-code exchange started by

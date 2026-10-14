@@ -8,8 +8,9 @@ class OAuthAuthorizationRequired(Exception):
     normal control flow (design review §2.4).
     """
 
-    def __init__(self, url: str):
+    def __init__(self, url: str, *, server_name: str | None = None):
         self.url = url
+        self.server_name = server_name
         super().__init__(url)
 
 

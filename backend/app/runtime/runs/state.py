@@ -30,13 +30,31 @@ class RunStatus(str, Enum):
 
 
 # Fallback error for an OAuth requirement that unexpectedly escapes the
-# per-server runtime filtering. Delivery consumers match it exactly to show a
-# reconnect affordance instead of a generic failure notice.
+# per-server runtime filtering. Named errors use the same prefix so delivery
+# consumers can still show a reconnect affordance.
 MCP_REAUTH_ERROR = (
     "MCP authorization required: an MCP server used by this agent (or one of "
     "its subagents) is no longer connected for this user. Reconnect it from "
     "the agent's chat page, then run again."
 )
+_MCP_REAUTH_NAMED_PREFIX = "MCP authorization required: MCP server "
+
+
+def mcp_reauth_error(server_name: str | None) -> str:
+    """Build the durable run error, naming the server whenever it is known."""
+    if not server_name or not (label := " ".join(server_name.split())):
+        return MCP_REAUTH_ERROR
+    return (
+        f"{_MCP_REAUTH_NAMED_PREFIX}'{label}' is no longer connected for this "
+        "user. Reconnect it from the agent's chat page, then run again."
+    )
+
+
+def is_mcp_reauth_error(error: str | None) -> bool:
+    """Recognize both the legacy generic error and its named variant."""
+    return error == MCP_REAUTH_ERROR or bool(
+        error and error.startswith(_MCP_REAUTH_NAMED_PREFIX)
+    )
 
 # Terminal states stamp `threads.last_run_status` and TTL the run's Redis
 # ephemera. `interrupted` is terminal *for this run* — resuming a HITL

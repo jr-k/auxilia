@@ -142,6 +142,7 @@ def provider_with_credentials(
         )
     return WebOAuthClientProvider(
         server_url=mcp_server.url,
+        server_name=mcp_server.name,
         client_metadata=client_metadata,
         storage=storage,
         client_id=client_id,

@@ -36,7 +36,7 @@ from app.runtime.protocol.wire import decode_event
 from app.runtime.runs.delivery import DeliveryConsumer
 from app.runtime.runs.models import RunDB
 from app.runtime.runs.service import RunService
-from app.runtime.runs.state import MCP_REAUTH_ERROR, RunStatus, is_terminal
+from app.runtime.runs.state import RunStatus, is_mcp_reauth_error, is_terminal
 from app.threads.repository import ThreadRepository
 
 
@@ -411,7 +411,7 @@ class SlackRunConsumer(DeliveryConsumer):
         doubt, so the caller falls back to the notice."""
         try:
             record = await RunService(self.redis).get(self.record.id)
-            if record.error != MCP_REAUTH_ERROR:
+            if not is_mcp_reauth_error(record.error):
                 return False
             async with AsyncSessionLocal() as db:
                 thread = await ThreadRepository(db, self.record.workspace_id).get(
