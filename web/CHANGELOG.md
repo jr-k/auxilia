@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.8](https://github.com/jr-k/auxilia/compare/web-v0.12.7...web-v0.12.8) (2026-10-14)
+
+
+### Bug Fixes
+
+* **web:** return database cancel to server view ([4f3fd73](https://github.com/jr-k/auxilia/commit/4f3fd739ab042bbd272a830cdeff1b7b4d2a386f))
+
 ## [0.12.7](https://github.com/jr-k/auxilia/compare/web-v0.12.6...web-v0.12.7) (2026-10-14)
 
 
