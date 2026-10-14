@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.13](https://github.com/jr-k/auxilia/compare/backend-v0.11.12...backend-v0.11.13) (2026-10-14)
+
+
+### Features
+
+* **agents:** manage conversation execution resources ([#124](https://github.com/jr-k/auxilia/issues/124)) ([b6182c9](https://github.com/jr-k/auxilia/commit/b6182c9564b76572a7bac20d4a3a729248286606))
+
 ## [0.11.12](https://github.com/jr-k/auxilia/compare/backend-v0.11.11...backend-v0.11.12) (2026-10-14)
 
 
