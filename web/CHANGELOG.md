@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.14](https://github.com/jr-k/auxilia/compare/web-v0.12.13...web-v0.12.14) (2026-10-14)
+
+
+### Bug Fixes
+
+* **agents:** persist MCP defaults and improve controls ([#130](https://github.com/jr-k/auxilia/issues/130)) ([d63f8f6](https://github.com/jr-k/auxilia/commit/d63f8f6dbf48fd5510e2f028cc2f67164910d1d9))
+
 ## [0.12.13](https://github.com/jr-k/auxilia/compare/web-v0.12.12...web-v0.12.13) (2026-10-14)
 
 
