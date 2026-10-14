@@ -2,7 +2,9 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import type { PromptInputMessage } from "@/components/ai-elements/prompt-input";
 import * as threadsApi from "@/lib/api/resources/threads";
+import { promptMessageToContent } from "@/lib/thread-session/build-content";
 import { useWorkspaceEventsStore } from "@/stores/workspace-events-store";
 import type { QueuedPrompt } from "@/types/runs";
 
@@ -220,12 +222,14 @@ export function usePromptQueue(
 	}, [refresh, shouldPoll]);
 
 	const enqueue = useCallback(
-		(text: string) => {
+		(message: PromptInputMessage) => {
+			const content = promptMessageToContent(message);
+			if (content == null) return Promise.resolve();
 			const version = requestVersion.current;
 			enqueueInFlight.current += 1;
 			const operation = enqueueChain.current.then(async () => {
 				try {
-					const item = await threadsApi.enqueuePrompt(threadId, text);
+					const item = await threadsApi.enqueuePrompt(threadId, content);
 					if (
 						threadIdRef.current !== threadId ||
 						version !== requestVersion.current

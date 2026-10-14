@@ -7,6 +7,7 @@
  */
 import { api } from "@/lib/api/client";
 import type { Paginated } from "@/types/api";
+import type { HumanContent } from "@/lib/thread-session/build-content";
 import type { QueuedPrompt, Run } from "@/types/runs";
 import type {
 	AgentThread,
@@ -18,6 +19,15 @@ import type {
 
 export type PageParams = { limit: number; offset: number };
 export type ThreadPageParams = PageParams & { q?: string };
+
+type QueuedPromptWire = Omit<QueuedPrompt, "attachments"> & {
+	attachments?: QueuedPrompt["attachments"];
+};
+
+const normalizeQueuedPrompt = (prompt: QueuedPromptWire): QueuedPrompt => ({
+	...prompt,
+	attachments: prompt.attachments ?? [],
+});
 
 /** The caller's threads, newest first. */
 export async function listThreads(
@@ -91,21 +101,31 @@ export async function listThreadRuns(threadId: string): Promise<Run[]> {
 export async function listQueuedPrompts(
 	threadId: string,
 ): Promise<QueuedPrompt[]> {
-	const response = await api.get<QueuedPrompt[]>(
+	const response = await api.get<QueuedPromptWire[]>(
 		`/threads/${threadId}/runs/queue`,
 	);
-	return response.data;
+	return response.data.map(normalizeQueuedPrompt);
 }
 
 export async function enqueuePrompt(
 	threadId: string,
-	text: string,
+	content: HumanContent,
 ): Promise<QueuedPrompt> {
-	const response = await api.post<QueuedPrompt>(
+	const text =
+		typeof content === "string"
+			? content
+			: content
+					.filter(
+						(block) =>
+							block.type === "text" && typeof block.text === "string",
+					)
+					.map((block) => block.text as string)
+					.join("\n");
+	const response = await api.post<QueuedPromptWire>(
 		`/threads/${threadId}/runs/queue`,
-		{ text },
+		{ content, ...(text.trim() ? { text } : {}) },
 	);
-	return response.data;
+	return normalizeQueuedPrompt(response.data);
 }
 
 export async function updateQueuedPrompt(
@@ -113,11 +133,11 @@ export async function updateQueuedPrompt(
 	runId: string,
 	text: string,
 ): Promise<QueuedPrompt> {
-	const response = await api.patch<QueuedPrompt>(
+	const response = await api.patch<QueuedPromptWire>(
 		`/threads/${threadId}/runs/queue/${runId}`,
 		{ text },
 	);
-	return response.data;
+	return normalizeQueuedPrompt(response.data);
 }
 
 export async function beginQueuedPromptEdit(
@@ -152,9 +172,9 @@ export async function reorderQueuedPrompts(
 	threadId: string,
 	orderedIds: string[],
 ): Promise<QueuedPrompt[]> {
-	const response = await api.put<QueuedPrompt[]>(
+	const response = await api.put<QueuedPromptWire[]>(
 		`/threads/${threadId}/runs/queue/order`,
 		{ orderedIds },
 	);
-	return response.data;
+	return response.data.map(normalizeQueuedPrompt);
 }

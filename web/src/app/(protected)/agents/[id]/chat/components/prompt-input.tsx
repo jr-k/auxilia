@@ -102,7 +102,7 @@ interface ChatPromptInputProps {
 	onResourceSettingsChange: (settings: ThreadResourceSettings) => void;
 	resourceSettingsSaving?: boolean;
 	queuedPrompts?: QueuedPrompt[];
-	onEnqueue?: (text: string) => Promise<void>;
+	onEnqueue?: (message: PromptInputMessage) => Promise<void>;
 	onUpdateQueued?: (id: string, text: string) => Promise<void>;
 	onBeginQueuedEdit?: (id: string) => Promise<void>;
 	onEndQueuedEdit?: (id: string) => Promise<void>;
@@ -531,15 +531,9 @@ const ChatPromptInput = ({
 			return;
 		}
 		if (queueMode || directRunLockRef.current) {
-			if (hasAttachments) {
-				toast.error(
-					"Attachments cannot be queued while a response is running.",
-				);
-				throw new Error("Queued prompts are text-only");
-			}
-			if (!hasText || !onEnqueue) return;
+			if (!(hasText || hasAttachments) || !onEnqueue) return;
 			try {
-				await onEnqueue(message.text?.trim() ?? "");
+				await onEnqueue(message);
 			} catch (error) {
 				const apiError = toApiError(error);
 				if (apiError.status === 401) {
@@ -593,10 +587,16 @@ const ChatPromptInput = ({
 		const hasAttachments = Boolean("files" in message && message.files?.length);
 		if (!(hasText || hasAttachments)) return;
 
-		void submitMessage(message).catch(() => {});
+		const awaitSubmission =
+			effectiveEditingId !== null ||
+			queueMode ||
+			directRunLockRef.current;
+		const submission = submitMessage(message);
 		requestAnimationFrame(() => {
 			textareaRef.current?.focus({ preventScroll: true });
 		});
+		if (awaitSubmission) return submission;
+		void submission.catch(() => {});
 	};
 
 	const finishEditingLocally = () => {
@@ -761,11 +761,11 @@ const ChatPromptInput = ({
 					globalDrop
 					multiple
 					disableAttachments={
-						noAttachments || queueMode || effectiveEditingId !== null
+						noAttachments || effectiveEditingId !== null
 					}
 					attachmentsDisabledMessage={
-						queueMode || effectiveEditingId
-							? "Attachments cannot be added to a queued prompt"
+						effectiveEditingId
+							? "Attachments cannot be changed while editing a queued prompt"
 							: undefined
 					}
 					onSubmit={handleSubmit}
@@ -828,7 +828,7 @@ const ChatPromptInput = ({
 						) : (
 							<PromptInputAddAttachmentButton
 								disabled={
-									queueMode || effectiveEditingId !== null
+									effectiveEditingId !== null
 								}
 								className={cn(
 									composerPillClass,

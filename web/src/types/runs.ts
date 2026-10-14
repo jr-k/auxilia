@@ -25,10 +25,14 @@ export interface Run {
 /** What `GET /runs/active` returns: in-flight runs plus recently finished ones. */
 export type ActiveRun = Run;
 
-/** A text-only run waiting behind the current turn. */
+/** A run waiting behind the current turn. */
 export interface QueuedPrompt {
 	id: string;
 	text: string;
+	attachments: Array<{
+		filename: string;
+		mediaType: string;
+	}>;
 	position: number;
 	createdAt: string;
 	updatedAt: string;

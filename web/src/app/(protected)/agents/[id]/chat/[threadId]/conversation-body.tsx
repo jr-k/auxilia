@@ -15,6 +15,7 @@ import {
   CopyIcon,
   ExternalLinkIcon,
   MessagesSquareIcon,
+  PaperclipIcon,
   RefreshCcwIcon,
 } from "lucide-react";
 import { SlackLogo } from "@/components/slack-logo";
@@ -57,6 +58,7 @@ import {
 import { useMcpServersStore } from "@/stores/mcp-servers-store";
 import { useAgentsStore } from "@/stores/agents-store";
 import type { HitlDecision, HitlResponse } from "@/hooks/use-hitl-approvals";
+import type { QueuedPrompt } from "@/types/runs";
 import { McpAppWidget } from "../components/mcp-app-widget";
 import {
   type ChainStepData,
@@ -108,7 +110,7 @@ export type ConversationBodyProps = {
   modelUnavailable: boolean;
   onRegenerate: () => void;
   /** A claimed queued prompt waiting for its server-authored message event. */
-  optimisticPrompt: string | null;
+  optimisticPrompt: QueuedPrompt | null;
   error: unknown;
   rehydratedError: string | null;
 };
@@ -270,7 +272,7 @@ export const ConversationBody = memo(function ConversationBody({
         );
       })}
 
-      {optimisticPrompt && <OptimisticUserTurn text={optimisticPrompt} />}
+      {optimisticPrompt && <OptimisticUserTurn prompt={optimisticPrompt} />}
 
       {showThinking && pendingUserIndex < 0 && optimisticPrompt == null && (
         <ChainThinking />
@@ -495,24 +497,48 @@ const UserTurn = ({
   );
 };
 
-const OptimisticUserTurn = ({ text }: { text: string }) => (
-  <Message from="user">
-    <div
-      className="ml-auto flex max-w-[82%] items-center justify-end gap-2"
-      role="status"
-      aria-label="Sending queued message"
-    >
-      <Loader
-        size={14}
-        className="shrink-0 text-meta motion-reduce:animate-none dark:text-panel-dim"
-        aria-hidden="true"
-      />
-      <MessageContent className="group-[.is-user]:ml-0 group-[.is-user]:max-w-full">
-        <MessageResponse>{text}</MessageResponse>
-      </MessageContent>
+const OptimisticUserTurn = ({ prompt }: { prompt: QueuedPrompt }) => {
+  return (
+    <div className="flex flex-col gap-2" role="status" aria-label="Sending queued message">
+      {prompt.attachments.length > 0 && (
+        <div className="flex items-center justify-end gap-2">
+          {!prompt.text && (
+            <Loader
+              size={14}
+              className="shrink-0 text-meta motion-reduce:animate-none dark:text-panel-dim"
+              aria-hidden="true"
+            />
+          )}
+          <div className="flex flex-wrap justify-end gap-1.5">
+            {prompt.attachments.map((attachment, index) => (
+              <span
+                key={`${attachment.filename}-${index}`}
+                className="inline-flex max-w-52 items-center gap-1.5 rounded-md border border-border/70 bg-card px-2 py-1 text-[10.5px] font-medium text-body dark:bg-panel dark:text-panel-body"
+              >
+                <PaperclipIcon className="size-3 shrink-0 text-meta" />
+                <span className="truncate">{attachment.filename}</span>
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+      {prompt.text && (
+        <Message from="user">
+          <div className="ml-auto flex max-w-[82%] items-center justify-end gap-2">
+            <Loader
+              size={14}
+              className="shrink-0 text-meta motion-reduce:animate-none dark:text-panel-dim"
+              aria-hidden="true"
+            />
+            <MessageContent className="group-[.is-user]:ml-0 group-[.is-user]:max-w-full">
+              <MessageResponse>{prompt.text}</MessageResponse>
+            </MessageContent>
+          </div>
+        </Message>
+      )}
     </div>
-  </Message>
-);
+  );
+};
 
 const SideChannelContextDetails = ({
   messages,

@@ -32,7 +32,9 @@ from app.runtime.runs.schemas import (
     QueuedPromptResponse,
     RunCreate,
     RunResponse,
+    has_queued_prompt_content,
     queued_prompt_input,
+    queued_prompt_input_with_text,
 )
 from app.runtime.runs.service import RunService
 from app.runtime.runs.state import RunStatus
@@ -254,14 +256,14 @@ async def enqueue_prompt(
     runs: RunService = Depends(get_run_service),
     db: AsyncSession = Depends(get_db),
 ) -> QueuedPromptResponse:
-    text = body.text.strip()
-    if not text:
+    content = body.content if body.content is not None else (body.text or "")
+    if not has_queued_prompt_content(content):
         raise DomainValidationError("A queued prompt cannot be empty.")
     await db.commit()
     record = await runs.create(
         thread_id=thread_id,
         user_id=str(thread.user_id),
-        input=queued_prompt_input(text),
+        input=queued_prompt_input(content),
         multitask_strategy="enqueue",
         force_queue_position=True,
     )
@@ -285,7 +287,7 @@ async def update_prompt_queue_item(
     record = await runs.get(run_id, thread.workspace_id)
     _ensure_run_on_thread(record, thread_id)
     updated = await runs.update_queued_prompt(
-        run_id, queued_prompt_input(text), thread.workspace_id
+        run_id, queued_prompt_input_with_text(record, text), thread.workspace_id
     )
     response = QueuedPromptResponse.from_record(updated)
     if response is None:

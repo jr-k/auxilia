@@ -153,7 +153,7 @@ const ChatPage = () => {
     claimedPrompt &&
     (claimedPromptBaseline === null ||
       userMessageCount <= claimedPromptBaseline)
-      ? claimedPrompt.text
+      ? claimedPrompt
       : null;
 
   useEffect(() => {
@@ -414,8 +414,8 @@ const ChatPage = () => {
             queuedPrompts={promptQueue.items}
             queueLoading={promptQueue.isLoading}
             onQueueAuthorizationRequired={refetchReady}
-            onEnqueue={async (text) => {
-              await promptQueue.enqueue(text);
+            onEnqueue={async (message) => {
+              await promptQueue.enqueue(message);
             }}
             onUpdateQueued={async (id, text) => {
               await promptQueue.update(id, text);

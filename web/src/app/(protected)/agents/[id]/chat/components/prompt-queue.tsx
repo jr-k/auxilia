@@ -11,6 +11,7 @@ import {
 	ChevronDownIcon,
 	GripVerticalIcon,
 	ListOrderedIcon,
+	PaperclipIcon,
 	PencilIcon,
 	Trash2Icon,
 } from "lucide-react";
@@ -209,9 +210,18 @@ export function PromptQueue({
 								<span className="w-5 shrink-0 text-center font-mono text-[10px] font-semibold text-meta">
 									{index + 1}
 								</span>
-								<p className="min-w-0 flex-1 truncate text-[12.5px] font-medium text-foreground/85">
-									{item.text}
-								</p>
+								<div className="min-w-0 flex-1">
+									<p className="truncate text-[12.5px] font-medium text-foreground/85">
+										{item.text || item.attachments[0]?.filename || "Attachment"}
+									</p>
+									{item.attachments.length > 0 && (
+										<span className="mt-0.5 flex items-center gap-1 text-[10.5px] text-meta dark:text-panel-dim">
+											<PaperclipIcon className="size-3" />
+											{item.attachments.length} attachment
+											{item.attachments.length > 1 ? "s" : ""}
+										</span>
+									)}
+								</div>
 								<button
 									type="button"
 									disabled={
