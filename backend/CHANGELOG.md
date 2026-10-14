@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.15](https://github.com/jr-k/auxilia/compare/backend-v0.11.14...backend-v0.11.15) (2026-10-14)
+
+
+### Features
+
+* **agents:** configure resource conversation defaults ([#136](https://github.com/jr-k/auxilia/issues/136)) ([6216ef5](https://github.com/jr-k/auxilia/commit/6216ef586d812d563d362d5bed4147d3be174761))
+
 ## [0.11.14](https://github.com/jr-k/auxilia/compare/backend-v0.11.13...backend-v0.11.14) (2026-10-14)
 
 
