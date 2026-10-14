@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.6](https://github.com/jr-k/auxilia/compare/web-v0.12.5...web-v0.12.6) (2026-10-14)
+
+
+### Bug Fixes
+
+* **web:** improve chat and picker interactions ([4b2f09f](https://github.com/jr-k/auxilia/commit/4b2f09f9eef146708cee0acf0f9408146e3efa59))
+
 ## [0.12.5](https://github.com/jr-k/auxilia/compare/web-v0.12.4...web-v0.12.5) (2026-10-13)
 
 
