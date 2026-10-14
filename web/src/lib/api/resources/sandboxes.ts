@@ -20,6 +20,19 @@ export interface SandboxSave {
 
 export type SandboxCreate = SandboxSave & { provider: SandboxProviderType };
 
+export interface SandboxConnectionProbe {
+	provider: SandboxProviderType;
+	sandboxId?: string;
+	url: string;
+	config: Record<string, unknown>;
+	secret?: string;
+}
+
+export interface SandboxConnectionResult {
+	reachable: boolean;
+	error: string | null;
+}
+
 export async function listSandboxes(): Promise<Sandbox[]> {
 	const response = await api.get<Sandbox[]>("/sandboxes");
 	return response.data;
@@ -27,6 +40,16 @@ export async function listSandboxes(): Promise<Sandbox[]> {
 
 export async function createSandbox(payload: SandboxCreate): Promise<Sandbox> {
 	const response = await api.post<Sandbox>("/sandboxes", payload);
+	return response.data;
+}
+
+export async function testSandboxConnection(
+	payload: SandboxConnectionProbe,
+): Promise<SandboxConnectionResult> {
+	const response = await api.post<SandboxConnectionResult>(
+		"/sandboxes/test-connection",
+		payload,
+	);
 	return response.data;
 }
 

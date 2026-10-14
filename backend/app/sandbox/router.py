@@ -7,6 +7,8 @@ from app.auth.dependencies import get_current_user, require_admin
 from app.sandbox.models import SandboxDB
 from app.sandbox.schemas import (
     SandboxAgentResponse,
+    SandboxConnectionProbe,
+    SandboxConnectionResult,
     SandboxCreate,
     SandboxPatch,
     SandboxResponse,
@@ -42,6 +44,18 @@ async def create_sandbox(
     service: SandboxService = Depends(get_sandbox_service),
 ) -> SandboxResponse:
     return await service.create(data)
+
+
+@sandboxes_router.post(
+    "/test-connection",
+    response_model=SandboxConnectionResult,
+)
+async def test_sandbox_connection(
+    data: SandboxConnectionProbe,
+    _: UserDB = Depends(require_admin),
+    service: SandboxService = Depends(get_sandbox_service),
+) -> SandboxConnectionResult:
+    return await service.test_connection(data)
 
 
 @sandboxes_router.get("/{sandbox_id}", response_model=SandboxResponse)

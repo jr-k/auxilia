@@ -91,6 +91,8 @@ interface SandboxFormState {
 	autoStopInterval: string;
 }
 
+type ConnectionTestStatus = "idle" | "testing" | "success" | "error";
+
 const defaultForm = (): SandboxFormState => ({
 	provider: "opensandbox",
 	name: "",
@@ -249,6 +251,9 @@ export default function SandboxDialog({
 	const [secretHint, setSecretHint] = useState<SandboxSecretHint | null>(null);
 	const [error, setError] = useState<string | null>(null);
 	const [isSaving, setIsSaving] = useState(false);
+	const [testStatus, setTestStatus] =
+		useState<ConnectionTestStatus>("idle");
+	const [testMessage, setTestMessage] = useState<string | null>(null);
 	const isEdit = sandbox !== null;
 	const spec = specFor(form.provider);
 
@@ -257,6 +262,8 @@ export default function SandboxDialog({
 		value: SandboxFormState[K],
 	) => {
 		setForm((prev) => ({ ...prev, [key]: value }));
+		setTestStatus("idle");
+		setTestMessage(null);
 	};
 
 	useEffect(() => {
@@ -267,6 +274,8 @@ export default function SandboxDialog({
 		// eslint-disable-next-line react-hooks/set-state-in-effect
 		setForm(sandbox ? fromSandbox(sandbox) : defaultForm());
 		setError(null);
+		setTestStatus("idle");
+		setTestMessage(null);
 		setSecretHint(null);
 		if (sandbox?.hasSecret) {
 			sandboxesApi
@@ -284,6 +293,8 @@ export default function SandboxDialog({
 	}, [open, sandbox]);
 
 	const handleProviderChange = (provider: SandboxProviderType) => {
+		setTestStatus("idle");
+		setTestMessage(null);
 		setForm((prev) => {
 			const previousDefault = specFor(prev.provider).defaultUrl;
 			const nextDefault = specFor(provider).defaultUrl;
@@ -295,18 +306,20 @@ export default function SandboxDialog({
 		});
 	};
 
+	const buildPayload = (): sandboxesApi.SandboxSave => ({
+		name: form.name.trim(),
+		description: form.description.trim() || null,
+		url: form.url.trim(),
+		config: buildConfig(form),
+		...(form.secret ? { secret: form.secret } : {}),
+	});
+
 	const handleSubmit = async (event: React.FormEvent) => {
 		event.preventDefault();
 		setIsSaving(true);
 		setError(null);
 		try {
-			const payload = {
-				name: form.name.trim(),
-				description: form.description.trim() || null,
-				url: form.url.trim(),
-				config: buildConfig(form),
-				...(form.secret ? { secret: form.secret } : {}),
-			};
+			const payload = buildPayload();
 			const saved = isEdit
 				? await sandboxesApi.updateSandbox(sandbox.id, payload)
 				: await sandboxesApi.createSandbox({ ...payload, provider: form.provider });
@@ -316,6 +329,33 @@ export default function SandboxDialog({
 			setError(extractDetail(err));
 		} finally {
 			setIsSaving(false);
+		}
+	};
+
+	const handleTest = async () => {
+		setTestStatus("testing");
+		setTestMessage(null);
+		const payload = buildPayload();
+		try {
+			const result = await sandboxesApi.testSandboxConnection({
+				provider: form.provider,
+				...(sandbox ? { sandboxId: sandbox.id } : {}),
+				url: payload.url,
+				config: payload.config,
+				...(payload.secret ? { secret: payload.secret } : {}),
+			});
+			if (result.reachable) {
+				setTestStatus("success");
+				setTestMessage("Connection successful.");
+			} else {
+				setTestStatus("error");
+				setTestMessage(result.error ?? "Could not connect to the sandbox provider.");
+			}
+		} catch (err: unknown) {
+			setTestStatus("error");
+			setTestMessage(
+				getApiErrorMessage(err, "Failed to test the sandbox connection."),
+			);
 		}
 	};
 
@@ -331,12 +371,12 @@ export default function SandboxDialog({
 			? "Required"
 			: "Optional";
 
-	const canSubmit =
-		form.name.trim() !== "" &&
+	const canTest =
 		form.url.trim() !== "" &&
 		(!spec.secretRequired ||
 			form.secret.trim() !== "" ||
 			(isEdit && sandbox.hasSecret));
+	const canSubmit = form.name.trim() !== "" && canTest;
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
@@ -593,7 +633,29 @@ export default function SandboxDialog({
 						</div>
 					</div>
 
+					{testMessage && (
+						<div
+							role="status"
+							className={`rounded-[8px] px-3.5 py-2.5 text-[13px] font-medium ${
+								testStatus === "success"
+									? "bg-success-bg text-success dark:bg-emerald-950 dark:text-emerald-300"
+									: "bg-[#FBEFED] text-[#B04A3A] dark:bg-[#B04A3A]/10"
+							}`}
+						>
+							{testMessage}
+						</div>
+					)}
+
 					<DialogFooter>
+						<DialogButton
+							variant="outline"
+							disabled={isSaving || testStatus === "testing" || !canTest}
+							onClick={() => {
+								void handleTest();
+							}}
+						>
+							{testStatus === "testing" ? "Testing…" : "Test connection"}
+						</DialogButton>
 						<DialogButton
 							variant="outline"
 							onClick={() => {
@@ -602,7 +664,12 @@ export default function SandboxDialog({
 						>
 							Cancel
 						</DialogButton>
-						<DialogButton type="submit" disabled={isSaving || !canSubmit}>
+						<DialogButton
+							type="submit"
+							disabled={
+								isSaving || testStatus === "testing" || !canSubmit
+							}
+						>
 							{isSaving
 								? "Saving…"
 								: isEdit

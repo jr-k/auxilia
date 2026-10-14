@@ -1,3 +1,4 @@
+import asyncio
 from uuid import UUID
 
 from fastapi import Depends
@@ -6,10 +7,13 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.exceptions import DomainValidationError, NotFoundError
+from app.exceptions import DomainValidationError, NotFoundError, SandboxUnavailableError
 from app.sandbox.models import SandboxDB, SandboxProviderType
+from app.sandbox.provider import build_provider_from_config
 from app.sandbox.repository import SandboxRepository
 from app.sandbox.schemas import (
+    SandboxConnectionProbe,
+    SandboxConnectionResult,
     SandboxCreate,
     SandboxCreateDB,
     SandboxPatch,
@@ -77,6 +81,33 @@ class SandboxService(BaseService[SandboxDB, SandboxRepository]):
             self.to_response(row)
             for row in await self.repository.list(self.workspace_id)
         ]
+
+    async def test_connection(
+        self, data: SandboxConnectionProbe
+    ) -> SandboxConnectionResult:
+        """Probe a draft configuration without saving or creating a sandbox."""
+        secret = data.secret
+        if data.sandbox_id is not None:
+            row = await self.get_scoped(data.sandbox_id)
+            if row.provider != data.provider:
+                raise DomainValidationError(
+                    "The sandbox provider cannot be changed while testing an edit."
+                )
+            if not secret and row.encrypted_secret:
+                secret = decrypt_value(row.encrypted_secret)
+
+        validated = self._validate(data.provider, data.url, secret, data.config)
+        try:
+            provider = build_provider_from_config(validated)
+            await asyncio.to_thread(provider.check_available)
+        except SandboxUnavailableError as exc:
+            return SandboxConnectionResult(reachable=False, error=exc.reason)
+        except Exception as exc:  # noqa: BLE001 — probe failures are response data
+            return SandboxConnectionResult(
+                reachable=False,
+                error=str(exc) or type(exc).__name__,
+            )
+        return SandboxConnectionResult(reachable=True)
 
     async def get_response(self, sandbox_id: UUID) -> SandboxResponse:
         return self.to_response(await self.get_scoped(sandbox_id))

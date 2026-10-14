@@ -25,7 +25,7 @@ from deepagents.backends.sandbox import BaseSandbox
 
 from app.exceptions import SandboxUnavailableError
 from app.sandbox.models import SandboxDB, SandboxProviderType
-from app.sandbox.schemas import SandboxConfigBase, validate_config
+from app.sandbox.schemas import SandboxConfig, SandboxConfigBase, validate_config
 from app.utils.encryption import decrypt_value
 
 
@@ -192,17 +192,6 @@ def build_provider(sandbox: SandboxDB) -> BaseSandboxProvider:
     that no longer validates (e.g. secret cleared) is reported as unavailable
     rather than crashing the caller with a parse error.
     """
-    # Function-level imports: the provider modules import helpers from this
-    # module, so resolving them lazily avoids an import cycle.
-    from app.sandbox.cloudrun.provider import CloudRunProvider
-    from app.sandbox.daytona.provider import DaytonaProvider
-    from app.sandbox.opensandbox.provider import OpenSandboxProvider
-
-    providers: dict[SandboxProviderType, type[BaseSandboxProvider]] = {
-        SandboxProviderType.opensandbox: OpenSandboxProvider,
-        SandboxProviderType.cloudrun: CloudRunProvider,
-        SandboxProviderType.daytona: DaytonaProvider,
-    }
     try:
         secret = (
             decrypt_value(sandbox.encrypted_secret)
@@ -216,8 +205,35 @@ def build_provider(sandbox: SandboxDB) -> BaseSandboxProvider:
         raise SandboxUnavailableError(
             str(sandbox.id), sandbox.name, f"invalid configuration: {_reason(exc)}"
         ) from exc
-    return providers[sandbox.provider](
-        config, sandbox_id=str(sandbox.id), name=sandbox.name
+    return build_provider_from_config(
+        config,
+        sandbox_id=str(sandbox.id),
+        name=sandbox.name,
+    )
+
+
+def build_provider_from_config(
+    config: SandboxConfig,
+    *,
+    sandbox_id: str | None = None,
+    name: str | None = None,
+) -> BaseSandboxProvider:
+    """Build a provider from validated config, including unsaved form drafts."""
+    # Function-level imports: provider modules import helpers from this module,
+    # so resolving them lazily avoids an import cycle.
+    from app.sandbox.cloudrun.provider import CloudRunProvider
+    from app.sandbox.daytona.provider import DaytonaProvider
+    from app.sandbox.opensandbox.provider import OpenSandboxProvider
+
+    providers: dict[SandboxProviderType, type[BaseSandboxProvider]] = {
+        SandboxProviderType.opensandbox: OpenSandboxProvider,
+        SandboxProviderType.cloudrun: CloudRunProvider,
+        SandboxProviderType.daytona: DaytonaProvider,
+    }
+    return providers[SandboxProviderType(config.provider)](
+        config,
+        sandbox_id=sandbox_id,
+        name=name,
     )
 
 

@@ -83,7 +83,7 @@ def validate_config(
     url: str,
     secret: str | None,
     config: dict,
-) -> SandboxConfigBase:
+) -> SandboxConfig:
     """Validate a full provider config through the discriminated union.
 
     Raises pydantic.ValidationError — callers translate it to a domain error.
@@ -107,6 +107,21 @@ class SandboxCreate(SQLModel):
     # the row via generic create/update paths — the service encrypts it.
     secret: str | None = Field(default=None, exclude=True)
     config: dict = {}
+
+
+class SandboxConnectionProbe(SQLModel):
+    """Unsaved sandbox configuration used for a non-mutating health probe."""
+
+    provider: SandboxProviderType
+    sandbox_id: UUID | None = None
+    url: str
+    secret: str | None = Field(default=None, exclude=True)
+    config: dict = {}
+
+
+class SandboxConnectionResult(SQLModel):
+    reachable: bool
+    error: str | None = None
 
 
 class SandboxCreateDB(SandboxBase):
