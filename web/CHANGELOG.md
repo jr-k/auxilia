@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.12](https://github.com/jr-k/auxilia/compare/web-v0.12.11...web-v0.12.12) (2026-10-14)
+
+
+### Features
+
+* **agents:** configure MCP defaults and sandbox icons ([#126](https://github.com/jr-k/auxilia/issues/126)) ([f3c4143](https://github.com/jr-k/auxilia/commit/f3c414365da27ca402f9619bfdc15c2be1a57347))
+
 ## [0.12.11](https://github.com/jr-k/auxilia/compare/web-v0.12.10...web-v0.12.11) (2026-10-14)
 
 
