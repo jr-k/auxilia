@@ -467,6 +467,9 @@ export default function AgentSlackBotDialog({
 	const [showToolCallouts, setShowToolCallouts] = useState(
 		settings.showToolCallouts,
 	);
+	const [forceEnableAllCapabilities, setForceEnableAllCapabilities] = useState(
+		settings.forceEnableAllCapabilities,
+	);
 	const [botToken, setBotToken] = useState("");
 	const [signingSecret, setSigningSecret] = useState("");
 	const manifest = useMemo(
@@ -487,6 +490,7 @@ export default function AgentSlackBotDialog({
 			enabled,
 			requireMentionInThreads,
 			showToolCallouts,
+			forceEnableAllCapabilities,
 			...(credentialsComplete
 				? {
 						botToken: botToken.trim(),
@@ -598,6 +602,22 @@ export default function AgentSlackBotDialog({
 									<Switch
 										checked={showToolCallouts}
 										onCheckedChange={setShowToolCallouts}
+										className="cursor-pointer data-[state=checked]:bg-petrol"
+									/>
+								</div>
+								<div className="flex items-center justify-between gap-4 border-t border-hairline px-3.5 py-3">
+									<div>
+										<p className="text-[12.5px] font-semibold text-foreground">
+											Enable all capabilities in Slack
+										</p>
+										<p className="mt-0.5 text-[10.5px] text-meta">
+											Ignore “off by default” choices for MCP servers,
+											skills, sandboxes, and subagents.
+										</p>
+									</div>
+									<Switch
+										checked={forceEnableAllCapabilities}
+										onCheckedChange={setForceEnableAllCapabilities}
 										className="cursor-pointer data-[state=checked]:bg-petrol"
 									/>
 								</div>

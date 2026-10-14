@@ -82,6 +82,7 @@ from app.sandbox.provider import (
     open_sandbox,
 )
 from app.skills.middleware import skills_read_middleware
+from app.skills.repository import SkillRepository
 from app.skills.runtime import (
     SkillsBackend,
     resolve_run_skills,
@@ -612,7 +613,13 @@ class Agent:
         }
 
     @classmethod
-    async def build(cls, thread: ThreadDB, db: AsyncSession) -> "Agent":
+    async def build(
+        cls,
+        thread: ThreadDB,
+        db: AsyncSession,
+        *,
+        force_enable_all_capabilities: bool | None = None,
+    ) -> "Agent":
         """Resolve everything a run needs from the database.
 
         A resume (a HITL approval) resolves exactly as a first run does —
@@ -629,15 +636,18 @@ class Agent:
         if spec is None:
             raise NotFoundError("Agent not found")
 
-        disabled_mcp_server_ids = {
-            UUID(server_id) for server_id in thread.disabled_mcp_server_ids
-        }
-        disabled_sandbox_ids = {
-            UUID(sandbox_id) for sandbox_id in thread.disabled_sandbox_ids
-        }
-        disabled_subagent_ids = {
-            UUID(subagent_id) for subagent_id in thread.disabled_subagent_ids
-        }
+        exclusions = spec.resource_exclusions(
+            disabled_mcp_server_ids={
+                UUID(server_id) for server_id in thread.disabled_mcp_server_ids
+            },
+            disabled_sandbox_ids={
+                UUID(sandbox_id) for sandbox_id in thread.disabled_sandbox_ids
+            },
+            disabled_subagent_ids={
+                UUID(subagent_id) for subagent_id in thread.disabled_subagent_ids
+            },
+            force_enable_all_capabilities=force_enable_all_capabilities,
+        )
 
         def filter_resources(agent_spec: AgentSpec) -> AgentSpec:
             return replace(
@@ -645,12 +655,12 @@ class Agent:
                 mcp_servers=[
                     binding
                     for binding in agent_spec.mcp_servers
-                    if binding.mcp_server_id not in disabled_mcp_server_ids
+                    if binding.mcp_server_id not in exclusions.mcp_server_ids
                 ],
                 sandbox=(
                     None
                     if agent_spec.sandbox is not None
-                    and agent_spec.sandbox.row.id in disabled_sandbox_ids
+                    and agent_spec.sandbox.row.id in exclusions.sandbox_ids
                     else agent_spec.sandbox
                 ),
             )
@@ -660,7 +670,7 @@ class Agent:
             subagents=[
                 filter_resources(subagent)
                 for subagent in spec.subagents
-                if subagent.id not in disabled_subagent_ids
+                if subagent.id not in exclusions.subagent_ids
             ],
         )
 
@@ -724,13 +734,20 @@ class Agent:
 
         # One skill set per graph: every agent lists, reads and runs the union
         # of what the supervisor and its subagents have enabled.
+        disabled_skill_ids = {UUID(skill_id) for skill_id in thread.disabled_skill_ids}
+        if force_enable_all_capabilities is True:
+            disabled_skill_ids.clear()
+        elif force_enable_all_capabilities is False:
+            disabled_skill_ids.update(
+                await SkillRepository(
+                    db, thread.workspace_id
+                ).list_disabled_by_default_ids_for_agents(spec.all_agent_ids)
+            )
         skills = await resolve_run_skills(
             db,
             spec.all_agent_ids,
             thread.workspace_id,
-            excluded_skill_ids={
-                UUID(skill_id) for skill_id in thread.disabled_skill_ids
-            },
+            excluded_skill_ids=disabled_skill_ids,
         )
         try:
             observability = await WorkspaceObservabilityService(db).get_runtime_config(

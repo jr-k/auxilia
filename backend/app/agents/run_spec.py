@@ -23,6 +23,15 @@ from app.sandbox.models import SandboxDB
 
 
 @dataclass(frozen=True)
+class ResourceExclusions:
+    """Capability ids omitted from one run."""
+
+    mcp_server_ids: set[UUID]
+    sandbox_ids: set[UUID]
+    subagent_ids: set[UUID]
+
+
+@dataclass(frozen=True)
 class SandboxSpec:
     """A resolved agent↔sandbox binding: the sandbox row plus the binding's
     per-tool map. Carrying `row` is what lets the runtime skip the re-fetch it
@@ -93,3 +102,42 @@ class RunSpec:
         for sub in self.subagents:
             bindings.extend(sub.mcp_servers)
         return bindings
+
+    def resource_exclusions(
+        self,
+        *,
+        disabled_mcp_server_ids: set[UUID],
+        disabled_sandbox_ids: set[UUID],
+        disabled_subagent_ids: set[UUID],
+        force_enable_all_capabilities: bool | None = None,
+    ) -> ResourceExclusions:
+        """Resolve thread choices against an optional side-channel policy.
+
+        ``None`` uses the thread as-is, ``True`` force-enables every attached
+        capability, and ``False`` also applies the agent graph's current
+        ``enabled_by_default`` choices.
+        """
+        if force_enable_all_capabilities is True:
+            return ResourceExclusions(set(), set(), set())
+
+        mcp_ids = set(disabled_mcp_server_ids)
+        sandbox_ids = set(disabled_sandbox_ids)
+        subagent_ids = set(disabled_subagent_ids)
+        if force_enable_all_capabilities is False:
+            mcp_ids.update(
+                binding.mcp_server_id
+                for binding in self.all_mcp_bindings
+                if not binding.enabled_by_default
+            )
+            sandbox_ids.update(
+                agent_spec.sandbox.row.id
+                for agent_spec in [self.agent, *self.subagents]
+                if agent_spec.sandbox is not None
+                and not agent_spec.sandbox.enabled_by_default
+            )
+            subagent_ids.update(
+                subagent.id
+                for subagent in self.subagents
+                if not subagent.enabled_by_default
+            )
+        return ResourceExclusions(mcp_ids, sandbox_ids, subagent_ids)

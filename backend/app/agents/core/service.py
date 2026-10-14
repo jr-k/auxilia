@@ -1406,12 +1406,52 @@ class AgentService(BaseService[AgentDB, AgentRepository]):
             return []
         return spec.all_mcp_bindings
 
-    async def describe_readiness(self, agent_id: UUID, user_id: str) -> dict:
+    async def describe_readiness(
+        self,
+        agent_id: UUID,
+        user_id: str,
+        *,
+        disabled_mcp_server_ids: set[UUID] | None = None,
+        disabled_sandbox_ids: set[UUID] | None = None,
+        disabled_subagent_ids: set[UUID] | None = None,
+        force_enable_all_capabilities: bool | None = None,
+    ) -> dict:
         spec = await self.repository.get_run_spec(agent_id)
+        exclusions = (
+            spec.resource_exclusions(
+                disabled_mcp_server_ids=disabled_mcp_server_ids or set(),
+                disabled_sandbox_ids=disabled_sandbox_ids or set(),
+                disabled_subagent_ids=disabled_subagent_ids or set(),
+                force_enable_all_capabilities=force_enable_all_capabilities,
+            )
+            if spec
+            else None
+        )
+        enabled_specs = (
+            [
+                spec.agent,
+                *(
+                    subagent
+                    for subagent in spec.subagents
+                    if subagent.id not in exclusions.subagent_ids
+                ),
+            ]
+            if spec and exclusions
+            else []
+        )
         # The sandbox first: an outage blocks the agent outright, and there is
         # nothing the user can click to fix it (unlike an MCP reconnect).
         try:
-            await ensure_sandboxes_available(spec.all_sandbox_rows if spec else [])
+            await ensure_sandboxes_available(
+                [
+                    agent_spec.sandbox.row
+                    for agent_spec in enabled_specs
+                    if agent_spec.sandbox is not None
+                    and agent_spec.sandbox.row.id not in exclusions.sandbox_ids
+                ]
+                if exclusions
+                else []
+            )
         except SandboxUnavailableError as exc:
             return {
                 "ready": False,
@@ -1422,7 +1462,16 @@ class AgentService(BaseService[AgentDB, AgentRepository]):
         # Includes subagents' servers so the UI can offer every optional OAuth
         # connection. Missing per-user OAuth no longer blocks a run: the
         # runtime omits those servers from that user's toolset.
-        bindings = spec.all_mcp_bindings if spec else []
+        bindings = (
+            [
+                binding
+                for agent_spec in enabled_specs
+                for binding in agent_spec.mcp_servers
+                if binding.mcp_server_id not in exclusions.mcp_server_ids
+            ]
+            if exclusions
+            else []
+        )
 
         if not bindings:
             return {"ready": True, "disconnected_servers": [], "status": "ready"}

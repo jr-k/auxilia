@@ -26,6 +26,7 @@ class AgentSlackRuntimeConfig:
     enabled: bool
     require_mention_in_threads: bool
     show_tool_callouts: bool
+    force_enable_all_capabilities: bool
     workspace_enabled: bool
     bot_token: str
     signing_secret: str
@@ -139,6 +140,9 @@ class AgentSlackBotService:
                 row.require_mention_in_threads if row else True
             ),
             show_tool_callouts=row.show_tool_callouts if row else True,
+            force_enable_all_capabilities=(
+                row.force_enable_all_capabilities if row else True
+            ),
             is_configured=row is not None,
             bot_token_last4=(
                 decrypt_value(row.bot_token_encrypted)[-4:] if row else None
@@ -219,6 +223,7 @@ class AgentSlackBotService:
             enabled=data.enabled,
             require_mention_in_threads=data.require_mention_in_threads,
             show_tool_callouts=data.show_tool_callouts,
+            force_enable_all_capabilities=data.force_enable_all_capabilities,
             bot_token_encrypted=encrypt_value(token),
             signing_secret_encrypted=encrypt_value(secret),
             slack_team_id=team_id,
@@ -267,6 +272,7 @@ class AgentSlackBotService:
         row.enabled = data.enabled
         row.require_mention_in_threads = data.require_mention_in_threads
         row.show_tool_callouts = data.show_tool_callouts
+        row.force_enable_all_capabilities = data.force_enable_all_capabilities
         self.db.add(row)
         await self.db.flush()
         return self._response(
@@ -325,6 +331,7 @@ class AgentSlackBotService:
             enabled=row.enabled,
             require_mention_in_threads=row.require_mention_in_threads,
             show_tool_callouts=row.show_tool_callouts,
+            force_enable_all_capabilities=row.force_enable_all_capabilities,
             workspace_enabled=(
                 workspace_enabled
                 if workspace_enabled is not None

@@ -44,6 +44,7 @@ from app.runtime.hitl import (
     pending_approval_requests,
 )
 from app.runtime.runs.service import RunService
+from app.threads.models import ThreadDB
 from app.threads.repository import ThreadRepository
 from app.threads.service import ThreadService
 from app.users.models import UserDB
@@ -289,6 +290,7 @@ async def _enqueue_slack_run(
     team_id: str | None,
     workspace_id: UUID,
     slack_bot_id: UUID | None = None,
+    force_enable_all_capabilities: bool | None = None,
     thread_ts: str | None = None,
     input: dict | None = None,
     command: dict | None = None,
@@ -304,6 +306,7 @@ async def _enqueue_slack_run(
         team_id=team_id,
         workspace_id=workspace_id,
         slack_bot_id=slack_bot_id,
+        force_enable_all_capabilities=force_enable_all_capabilities,
         thread_ts=thread_ts or thread_id,
     )
     try:
@@ -660,7 +663,12 @@ async def handle_assistant_thread_started(
 
 
 async def _is_agent_ready(
-    agent_id: str, user_id: str, workspace_id: UUID, db: AsyncSession
+    thread: ThreadDB,
+    user_id: str,
+    workspace_id: UUID,
+    db: AsyncSession,
+    *,
+    force_enable_all_capabilities: bool | None = None,
 ) -> bool:
     """Whether a Slack run can start.
 
@@ -676,12 +684,23 @@ async def _is_agent_ready(
 
     try:
         readiness = await AgentService(db, workspace_id).describe_readiness(
-            UUID(agent_id), user_id
+            thread.agent_id,
+            user_id,
+            disabled_mcp_server_ids={
+                UUID(server_id) for server_id in thread.disabled_mcp_server_ids
+            },
+            disabled_sandbox_ids={
+                UUID(sandbox_id) for sandbox_id in thread.disabled_sandbox_ids
+            },
+            disabled_subagent_ids={
+                UUID(subagent_id) for subagent_id in thread.disabled_subagent_ids
+            },
+            force_enable_all_capabilities=force_enable_all_capabilities,
         )
     except Exception:  # noqa: BLE001 — fail-open, per the docstring above
         logger.warning(
             "Slack readiness check for agent %s failed; letting the run proceed",
-            agent_id,
+            thread.agent_id,
             exc_info=True,
         )
         return True
@@ -746,9 +765,7 @@ async def handle_message(
         if not await _can_use_agent(db, workspace_id, thread.agent_id, user):
             return
 
-        if not await _is_agent_ready(
-            str(thread.agent_id), str(user.id), workspace_id, db
-        ):
+        if not await _is_agent_ready(thread, str(user.id), workspace_id, db):
             await _post_connect_prompt(
                 client, event.channel, thread_ts, thread.agent_id
             )
@@ -859,6 +876,7 @@ async def handle_agent_message(
     team_id: str | None = None,
     integration_enabled: bool = True,
     require_mention_in_threads: bool = True,
+    force_enable_all_capabilities: bool = True,
 ) -> None:
     """Route an allowed channel mention or DM to one agent-specific Slack bot."""
     if not event.channel or not event.user or not event.ts:
@@ -943,6 +961,7 @@ async def handle_agent_message(
             )
             db.add(binding)
             await db.flush()
+            thread = created
             thread_id = created.id
         else:
             if binding.slack_user_id != event.user:
@@ -976,7 +995,13 @@ async def handle_agent_message(
                 return
             thread_id = thread.id
 
-        if not await _is_agent_ready(str(agent_id), str(user.id), workspace_id, db):
+        if not await _is_agent_ready(
+            thread,
+            str(user.id),
+            workspace_id,
+            db,
+            force_enable_all_capabilities=force_enable_all_capabilities,
+        ):
             await _post_connect_prompt(
                 client, event.channel, external_thread_ts, agent_id
             )
@@ -1016,6 +1041,7 @@ async def handle_agent_message(
             team_id=team_id,
             workspace_id=workspace_id,
             slack_bot_id=slack_bot_id,
+            force_enable_all_capabilities=force_enable_all_capabilities,
             input={"messages": [{"type": "human", "content": prompt}]},
         )
         if enqueued and context_loaded:
@@ -1134,6 +1160,7 @@ async def handle_agent_message_shortcut_submission(
     *,
     agent_id: UUID,
     slack_bot_id: UUID,
+    force_enable_all_capabilities: bool = True,
 ) -> None:
     """Run an agent from a private-message shortcut in a bot-owned DM."""
     if (
@@ -1177,7 +1204,19 @@ async def handle_agent_message_shortcut_submission(
                 text="You don't have permission to use this agent.",
             )
             return
-        if not await _is_agent_ready(str(agent_id), str(actor.id), workspace_id, db):
+        created = await ThreadService(db, workspace_id).get_or_create(
+            ts=str(uuid4()),
+            agent_id=str(agent_id),
+            question=instruction,
+            user_id=str(actor.id),
+        )
+        if not await _is_agent_ready(
+            created,
+            str(actor.id),
+            workspace_id,
+            db,
+            force_enable_all_capabilities=force_enable_all_capabilities,
+        ):
             connect_url = f"{auth_settings.FRONTEND_URL}/agents/{agent_id}/chat"
             app_name = await _instance_app_name()
             await client.chat_postMessage(
@@ -1186,13 +1225,6 @@ async def handle_agent_message_shortcut_submission(
                 text=f"Please reconnect this agent's MCP servers on {app_name}.",
             )
             return
-
-        created = await ThreadService(db, workspace_id).get_or_create(
-            ts=str(uuid4()),
-            agent_id=str(agent_id),
-            question=instruction,
-            user_id=str(actor.id),
-        )
         root = await client.chat_postMessage(
             channel=dm_channel_id,
             text=f"Request from a private Slack message:\n>{instruction}",
@@ -1233,6 +1265,7 @@ async def handle_agent_message_shortcut_submission(
             team_id=team_id if isinstance(team_id, str) else None,
             workspace_id=workspace_id,
             slack_bot_id=slack_bot_id,
+            force_enable_all_capabilities=force_enable_all_capabilities,
             input={"messages": [{"type": "human", "content": prompt}]},
         )
         if not enqueued:
@@ -1261,6 +1294,7 @@ async def handle_interaction(
     *,
     slack_bot_id: UUID | None = None,
     agent_id: UUID | None = None,
+    force_enable_all_capabilities: bool | None = None,
 ) -> None:
     """Handle a Slack block_actions interaction (Approve/Reject buttons).
 
@@ -1376,6 +1410,7 @@ async def handle_interaction(
         command,
         internal_thread_id=internal_thread_id,
         slack_bot_id=slack_bot_id,
+        force_enable_all_capabilities=force_enable_all_capabilities,
     )
 
 
@@ -1425,6 +1460,7 @@ async def _resume_agent(
     *,
     internal_thread_id: str | None = None,
     slack_bot_id: UUID | None = None,
+    force_enable_all_capabilities: bool | None = None,
 ) -> None:
     """Look up the thread and enqueue a HITL-resume run with *command*."""
     user = await _resolve_slack_user(payload.user.id, workspace_id, slack_bot_id)
@@ -1442,7 +1478,11 @@ async def _resume_agent(
         # Same gate as handle_message: an approval clicked after the user's
         # OAuth expired must prompt a reconnect, not enqueue a doomed run.
         if not await _is_agent_ready(
-            str(thread.agent_id), str(user.id), workspace_id, db
+            thread,
+            str(user.id),
+            workspace_id,
+            db,
+            force_enable_all_capabilities=force_enable_all_capabilities,
         ):
             await _post_connect_prompt(client, channel_id, thread_ts, thread.agent_id)
             return
@@ -1464,6 +1504,7 @@ async def _resume_agent(
             team_id=(payload.team or {}).get("id"),
             workspace_id=workspace_id,
             slack_bot_id=slack_bot_id,
+            force_enable_all_capabilities=force_enable_all_capabilities,
             command=command,
         )
     except StaleApprovalError:

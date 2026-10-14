@@ -44,7 +44,12 @@ from app.runtime.runs.liveness import RunLiveness
 from app.runtime.runs.models import RunDB
 from app.runtime.runs.repository import RunRepository
 from app.runtime.runs.settings import run_settings
-from app.runtime.runs.state import MultitaskStrategy, RunStatus, is_terminal
+from app.runtime.runs.state import (
+    MultitaskStrategy,
+    RunStatus,
+    delivery_force_enable_all_capabilities,
+    is_terminal,
+)
 from app.sandbox.provider import ensure_sandboxes_available
 from app.threads.models import ThreadDB
 from app.threads.repository import ThreadRepository
@@ -162,7 +167,13 @@ class RunService:
         """
         if input is not None and command is not None:
             raise DomainValidationError("Provide either input or command, not both.")
-        thread = await self._ensure_runnable_thread(db, thread_id)
+        thread = await self._ensure_runnable_thread(
+            db,
+            thread_id,
+            force_enable_all_capabilities=delivery_force_enable_all_capabilities(
+                delivery
+            ),
+        )
         if thread.user_id != UUID(user_id):
             raise NotFoundError("Thread not found")
         if command is not None and not _command_prepared:
@@ -263,7 +274,12 @@ class RunService:
         return build_resume_command(scope.root, command["resume"], scope.state)
 
     @staticmethod
-    async def _ensure_runnable_thread(db: AsyncSession, thread_id: str) -> ThreadDB:
+    async def _ensure_runnable_thread(
+        db: AsyncSession,
+        thread_id: str,
+        *,
+        force_enable_all_capabilities: bool | None = None,
+    ) -> ThreadDB:
         """The availability gates behind `create`: the thread must exist, its
         current model must resolve (whitelist ∧ provider key ∧ admin-enabled),
         else ModelUnavailableError; and every sandbox its agent graph binds
@@ -278,18 +294,24 @@ class RunService:
         )
         if spec is None:
             raise NotFoundError("Agent not found")
-        disabled_sandbox_ids = {
-            UUID(sandbox_id) for sandbox_id in thread.disabled_sandbox_ids
-        }
-        disabled_subagent_ids = {
-            UUID(subagent_id) for subagent_id in thread.disabled_subagent_ids
-        }
+        exclusions = spec.resource_exclusions(
+            disabled_mcp_server_ids={
+                UUID(server_id) for server_id in thread.disabled_mcp_server_ids
+            },
+            disabled_sandbox_ids={
+                UUID(sandbox_id) for sandbox_id in thread.disabled_sandbox_ids
+            },
+            disabled_subagent_ids={
+                UUID(subagent_id) for subagent_id in thread.disabled_subagent_ids
+            },
+            force_enable_all_capabilities=force_enable_all_capabilities,
+        )
         enabled_specs = [
             spec.agent,
             *(
                 subagent
                 for subagent in spec.subagents
-                if subagent.id not in disabled_subagent_ids
+                if subagent.id not in exclusions.subagent_ids
             ),
         ]
         await ensure_sandboxes_available(
@@ -297,7 +319,7 @@ class RunService:
                 agent_spec.sandbox.row
                 for agent_spec in enabled_specs
                 if agent_spec.sandbox is not None
-                and agent_spec.sandbox.row.id not in disabled_sandbox_ids
+                and agent_spec.sandbox.row.id not in exclusions.sandbox_ids
             ]
         )
         return thread

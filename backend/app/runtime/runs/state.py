@@ -16,6 +16,16 @@ from typing import Literal
 MultitaskStrategy = Literal["reject", "enqueue"]
 
 
+def delivery_force_enable_all_capabilities(
+    delivery: dict | None,
+) -> bool | None:
+    """Return a Slack side-channel capability override, if one was recorded."""
+    if not delivery or delivery.get("channel") != "slack":
+        return None
+    value = delivery.get("force_enable_all_capabilities")
+    return value if isinstance(value, bool) else None
+
+
 class RunStatus(str, Enum):
     """Run lifecycle. Names match the LangGraph Server v1 wire shape; `cancelled`
     is auxilia's explicit Stop."""

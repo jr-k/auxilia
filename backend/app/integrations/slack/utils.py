@@ -47,6 +47,7 @@ class VerifiedSlackRequest:
     agent_id: UUID | None = None
     integration_enabled: bool = True
     require_mention_in_threads: bool = True
+    force_enable_all_capabilities: bool = True
 
 
 def _team_id(body: bytes) -> str | None:
@@ -176,6 +177,7 @@ async def verify_agent_slack_signature(
         agent_id=config.agent_id,
         integration_enabled=config.enabled and config.workspace_enabled,
         require_mention_in_threads=config.require_mention_in_threads,
+        force_enable_all_capabilities=config.force_enable_all_capabilities,
     )
 
 

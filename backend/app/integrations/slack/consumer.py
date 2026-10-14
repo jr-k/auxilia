@@ -62,6 +62,7 @@ class SlackDelivery(TypedDict):
     team_id: str | None
     workspace_id: str
     slack_bot_id: NotRequired[str | None]
+    force_enable_all_capabilities: NotRequired[bool]
 
 
 def build_slack_run_consumer(record: RunDB) -> "SlackRunConsumer | None":
@@ -83,6 +84,7 @@ def build_slack_delivery(
     team_id: str | None,
     workspace_id: UUID,
     slack_bot_id: UUID | None = None,
+    force_enable_all_capabilities: bool | None = None,
 ) -> SlackDelivery:
     """The delivery descriptor stored on a Slack-bound run."""
     delivery: SlackDelivery = {
@@ -95,6 +97,8 @@ def build_slack_delivery(
     }
     if slack_bot_id is not None:
         delivery["slack_bot_id"] = str(slack_bot_id)
+    if force_enable_all_capabilities is not None:
+        delivery["force_enable_all_capabilities"] = force_enable_all_capabilities
     return delivery
 
 

@@ -8,6 +8,7 @@ class AgentSlackBotUpdate(BaseModel):
     enabled: bool = True
     require_mention_in_threads: bool = True
     show_tool_callouts: bool = True
+    force_enable_all_capabilities: bool = True
     bot_token: str | None = Field(default=None, max_length=4096)
     signing_secret: str | None = Field(default=None, max_length=4096)
 
@@ -18,6 +19,7 @@ class AgentSlackBotResponse(BaseModel):
     enabled: bool
     require_mention_in_threads: bool
     show_tool_callouts: bool
+    force_enable_all_capabilities: bool
     is_configured: bool
     bot_token_last4: str | None = None
     has_signing_secret: bool = False

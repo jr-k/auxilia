@@ -162,6 +162,7 @@ async def agent_slack_events(
             team_id=payload.team_id,
             integration_enabled=verified.integration_enabled,
             require_mention_in_threads=verified.require_mention_in_threads,
+            force_enable_all_capabilities=verified.force_enable_all_capabilities,
         )
     )
     return JSONResponse(content={"ok": True})
@@ -210,6 +211,9 @@ async def agent_slack_interactions(
                     verified.workspace_id,
                     slack_bot_id=verified.slack_bot_id,
                     agent_id=verified.agent_id,
+                    force_enable_all_capabilities=(
+                        verified.force_enable_all_capabilities
+                    ),
                 )
             )
     elif (
@@ -230,6 +234,7 @@ async def agent_slack_interactions(
                 verified.workspace_id,
                 agent_id=verified.agent_id,
                 slack_bot_id=verified.slack_bot_id,
+                force_enable_all_capabilities=(verified.force_enable_all_capabilities),
             )
         )
     return JSONResponse(content={"ok": True})
