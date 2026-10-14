@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.13](https://github.com/jr-k/auxilia/compare/web-v0.12.12...web-v0.12.13) (2026-10-14)
+
+
+### Features
+
+* **chat:** improve resource picker and tool identities ([#128](https://github.com/jr-k/auxilia/issues/128)) ([b667afb](https://github.com/jr-k/auxilia/commit/b667afb90307b26faa01cb0e8993c782d9fb867f))
+
 ## [0.12.12](https://github.com/jr-k/auxilia/compare/web-v0.12.11...web-v0.12.12) (2026-10-14)
 
 
