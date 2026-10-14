@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.11.12](https://github.com/jr-k/auxilia/compare/backend-v0.11.11...backend-v0.11.12) (2026-10-14)
+
+
+### Features
+
+* **sandbox:** test provider connections ([2b4f373](https://github.com/jr-k/auxilia/commit/2b4f373cafbca5924794ae7f85ad05850f1b6c57))
+
+
+### Bug Fixes
+
+* **mcp:** identify server requiring reauthorization ([1097b72](https://github.com/jr-k/auxilia/commit/1097b726c0fdc0086ac5220dbe1fda9df0975584))
+
 ## [0.11.11](https://github.com/jr-k/auxilia/compare/backend-v0.11.10...backend-v0.11.11) (2026-10-14)
 
 

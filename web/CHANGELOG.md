@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.12.10](https://github.com/jr-k/auxilia/compare/web-v0.12.9...web-v0.12.10) (2026-10-14)
+
+
+### Features
+
+* **agents:** separate MCP servers and sandboxes ([55087eb](https://github.com/jr-k/auxilia/commit/55087eb9ba8d7915a5a6795da7ece40965b95a7b))
+* **sandbox:** test provider connections ([2b4f373](https://github.com/jr-k/auxilia/commit/2b4f373cafbca5924794ae7f85ad05850f1b6c57))
+
 ## [0.12.9](https://github.com/jr-k/auxilia/compare/web-v0.12.8...web-v0.12.9) (2026-10-14)
 
 
