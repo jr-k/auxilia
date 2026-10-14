@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.15](https://github.com/jr-k/auxilia/compare/web-v0.12.14...web-v0.12.15) (2026-10-14)
+
+
+### Bug Fixes
+
+* **web:** polish agent loading and MCP controls ([#132](https://github.com/jr-k/auxilia/issues/132)) ([554d109](https://github.com/jr-k/auxilia/commit/554d109a2433f667d81c168f3184c6a66990d6e3))
+
 ## [0.12.14](https://github.com/jr-k/auxilia/compare/web-v0.12.13...web-v0.12.14) (2026-10-14)
 
 
