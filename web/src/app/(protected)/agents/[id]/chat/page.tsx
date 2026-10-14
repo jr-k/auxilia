@@ -14,7 +14,7 @@ import { useModelsStore } from "@/stores/models-store";
 import * as agentsApi from "@/lib/api/resources/agents";
 import * as threadsApi from "@/lib/api/resources/threads";
 import { generateUuid } from "@/lib/utils/uuid";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Loader2 } from "lucide-react";
 import { Agent } from "@/types/agents";
 import { AgentAvatar } from "@/components/ui/agent-avatar";
 import { getDefaultModel } from "@/lib/utils/get-default-model";
@@ -221,25 +221,36 @@ const StarterChatPage = () => {
 		<div className="container mx-auto h-full flex flex-col items-center justify-center max-w-4xl px-6">
 			<div className="w-full max-w-3xl space-y-8">
 				<div className="text-center space-y-4">
-					<button
-						onClick={() => {
-							setIsAgentDialogOpen(true);
-						}}
-						className="flex items-center justify-center gap-2 mx-auto hover:opacity-80 transition-opacity cursor-pointer"
-					>
-						<AgentAvatar
-							agentId={currentAgent?.id}
-							name={currentAgent?.name}
-							imageRevision={currentAgent?.imageRevision}
-							color={currentAgent?.color}
-							emoji={currentAgent?.emoji}
-							size="lg"
-						/>
-						<h1 className="text-4xl font-bold">
-							{currentAgent?.name}
-						</h1>
-						<ChevronDown className="size-5 text-muted-foreground ml-8 mt-1" />
-					</button>
+					{currentAgent ? (
+						<button
+							onClick={() => {
+								setIsAgentDialogOpen(true);
+							}}
+							className="mx-auto flex cursor-pointer items-center justify-center gap-2 transition-opacity hover:opacity-80"
+						>
+							<AgentAvatar
+								agentId={currentAgent.id}
+								name={currentAgent.name}
+								imageRevision={currentAgent.imageRevision}
+								color={currentAgent.color}
+								emoji={currentAgent.emoji}
+								size="lg"
+							/>
+							<h1 className="text-4xl font-bold">{currentAgent.name}</h1>
+							<ChevronDown className="ml-8 mt-1 size-5 text-muted-foreground" />
+						</button>
+					) : (
+						<div
+							className="mx-auto flex h-[52px] items-center justify-center"
+							role="status"
+							aria-label="Loading agent"
+						>
+							<Loader2
+								className="size-7 animate-spin text-petrol"
+								aria-hidden="true"
+							/>
+						</div>
+					)}
 					{status !== "sandbox_unavailable" && (
 						<p className="text-lg text-muted-foreground">
 							Ask me anything to begin
