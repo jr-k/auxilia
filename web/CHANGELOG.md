@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.19](https://github.com/jr-k/auxilia/compare/web-v0.12.18...web-v0.12.19) (2026-10-14)
+
+
+### Bug Fixes
+
+* **web:** show resource instance in tool tooltip ([#140](https://github.com/jr-k/auxilia/issues/140)) ([d4d6d7e](https://github.com/jr-k/auxilia/commit/d4d6d7ef598591bc224d43dfcb32ba1fa788c154))
+
 ## [0.12.18](https://github.com/jr-k/auxilia/compare/web-v0.12.17...web-v0.12.18) (2026-10-14)
 
 
