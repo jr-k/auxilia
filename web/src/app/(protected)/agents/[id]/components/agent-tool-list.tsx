@@ -66,6 +66,9 @@ export default function AgentToolList({
 }: AgentToolListProps) {
 	const [allMCPServers, setAllMCPServers] = useState<MCPServer[]>([]);
 	const [allSandboxes, setAllSandboxes] = useState<Sandbox[]>([]);
+	const [expandedServerIds, setExpandedServerIds] = useState<Set<string>>(
+		() => new Set(),
+	);
 	const [internalDialogOpen, setInternalDialogOpen] = useState(false);
 	const [dialogResourceKind, setDialogResourceKind] = useState<
 		"all" | "mcp" | "sandbox"
@@ -92,6 +95,21 @@ export default function AgentToolList({
 		const enabledIds = new Set(mcpServers.map((s) => s.mcpServerId));
 		return allMCPServers.filter((server) => enabledIds.has(server.id));
 	}, [allMCPServers, mcpServers]);
+	const allServersExpanded =
+		enabledServers.length > 0 &&
+		enabledServers.every((server) => expandedServerIds.has(server.id));
+
+	const setServerExpanded = (serverId: string, expanded: boolean) => {
+		setExpandedServerIds((current) => {
+			const next = new Set(current);
+			if (expanded) {
+				next.add(serverId);
+			} else {
+				next.delete(serverId);
+			}
+			return next;
+		});
+	};
 
 	const enabledSandboxes = useMemo(() => {
 		const enabledIds = new Set(sandboxes.map((s) => s.sandboxId));
@@ -200,18 +218,35 @@ export default function AgentToolList({
 							{enabledServers.length}
 						</span>
 					</span>
-					{!readOnly && (
-						<button
-							type="button"
-							className="flex cursor-pointer items-center gap-1 text-[12.5px] font-semibold text-petrol transition-opacity hover:opacity-80 dark:text-panel-terminal"
-							onClick={() => {
-								openResourceDialog("mcp");
-							}}
-						>
-							<Plus className="size-3" />
-							Add server
-						</button>
-					)}
+					<div className="flex items-center gap-3">
+						{enabledServers.length > 0 && (
+							<button
+								type="button"
+								className="cursor-pointer text-[12.5px] font-semibold text-petrol transition-opacity hover:opacity-80 dark:text-panel-terminal"
+								onClick={() => {
+									setExpandedServerIds(
+										allServersExpanded
+											? new Set()
+											: new Set(enabledServers.map((server) => server.id)),
+									);
+								}}
+							>
+								{allServersExpanded ? "Collapse all" : "Expand all"}
+							</button>
+						)}
+						{!readOnly && (
+							<button
+								type="button"
+								className="flex cursor-pointer items-center gap-1 text-[12.5px] font-semibold text-petrol transition-opacity hover:opacity-80 dark:text-panel-terminal"
+								onClick={() => {
+									openResourceDialog("mcp");
+								}}
+							>
+								<Plus className="size-3" />
+								Add server
+							</button>
+						)}
+					</div>
 				</div>
 				{enabledServers.length > 0 ? (
 					<div className="flex flex-col gap-2.5">
@@ -221,6 +256,10 @@ export default function AgentToolList({
 								agentId={agentId}
 								server={server}
 								binding={bindingFor(server.id)}
+								isExpanded={expandedServerIds.has(server.id)}
+								onExpandedChange={(expanded) => {
+									setServerExpanded(server.id, expanded);
+								}}
 								readOnly={readOnly}
 								canEdit={canEdit}
 								onToolsChange={(tools) => {

@@ -12,13 +12,15 @@ import MCPToolsDialog from "./mcp-tools-dialog";
 import { AgentMCPServerForm } from "../../lib/agent-form";
 import * as mcpServersApi from "@/lib/api/resources/mcp-servers";
 import { ServerIconTile } from "@/app/(protected)/mcp-servers/components/server-icon-tile";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
 
 interface AgentMCPServerProps {
 	/** Saved agent id — undefined in create mode. */
 	agentId?: string;
 	server: MCPServer;
 	binding: AgentMCPServerForm;
+	isExpanded: boolean;
+	onExpandedChange: (expanded: boolean) => void;
 	readOnly?: boolean;
 	/** Whether the viewer may edit this agent at all (default: yes). */
 	canEdit?: boolean;
@@ -45,6 +47,8 @@ export default function AgentMCPServer({
 	agentId,
 	server,
 	binding,
+	isExpanded,
+	onExpandedChange,
 	readOnly,
 	canEdit = true,
 	onToolsChange,
@@ -53,9 +57,6 @@ export default function AgentMCPServer({
 	onToolsPersisted,
 	onRemove,
 }: AgentMCPServerProps) {
-	// Collapsed on page open; not-connected servers auto-expand (effect
-	// below) so the Connect action stays visible.
-	const [isExpanded, setIsExpanded] = useState(false);
 	const [tools, setTools] = useState<MCPServerTool[]>([]);
 	const [isLoading, setIsLoading] = useState(false);
 	const [isConnected, setIsConnected] = useState(false);
@@ -67,8 +68,12 @@ export default function AgentMCPServer({
 		Boolean(server.disabledTools && server.disabledTools.length > 0);
 
 	const handleToggleExpand = () => {
-		setIsExpanded(!isExpanded);
+		onExpandedChange(!isExpanded);
 	};
+	const expandedChangeRef = useRef(onExpandedChange);
+	useEffect(() => {
+		expandedChangeRef.current = onExpandedChange;
+	}, [onExpandedChange]);
 
 	const statusFor = (toolName: string): ToolStatus => {
 		// Object.hasOwn (not `in`) so a tool literally named "toString" etc.
@@ -232,7 +237,7 @@ export default function AgentMCPServer({
 								// card sticking at NOT CONNECTED with polling dead.
 								setIsConnected(true);
 								setToolsUnavailable(true);
-								setIsExpanded(true);
+								expandedChangeRef.current(true);
 								setIsLoading(false);
 							}
 
@@ -263,7 +268,7 @@ export default function AgentMCPServer({
 			console.error("Failed to fetch tools:", error);
 			setTools([]);
 			setToolsUnavailable(true);
-			setIsExpanded(true);
+			expandedChangeRef.current(true);
 		} finally {
 			setIsLoading(false);
 		}
@@ -281,13 +286,13 @@ export default function AgentMCPServer({
 				if (connected) {
 					void fetchTools();
 				} else {
-					setIsExpanded(true);
+					expandedChangeRef.current(true);
 				}
 			})
 			.catch((error: unknown) => {
 				console.error("Failed to check connection status:", error);
 				setIsConnected(false);
-				setIsExpanded(true);
+				expandedChangeRef.current(true);
 			})
 			.finally(() => {
 				setIsCheckingConnection(false);
@@ -304,7 +309,13 @@ export default function AgentMCPServer({
 
 	return (
 		<div className="overflow-hidden rounded-[10px] border border-border bg-card">
-			<div className="flex items-center gap-2.5 bg-card px-4 py-3">
+			<button
+				type="button"
+				onClick={handleToggleExpand}
+				aria-expanded={isExpanded}
+				aria-label={isExpanded ? "Collapse" : "Expand"}
+				className="flex w-full cursor-pointer items-center gap-2.5 bg-card px-4 py-3 text-left"
+			>
 				<ServerIconTile
 					iconUrl={server.iconUrl}
 					serverId={server.id}
@@ -330,19 +341,14 @@ export default function AgentMCPServer({
 								Not connected
 							</span>
 						))}
-					<button
-						onClick={handleToggleExpand}
-						aria-label={isExpanded ? "Collapse" : "Expand"}
-						className="cursor-pointer p-1 text-meta transition-colors hover:text-foreground dark:text-panel-dim"
-					>
-						<ChevronRight
-							className={`size-4 transition-transform ${
-								isExpanded ? "rotate-90" : ""
-							}`}
-						/>
-					</button>
+					<ChevronRight
+						aria-hidden="true"
+						className={`m-1 size-4 text-meta transition-all dark:text-panel-dim ${
+							isExpanded ? "rotate-90" : ""
+						}`}
+					/>
 				</div>
-			</div>
+			</button>
 
 			{isExpanded && (
 				<div className="border-t border-hover dark:border-white/5">
@@ -398,7 +404,7 @@ export default function AgentMCPServer({
 											Enable this MCP server by default
 										</p>
 									</div>
-									<Checkbox
+									<Switch
 										checked={binding.enabledByDefault ?? true}
 										onCheckedChange={(checked) => {
 											onDefaultEnabledChange?.(checked);
