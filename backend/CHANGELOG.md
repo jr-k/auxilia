@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.16](https://github.com/jr-k/auxilia/compare/backend-v0.11.15...backend-v0.11.16) (2026-10-14)
+
+
+### Features
+
+* **slack:** configure capability defaults ([83f3583](https://github.com/jr-k/auxilia/commit/83f35837093fdf0b6f0d7bea204d43ea1f5bd223))
+
 ## [0.11.15](https://github.com/jr-k/auxilia/compare/backend-v0.11.14...backend-v0.11.15) (2026-10-14)
 
 

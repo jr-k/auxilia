@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.20](https://github.com/jr-k/auxilia/compare/web-v0.12.19...web-v0.12.20) (2026-10-14)
+
+
+### Features
+
+* **slack:** configure capability defaults ([83f3583](https://github.com/jr-k/auxilia/commit/83f35837093fdf0b6f0d7bea204d43ea1f5bd223))
+
 ## [0.12.19](https://github.com/jr-k/auxilia/compare/web-v0.12.18...web-v0.12.19) (2026-10-14)
 
 
