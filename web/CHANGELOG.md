@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.24](https://github.com/jr-k/auxilia/compare/web-v0.12.23...web-v0.12.24) (2026-10-15)
+
+
+### Features
+
+* **web:** expose API documentation ([f09a95d](https://github.com/jr-k/auxilia/commit/f09a95d75863e89524de555ffc362a4631cecb62))
+
 ## [0.12.23](https://github.com/jr-k/auxilia/compare/web-v0.12.22...web-v0.12.23) (2026-10-15)
 
 
