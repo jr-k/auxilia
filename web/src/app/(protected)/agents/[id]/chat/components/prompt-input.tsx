@@ -26,9 +26,9 @@ import {
 	BrainIcon,
 	ChartNoAxesColumnIncreasingIcon,
 	CheckIcon,
+	CpuIcon,
 	Loader2,
 	PlugIcon,
-	WrenchIcon,
 	XIcon,
 } from "lucide-react";
 import { useRef, useState, useEffect, useMemo } from "react";
@@ -1060,12 +1060,21 @@ const ChatPromptInput = ({
 										{toolDiscoveryPending ? (
 											<Loader2 className="size-3.5 animate-spin" />
 										) : (
-											<WrenchIcon className="size-3.5" />
+											<CpuIcon className="size-3.5" />
 										)}
 									</PromptInputButton>
 								}
 							/>
 						)}
+						<ConnectButton
+							allConnected={
+								agentReady === true &&
+								enabledDisconnectedServers.length === 0
+							}
+							onClick={() => {
+								setConnectDialogOpen(true);
+							}}
+						/>
 						{readOnlyModel ? (
 							<PromptInputButton disabled className={composerPillClass}>
 								{selectedModelData?.chefSlug && (
@@ -1229,15 +1238,6 @@ const ChatPromptInput = ({
 								)}
 					</PromptInputTools>
 					<div className="flex items-center gap-1.5">
-						<ConnectButton
-							allConnected={
-								agentReady === true &&
-								enabledDisconnectedServers.length === 0
-							}
-							onClick={() => {
-								setConnectDialogOpen(true);
-							}}
-						/>
 						{status === "streaming" && stop && <StopButton stop={stop} />}
 						<SubmitButton
 							disabled={
@@ -1424,14 +1424,14 @@ const ConnectButton = ({
 			}
 			title={allConnected ? "View agent resources" : undefined}
 			className={cn(
-				"flex h-[38px] cursor-pointer items-center justify-center gap-2 rounded-full transition-all",
-				"text-[14px] font-semibold",
+				composerPillClass,
+				"flex shrink-0 cursor-pointer items-center justify-center whitespace-nowrap",
 				allConnected
-					? "w-[38px] border border-input bg-card px-0 text-foreground hover:border-border-hover hover:bg-hover dark:hover:bg-white/5"
-					: "bg-petrol px-4 text-white shadow-submit hover:opacity-90",
+					? "w-[34px] px-0 text-subtle dark:text-panel-body"
+					: "bg-petrol text-white shadow-submit hover:bg-petrol hover:opacity-90 dark:bg-petrol dark:hover:bg-petrol",
 			)}
 		>
-			<PlugIcon size={16} />
+			<PlugIcon className="size-3.5" />
 			{!allConnected && <span>Connect</span>}
 		</button>
 	);
