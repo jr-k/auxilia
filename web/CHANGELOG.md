@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.21](https://github.com/jr-k/auxilia/compare/web-v0.12.20...web-v0.12.21) (2026-10-15)
+
+
+### Bug Fixes
+
+* **web:** refine tool discovery menu and custom logo ([b480694](https://github.com/jr-k/auxilia/commit/b480694d93dbb30fdb225678e6572018c3c406b1))
+
 ## [0.12.20](https://github.com/jr-k/auxilia/compare/web-v0.12.19...web-v0.12.20) (2026-10-14)
 
 
