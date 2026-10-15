@@ -8,6 +8,8 @@ const getPublicHost = (request: NextRequest) => {
 };
 
 const EXACT_BACKEND_PATHS = new Set([
+	"docs",
+	"openapi.json",
 	"mcp",
 	"register",
 	"authorize",
@@ -68,6 +70,21 @@ async function proxyRequest(
 	const responseHeaders = new Headers(response.headers);
 	responseHeaders.delete("content-encoding");
 	responseHeaders.delete("content-length");
+
+	if (pathSegment === "openapi.json" && response.ok) {
+		const schema = (await response.json()) as {
+			servers?: Array<{ url: string }>;
+		};
+		// Swagger is exposed through the frontend, while the API itself remains
+		// behind the same-origin backend proxy. Advertise that public prefix so
+		// "Try it out" never targets a frontend page such as /threads directly.
+		schema.servers = [{ url: "/api/backend" }];
+		responseHeaders.set("content-type", "application/json");
+		return Response.json(schema, {
+			status: response.status,
+			headers: responseHeaders,
+		});
+	}
 
 	return new Response(response.body, {
 		status: response.status,

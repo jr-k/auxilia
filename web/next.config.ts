@@ -20,6 +20,12 @@ const nextConfig: NextConfig = {
 	},
 	async rewrites() {
 		return [
+			{ source: "/docs", destination: "/api/backend/docs" },
+			{
+				source: "/docs/oauth2-redirect",
+				destination: "/api/backend/docs/oauth2-redirect",
+			},
+			{ source: "/openapi.json", destination: "/api/backend/openapi.json" },
 			{ source: "/mcp", destination: "/api/backend/mcp" },
 			{ source: "/register", destination: "/api/backend/register" },
 			{ source: "/authorize", destination: "/api/backend/authorize" },

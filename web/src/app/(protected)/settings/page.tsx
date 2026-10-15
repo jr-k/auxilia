@@ -1,7 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Copy, Check, KeyRound, Plus, Trash2 } from "lucide-react";
+import {
+	BookOpenText,
+	Check,
+	Copy,
+	KeyRound,
+	Plus,
+	Trash2,
+} from "lucide-react";
 import ForbiddenErrorDialog from "@/components/forbidden-error-dialog";
 import { useConfirmDialog } from "@/components/providers/dialog-provider";
 import CreateTokenDialog, { type PersonalAccessToken } from "./create-token-dialog";
@@ -548,13 +555,22 @@ export default function SettingsPage() {
 									Personal access tokens
 								</span>
 								<span className="flex-1" />
+								<a
+									href="/docs"
+									target="_blank"
+									rel="noreferrer"
+									className="flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-[7px] border border-input px-3.5 py-2 text-[12.5px] font-semibold text-foreground transition-colors hover:border-meta hover:bg-muted/50 dark:border-white/15 dark:text-panel-body dark:hover:border-white/25 dark:hover:bg-white/5"
+								>
+									<BookOpenText className="size-3.5" />
+									API documentation
+								</a>
 								{isAdmin && (
 									<button
 										type="button"
 										onClick={() => {
 											setCreateDialogOpen(true);
 										}}
-										className="flex cursor-pointer items-center gap-1.5 rounded-[7px] bg-primary px-4 py-2 text-[12.5px] font-semibold text-primary-foreground transition-opacity hover:opacity-90"
+										className="flex shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-[7px] bg-primary px-4 py-2 text-[12.5px] font-semibold text-primary-foreground transition-opacity hover:opacity-90"
 									>
 										<Plus className="size-3.5" />
 										Generate token
