@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.22](https://github.com/jr-k/auxilia/compare/web-v0.12.21...web-v0.12.22) (2026-10-15)
+
+
+### Bug Fixes
+
+* **web:** align composer connection controls ([ea3a126](https://github.com/jr-k/auxilia/commit/ea3a1265a79c8792aac897309a0057ae96335131))
+
 ## [0.12.21](https://github.com/jr-k/auxilia/compare/web-v0.12.20...web-v0.12.21) (2026-10-15)
 
 
