@@ -1067,9 +1067,9 @@ const ChatPromptInput = ({
 							/>
 						)}
 						<ConnectButton
-							allConnected={
-								agentReady === true &&
-								enabledDisconnectedServers.length === 0
+							needsConnection={
+								agentReady === false &&
+								enabledDisconnectedServers.length > 0
 							}
 							onClick={() => {
 								setConnectDialogOpen(true);
@@ -1409,10 +1409,10 @@ const StopButton = ({ stop }: { stop: () => void }) => (
 );
 
 const ConnectButton = ({
-	allConnected,
+	needsConnection,
 	onClick,
 }: {
-	allConnected: boolean;
+	needsConnection: boolean;
 	onClick: () => void;
 }) => {
 	return (
@@ -1420,19 +1420,19 @@ const ConnectButton = ({
 			type="button"
 			onClick={onClick}
 			aria-label={
-				allConnected ? "View connected resources" : "Connect agent resources"
+				needsConnection ? "Connect agent resources" : "View connected resources"
 			}
-			title={allConnected ? "View agent resources" : undefined}
+			title={needsConnection ? undefined : "View agent resources"}
 			className={cn(
 				composerPillClass,
 				"flex shrink-0 cursor-pointer items-center justify-center whitespace-nowrap",
-				allConnected
-					? "w-[34px] px-0 text-subtle dark:text-panel-body"
-					: "bg-petrol text-white shadow-submit hover:bg-petrol hover:opacity-90 dark:bg-petrol dark:hover:bg-petrol",
+				needsConnection
+					? "bg-petrol text-white shadow-submit hover:bg-petrol hover:opacity-90 dark:bg-petrol dark:hover:bg-petrol"
+					: "w-[34px] px-0 text-subtle dark:text-panel-body",
 			)}
 		>
 			<PlugIcon className="size-3.5" />
-			{!allConnected && <span>Connect</span>}
+			{needsConnection && <span>Connect</span>}
 		</button>
 	);
 };

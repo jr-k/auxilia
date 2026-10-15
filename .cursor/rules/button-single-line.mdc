@@ -1,0 +1,12 @@
+---
+description: Keep every button label and icon on a single line
+globs: web/src/**/*.tsx
+alwaysApply: false
+---
+
+# Buttons never wrap
+
+- Button content must never wrap onto multiple lines.
+- Give buttons with text `whitespace-nowrap`; add `shrink-0` when they sit in a constrained flex layout.
+- Keep icon-and-label buttons aligned with `flex items-center`.
+- Do not hide wrapping by clipping text. Adjust the surrounding responsive layout if the button does not fit.

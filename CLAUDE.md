@@ -337,6 +337,7 @@ See **Backend conventions** above for the full layered architecture, naming rule
 - **Zustand stores** for client state (agents, threads, MCP servers, user)
 - **Axios interceptors** handle camelCase ↔ snake_case conversion automatically; the `tools` JSONB field is preserved as-is
 - **shadcn/ui** components in `components/ui/`; feature-specific components live next to their page
+- **Make frontend changes visible before handoff**: determine how the frontend is running after editing `web/`. If the `auxilia-web` Docker container is running without a source bind mount, rebuild and recreate it with `docker compose up -d --build web`, wait until it is healthy, and verify that it serves successfully. If the Next.js dev server is running, verify hot reload and restart it when needed. Never assume source edits are visible in a production Docker image.
 - **Never pass an async/Promise-returning function directly to a void event handler** (`onClick`, `onChange`, `onSubmit`, etc.) — ESLint's `@typescript-eslint/no-misused-promises` flags it. Wrap the call so the handler returns void:
 
   ```tsx

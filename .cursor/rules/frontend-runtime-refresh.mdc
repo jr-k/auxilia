@@ -1,0 +1,13 @@
+---
+description: Make frontend changes visible in the running application before handing them off
+globs: web/**/*
+alwaysApply: false
+---
+
+# Refresh the running frontend
+
+- After changing frontend files, determine how the frontend is currently running.
+- If the `auxilia-web` Docker container is running without a source bind mount, rebuild and recreate it with `docker compose up -d --build web`.
+- If the Next.js development server is running, verify that hot reload picked up the change; restart it if needed.
+- Wait for the frontend to become healthy and verify that it serves successfully before reporting completion.
+- Do not assume that editing source files makes changes visible in a production Docker image.
