@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 type DropdownItem =
 	| {
 			label: string;
+			description?: string;
 			icon?: React.ReactNode;
 			destructive?: boolean;
 			separator?: false;
@@ -105,10 +106,18 @@ export function DropdownMenu({
 										{item.icon}
 									</span>
 								)}
-								<span>{item.label}</span>
+								<span className="shrink-0">{item.label}</span>
+								{item.description && (
+									<span className="ml-auto text-right text-[12px] font-normal text-meta/70 dark:text-panel-dim/70">
+										{item.description}
+									</span>
+								)}
 								{item.active && (
 									<Check
-										className="ml-auto size-3.5 shrink-0 text-petrol dark:text-panel-terminal"
+										className={cn(
+											"size-3.5 shrink-0 text-petrol dark:text-panel-terminal",
+											!item.description && "ml-auto",
+										)}
 										strokeWidth={3}
 									/>
 								)}

@@ -1013,24 +1013,28 @@ const ChatPromptInput = ({
 							<DropdownMenu
 								align="start"
 								side="top"
+								className="w-[360px]"
 								items={[
 									{ sectionLabel: "Tool discovery" },
 									{
-										label: "Eager · all schemas",
+										label: "Eager",
+										description: "all schemas",
 										active: toolDiscoveryMode === "disabled",
 										onClick: () => {
 											void handleToolDiscoveryChange("disabled");
 										},
 									},
 									{
-										label: "Automatic · provider-native",
+										label: "Automatic",
+										description: "provider-native",
 										active: toolDiscoveryMode === "automatic",
 										onClick: () => {
 											void handleToolDiscoveryChange("automatic");
 										},
 									},
 									{
-										label: "Auxilia Search · adaptive",
+										label: "Auxilia Search",
+										description: "adaptive",
 										active: toolDiscoveryMode === "local",
 										onClick: () => {
 											void handleToolDiscoveryChange("local");

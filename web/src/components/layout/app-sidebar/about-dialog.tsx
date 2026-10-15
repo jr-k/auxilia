@@ -51,12 +51,15 @@ export function AboutDialog({ open, onOpenChange }: AboutDialogProps) {
 				<div className="border-b border-hairline px-7 pb-6 pt-8 dark:border-white/10">
 					<div className="mb-4 flex justify-center">
 						{appearance.logoRevision ? (
-							<Image
+							// Browser-direct request: the authenticated proxy route cannot
+							// be fetched reliably by Next's server-side image optimizer.
+							// eslint-disable-next-line @next/next/no-img-element
+							<img
 								src={appearanceLogoUrl(appearance.logoRevision)}
 								alt={appearance.appName}
 								width={34}
 								height={34}
-								className="size-[34px]"
+								className="size-[34px] rounded-[7px] object-cover"
 							/>
 						) : (
 							<>
