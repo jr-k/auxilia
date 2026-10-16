@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.25](https://github.com/jr-k/auxilia/compare/web-v0.12.24...web-v0.12.25) (2026-10-16)
+
+
+### Bug Fixes
+
+* **web:** refine composer layout and notifications ([f92cae8](https://github.com/jr-k/auxilia/commit/f92cae8dcded4ff8b36db68e1b47346713d845b7))
+
 ## [0.12.24](https://github.com/jr-k/auxilia/compare/web-v0.12.23...web-v0.12.24) (2026-10-15)
 
 
