@@ -53,9 +53,6 @@ export default function WorkspaceMessaging({ onForbidden }: Props) {
 				enabled: checked,
 			});
 			setSettings(updated);
-			setStatus(
-				checked ? "Slack integration enabled." : "Slack integration disabled.",
-			);
 		} catch (error: unknown) {
 			setEnabled(!checked);
 			if (isApiError(error) && error.status === 403) onForbidden();

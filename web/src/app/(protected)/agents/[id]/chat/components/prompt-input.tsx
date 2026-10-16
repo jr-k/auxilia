@@ -64,7 +64,7 @@ import { PromptQueue } from "./prompt-queue";
 
 // Petrol Mono composer pills: 34px tall, 999px radius, on the hover tint.
 const composerPillClass = cn(
-	"h-[34px] px-3 gap-2 rounded-full",
+	"h-[34px] max-w-full shrink-0 whitespace-nowrap px-3 gap-2 rounded-full",
 	"text-[13px] font-medium text-foreground",
 	"bg-hover dark:bg-white/5",
 	"hover:bg-petrol-tint dark:hover:bg-white/10",
@@ -809,8 +809,8 @@ const ChatPromptInput = ({
 						)}
 					/>
 				</PromptInputBody>
-				<PromptInputFooter className="px-3 pt-0 pb-3">
-					<PromptInputTools className="gap-1.5">
+				<PromptInputFooter className="items-end gap-x-2 gap-y-1.5 px-3 pt-0 pb-3">
+					<PromptInputTools className="min-w-0 flex-1 flex-wrap items-center gap-1.5">
 						{noAttachments ? (
 							<Tooltip>
 								<TooltipTrigger asChild>
@@ -1076,7 +1076,10 @@ const ChatPromptInput = ({
 							}}
 						/>
 						{readOnlyModel ? (
-							<PromptInputButton disabled className={composerPillClass}>
+							<PromptInputButton
+								disabled
+								className={cn(composerPillClass, "min-w-0 max-w-52")}
+							>
 								{selectedModelData?.chefSlug && (
 									<ModelSelectorLogo provider={selectedModelData.chefSlug} />
 								)}
@@ -1094,7 +1097,10 @@ const ChatPromptInput = ({
 								<DialogTrigger asChild>
 									<PromptInputButton
 										disabled={modelUpdatePending || modelChangeDisabled}
-										className={cn(composerPillClass, "cursor-pointer")}
+										className={cn(
+											composerPillClass,
+											"min-w-0 max-w-52 cursor-pointer",
+										)}
 									>
 										{selectedModelData ? (
 											<>
@@ -1237,7 +1243,7 @@ const ChatPromptInput = ({
 									/>
 								)}
 					</PromptInputTools>
-					<div className="flex items-center gap-1.5">
+					<div className="flex shrink-0 items-center gap-1.5">
 						{status === "streaming" && stop && <StopButton stop={stop} />}
 						<SubmitButton
 							disabled={
