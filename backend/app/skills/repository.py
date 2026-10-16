@@ -1,5 +1,4 @@
 from collections.abc import Iterable
-from datetime import UTC, datetime
 from uuid import UUID
 
 from sqlalchemy import (
@@ -25,7 +24,6 @@ from app.skills.models import (
     SkillImageDB,
     SkillSourceDB,
     SkillTeamDB,
-    SkillVersionDB,
 )
 from app.skills.schemas import SCRIPTS_DIR
 from app.visibility import ResourceVisibility
@@ -107,19 +105,6 @@ def _jsonb_script_count(element, compiler, **kw) -> str:
     )
 
 
-def _latest_version_digest():
-    """Scalar subquery: the digest of the newest version a sync stored for the
-    skill — an update is available when it differs from the skill's own."""
-    return (
-        select(SkillVersionDB.digest)
-        .where(col(SkillVersionDB.skill_id) == col(SkillDB.id))
-        .order_by(col(SkillVersionDB.created_at).desc(), col(SkillVersionDB.id))
-        .limit(1)
-        .correlate(SkillDB)
-        .scalar_subquery()
-    )
-
-
 def _agent_count():
     """Scalar subquery: how many agents have the skill enabled."""
     return (
@@ -172,7 +157,6 @@ class SkillRepository(BaseRepository[SkillDB]):
             SkillDB.missing_upstream,
             SkillSourceDB.name.label("source_name"),
             SkillSourceDB.kind.label("source_kind"),
-            _latest_version_digest().label("latest_digest"),
         )
         stmt = stmt.select_from(SkillDB).outerjoin(
             SkillSourceDB, col(SkillSourceDB.id) == col(SkillDB.source_id)
@@ -212,7 +196,7 @@ class SkillRepository(BaseRepository[SkillDB]):
         )
         await self.db.flush()
 
-    # -- sourced skills and their versions ------------------------------------
+    # -- sourced skills ------------------------------------
 
     async def get_source(self, source_id: UUID) -> SkillSourceDB | None:
         stmt = select(SkillSourceDB).where(SkillSourceDB.id == source_id)
@@ -228,64 +212,13 @@ class SkillRepository(BaseRepository[SkillDB]):
         )
         return list((await self.db.execute(stmt)).scalars().all())
 
-    async def latest_version(self, skill_id: UUID) -> SkillVersionDB | None:
-        stmt = (
-            select(SkillVersionDB)
-            .where(SkillVersionDB.skill_id == skill_id)
-            .order_by(col(SkillVersionDB.created_at).desc(), col(SkillVersionDB.id))
-            .limit(1)
-        )
-        return (await self.db.execute(stmt)).scalar_one_or_none()
-
-    async def get_version(self, skill_id: UUID, digest: str) -> SkillVersionDB | None:
-        stmt = select(SkillVersionDB).where(
-            SkillVersionDB.skill_id == skill_id, SkillVersionDB.digest == digest
-        )
-        return (await self.db.execute(stmt)).scalar_one_or_none()
-
-    async def record_version(
-        self,
-        skill_id: UUID,
-        *,
-        digest: str,
-        revision: str,
-        content: str,
-        files: list[dict],
-    ) -> SkillVersionDB:
-        """The newest version seen upstream. A digest seen before is moved to
-        the front (its `created_at` bumped) rather than duplicated, so an
-        upstream revert reads as "this older version is now the latest".
-
-        `created_at` is set here rather than left to the column default, on
-        both paths. The default is `now()`, which is *transaction* time on
-        Postgres and second-resolution on SQLite, so two versions recorded
-        close together tied — and `latest_version` broke the tie on a random
-        UUID, which is how `update_available` came to be a coin flip.
-        """
-        version = await self.get_version(skill_id, digest)
-        if version is None:
-            version = SkillVersionDB(
-                skill_id=skill_id,
-                digest=digest,
-                revision=revision,
-                content=content,
-                files=files,
-                created_at=datetime.now(UTC),
-            )
-        else:
-            version.revision = revision
-            version.created_at = datetime.now(UTC)
-        self.db.add(version)
-        await self.db.flush()
-        return version
-
     async def detach_from_source(self, source_id: UUID) -> None:
         """Its skills stay, detached: everything the repository gave them —
         the document, the files, the `scripts/`, the commit they are pinned
         to — is already in the row, so they keep running exactly as they
         were. Only the link goes, which freezes the *content*: nothing here
         writes a skill whose files came from somewhere else, and there is
-        nothing to adopt until the repository is connected again. Deleting
+        nothing to sync until the repository is connected again. Deleting
         one from the library stays allowed.
 
         `missing_upstream` is cleared with the link. It is the last sync's
@@ -295,19 +228,7 @@ class SkillRepository(BaseRepository[SkillDB]):
         `source_url` is *not* cleared: it is the provenance, not the link,
         and it is what makes reconnecting the same repository reclaim these
         rows rather than import a second copy of each.
-
-        The stored versions go with the source: they are updates only an
-        adopt against a connected repository can apply, and the next sync
-        records whichever of them still exists.
         """
-        ids_stmt = select(SkillDB.id).where(SkillDB.source_id == source_id)
-        skill_ids = list((await self.db.execute(ids_stmt)).scalars().all())
-        if skill_ids:
-            await self.db.execute(
-                delete(SkillVersionDB).where(
-                    col(SkillVersionDB.skill_id).in_(skill_ids)
-                )
-            )
         await self.db.execute(
             update(SkillDB)
             .where(col(SkillDB.source_id) == source_id)
@@ -316,7 +237,7 @@ class SkillRepository(BaseRepository[SkillDB]):
 
     async def list_reclaimable(self, url: str) -> list[SkillDB]:
         """The skills *this* repository left behind when it was disconnected:
-        the pin (`source_revision`, written only by a sync or an adopt), no
+        the pin (`source_revision`, written only by a sync), no
         live link, and the same origin. A sync claims the ones whose names it
         finds again, which is what makes reconnecting a repository re-pin its
         own rows instead of importing a second copy of each.

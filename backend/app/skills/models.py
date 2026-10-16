@@ -27,7 +27,7 @@ def _json():
 class SkillSourceDB(BaseDBModel, table=True):
     """A repository the workspace syncs skills from (GitHub or GitLab, any
     instance). Sync reads the repository at `ref`, resolved to a commit,
-    and makes each skill *available*; it never changes what an agent runs.
+    and updates its skills in place for agents' next runs.
     The token is encrypted at rest and only ever decrypted to resolve.
 
     `last_*` describe the last sync: `last_status` is one of ``ok``, ``auth``,
@@ -72,24 +72,6 @@ class SkillSourceDB(BaseDBModel, table=True):
     last_error: str | None = Field(default=None, sa_column=Column(Text, nullable=True))
     last_report: list = Field(default_factory=list, sa_column=_json())
     skill_count: int = Field(default=0, nullable=False)
-
-
-class SkillVersionDB(BaseDBModel, table=True):
-    """A version of a sourced skill as its repository held it at some sync:
-    the frozen content and files, keyed by content digest. The newest row
-    that differs from the skill's own `digest` is the update waiting to be
-    adopted."""
-
-    __tablename__ = "skill_versions"
-    __table_args__ = (
-        UniqueConstraint("skill_id", "digest", name="uq_skill_versions_digest"),
-    )
-
-    skill_id: UUID = Field(foreign_key="skills.id", ondelete="CASCADE", index=True)
-    digest: str = Field(max_length=80, index=True)
-    revision: str = Field(max_length=80)
-    content: str = Field(sa_column=Column(Text, nullable=False))
-    files: list = Field(default_factory=list, sa_column=_json())
 
 
 class SkillDB(BaseDBModel, table=True):
@@ -143,13 +125,13 @@ class SkillDB(BaseDBModel, table=True):
     revision: int = Field(default=1, nullable=False)
     # Provenance, as two existing columns and no third state column.
     # `source_revision` is the pin — the commit the content was read at, and
-    # only a sync or an adopt ever writes it — and `source_id` says whether
+    # only a sync ever writes it — and `source_id` says whether
     # that repository is still connected:
     #
     #   source_revision None             → written in the app; editable here.
     #   source_revision + source_id      → pinned to `source_path` at that
-    #                               commit; edited in the repository, a newer
-    #                               `SkillVersionDB` adopted explicitly.
+    #                               commit; edited in the repository and
+    #                               updated in place by every sync.
     #   source_revision, source_id None  → detached: the repository was
     #                               disconnected. The document, the files and
     #                               the `scripts/` are all in this row, so the

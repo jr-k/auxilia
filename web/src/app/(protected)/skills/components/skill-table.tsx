@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Copy, GitCompareArrows, Pencil, PencilLine, Trash2, Unplug } from "lucide-react";
+import { Copy, Pencil, PencilLine, Trash2, Unplug } from "lucide-react";
 import { toast } from "sonner";
 import { AgentAvatar } from "@/components/ui/agent-avatar";
 import {
@@ -398,11 +398,6 @@ export default function SkillTable({
 							<span className="truncate text-[12.5px] font-semibold text-petrol dark:text-panel-terminal">
 								{skill.name}
 							</span>
-							{skill.updateAvailable && (
-								<span className="shrink-0 rounded-[4px] bg-warning-bg px-1.5 py-px text-[9px] font-semibold text-warning">
-									Update
-								</span>
-							)}
 							{skill.missingUpstream && (
 								<span
 									title="The last sync no longer found this skill in its repository. It keeps working as pinned."
@@ -501,17 +496,6 @@ export default function SkillTable({
 											icon: <Copy />,
 											onClick: () => {
 												void duplicateSkill(skill);
-											},
-										},
-									]
-								: []),
-							...(skill.updateAvailable
-								? [
-										{
-											label: "Review update",
-											icon: <GitCompareArrows />,
-											onClick: () => {
-												router.push(`/skills/${skill.id}?review=1`);
 											},
 										},
 									]
@@ -632,11 +616,6 @@ export default function SkillTable({
 								</div>
 							</div>
 							<div className="ml-auto flex max-w-full shrink-0 flex-wrap justify-end gap-1">
-								{skill.updateAvailable && (
-									<span className="rounded-[4px] bg-warning-bg px-1.5 py-px text-[9px] font-semibold text-warning">
-										Update
-									</span>
-								)}
 								{skill.missingUpstream && (
 									<span className="rounded-[4px] bg-neutral-bg px-1.5 py-px text-[9px] font-semibold text-subtle dark:bg-white/10">
 										Gone upstream
@@ -685,17 +664,6 @@ export default function SkillTable({
 													icon: <Copy />,
 													onClick: () => {
 														void duplicateSkill(skill);
-													},
-												},
-											]
-										: []),
-									...(skill.updateAvailable
-										? [
-												{
-													label: "Review update",
-													icon: <GitCompareArrows />,
-													onClick: () => {
-														router.push(`/skills/${skill.id}?review=1`);
 													},
 												},
 											]

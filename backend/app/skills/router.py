@@ -6,7 +6,6 @@ from fastapi.responses import Response
 from app.auth.dependencies import get_current_user, require_editor
 from app.skills.schemas import (
     SkillAgentRef,
-    SkillDiffResponse,
     SkillResponse,
     SkillSave,
     SkillSummary,
@@ -111,21 +110,3 @@ async def delete_skill(
     service: SkillService = Depends(get_skill_service),
 ):
     await service.delete(skill_id, user, detach_agents=detach_agents)
-
-
-@router.get("/{skill_id}/diff", response_model=SkillDiffResponse)
-async def diff_skill(
-    skill_id: UUID,
-    user: UserDB = Depends(get_current_user),
-    service: SkillService = Depends(get_skill_service),
-):
-    return await service.diff(skill_id, user)
-
-
-@router.post("/{skill_id}/adopt", response_model=SkillResponse)
-async def adopt_skill(
-    skill_id: UUID,
-    user: UserDB = Depends(get_current_user),
-    service: SkillService = Depends(get_skill_service),
-):
-    return await service.adopt(skill_id, user)
