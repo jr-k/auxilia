@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 from sqlmodel import SQLModel
 
 from app.model_providers.models import ModelProviderType
+from app.model_providers.pricing import TokenPrices
 
 
 class ModelProviderResponse(SQLModel):
@@ -49,6 +50,7 @@ class OllamaDiscoveryResponse(BaseModel):
 
 
 class ModelResponse(BaseModel):
+    prices: TokenPrices | None = None
     name: str
     id: str
     chef: str
@@ -83,6 +85,7 @@ class ManagedModelResponse(BaseModel):
     """One row of the admin Settings view: a whitelist model (with its
     enablement state) or an orphan enablement row flagged deprecated."""
 
+    prices: TokenPrices | None = None
     provider: str
     model_id: str
     display_name: str

@@ -15,6 +15,7 @@ import yaml
 from pydantic import BaseModel, field_validator, model_validator
 
 from app.exceptions import DomainValidationError
+from app.model_providers.pricing import TokenPrices
 from app.model_providers.settings import model_provider_settings
 from app.model_providers.web_search import NATIVE_WEB_SEARCH_PROVIDERS
 from app.utils.remote_catalog import RemoteCatalog
@@ -57,23 +58,38 @@ KNOWN_REASONING_EFFORT_LEVELS: dict[str, frozenset[ReasoningEffort]] = {
     "gpt-5.6-luna": frozenset({"none", "low", "medium", "high", "xhigh", "max"}),
     "gpt-5.6-sol": frozenset({"none", "low", "medium", "high", "xhigh", "max"}),
     "gpt-5.6-terra": frozenset({"none", "low", "medium", "high", "xhigh", "max"}),
+    "gpt-6-luna": frozenset({"none", "low", "medium", "high", "xhigh", "max"}),
+    "gpt-6-sol": frozenset({"none", "low", "medium", "high", "xhigh", "max"}),
+    "gpt-6.1-sol": frozenset({"low", "medium", "high", "xhigh", "max"}),
+    "claude-haiku-5-5": frozenset({"low", "medium", "high", "xhigh", "max"}),
     "claude-sonnet-4-6": frozenset({"low", "medium", "high", "max"}),
     "claude-sonnet-5": frozenset({"low", "medium", "high", "xhigh", "max"}),
+    "claude-sonnet-5-5": frozenset({"low", "medium", "high", "xhigh", "max"}),
     "claude-opus-4-6": frozenset({"low", "medium", "high", "max"}),
     "claude-opus-4-8": frozenset({"low", "medium", "high", "xhigh", "max"}),
     "claude-opus-5": frozenset({"low", "medium", "high", "xhigh", "max"}),
+    "claude-opus-5-5": frozenset({"low", "medium", "high", "xhigh", "max"}),
     "deepseek-v4-flash": frozenset({"none", "low", "high", "max"}),
     "deepseek-v4-flash-vision-exp": frozenset({"none", "low", "high", "max"}),
+    "deepseek-flash": frozenset({"none", "low", "high", "max"}),
     "deepseek-v4-pro": frozenset({"none", "low", "high", "max"}),
     "gemini-3-flash-preview": frozenset({"minimal", "low", "medium", "high"}),
     "gemini-3-pro-preview": frozenset({"low", "high"}),
+    "gemini-3.1-pro-preview": frozenset({"low", "medium", "high"}),
     "gemini-3.5-flash": frozenset({"minimal", "low", "medium", "high"}),
+    "gemini-3.5-flash-lite": frozenset({"minimal", "low", "medium", "high"}),
     "gemini-3.6-flash": frozenset({"minimal", "low", "medium", "high"}),
     "gemini-3.7-flash": frozenset({"low", "medium", "high"}),
     "gemini-3.8-flash": frozenset({"low", "medium", "high"}),
+    "gemini-4-argon": frozenset({"low", "medium", "high"}),
+    "muse-spark-1.2": frozenset({"minimal", "low", "medium", "high", "xhigh"}),
+    "muse-spark-1.3": frozenset({"minimal", "low", "medium", "high", "xhigh", "max"}),
+    "muse-wonder-1.0": frozenset({"minimal", "low", "medium", "high", "xhigh", "max"}),
     "z-ai/glm-5.2": frozenset({"high", "max"}),
     "z-ai/glm-5.3": frozenset({"low", "high", "max"}),
     "z-ai/glm-5.3-flash": frozenset({"low", "high", "max"}),
+    "z-ai/glm-5.3-prime": frozenset({"low", "high", "max"}),
+    "z-ai/glm-5.3-flashx": frozenset({"low", "high", "max"}),
     "qwen/qwen3.8-max": frozenset({"low", "xhigh"}),
     "qwen/qwen3.8-27b": frozenset({"low", "xhigh"}),
     "qwen/qwen3.8-flash": frozenset({"low", "xhigh"}),
@@ -85,6 +101,9 @@ _BUNDLED_PATH = Path(__file__).parent / "whitelist.yaml"
 
 
 class SupportedModel(BaseModel):
+    # Optional for compatibility with older remote catalogs. Missing means
+    # unknown, never free; supplied pricing requires all core token rates.
+    prices: TokenPrices | None = None
     provider: str
     model_id: str
     # Normally identical to model_id. Workspace-discovered providers namespace

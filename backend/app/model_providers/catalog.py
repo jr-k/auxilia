@@ -42,9 +42,19 @@ def _google_adc() -> tuple[google.auth.credentials.Credentials, str | None] | No
 # Opus 4.7+ dropped manual extended thinking and return a 400 for the legacy
 # `{"type": "enabled", "budget_tokens": ...}` format. Everything else uses
 # the legacy `enabled` format. (Opus 5 thinks by default even without the
-# opt-in, but it rejects the legacy format too, so it belongs here.)
+# opt-in, but it rejects the legacy format too, so it belongs here.) Every
+# Claude 5.x id must be listed: whitelist defaults are policy, not a
+# wire-format guarantee.
 ADAPTIVE_THINKING_MODELS: frozenset[str] = frozenset(
-    {"claude-opus-4-6", "claude-opus-4-8", "claude-sonnet-5", "claude-opus-5"}
+    {
+        "claude-opus-4-6",
+        "claude-opus-4-8",
+        "claude-sonnet-5",
+        "claude-opus-5",
+        "claude-haiku-5-5",
+        "claude-sonnet-5-5",
+        "claude-opus-5-5",
+    }
 )
 
 
@@ -173,11 +183,13 @@ class ChatModelFactory:
                 else:
                     auth_kwargs["api_key"] = api_key
                 # thinking_level (aka reasoning_effort) and thinking_budget are
-                # mutually exclusive on Gemini 3+ — send exactly one: the
+                # mutually exclusive on Gemini 3+ — send at most one: the
                 # user's level, else the dynamic budget (historical default).
+                # Gemini 4 rejects thinking_budget, so no explicit level means
+                # the provider's default.
                 if reasoning_effort:
                     auth_kwargs["reasoning_effort"] = reasoning_effort
-                else:
+                elif not model_id.startswith("gemini-4"):
                     auth_kwargs["thinking_budget"] = -1
                 return ChatGoogleGenerativeAI(
                     model=model_id,
@@ -216,14 +228,18 @@ class ChatModelFactory:
                     ),
                 )
             case "meta":
-                # Meta Model API — OpenAI-compatible Chat Completions.
-                # ponytail: minimal config; add reasoning_effort / max_tokens
-                # only if Muse Spark reasoning output needs tuning.
+                # Meta Model API — OpenAI-compatible Chat Completions. None
+                # leaves Meta's model-determined effort unchanged.
                 return ChatOpenAI(
                     base_url="https://api.meta.ai/v1",
                     model=model_id,
                     api_key=api_key,
                     max_retries=0,
+                    extra_body=(
+                        {"reasoning_effort": reasoning_effort}
+                        if reasoning_effort
+                        else None
+                    ),
                 )
             case "ollama":
                 if not base_url:
