@@ -510,10 +510,18 @@ class AgentService(BaseService[AgentDB, AgentRepository]):
                 agent.id,
                 config.subagent_ids,
                 disabled_by_default=config.disabled_subagent_ids_by_default,
+                user_id=owner_id,
                 user_role=user_role,
+                user_team_id=user_team_id,
             )
         else:
-            await self.set_subagents(agent.id, config.subagent_ids, user_role=user_role)
+            await self.set_subagents(
+                agent.id,
+                config.subagent_ids,
+                user_id=owner_id,
+                user_role=user_role,
+                user_team_id=user_team_id,
+            )
         if config.disabled_skill_ids_by_default:
             await self.skill_service.set_for_agent(
                 agent.id,
@@ -720,10 +728,18 @@ class AgentService(BaseService[AgentDB, AgentRepository]):
                 agent_id,
                 config.subagent_ids,
                 disabled_by_default=config.disabled_subagent_ids_by_default,
+                user_id=user_id,
                 user_role=user_role,
+                user_team_id=user_team_id,
             )
         else:
-            await self.set_subagents(agent_id, config.subagent_ids, user_role=user_role)
+            await self.set_subagents(
+                agent_id,
+                config.subagent_ids,
+                user_id=user_id,
+                user_role=user_role,
+                user_team_id=user_team_id,
+            )
         if config.disabled_skill_ids_by_default:
             await self.skill_service.set_for_agent(
                 agent_id,
@@ -1220,10 +1236,17 @@ class AgentService(BaseService[AgentDB, AgentRepository]):
         subagent_id: UUID,
         *,
         enabled_by_default: bool = True,
+        user_id: UUID | None = None,
+        user_role: WorkspaceRole | None = None,
+        user_team_id: UUID | None = None,
     ) -> AgentSubagentDB:
         """Link one subagent under a supervisor; idempotent for an existing
         link. Graphs are one level deep: a supervisor cannot itself be a
-        subagent, and a subagent cannot have subagents of its own."""
+        subagent, and a subagent cannot have subagents of its own.
+
+        The caller must be able to use the child. The audience and grantee
+        checks below remain stronger: everyone who can use the supervisor must
+        also be able to see the child."""
         if supervisor_id == subagent_id:
             raise DomainValidationError("Cannot add an agent as its own subagent")
 
@@ -1237,6 +1260,14 @@ class AgentService(BaseService[AgentDB, AgentRepository]):
         subagent = locked[subagent_id]
         if not subagent or subagent.is_archived:
             raise NotFoundError("Subagent not found")
+        await self.require_permission(
+            subagent_id,
+            at_least=EffectivePermission.member,
+            action="use this agent as a subagent",
+            user_id=user_id,
+            user_role=user_role,
+            user_team_id=user_team_id,
+        )
         supervisor_team_ids = (
             set(await self.repository.get_team_ids(supervisor.id))
             if supervisor.visibility == ResourceVisibility.teams
@@ -1318,18 +1349,18 @@ class AgentService(BaseService[AgentDB, AgentRepository]):
         subagent_ids: list[UUID],
         *,
         disabled_by_default: list[UUID] | None = None,
-        user_role: WorkspaceRole | None,
+        user_id: UUID | None = None,
+        user_role: WorkspaceRole | None = None,
+        user_team_id: UUID | None = None,
     ) -> None:
         """Whole-set replace of an agent's subagents, routed through
         `create_subagent` so the self-link / archived / cycle validations
-        keep firing. Admin-gated only when the set actually changes — an
-        editor saving an agent whose subagents they didn't touch passes."""
+        and the caller's access to each added child keep firing. The caller's
+        editor access to the supervisor is checked by the config save or route."""
         current_links = await self.repository.list_subagent_links(agent_id)
         current = {link.subagent_id for link in current_links}
         wanted = set(subagent_ids)
         disabled = set(disabled_by_default or []) & wanted
-        if current != wanted and user_role != WorkspaceRole.admin:
-            raise PermissionDeniedError("Only admins can modify subagents")
         # Removals first, so every validation an addition runs sees the graph
         # this save asks for and not a transient union of the two. One
         # transaction, so a failed addition rolls the removals back with it.
@@ -1341,9 +1372,18 @@ class AgentService(BaseService[AgentDB, AgentRepository]):
                     agent_id,
                     subagent_id,
                     enabled_by_default=False,
+                    user_id=user_id,
+                    user_role=user_role,
+                    user_team_id=user_team_id,
                 )
             else:
-                await self.create_subagent(agent_id, subagent_id)
+                await self.create_subagent(
+                    agent_id,
+                    subagent_id,
+                    user_id=user_id,
+                    user_role=user_role,
+                    user_team_id=user_team_id,
+                )
         defaults_changed = False
         for link in current_links:
             if link.subagent_id in wanted:

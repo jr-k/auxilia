@@ -27,7 +27,6 @@ import { MessageResponse } from "@/components/ai-elements/message";
 import { getApiErrorMessage } from "@/lib/api/errors";
 import { useAgentsStore } from "@/stores/agents-store";
 import { useSkillsStore } from "@/stores/skills-store";
-import { useUserStore } from "@/stores/user-store";
 import { useModelsStore } from "@/stores/models-store";
 import { useConfirmDialog } from "@/components/providers/dialog-provider";
 import { DropdownMenu } from "@/components/ui/dropdown-menu";
@@ -103,9 +102,7 @@ export default function AgentEditor({
 	const refreshAgent = useAgentsStore((state) => state.refreshAgent);
 	const archiveAgent = useAgentsStore((state) => state.archiveAgent);
 	const workspaceAgents = useAgentsStore((state) => state.agents);
-	const user = useUserStore((state) => state.user);
 	const models = useModelsStore((state) => state.models);
-	const isAdmin = user?.role === "admin";
 	const librarySkills = useSkillsStore((state) => state.skills);
 	const isMobile = useIsMobile();
 
@@ -478,52 +475,50 @@ export default function AgentEditor({
 					readOnly={readOnly}
 				/>
 			)}
-			{isAdmin && (
-				<AgentSubagentList
-					readOnly={readOnly}
-					agentId={agent?.id ?? ""}
-					isSubagent={agent?.isSubagent ?? false}
-					subagentIds={form.subagentIds}
-					disabledByDefaultIds={form.disabledSubagentIdsByDefault}
-					fallbackSubagents={agent?.subagents ?? []}
-					onChange={(subagentIds) => {
-						setForm((current) => ({
-							...current,
-							subagentIds,
-							disabledSubagentIdsByDefault:
-								current.disabledSubagentIdsByDefault.filter((id) =>
-									subagentIds.includes(id),
-								),
-						}));
-					}}
-					onDefaultEnabledChange={(subagentId, enabled) => {
-						setForm((current) => ({
-							...current,
-							disabledSubagentIdsByDefault: enabled
-								? current.disabledSubagentIdsByDefault.filter(
-										(id) => id !== subagentId,
-									)
-								: [
-										...new Set([
-											...current.disabledSubagentIdsByDefault,
-											subagentId,
-										]),
-									],
-						}));
-					}}
-					confirmLeave={() =>
-						!isDirtyRef.current
-							? Promise.resolve(true)
-							: confirmDialog({
-									title: "Discard unsaved changes?",
-									description:
-										"Opening the subagent will leave this page and discard your edits.",
-									confirmLabel: "Discard and leave",
-									destructive: true,
-								})
-					}
-				/>
-			)}
+			<AgentSubagentList
+				readOnly={readOnly}
+				agentId={agent?.id ?? ""}
+				isSubagent={agent?.isSubagent ?? false}
+				subagentIds={form.subagentIds}
+				disabledByDefaultIds={form.disabledSubagentIdsByDefault}
+				fallbackSubagents={agent?.subagents ?? []}
+				onChange={(subagentIds) => {
+					setForm((current) => ({
+						...current,
+						subagentIds,
+						disabledSubagentIdsByDefault:
+							current.disabledSubagentIdsByDefault.filter((id) =>
+								subagentIds.includes(id),
+							),
+					}));
+				}}
+				onDefaultEnabledChange={(subagentId, enabled) => {
+					setForm((current) => ({
+						...current,
+						disabledSubagentIdsByDefault: enabled
+							? current.disabledSubagentIdsByDefault.filter(
+									(id) => id !== subagentId,
+								)
+							: [
+									...new Set([
+										...current.disabledSubagentIdsByDefault,
+										subagentId,
+									]),
+								],
+					}));
+				}}
+				confirmLeave={() =>
+					!isDirtyRef.current
+						? Promise.resolve(true)
+						: confirmDialog({
+								title: "Discard unsaved changes?",
+								description:
+									"Opening the subagent will leave this page and discard your edits.",
+								confirmLabel: "Discard and leave",
+								destructive: true,
+							})
+				}
+			/>
 		</>
 	);
 

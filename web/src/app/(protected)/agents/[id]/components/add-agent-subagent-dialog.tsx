@@ -98,7 +98,12 @@ export default function AddAgentSubagentDialog({
 	// Not search-filtered, so eligibility counts reflect the full set.
 	const allCandidates = useMemo(() => {
 		return allAgents
-			.filter((a) => a.id !== supervisorId && !alreadyBoundIds.has(a.id))
+			.filter(
+				(a) =>
+					a.currentUserPermission != null &&
+					a.id !== supervisorId &&
+					!alreadyBoundIds.has(a.id),
+			)
 			.map((a) => {
 				// One nesting level max: an agent with its own subagents can't be
 				// a subagent. Being a subagent of ANOTHER supervisor is fine —
