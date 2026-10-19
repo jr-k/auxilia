@@ -1,0 +1,207 @@
+import re
+from urllib.parse import quote
+from uuid import UUID
+
+from authlib.integrations.base_client import OAuthError
+from fastapi import APIRouter, Depends, Header, Query, Request, Response
+from fastapi.responses import HTMLResponse, RedirectResponse
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.agents.core.service import AgentService, get_agent_service
+from app.artifacts.google_slides import DRIVE_FILE_SCOPE, build_drive_oauth
+from app.artifacts.schemas import ArtifactResponse, ArtifactViewerResponse
+from app.artifacts.service import ArtifactService, get_artifact_service
+from app.artifacts.settings import artifact_settings
+from app.auth.configuration import (
+    WorkspaceAuthenticationService,
+    get_workspace_authentication_service,
+)
+from app.auth.dependencies import get_current_user
+from app.auth.settings import auth_settings
+from app.database import get_db
+from app.exceptions import DomainValidationError, NotFoundError, PermissionDeniedError
+from app.threads.dependencies import authorize_thread_read
+from app.threads.models import ThreadDB
+from app.threads.service import ThreadService, get_thread_service
+from app.users.models import UserDB
+from app.workspaces.dependencies import get_active_workspace_id
+
+
+router = APIRouter(
+    prefix="/threads/{thread_id}/artifacts",
+    tags=["artifacts"],
+    dependencies=[Depends(authorize_thread_read)],
+)
+
+
+@router.get("")
+async def list_artifacts(
+    thread_id: str,
+    after: UUID | None = Query(default=None, description="Last artifact id seen"),
+    service: ArtifactService = Depends(get_artifact_service),
+) -> list[ArtifactResponse]:
+    return await service.list(thread_id, after)
+
+
+def content_disposition(filename: str) -> str:
+    """RFC 6266: an ASCII `filename` fallback plus the UTF-8 `filename*` form."""
+    fallback = re.sub(r"[^A-Za-z0-9._ -]", "_", filename).strip() or "download"
+    return (
+        f'attachment; filename="{fallback}"; '
+        f"filename*=UTF-8''{quote(filename, safe='')}"
+    )
+
+
+@router.get(
+    "/{artifact_id}/content",
+    response_class=Response,
+    responses={200: {"content": {"application/octet-stream": {}}}},
+)
+async def artifact_content(
+    thread_id: str,
+    artifact_id: UUID,
+    service: ArtifactService = Depends(get_artifact_service),
+) -> Response:
+    row, data = await service.content(thread_id, artifact_id)
+    # Always download at the API surface; only trusted viewers render bytes.
+    return Response(
+        data,
+        media_type="application/octet-stream",
+        headers={
+            "Content-Disposition": content_disposition(row.filename),
+            "Cache-Control": "private, no-store",
+            "X-Content-Type-Options": "nosniff",
+            "Content-Security-Policy": "default-src 'none'; sandbox",
+        },
+    )
+
+
+@router.put("/{artifact_id}/content")
+async def replace_artifact_content(
+    thread_id: str,
+    artifact_id: UUID,
+    request: Request,
+    if_match: str = Header(description="sha256 of the version the edit started from"),
+    thread: ThreadDB = Depends(authorize_thread_read),
+    user: UserDB = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    service: ArtifactService = Depends(get_artifact_service),
+) -> ArtifactResponse:
+    """Save an edited presentation over the artifact (thread owner only)."""
+    if thread.user_id != user.id:
+        raise PermissionDeniedError("Only the thread owner can edit its files")
+    data = bytearray()
+    async for chunk in request.stream():
+        data += chunk
+        if len(data) > artifact_settings.max_bytes:
+            raise DomainValidationError("Artifact exceeds the size limit")
+    item = await service.replace_content(
+        thread_id, artifact_id, bytes(data), if_match.strip('"')
+    )
+    # Commit before deleting the superseded object: deleting first and then
+    # failing to commit would leave the row pointing at nothing.
+    await db.commit()
+    await service.purge_replaced()
+    return item
+
+
+# Fixed path: Google only redirects to URIs registered on the OAuth client.
+SLIDES_CALLBACK = "/artifacts/google-slides/callback"
+# Artifact routes outside a thread.
+slides_router = APIRouter(tags=["artifacts"])
+
+
+@slides_router.get("/artifacts/viewer")
+async def get_viewer_settings(
+    _: UserDB = Depends(get_current_user),
+) -> ArtifactViewerResponse:
+    """Workspace policy for the artifact viewer (the HTML preview's sources)."""
+    return ArtifactViewerResponse(html_sources=artifact_settings.html_sources)
+
+
+@router.get("/{artifact_id}/export/slides")
+async def export_to_slides(
+    thread_id: str,
+    artifact_id: UUID,
+    request: Request,
+    thread: ThreadDB = Depends(authorize_thread_read),
+    user: UserDB = Depends(get_current_user),
+    authentication: WorkspaceAuthenticationService = Depends(
+        get_workspace_authentication_service
+    ),
+):
+    """Browser navigation: asks Google for `drive.file`, then lands on the callback."""
+    config = await authentication.get_runtime_config(thread.workspace_id)
+    if config is None:
+        raise NotFoundError("Google OAuth is not configured for this workspace")
+    # authorize_redirect, unrolled to store the export target in Authlib's own
+    # state record: tied to this OAuth state, expiring with it, and replaced by
+    # the next export (a superseded consent fails cleanly, never swaps files).
+    client = build_drive_oauth(config).create_client("google_drive")
+    redirect_uri = f"{auth_settings.FRONTEND_URL}/api/backend{SLIDES_CALLBACK}"
+    rv = await client.create_authorization_url(
+        redirect_uri, login_hint=user.email, include_granted_scopes="true"
+    )
+    await client.save_authorize_data(
+        request,
+        redirect_uri=redirect_uri,
+        slides_export=[thread_id, str(artifact_id)],
+        **rv,
+    )
+    request.session["slides_oauth_workspace_id"] = str(thread.workspace_id)
+    return RedirectResponse(rv["url"], status_code=302)
+
+
+def drive_access_needed() -> HTMLResponse:
+    return HTMLResponse(
+        "<p>Google Drive access is needed to export to Google Slides. "
+        "Close this tab and try again.</p>",
+        status_code=403,
+    )
+
+
+@slides_router.get(SLIDES_CALLBACK)
+async def export_to_slides_callback(
+    request: Request,
+    user: UserDB = Depends(get_current_user),
+    workspace_id: UUID = Depends(get_active_workspace_id),
+    authentication: WorkspaceAuthenticationService = Depends(
+        get_workspace_authentication_service
+    ),
+    thread_service: ThreadService = Depends(get_thread_service),
+    agent_service: AgentService = Depends(get_agent_service),
+    service: ArtifactService = Depends(get_artifact_service),
+):
+    if request.session.get("slides_oauth_workspace_id") != str(workspace_id):
+        raise DomainValidationError(
+            "The active workspace changed during Google authorization."
+        )
+    config = await authentication.get_runtime_config(workspace_id)
+    if config is None:
+        raise NotFoundError("Google OAuth is not configured for this workspace")
+    client = build_drive_oauth(config).create_client("google_drive")
+    state = request.query_params.get("state")
+    data = await client.framework.get_state_data(request.session, state)
+    pending = data.get("slides_export") if data else None
+    if pending is None:
+        raise DomainValidationError(
+            "No export in progress. Start it again from the file."
+        )
+    if request.query_params.get("error"):  # the user cancelled the consent
+        await client.framework.clear_state_data(request.session, state)
+        return drive_access_needed()
+    try:
+        token = await client.authorize_access_token(request)
+    except OAuthError as exc:
+        raise DomainValidationError(f"Google sign-in failed: {exc.error}") from exc
+    # Google lets the user untick a scope on the consent screen.
+    if DRIVE_FILE_SCOPE not in token.get("scope", "").split():
+        return drive_access_needed()
+    request.session.pop("slides_oauth_workspace_id", None)
+    thread_id, artifact_id = pending
+    # Re-check: access may have changed during the Google round-trip.
+    await authorize_thread_read(thread_id, user, thread_service, agent_service)
+    url = await service.export_to_slides(
+        thread_id, UUID(artifact_id), token["access_token"]
+    )
+    return RedirectResponse(url, status_code=302)

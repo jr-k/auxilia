@@ -10,6 +10,10 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from app.agents.router import router as agents_router
 from app.appearance.router import router as appearance_router
+from app.artifacts.router import (
+    router as artifacts_router,
+    slides_router as artifacts_slides_router,
+)
 from app.auth.middleware import SlidingSessionMiddleware
 from app.auth.router import router as auth_router
 from app.auth.settings import auth_settings
@@ -270,6 +274,8 @@ app.include_router(runs_router)
 app.include_router(user_runs_router)
 app.include_router(auth_router)
 app.include_router(tokens_router)
+app.include_router(artifacts_router)
+app.include_router(artifacts_slides_router)
 app.include_router(mcp_apps_router)
 app.include_router(mcp_oauth_router)
 app.include_router(mcp_servers_router)

@@ -32,6 +32,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.agents.core.repository import AgentRepository
 from app.agents.models import ToolDiscoveryMode
 from app.agents.run_spec import AgentSpec, RunSpec
+from app.artifacts.tool import present_files_tool
 from app.database import AsyncSessionLocal, get_checkpointer
 from app.exceptions import DomainValidationError, NotFoundError
 from app.integrations.tracing import NoOpTracing, RunTracing, get_tracing
@@ -198,6 +199,7 @@ def build_runnable(
     supports_tool_search: bool = False,
     discoverable_tools=(),
     general_purpose_interrupt_on: dict[str, bool] | None = None,
+    artifact_context: tuple[UUID, str, UUID] | None = None,
 ):
     """Build a LangGraph runnable. One construction path, one middleware list.
 
@@ -267,6 +269,8 @@ def build_runnable(
     harness: list = []
 
     if sandbox_backend is not None:
+        if artifact_context is not None:
+            tools.append(present_files_tool(sandbox_backend, *artifact_context))
         general_purpose_discovery = tool_discovery_middleware(
             model=model,
             searchable_tools=searchable_tools,
@@ -517,6 +521,7 @@ class ResolvedAgent:
         skills: SkillsBackend | None = None,
         web_search_tool: dict | None = None,
         supports_tool_search: bool = False,
+        artifact_context: tuple[UUID, str, UUID] | None = None,
     ) -> CompiledSubAgent:
         """Compile into a CompiledSubAgent runnable (for subagent use).
 
@@ -558,6 +563,7 @@ class ResolvedAgent:
             supports_tool_search=supports_tool_search,
             discoverable_tools=self.live.all,
             general_purpose_interrupt_on=self.prepared.interrupt_on,
+            artifact_context=artifact_context,
         )
         return CompiledSubAgent(
             name=sanitize_tool_name(self.config.name),
@@ -796,6 +802,12 @@ class Agent:
         # Read-only and shared by every agent of the graph; None means no
         # skills middleware and no prompt fragment at all.
         skills = SkillsBackend(self.skills) if self.skills else None
+        source_id = self.thread.sandbox_source_id
+        artifact_context = (
+            (self.thread.workspace_id, self.thread.id, source_id)
+            if self._sandbox is not None and source_id is not None
+            else None
+        )
         compiled = (
             [
                 s.compile(
@@ -805,6 +817,7 @@ class Agent:
                     skills=skills,
                     web_search_tool=self._web_search_tool(s),
                     supports_tool_search=self.tool_search_supported,
+                    artifact_context=artifact_context,
                 )
                 for s in self.subagents
             ]
@@ -834,6 +847,7 @@ class Agent:
             supports_tool_search=self.tool_search_supported,
             discoverable_tools=self.agent.live.all,
             general_purpose_interrupt_on=self.agent.prepared.interrupt_on,
+            artifact_context=artifact_context,
         )
 
     def _resolve_input(self, agent_input: dict | None, command: dict | None):
@@ -1005,7 +1019,11 @@ class Agent:
             else None
         )
         session = await asyncio.to_thread(open_sandbox, source.provider, previous)
-        if session.sandbox_id != self.thread.sandbox_id:
+        # Also stamp legacy threads on reconnect: artifact publication requires
+        # the workspace sandbox row that issued the provider sandbox id.
+        if session.sandbox_id != self.thread.sandbox_id or (
+            self.thread.sandbox_source_id is None and source.row_id is not None
+        ):
             await self._remember_sandbox(session.sandbox_id, source.row_id)
         await asyncio.to_thread(
             upload_skills, session.backend, skill_files(self.skills)

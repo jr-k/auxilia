@@ -6,6 +6,7 @@ from sqlmodel import SQLModel
 from alembic import context
 from app.agents import models as agent_models  # noqa: F401
 from app.appearance import models as appearance_models  # noqa: F401
+from app.artifacts import models as artifact_models  # noqa: F401
 from app.auth import models as auth_models  # noqa: F401
 from app.auth.tokens import models as auth_token_models  # noqa: F401
 from app.database_connections import models as database_connection_models  # noqa: F401
