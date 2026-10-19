@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.27](https://github.com/jr-k/auxilia/compare/web-v0.12.26...web-v0.12.27) (2026-10-19)
+
+
+### Bug Fixes
+
+* **web:** make composer menus responsive ([4213da8](https://github.com/jr-k/auxilia/commit/4213da80388f9976911c38b8b6d9b50a38b082a1))
+
 ## [0.12.26](https://github.com/jr-k/auxilia/compare/web-v0.12.25...web-v0.12.26) (2026-10-19)
 
 
