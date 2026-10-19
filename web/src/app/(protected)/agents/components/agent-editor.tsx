@@ -29,6 +29,7 @@ import { getApiErrorMessage } from "@/lib/api/errors";
 import { useAgentsStore } from "@/stores/agents-store";
 import { useSkillsStore } from "@/stores/skills-store";
 import { useModelsStore } from "@/stores/models-store";
+import { useUserStore } from "@/stores/user-store";
 import { useConfirmDialog } from "@/components/providers/dialog-provider";
 import { DropdownMenu } from "@/components/ui/dropdown-menu";
 import { UnderlineTabs } from "@/components/ui/underline-tabs";
@@ -114,6 +115,8 @@ export default function AgentEditor({
 	const archiveAgent = useAgentsStore((state) => state.archiveAgent);
 	const workspaceAgents = useAgentsStore((state) => state.agents);
 	const models = useModelsStore((state) => state.models);
+	const user = useUserStore((state) => state.user);
+	const isAdmin = user?.role === "admin";
 	const librarySkills = useSkillsStore((state) => state.skills);
 	const isMobile = useIsMobile();
 
