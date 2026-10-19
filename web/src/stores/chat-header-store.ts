@@ -16,6 +16,9 @@ interface ChatHeaderState {
   /** The open thread's cost estimate, shown beside its model. */
   cost: ThreadCost | null;
   setCost: (cost: ThreadCost | null) => void;
+  /** Right-hand slot in the header; chat pages portal actions into it. */
+  actionsEl: HTMLElement | null;
+  setActionsEl: (element: HTMLElement | null) => void;
   setCurrentChat: (data: {
     agentId?: string | null;
     agentName: string | null;
@@ -43,6 +46,10 @@ export const useChatHeaderStore = create<ChatHeaderState>((set) => ({
   cost: null,
   setCost: (cost) => {
     set({ cost });
+  },
+  actionsEl: null,
+  setActionsEl: (actionsEl) => {
+    set({ actionsEl });
   },
   setCurrentChat: (data) => {
     set({

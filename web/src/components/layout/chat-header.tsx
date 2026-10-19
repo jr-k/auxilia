@@ -2,6 +2,7 @@
 
 import { AlarmClock } from "lucide-react";
 import type { ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { useChatHeaderStore } from "@/stores/chat-header-store";
 import { useModelsStore } from "@/stores/models-store";
@@ -134,6 +135,16 @@ function MobileSidebarTrigger() {
 	);
 }
 
+export function ChatHeaderActions({ children }: { children: ReactNode }) {
+	const element = useChatHeaderStore((state) => state.actionsEl);
+	return element ? createPortal(children, element) : null;
+}
+
+function HeaderActionsSlot() {
+	const setActionsEl = useChatHeaderStore((state) => state.setActionsEl);
+	return <div ref={setActionsEl} className="flex min-w-0 items-center gap-2" />;
+}
+
 function HeaderBar({
 	children,
 	className,
@@ -150,8 +161,9 @@ function HeaderBar({
 			>
 				{children}
 			</div>
-			<div className="min-w-0 justify-self-end">
+			<div className="flex min-w-0 items-center gap-2 justify-self-end">
 				<ModelCostPill />
+				<HeaderActionsSlot />
 			</div>
 		</div>
 	);
@@ -240,7 +252,7 @@ export function ChatHeader() {
 				</button>
 			) : (
 				<span className="min-w-0 truncate text-[14px] font-semibold leading-none tracking-[-0.01em] text-foreground">
-						{agentName}
+					{agentName}
 				</span>
 			)}
 

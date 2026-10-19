@@ -33,6 +33,7 @@ import { ConversationBody } from "./conversation-body";
 import { usePromptQueue } from "@/hooks/use-prompt-queue";
 import { ThreadMap } from "./thread-map";
 import type { ThreadResourceSettings } from "@/types/threads";
+import { ArtifactWorkspace } from "@/components/artifacts/workspace";
 
 const EMPTY_RESOURCE_SETTINGS: ThreadResourceSettings = {
   disabledMcpServerIds: [],
@@ -281,7 +282,26 @@ const ChatPage = () => {
   }, [threadId, run.isLoading, setCost]);
 
   return (
-    <div className="h-full flex flex-col w-full overflow-hidden">
+    <ArtifactWorkspace
+      key={threadId}
+      threadId={threadId}
+      running={run.status !== "idle" || promptQueue.runStarting}
+      editable={
+        meta.status === "ready" &&
+        meta.viewerRole !== "admin" &&
+        !meta.agentArchived
+      }
+      refreshKey={JSON.stringify(
+        transcript.toolCalls.map((toolCall) => [
+          toolCall.id,
+          toolCall.status,
+        ]),
+      )}
+      order={transcript.toolCalls.map(
+        (toolCall) => toolCall.callId ?? toolCall.id,
+      )}
+    >
+      <div className="h-full flex flex-col w-full overflow-hidden">
       <div className="h-full relative flex flex-1 flex-col min-h-0 w-full">
         <Conversation>
           <ConversationContent className="max-w-4xl mx-auto w-full pb-16 lg:px-10 sm:px-6 px-2">
@@ -458,7 +478,8 @@ const ChatPage = () => {
           />
         )}
       </div>
-    </div>
+      </div>
+    </ArtifactWorkspace>
   );
 };
 
