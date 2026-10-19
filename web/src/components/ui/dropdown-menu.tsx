@@ -87,7 +87,7 @@ export function DropdownMenu({
 								key={i}
 								onSelect={item.onClick}
 								className={cn(
-									"flex cursor-pointer select-none items-center gap-2.5 rounded-[6px] px-2.5 py-2 text-[13px] font-medium outline-none transition-colors",
+									"flex cursor-pointer select-none items-center gap-2.5 rounded-[6px] px-2.5 py-2 text-[13px] font-medium whitespace-nowrap outline-none transition-colors",
 									item.destructive
 										? "text-[#B04A3A] focus:bg-[#FBEFED] dark:focus:bg-[#B04A3A]/10"
 										: "text-ink focus:bg-hover dark:text-panel-button dark:focus:bg-white/5",
@@ -106,9 +106,9 @@ export function DropdownMenu({
 										{item.icon}
 									</span>
 								)}
-								<span className="shrink-0">{item.label}</span>
+								<span className="min-w-0 flex-1 truncate">{item.label}</span>
 								{item.description && (
-									<span className="ml-auto text-right text-[12px] font-normal text-meta/70 dark:text-panel-dim/70">
+									<span className="shrink-0 text-right text-[12px] font-normal text-meta/70 dark:text-panel-dim/70">
 										{item.description}
 									</span>
 								)}

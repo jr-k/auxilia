@@ -73,6 +73,9 @@ const composerPillClass = cn(
 	"transition-colors",
 );
 
+const composerMenuClass =
+	"max-h-[min(420px,calc(100dvh-2rem))] w-[360px] max-w-[calc(100vw-2rem)] overflow-y-auto";
+
 const STATS_LOADER_MIN_MS = 400;
 const TOOL_DISCOVERY_LABELS: Record<ToolDiscoveryMode, string> = {
 	disabled: "Eager",
@@ -1013,7 +1016,7 @@ const ChatPromptInput = ({
 							<DropdownMenu
 								align="start"
 								side="top"
-								className="w-[360px]"
+								className={composerMenuClass}
 								items={[
 									{ sectionLabel: "Tool discovery" },
 									{
@@ -1119,17 +1122,17 @@ const ChatPromptInput = ({
 									</PromptInputButton>
 								</DialogTrigger>
 								<DialogContent
-									className="gap-0 p-0"
+									className="max-h-[calc(100dvh-2rem)] gap-0 overflow-hidden! p-0 sm:max-w-[400px]"
 									onKeyDown={handleKeyboardListNavigation}
 								>
-									<div className="px-6 pt-6 pb-4">
+									<div className="px-5 pt-5 pb-4 sm:px-6 sm:pt-6">
 										<DialogTitle>Select a model</DialogTitle>
 										<DialogDescription className="mt-1.5">
 											Choose the model powering this chat
 										</DialogDescription>
 									</div>
 
-									<div className="px-6 pb-3">
+									<div className="px-5 pb-3 sm:px-6">
 										<SearchBar
 											placeholder="Search models..."
 											value={modelSearch}
@@ -1139,7 +1142,7 @@ const ChatPromptInput = ({
 
 									<div
 										role="listbox"
-										className="px-4 pb-5 max-h-[55vh] overflow-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+										className="max-h-[min(55vh,420px)] overflow-auto px-3 pb-4 [scrollbar-width:none] sm:px-4 sm:pb-5 [&::-webkit-scrollbar]:hidden"
 									>
 										{!hasModelResults ? (
 											<div className="px-4 py-8 text-center text-[13px] text-meta dark:text-panel-dim">
@@ -1212,7 +1215,9 @@ const ChatPromptInput = ({
 									<DropdownMenu
 										align="start"
 										side="top"
+										className={composerMenuClass}
 										items={[
+											{ sectionLabel: "Reasoning effort" },
 											{
 												label: effortDefault
 													? `Default (${effortLabel(effortDefault)})`

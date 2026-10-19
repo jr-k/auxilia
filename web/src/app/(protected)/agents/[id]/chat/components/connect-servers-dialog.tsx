@@ -37,6 +37,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { SandboxIcon } from "@/components/sandbox-icon";
 import { cn } from "@/lib/utils";
 import { SANDBOX_PROVIDER_LABELS } from "@/lib/sandbox-providers";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface ConnectServersDialogProps {
 	open: boolean;
@@ -67,6 +68,7 @@ export function ConnectServersDialog({
 	const [loadFailedFor, setLoadFailedFor] = useState<string | null>(null);
 	const [connectedIds, setConnectedIds] = useState<Set<string>>(new Set());
 	const [connectingId, setConnectingId] = useState<string | null>(null);
+	const isMobile = useIsMobile();
 	const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 	const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const resourceRequestRef = useRef(0);
@@ -342,7 +344,7 @@ export function ConnectServersDialog({
 
 	return (
 		<Dialog open={open} onOpenChange={handleOpenChange}>
-			<DialogContent className="gap-4 sm:max-w-[820px]">
+			<DialogContent className="h-[calc(100dvh-2rem)] grid-rows-[auto_minmax(0,1fr)] gap-3 overflow-y-hidden! p-4 sm:h-auto sm:max-w-[820px] sm:grid-rows-none sm:gap-4 sm:p-6">
 				<DialogHeader>
 					<DialogTitle>Conversation resources</DialogTitle>
 					<DialogDescription>
@@ -351,13 +353,13 @@ export function ConnectServersDialog({
 					</DialogDescription>
 				</DialogHeader>
 
-				<div className="flex h-[500px] min-h-0 overflow-hidden rounded-[14px] border border-hairline bg-card shadow-[0_1px_2px_rgba(20,35,38,0.03)] dark:border-white/8 dark:bg-white/[0.025]">
-					<div className="flex w-[220px] shrink-0 flex-col border-r border-hairline bg-sidebar/70 p-2.5 dark:border-white/8 dark:bg-white/[0.025]">
+				<div className="flex h-full min-h-0 flex-col overflow-hidden rounded-[14px] border border-hairline bg-card shadow-[0_1px_2px_rgba(20,35,38,0.03)] sm:h-[500px] sm:flex-row dark:border-white/8 dark:bg-white/[0.025]">
+					<div className="order-2 flex w-full shrink-0 flex-col border-t border-hairline bg-sidebar/70 p-1.5 sm:order-none sm:w-[220px] sm:border-t-0 sm:border-r sm:p-2.5 dark:border-white/8 dark:bg-white/[0.025]">
 						<div
 							role="tablist"
 							aria-label="Agent resource type"
-							aria-orientation="vertical"
-							className="flex flex-col gap-1"
+							aria-orientation={isMobile ? "horizontal" : "vertical"}
+							className="flex gap-1 sm:flex-col"
 						>
 							{(
 								[
@@ -368,6 +370,12 @@ export function ConnectServersDialog({
 								] as const
 							).map(([tab, label, Icon]) => {
 								const isActive = activeTab === tab;
+								const mobileLabel =
+									tab === "servers"
+										? "MCP"
+										: tab === "subagents"
+											? "Agents"
+											: label;
 								const count =
 									tab === "servers"
 										? `${enabledServerCount}/${servers.length}`
@@ -387,7 +395,7 @@ export function ConnectServersDialog({
 											setActiveTab(tab);
 										}}
 										className={cn(
-											"group flex w-full cursor-pointer items-center gap-2.5 rounded-[10px] px-2.5 py-2.5 text-left transition-[background-color,color,box-shadow]",
+											"group relative flex min-w-0 flex-1 cursor-pointer flex-col items-center gap-1 rounded-[10px] px-1 py-2 text-center whitespace-nowrap transition-[background-color,color,box-shadow] sm:w-full sm:flex-none sm:flex-row sm:gap-2.5 sm:px-2.5 sm:py-2.5 sm:text-left",
 											isActive
 												? "bg-card text-foreground shadow-[0_1px_4px_rgba(20,35,38,0.09)] ring-1 ring-border/70 dark:bg-white/10 dark:ring-white/10"
 												: "text-meta hover:bg-card/70 hover:text-foreground dark:text-panel-dim dark:hover:bg-white/5",
@@ -395,24 +403,27 @@ export function ConnectServersDialog({
 									>
 										<span
 											className={cn(
-												"flex size-7 shrink-0 items-center justify-center rounded-[8px] border transition-colors",
+												"flex size-6 shrink-0 items-center justify-center transition-colors sm:size-7",
 												isActive
-													? "border-petrol/20 bg-petrol/8 text-petrol dark:text-panel-terminal"
-													: "border-border/70 bg-card text-meta group-hover:text-foreground dark:border-white/8 dark:bg-white/5",
+													? "text-petrol dark:text-panel-terminal"
+													: "text-meta group-hover:text-foreground dark:text-panel-dim",
 											)}
 										>
 											<Icon className="size-3.5" />
 										</span>
-										<span className="min-w-0 flex-1 truncate text-[12.5px] font-semibold">
+										<span className="max-w-full truncate text-[10px] font-semibold sm:hidden">
+											{mobileLabel}
+										</span>
+										<span className="hidden min-w-0 flex-1 truncate text-[12.5px] font-semibold sm:block">
 											{label}
 										</span>
 										{resourcesAgentId === agentId && (
 											<span
 												className={cn(
-													"shrink-0 rounded-full px-1.5 py-0.5 font-mono text-[9.5px] font-semibold tabular-nums",
+													"shrink-0 font-mono text-[8.5px] font-semibold tabular-nums sm:rounded-full sm:px-1.5 sm:py-0.5 sm:text-[9.5px]",
 													isActive
-														? "bg-petrol/10 text-petrol dark:text-panel-terminal"
-														: "bg-hover text-meta dark:bg-white/5 dark:text-panel-dim",
+														? "text-petrol sm:bg-petrol/10 dark:text-panel-terminal"
+														: "text-meta sm:bg-hover dark:text-panel-dim sm:dark:bg-white/5",
 												)}
 											>
 												{count}
@@ -427,7 +438,7 @@ export function ConnectServersDialog({
 					<div
 						id="conversation-resource-panel"
 						role="tabpanel"
-						className="min-w-0 flex-1 overflow-y-auto p-3 [scrollbar-width:thin]"
+						className="order-1 min-h-0 min-w-0 flex-1 overflow-y-auto p-2.5 [scrollbar-width:thin] sm:order-none sm:p-3"
 					>
 					{isLoadingResources ? (
 						<div className="flex min-h-[180px] items-center justify-center gap-2 text-[13px] text-meta dark:text-panel-dim">
