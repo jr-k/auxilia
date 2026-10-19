@@ -133,6 +133,10 @@ class ProtocolEmitter:
         #: interrupt is only ever reported against the `task` tool.
         self._tool_names: dict[str, str] = {}
         self._tool_finished_ids: set[str] = set()
+        #: The root AI message streaming last: its id and text blocks by
+        #: index (see `streamed_answer`).
+        self._answer_id: str | None = None
+        self._answer_text: dict[int, str] = {}
 
     async def stream(self, run: AsyncIterator[dict]) -> AsyncGenerator[dict, None]:
         """Yield wire events for one run, opening with the root lifecycle.
@@ -143,6 +147,10 @@ class ProtocolEmitter:
         yield ev.lifecycle_event([], "running")
         async for envelope in run:
             for event in self.translate(envelope):
+                # Track only root events, and only once they are yielded: a
+                # cancel between events must not persist text the client never saw.
+                if event["method"] == "messages" and not event["params"]["namespace"]:
+                    self._track_answer(event["params"]["data"])
                 yield event
         for event in self.final_snapshot():
             yield event
@@ -195,6 +203,42 @@ class ProtocolEmitter:
         return []
 
     # --- messages ----------------------------------------------------------------
+
+    def _track_answer(self, data: dict) -> None:
+        kind = data.get("event")
+        if kind == "message-start":
+            if data.get("role", "ai") == "ai":
+                self._answer_id, self._answer_text = data.get("id"), {}
+            return
+        if self._answer_id is None:
+            return
+        index = data.get("index")
+        if not isinstance(index, int):
+            return
+        content = data.get("content") or {}
+        delta = data.get("delta") or {}
+        if kind == "content-block-start" and content.get("type") == "text":
+            self._answer_text[index] = content.get("text") or ""
+        elif kind == "content-block-delta" and delta.get("type") == "text-delta":
+            self._answer_text[index] = self._answer_text.get(index, "") + (
+                delta.get("text") or ""
+            )
+
+    def streamed_answer(self) -> AIMessage | None:
+        """Return the visible root answer streamed so far.
+
+        Reasoning and incomplete tool calls are intentionally excluded because
+        providers reject unsigned thinking blocks and partial tool arguments on
+        the next turn.
+        """
+        text = "".join(value for _, value in sorted(self._answer_text.items()))
+        if self._answer_id is None or not text.strip():
+            return None
+        return AIMessage(
+            content=text,
+            id=self._answer_id,
+            response_metadata={"stop_reason": "interrupted"},
+        )
 
     def _on_messages(self, namespace: list[str], data: Any) -> list[dict]:
         if not isinstance(data, (list, tuple)) or len(data) != 2:

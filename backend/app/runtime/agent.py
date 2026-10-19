@@ -1035,6 +1035,28 @@ class Agent:
         await agent.aupdate_state(config, {"messages": [ai_msg]})
         return ai_msg
 
+    async def _persist_interrupted_answer(
+        self, agent, config, emitter: ProtocolEmitter
+    ) -> None:
+        """Persist the visible part of an interrupted root answer.
+
+        The graph may already have checkpointed the completed message before
+        cancellation lands, so deduplicate by id. Persistence failures are
+        logged without masking the cancellation that stopped the run.
+        """
+        message = emitter.streamed_answer()
+        if message is None:
+            return
+        try:
+            state = await agent.aget_state(config)
+            if any(item.id == message.id for item in state.values.get("messages", [])):
+                return
+            await agent.aupdate_state(config, {"messages": [message]})
+        except Exception:
+            logger.exception(
+                "Could not save the interrupted answer of %s", self.thread.id
+            )
+
     async def stream(
         self,
         agent_input: dict | None = None,
@@ -1092,6 +1114,13 @@ class Agent:
                 async with run:
                     async for event in emitter.stream(run):
                         yield event
+            except (asyncio.CancelledError, GeneratorExit):
+                # Cancellation can arrive in this generator directly or as
+                # `aclose()` when the worker is cancelled while publishing.
+                await asyncio.shield(
+                    self._persist_interrupted_answer(agent, config, emitter)
+                )
+                raise
             except GraphRecursionError:
                 ai_msg = await self._persist_recursion_fallback(agent, config)
                 state = await agent.aget_state(config)

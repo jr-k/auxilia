@@ -10,7 +10,7 @@ runs them, semaphore-capped at `RUN_WORKER_CONCURRENCY`.
 
 import asyncio
 import logging
-from contextlib import suppress
+from contextlib import aclosing, suppress
 
 from sqlalchemy.exc import IntegrityError
 
@@ -219,14 +219,22 @@ class RunWorker:
             # token, serialized with the agent stream. Exiting the buffer drains
             # it, which is what keeps the last events ahead of `finalize`'s
             # terminal entry.
-            async with BufferedEventPublisher(events) as publisher:
-                async for event in agent.stream(
-                    agent_input=record.input,
-                    command=record.command,
-                    trigger=record.trigger,
-                    config_overrides=record.config_overrides,
-                    output_schema=record.output_schema,
-                ):
+            # Explicitly close the generator when cancellation lands while the
+            # worker is publishing, so its interrupted-answer cleanup finishes
+            # before this run is finalized and the durable queue advances.
+            async with (
+                BufferedEventPublisher(events) as publisher,
+                aclosing(
+                    agent.stream(
+                        agent_input=record.input,
+                        command=record.command,
+                        trigger=record.trigger,
+                        config_overrides=record.config_overrides,
+                        output_schema=record.output_schema,
+                    )
+                ) as stream,
+            ):
+                async for event in stream:
                     await publisher.publish(encode_event(event))
 
     async def _heartbeat(self, liveness: RunLiveness, events: RunEventStream) -> None:
