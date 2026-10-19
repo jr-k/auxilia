@@ -20,6 +20,7 @@ from app.database_connections.reconciler import DBHubReconciler
 from app.database_connections.router import router as database_connections_router
 from app.database_connections.settings import dbhub_settings
 from app.exceptions import DomainError, root_cause, status_for
+from app.integrations.langfuse.router import router as langfuse_router
 from app.integrations.slack.consumer import build_slack_run_consumer
 from app.integrations.slack.router import router as slack_router
 from app.integrations.slack.settings_router import router as agent_slack_router
@@ -284,6 +285,7 @@ app.include_router(teams_router)
 app.include_router(model_providers_router)
 app.include_router(notifications_router)
 app.include_router(observability_router)
+app.include_router(langfuse_router)
 app.include_router(realtime_router)
 app.include_router(sandboxes_router)
 app.include_router(slack_router)

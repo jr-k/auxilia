@@ -35,6 +35,7 @@ class _ClientEntry:
 class LangfuseLease:
     fingerprint: str
     handler: CallbackHandler
+    client: Langfuse | None = None
     _released: bool = False
 
     def release(self) -> None:
@@ -103,7 +104,7 @@ def acquire_langfuse_callback_handler(
                     _shutdown_entry(previous_fingerprint, previous)
 
     cached.leases += 1
-    return LangfuseLease(config.fingerprint, cached.handler)
+    return LangfuseLease(config.fingerprint, cached.handler, cached.client)
 
 
 def get_langfuse_callback_handler(

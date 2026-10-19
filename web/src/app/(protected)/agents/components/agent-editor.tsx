@@ -22,6 +22,7 @@ import AgentSlackBotCard from "../[id]/components/agent-slack-bot-card";
 import { GroupPicker } from "@/components/ui/group-picker";
 import { VisibilityPicker } from "@/components/ui/visibility-picker";
 import { VisibilityBadge } from "@/components/ui/visibility-badge";
+import AgentLangfusePanel from "./agent-langfuse-panel";
 import AgentPermissionsPanel from "./agent-permissions-panel";
 import { MessageResponse } from "@/components/ai-elements/message";
 import { getApiErrorMessage } from "@/lib/api/errors";
@@ -37,6 +38,7 @@ import { groupOptions } from "@/lib/groups";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useUnsavedChangesWarning } from "@/hooks/use-unsaved-changes-warning";
 import * as agentsApi from "@/lib/api/resources/agents";
+import * as langfuseApi from "@/lib/api/resources/langfuse";
 import { AgentAvatar } from "@/components/ui/agent-avatar";
 import { ModelPickerChip } from "@/components/editor/model-picker-chip";
 import {
@@ -51,7 +53,12 @@ import {
 	toPayload,
 } from "../lib/agent-form";
 
-type EditorTab = "instructions" | "options" | "permissions" | "more";
+export type EditorTab =
+	| "instructions"
+	| "versions"
+	| "options"
+	| "permissions"
+	| "more";
 
 const slugify = (name: string) =>
 	name.trim().toLowerCase().replace(/\s+/g, "-") || "…";
@@ -84,6 +91,8 @@ interface AgentEditorProps {
 	onSaved: (agent: Agent) => void;
 	/** Discard/Cancel: back to read mode (detail) or leave the page (create). */
 	onCancel: () => void;
+	initialTab?: EditorTab;
+	onTabChange?: (tab: EditorTab) => void;
 }
 
 export default function AgentEditor({
@@ -92,6 +101,8 @@ export default function AgentEditor({
 	onEdit,
 	onSaved,
 	onCancel,
+	initialTab = "instructions",
+	onTabChange,
 }: AgentEditorProps) {
 	const router = useRouter();
 	const confirmDialog = useConfirmDialog();
@@ -157,7 +168,7 @@ export default function AgentEditor({
 				.map((s) => s.name),
 		[form.skillIds, librarySkills, agent?.skills],
 	);
-	const [tab, setTab] = useState<EditorTab>("instructions");
+	const [tab, setTab] = useState<EditorTab>(initialTab);
 	const [isSaving, setIsSaving] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -172,6 +183,46 @@ export default function AgentEditor({
 	const [addToolOpen, setAddToolOpen] = useState(false);
 	const emojiPickerRef = useRef<HTMLDivElement>(null);
 	const emojiTriggerRef = useRef<HTMLButtonElement>(null);
+	const [langfuseEnabled, setLangfuseEnabled] = useState(false);
+	const [langfuseVersion, setLangfuseVersion] =
+		useState<langfuseApi.LangfusePromptVersion | null>(null);
+	const [langfuseProduction, setLangfuseProduction] = useState<string | null>(
+		null,
+	);
+
+	useEffect(() => {
+		if (!agent) return;
+		let active = true;
+		void langfuseApi.isLangfuseEnabled().then((enabled) => {
+			if (active) setLangfuseEnabled(enabled);
+		});
+		return () => {
+			active = false;
+		};
+	}, [agent]);
+
+	const agentId = agent?.id;
+	useEffect(() => {
+		if (readOnly || !agentId || !canEditAgent || !langfuseEnabled) return;
+		let active = true;
+		void langfuseApi
+			.getLangfusePrompt(agentId)
+			.then((prompt) => {
+				if (active) {
+					setLangfuseProduction(prompt.production?.text ?? null);
+				}
+			})
+			.catch(() => {
+				// The Versions tab reports connectivity failures.
+			});
+		return () => {
+			active = false;
+		};
+	}, [readOnly, agentId, canEditAgent, langfuseEnabled]);
+	const showLangfuseHint =
+		!readOnly &&
+		langfuseProduction !== null &&
+		form.instructions.trim() !== langfuseProduction.trim();
 
 	const setField = <K extends keyof AgentFormState>(
 		key: K,
@@ -182,7 +233,10 @@ export default function AgentEditor({
 
 	const isDirty =
 		!readOnly &&
-		(isFormDirty(form, initialForm) || imageFile !== null || removeImage);
+		(isFormDirty(form, initialForm) ||
+			imageFile !== null ||
+			removeImage ||
+			langfuseVersion !== null);
 	useUnsavedChangesWarning(isDirty);
 	// Read by callbacks that fire after an await (the subagent gate waits for
 	// the agents store), so they see the draft as it is then, not at click.
@@ -196,15 +250,28 @@ export default function AgentEditor({
 			(form.visibility !== "teams" || form.teamIds.length > 0),
 	);
 
-	const tabs: { key: EditorTab; label: string }[] = [
+	const tabs: { key: EditorTab; label: string; alert?: string }[] = [
 		{ key: "instructions", label: "Instructions" },
+		...(agent && canEditAgent && langfuseEnabled
+			? [
+					{
+						key: "versions" as const,
+						label: "Versions",
+						alert: showLangfuseHint
+							? "Instructions differ from the Langfuse production version"
+							: undefined,
+					},
+				]
+			: []),
 		{ key: "options", label: "Options" },
 		...(agent && canManageAgent
 			? [{ key: "permissions" as const, label: "Permissions" }]
 			: []),
 		...(isMobile ? [{ key: "more" as const, label: "More" }] : []),
 	];
-	const activeTab = tab === "more" && !isMobile ? "instructions" : tab;
+	const activeTab = tabs.some((candidate) => candidate.key === tab)
+		? tab
+		: "instructions";
 
 	useEffect(() => {
 		const handleClickOutside = (event: MouseEvent) => {
@@ -266,6 +333,24 @@ export default function AgentEditor({
 			];
 			// Supervisor links changed: the linked agents' `isSubagent` flag did too.
 			await Promise.all(affected.map((id) => refreshAgent(id).catch(() => {})));
+
+			if (
+				agent &&
+				isAdmin &&
+				langfuseVersion &&
+				form.instructions.trim() === langfuseVersion.text.trim()
+			) {
+				await langfuseApi
+					.promoteLangfuseVersion(agent.id, langfuseVersion.version)
+					.catch((err: unknown) => {
+						toast.error(
+							getApiErrorMessage(
+								err,
+								"Saved, but promoting the Langfuse version failed.",
+							),
+						);
+					});
+			}
 
 			if (imageUploadFailed) {
 				toast.warning("Agent created, but its image could not be uploaded.");
@@ -844,7 +929,10 @@ export default function AgentEditor({
 					<UnderlineTabs
 						tabs={tabs}
 						value={activeTab}
-						onChange={setTab}
+						onChange={(key) => {
+							setTab(key);
+							onTabChange?.(key);
+						}}
 						className="mt-6 border-b border-border"
 					/>
 
@@ -873,6 +961,40 @@ export default function AgentEditor({
 									className="min-h-[300px] w-full flex-1 resize-none rounded-lg border border-input bg-sidebar p-4 text-[12.5px] leading-[1.7] text-foreground outline-none transition-[border-color,box-shadow] placeholder:text-meta dark:placeholder:text-panel-dim focus:border-petrol focus:shadow-[0_0_0_3px_rgba(22,96,110,0.10)] [scrollbar-width:thin]"
 								/>
 							))}
+						{activeTab === "instructions" && showLangfuseHint && (
+							<p className="mt-2 text-[12px] text-meta dark:text-panel-dim">
+								These instructions differ from the Langfuse production
+								version. See the{" "}
+								<button
+									type="button"
+									onClick={() => {
+										setTab("versions");
+										onTabChange?.("versions");
+									}}
+									className="cursor-pointer font-semibold text-petrol hover:underline"
+								>
+									Versions
+								</button>{" "}
+								tab.
+							</p>
+						)}
+						{activeTab === "versions" && agent && (
+							<AgentLangfusePanel
+								agentId={agent.id}
+								agentName={agent.name}
+								readOnly={readOnly}
+								isWorkspaceAdmin={isAdmin}
+								pickedVersion={langfuseVersion?.version ?? null}
+								hasUnsavedEdits={
+									form.instructions !==
+									(langfuseVersion?.text ?? initialForm.instructions)
+								}
+								onPick={(version) => {
+									setLangfuseVersion(version);
+									setField("instructions", version.text);
+								}}
+							/>
+						)}
 						{activeTab === "permissions" && agent && canManageAgent && (
 							<AgentPermissionsPanel
 								agentId={agent.id}

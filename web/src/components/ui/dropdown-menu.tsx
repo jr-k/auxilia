@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 
 type DropdownItem =
 	| {
-			label: string;
+			label: React.ReactNode;
 			description?: string;
 			icon?: React.ReactNode;
 			destructive?: boolean;
