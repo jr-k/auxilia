@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.11.17](https://github.com/jr-k/auxilia/compare/backend-v0.11.16...backend-v0.11.17) (2026-10-19)
+
+
+### Features
+
+* **agents:** let editors manage visible subagents ([c2afd6d](https://github.com/jr-k/auxilia/commit/c2afd6de91c1ad9b7153ae10be8d8704c0595d9a))
+* **artifacts:** add workspace-scoped artifact backend ([bb084b2](https://github.com/jr-k/auxilia/commit/bb084b2e64993209597fcafb19d02cc29b1d781d))
+* **costs:** show live thread model costs ([cebef1a](https://github.com/jr-k/auxilia/commit/cebef1a71e069bbc6ad473d0ce960b9645b61913))
+* **langfuse:** version agent instructions ([6c14572](https://github.com/jr-k/auxilia/commit/6c14572e0072b2c4a8d2e2da1cb3d15e7f7878ad))
+* **models:** refresh catalog and add pricing ([608f799](https://github.com/jr-k/auxilia/commit/608f799e618933c2f3d4fcc540fe4a4bbae0a669))
+
+
+### Bug Fixes
+
+* **auth:** restore destinations and slide sessions ([5c15bea](https://github.com/jr-k/auxilia/commit/5c15bea8b191eaf41f2fe8ef792112dd9cb73db2))
+* **runtime:** cache Anthropic prompts without sandboxes ([2050cbb](https://github.com/jr-k/auxilia/commit/2050cbbdf571f6948ae09d15c919d5e4c10a2f6b))
+* **runtime:** persist interrupted streamed answers ([489ace0](https://github.com/jr-k/auxilia/commit/489ace056c6d08a66ffb60bf64f2cf9f8ca2d0d8))
+
 ## [0.11.16](https://github.com/jr-k/auxilia/compare/backend-v0.11.15...backend-v0.11.16) (2026-10-14)
 
 
