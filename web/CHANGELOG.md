@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.12.26](https://github.com/jr-k/auxilia/compare/web-v0.12.25...web-v0.12.26) (2026-10-19)
+
+
+### Features
+
+* **agents:** let editors manage visible subagents ([c2afd6d](https://github.com/jr-k/auxilia/commit/c2afd6de91c1ad9b7153ae10be8d8704c0595d9a))
+* **costs:** show live thread model costs ([cebef1a](https://github.com/jr-k/auxilia/commit/cebef1a71e069bbc6ad473d0ce960b9645b61913))
+* **langfuse:** version agent instructions ([6c14572](https://github.com/jr-k/auxilia/commit/6c14572e0072b2c4a8d2e2da1cb3d15e7f7878ad))
+* **web:** add artifact workspace and viewers ([62f5aa9](https://github.com/jr-k/auxilia/commit/62f5aa9feea32713843be5a72c493c8377d201ae))
+
+
+### Bug Fixes
+
+* **auth:** restore destinations and slide sessions ([5c15bea](https://github.com/jr-k/auxilia/commit/5c15bea8b191eaf41f2fe8ef792112dd9cb73db2))
+* **web:** reconcile upstream editor state ([c973e64](https://github.com/jr-k/auxilia/commit/c973e640bbf1d2855c56df277f8da03d9359a319))
+
 ## [0.12.25](https://github.com/jr-k/auxilia/compare/web-v0.12.24...web-v0.12.25) (2026-10-16)
 
 
