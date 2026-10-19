@@ -20,11 +20,119 @@ Two policies, chosen per tool when the toolset is built:
   it and the model never had it.
 """
 
+import base64
+import binascii
+from typing import Any
+
 from langchain_core.messages import ToolMessage
+from langchain_core.messages.content import (
+    ImageContentBlock,
+    TextContentBlock,
+    create_image_block,
+    create_text_block,
+)
 from langchain_core.tools import BaseTool
 
 
 _STRUCTURED_CONTENT_KEYS = ("structured_content", "structuredContent")
+_GENERIC_BINARY_MIME_TYPES = frozenset(
+    {"", "application/octet-stream", "binary/octet-stream"}
+)
+_MAX_INLINE_TEXT_BYTES = 200_000
+
+
+def _text_from_generic_blob(data: bytes) -> str | None:
+    """Decode a generic blob only when it is clearly textual."""
+    if len(data) > _MAX_INLINE_TEXT_BYTES or b"\x00" in data:
+        return None
+    try:
+        text = data.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        return None
+    control_chars = sum(
+        1 for char in text if ord(char) < 32 and char not in "\n\r\t\f\b"
+    )
+    if text and control_chars / len(text) > 0.01:
+        return None
+    return text
+
+
+def _typed_generic_blob(
+    block: dict[str, Any], data: bytes
+) -> dict[str, Any] | ImageContentBlock | TextContentBlock | None:
+    """Recover safe, model-supported types from an untyped MCP blob."""
+    encoded = block.get("base64")
+    if not isinstance(encoded, str):
+        return None
+    if data.startswith(b"%PDF-"):
+        return {
+            **block,
+            "mime_type": "application/pdf",
+            "filename": block.get("filename") or "attachment.pdf",
+        }
+    image_type: tuple[str, str] | None = None
+    if data.startswith(b"\x89PNG\r\n\x1a\n"):
+        image_type = ("image/png", "png")
+    elif data.startswith(b"\xff\xd8\xff"):
+        image_type = ("image/jpeg", "jpg")
+    elif data.startswith((b"GIF87a", b"GIF89a")):
+        image_type = ("image/gif", "gif")
+    elif data.startswith(b"RIFF") and data[8:12] == b"WEBP":
+        image_type = ("image/webp", "webp")
+    if image_type is not None:
+        mime_type, _ = image_type
+        return create_image_block(base64=encoded, mime_type=mime_type)
+    if (text := _text_from_generic_blob(data)) is not None:
+        return create_text_block(text=text)
+    return None
+
+
+def normalize_mcp_tool_content(content: Any) -> Any:
+    """Make untyped MCP file blocks safe to send to model providers.
+
+    OpenAI rejects inline ``application/octet-stream`` files before the model
+    can respond. Recover PDFs, common images and UTF-8 text by inspecting the
+    payload; replace truly opaque binary data with a compact explanation.
+    """
+    if not isinstance(content, list):
+        return content
+
+    normalized: list[Any] = []
+    for block in content:
+        if not isinstance(block, dict) or block.get("type") != "file":
+            normalized.append(block)
+            continue
+        mime_type = block.get("mime_type")
+        normalized_mime = mime_type.lower() if isinstance(mime_type, str) else ""
+        if normalized_mime not in _GENERIC_BINARY_MIME_TYPES:
+            normalized.append(block)
+            continue
+
+        encoded = block.get("base64")
+        replacement = None
+        if isinstance(encoded, str):
+            try:
+                replacement = _typed_generic_blob(
+                    block, base64.b64decode(encoded, validate=True)
+                )
+            except (binascii.Error, ValueError):
+                replacement = None
+        if replacement is not None:
+            normalized.append(replacement)
+            continue
+
+        source = block.get("url")
+        source_note = f" Resource URL: {source}" if isinstance(source, str) else ""
+        normalized.append(
+            create_text_block(
+                text=(
+                    "The MCP tool returned an untyped binary attachment. Its bytes "
+                    "were omitted because application/octet-stream cannot be sent "
+                    f"to the model.{source_note}"
+                )
+            )
+        )
+    return normalized
 
 
 def bound_tool_artifact(tool: BaseTool, ui_metadata: dict | None) -> None:
@@ -59,8 +167,9 @@ def bound_tool_artifact(tool: BaseTool, ui_metadata: dict | None) -> None:
         result = await original_coroutine(*args, **kwargs)
         if isinstance(result, tuple) and len(result) == 2:
             content, artifact = result
-            return content, rewrite(artifact)
+            return normalize_mcp_tool_content(content), rewrite(artifact)
         if isinstance(result, ToolMessage):
+            result.content = normalize_mcp_tool_content(result.content)
             result.artifact = rewrite(result.artifact)
         return result
 

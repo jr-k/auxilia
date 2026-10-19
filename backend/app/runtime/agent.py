@@ -52,6 +52,7 @@ from app.runtime.harness import (
 )
 from app.runtime.middleware.current_date import CurrentDateMiddleware
 from app.runtime.middleware.incomplete_response import IncompleteResponseMiddleware
+from app.runtime.middleware.mcp_content import MCPContentCompatibilityMiddleware
 from app.runtime.middleware.structured_output import (
     FORMAT_TOOL,
     PROVIDER_FORMAT_MODES,
@@ -317,6 +318,7 @@ def build_runnable(
     # summarization counts the request. The same ordering also keeps provider
     # deferral and fallback selection out of the summarizer's token estimate.
     middleware = [
+        MCPContentCompatibilityMiddleware(),
         *([discovery] if discovery is not None else []),
         *harness,
         *base_middleware,
