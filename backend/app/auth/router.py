@@ -1,7 +1,7 @@
 from urllib.parse import urlencode, urlsplit
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import JSONResponse, RedirectResponse, Response
 
 from app.auth.configuration import (
@@ -23,23 +23,23 @@ from app.auth.schemas import (
     WorkspaceAuthenticationUpdate,
 )
 from app.auth.service import AuthService, get_auth_service
-from app.auth.settings import auth_settings
+from app.auth.settings import TWO_FACTOR_CHALLENGE_COOKIE, auth_settings
 from app.auth.two_factor import create_scoped_token
+from app.auth.utils import attach_auth_cookie
 from app.exceptions import NoInviteError
 from app.invites.service import InviteService, get_invite_service
 from app.users.models import UserDB
 from app.users.schemas import CurrentUserResponse
 from app.workspaces.constants import ACTIVE_WORKSPACE_COOKIE
-from app.workspaces.dependencies import get_active_workspace_id
-from app.workspaces.router import (
+from app.workspaces.cookies import (
     clear_active_workspace_cookie,
     set_active_workspace_cookie,
 )
+from app.workspaces.dependencies import get_active_workspace_id
 from app.workspaces.service import WorkspaceService, get_workspace_service
 
 
 router = APIRouter(prefix="/auth", tags=["auth"])
-TWO_FACTOR_CHALLENGE_COOKIE = "two_factor_challenge"
 
 
 def _oauth_return_to(value: str | None) -> str | None:
@@ -51,16 +51,15 @@ def _oauth_return_to(value: str | None) -> str | None:
     return value
 
 
-def _attach_auth_cookie(response: Response, token: str) -> None:
-    response.set_cookie(
-        key=auth_settings.COOKIE_NAME,
-        value=token,
-        httponly=auth_settings.COOKIE_HTTPONLY,
-        secure=auth_settings.COOKIE_SECURE,
-        samesite=auth_settings.COOKIE_SAMESITE,
-        domain=auth_settings.COOKIE_DOMAIN,
-        max_age=auth_settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-    )
+def _same_origin_path(value: str | None) -> str | None:
+    if (
+        value is None
+        or not value.startswith("/")
+        or value[1:2] in ("/", "\\")
+        or any(char in value for char in "\t\n\r")
+    ):
+        return None
+    return value
 
 
 def _attach_two_factor_cookie(response: Response, token: str) -> None:
@@ -93,7 +92,7 @@ def _auth_response(user: UserDB, token: str, status_code: int = 200) -> JSONResp
         status_code=status_code,
         content=user_read.model_dump(mode="json"),
     )
-    _attach_auth_cookie(response, token)
+    attach_auth_cookie(response, token)
     if user.active_workspace_id is not None:
         set_active_workspace_cookie(response, user.active_workspace_id)
     else:
@@ -298,6 +297,7 @@ async def google_login(
     request: Request,
     invite_token: str | None = None,
     return_to: str | None = None,
+    next_path: str | None = Query(default=None, alias="next"),
     service: AuthService = Depends(get_auth_service),
     authentication: WorkspaceAuthenticationService = Depends(
         get_workspace_authentication_service
@@ -335,6 +335,11 @@ async def google_login(
         request.session["auth_return_to"] = safe_return_to
     else:
         request.session.pop("auth_return_to", None)
+    safe_next = _same_origin_path(next_path)
+    if safe_next is not None:
+        request.session["auth_next"] = safe_next
+    else:
+        request.session.pop("auth_next", None)
     request.session["oauth_workspace_id"] = str(workspace_id)
 
     client = oauth.create_client("google")
@@ -394,6 +399,7 @@ async def google_callback(
 
     invite_token = request.session.pop("invite_token", None)
     return_to = _oauth_return_to(request.session.pop("auth_return_to", None))
+    next_path = _same_origin_path(request.session.pop("auth_next", None))
     request.session.pop("oauth_workspace_id", None)
 
     try:
@@ -410,6 +416,8 @@ async def google_callback(
         query = {"error": "no_invite"}
         if return_to is not None:
             query["returnTo"] = return_to
+        elif next_path is not None:
+            query["next"] = next_path
         return RedirectResponse(
             url=f"{auth_settings.FRONTEND_URL}/auth?{urlencode(query)}",
             status_code=302,
@@ -420,6 +428,8 @@ async def google_callback(
         query = {"two_factor": "required"}
         if return_to is not None:
             query["returnTo"] = return_to
+        elif next_path is not None:
+            query["next"] = next_path
         response = RedirectResponse(
             url=f"{auth_settings.FRONTEND_URL}/auth?{urlencode(query)}",
             status_code=302,
@@ -430,10 +440,10 @@ async def google_callback(
         return response
 
     response = RedirectResponse(
-        url=f"{auth_settings.FRONTEND_URL}{return_to or '/agents'}",
+        url=f"{auth_settings.FRONTEND_URL}{return_to or next_path or '/agents'}",
         status_code=302,
     )
-    _attach_auth_cookie(response, access_token)
+    attach_auth_cookie(response, access_token)
     if user.active_workspace_id is not None:
         set_active_workspace_cookie(response, user.active_workspace_id)
     return response

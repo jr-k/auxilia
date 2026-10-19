@@ -52,10 +52,16 @@ function oauthReturnTo(value: string | null): string | null {
 	}
 }
 
+function safeNext(value: string | null): string | null {
+	return value && /^\/(?![/\\])[^\t\n\r]*$/.test(value) ? value : null;
+}
+
 function AuthPageContent() {
 	const router = useRouter();
 	const searchParams = useSearchParams();
 	const returnTo = oauthReturnTo(searchParams.get("returnTo"));
+	const next = safeNext(searchParams.get("next"));
+	const destination = returnTo ?? next ?? "/agents";
 	const [isLoading, setIsLoading] = useState(false);
 	const [error, setError] = useState<string | null>(() =>
 		searchParams.get("error") === "no_invite"
@@ -97,7 +103,7 @@ function AuthPageContent() {
 				setTwoFactorRequired(true);
 				return;
 			}
-			router.push(returnTo ?? "/agents");
+			router.push(destination);
 		} catch (err: unknown) {
 			setError(getApiErrorMessage(err, "An error occurred"));
 		} finally {
@@ -112,7 +118,7 @@ function AuthPageContent() {
 		setIsLoading(true);
 		try {
 			await authApi.verifyTwoFactorSignIn(twoFactorCode);
-			router.push(returnTo ?? "/agents");
+			router.push(destination);
 		} catch (err: unknown) {
 			setError(getApiErrorMessage(err, "Invalid authentication code"));
 		} finally {
@@ -123,6 +129,7 @@ function AuthPageContent() {
 	const signInWithGoogle = () => {
 		const target = new URL("/api/backend/auth/google", window.location.origin);
 		if (returnTo) target.searchParams.set("return_to", returnTo);
+		else if (next) target.searchParams.set("next", next);
 		window.location.href = `${target.pathname}${target.search}`;
 	};
 
@@ -183,7 +190,9 @@ function AuthPageContent() {
 							router.replace(
 								returnTo
 									? `/auth?returnTo=${encodeURIComponent(returnTo)}`
-									: "/auth",
+									: next
+										? `/auth?next=${encodeURIComponent(next)}`
+										: "/auth",
 							);
 						}}
 						className="cursor-pointer text-[12.5px] font-semibold text-meta hover:text-foreground"

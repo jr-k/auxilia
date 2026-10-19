@@ -1,5 +1,4 @@
 import logging
-from typing import Literal, cast
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, Header, UploadFile
@@ -7,14 +6,16 @@ from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import get_current_user
-from app.auth.settings import auth_settings
 from app.database import get_db
 from app.mcp.client.storage import TokenStorageFactory
 from app.redis_client import get_redis
 from app.threads.service import ThreadService
 from app.users.models import UserDB
 from app.utils.images import image_response, process_uploaded_image
-from app.workspaces.constants import ACTIVE_WORKSPACE_COOKIE
+from app.workspaces.cookies import (
+    clear_active_workspace_cookie,
+    set_active_workspace_cookie,
+)
 from app.workspaces.models import WorkspaceRole
 from app.workspaces.schemas import (
     WorkspaceCreate,
@@ -28,34 +29,6 @@ from app.workspaces.service import WorkspaceService, get_workspace_service
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/workspaces", tags=["workspaces"])
-
-
-def set_active_workspace_cookie(response: Response, workspace_id: UUID) -> None:
-    response.set_cookie(
-        key=ACTIVE_WORKSPACE_COOKIE,
-        value=str(workspace_id),
-        httponly=True,
-        secure=auth_settings.COOKIE_SECURE,
-        samesite=cast(
-            Literal["lax", "strict", "none"],
-            auth_settings.COOKIE_SAMESITE,
-        ),
-        domain=auth_settings.COOKIE_DOMAIN,
-        max_age=auth_settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-    )
-
-
-def clear_active_workspace_cookie(response: Response) -> None:
-    response.delete_cookie(
-        key=ACTIVE_WORKSPACE_COOKIE,
-        secure=auth_settings.COOKIE_SECURE,
-        samesite=cast(
-            Literal["lax", "strict", "none"],
-            auth_settings.COOKIE_SAMESITE,
-        ),
-        domain=auth_settings.COOKIE_DOMAIN,
-    )
-
 
 @router.get("/", response_model=list[WorkspaceResponse])
 async def list_workspaces(

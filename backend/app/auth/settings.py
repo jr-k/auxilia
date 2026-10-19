@@ -1,7 +1,12 @@
-from pydantic import AliasChoices, Field
+from typing import Literal
+
+from pydantic import AliasChoices, Field, field_validator
 from pydantic_settings import BaseSettings
 
 from app.settings import settings_config
+
+
+TWO_FACTOR_CHALLENGE_COOKIE = "two_factor_challenge"
 
 
 class AuthSettings(BaseSettings):
@@ -15,6 +20,7 @@ class AuthSettings(BaseSettings):
     )
     JWT_ALGORITHM: str = "HS256"
     JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24  # 24 hours
+    SESSION_MAX_DAYS: int = Field(default=30, ge=1)
 
     # Cookie Configuration
     COOKIE_NAME: str = "access_token"
@@ -26,13 +32,18 @@ class AuthSettings(BaseSettings):
         ),
     )
     COOKIE_HTTPONLY: bool = True
-    COOKIE_SAMESITE: str = "lax"
+    COOKIE_SAMESITE: Literal["lax", "strict", "none"] = "lax"
     COOKIE_DOMAIN: str | None = None
 
     # Frontend URL for OAuth redirects
     FRONTEND_URL: str = "http://localhost:3000"
 
     model_config = settings_config()
+
+    @field_validator("COOKIE_SAMESITE", mode="before")
+    @classmethod
+    def _lowercase_samesite(cls, value: object) -> object:
+        return value.lower() if isinstance(value, str) else value
 
 
 auth_settings = AuthSettings()

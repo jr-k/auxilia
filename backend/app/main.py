@@ -10,6 +10,7 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from app.agents.router import router as agents_router
 from app.appearance.router import router as appearance_router
+from app.auth.middleware import SlidingSessionMiddleware
 from app.auth.router import router as auth_router
 from app.auth.settings import auth_settings
 from app.auth.tokens.router import router as tokens_router
@@ -229,6 +230,9 @@ app.add_middleware(
     same_site="lax",
     https_only=auth_settings.COOKIE_SECURE,
 )
+
+# Refreshes both the authenticated session and its active-workspace context.
+app.add_middleware(SlidingSessionMiddleware)
 
 
 @app.get("/health", tags=["health"])

@@ -1,4 +1,5 @@
 import { API_BASE_URL } from "@/lib/api/client";
+import { ensureSignedIn } from "@/lib/api/session";
 
 /**
  * The raw transport for LangGraph-shaped payloads — the Agent Streaming
@@ -52,7 +53,13 @@ export const protocolFetch: typeof fetch = async (input, init) => {
 	// query (`resolveSameOriginUrl` throws on any other origin), so this is
 	// not a user-controlled destination.
 	// nosemgrep
-	return fetch(url, { credentials: "include", ...fromRequest, ...init });
+	const response = await fetch(url, {
+		credentials: "include",
+		...fromRequest,
+		...init,
+	});
+	if (response.status === 401) void ensureSignedIn();
+	return response;
 };
 
 /** Everything of a `Request` that `fetch(url, init)` needs to reproduce it.

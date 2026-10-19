@@ -30,13 +30,27 @@ function oauthReturnTo(value: string | null): string | null {
 	}
 }
 
+function safeNext(value: string | null): string | null {
+	return value && /^\/(?![/\\])[^\t\n\r]*$/.test(value) ? value : null;
+}
+
 function authRedirect(request: NextRequest): NextResponse {
-	const target =
+	const returnTo =
 		request.nextUrl.pathname === "/mcp/authorize"
 			? `${request.nextUrl.pathname}${request.nextUrl.search}`
 			: null;
 	const url = new URL("/auth", request.url);
-	if (target) url.searchParams.set("returnTo", target);
+	if (returnTo) {
+		url.searchParams.set("returnTo", returnTo);
+	} else if (
+		request.nextUrl.pathname !== "/" &&
+		!PUBLIC_PATHS.some((path) => request.nextUrl.pathname.startsWith(path))
+	) {
+		url.searchParams.set(
+			"next",
+			`${request.nextUrl.pathname}${request.nextUrl.search}`,
+		);
+	}
 	return NextResponse.redirect(url);
 }
 
@@ -84,6 +98,10 @@ export async function proxy(request: NextRequest) {
 					);
 					if (returnTo) {
 						return NextResponse.redirect(new URL(returnTo, request.url));
+					}
+					const next = safeNext(request.nextUrl.searchParams.get("next"));
+					if (next) {
+						return NextResponse.redirect(new URL(next, request.url));
 					}
 					return NextResponse.redirect(new URL("/agents", request.url));
 				}
