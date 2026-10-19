@@ -18,6 +18,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth.dependencies import get_current_user  # noqa: F401 — via authorize_thread
 from app.database import get_db
 from app.redis_client import get_redis
+from app.runtime.api.costs import (
+    ConversationCost,
+    CostService,
+    MessageCost,
+    get_cost_service,
+)
 from app.runtime.api.protocol_schemas import (
     EventStreamBody,
     HistoryBody,
@@ -41,6 +47,29 @@ _SSE_HEADERS = {
 
 def get_protocol_service() -> ProtocolService:
     return ProtocolService(get_redis())
+
+
+@router.get("/cost")
+async def get_conversation_cost(
+    thread_id: str,
+    thread: ThreadDB = Depends(authorize_thread_read),
+    service: CostService = Depends(get_cost_service),
+) -> ConversationCost:
+    """Estimate retained conversation usage at current catalog prices."""
+    return await service.conversation(thread.workspace_id, thread_id, thread.model_id)
+
+
+@router.get("/messages/{message_id}/cost")
+async def get_message_cost(
+    thread_id: str,
+    message_id: str,
+    thread: ThreadDB = Depends(authorize_thread_read),
+    service: CostService = Depends(get_cost_service),
+) -> MessageCost:
+    """Estimate one assistant call with the same access rules as /state."""
+    return await service.message(
+        thread.workspace_id, thread_id, thread.model_id, message_id
+    )
 
 
 @router.post("/commands")

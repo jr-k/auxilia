@@ -27,6 +27,7 @@ import { useChatHeaderStore } from "@/stores/chat-header-store";
 import { chatHeaderFromThread, useThreadSession } from "@/lib/thread-session";
 import * as threadsApi from "@/lib/api/resources/threads";
 import { getApiErrorMessage } from "@/lib/api/errors";
+import { getThreadCost } from "@/lib/api/resources/thread-costs";
 import { isResponseSoundEnabled } from "@/lib/user-preferences";
 import { ConversationBody } from "./conversation-body";
 import { usePromptQueue } from "@/hooks/use-prompt-queue";
@@ -252,11 +253,32 @@ const ChatPage = () => {
         "This agent's sandbox is not available right now.")
       : null);
 
-  const { setCurrentChat, clearCurrentChat } = useChatHeaderStore();
+  const { setCurrentChat, clearCurrentChat, setCost } = useChatHeaderStore();
   useEffect(() => {
     if (thread) setCurrentChat(chatHeaderFromThread(thread));
   }, [thread, setCurrentChat]);
   useEffect(() => clearCurrentChat, [clearCurrentChat]);
+  // The header is global: never leave the previous thread's subtotal visible
+  // while the new thread is opening or running.
+  useEffect(() => {
+    setCost(null);
+  }, [threadId, setCost]);
+  // Re-read retained usage on open and whenever the durable run settles.
+  useEffect(() => {
+    if (run.isLoading) return;
+    let stale = false;
+    void getThreadCost(threadId).then(
+      (cost) => {
+        if (!stale) setCost(cost);
+      },
+      () => {
+        if (!stale) setCost(null);
+      },
+    );
+    return () => {
+      stale = true;
+    };
+  }, [threadId, run.isLoading, setCost]);
 
   return (
     <div className="h-full flex flex-col w-full overflow-hidden">
