@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.18](https://github.com/jr-k/auxilia/compare/backend-v0.11.17...backend-v0.11.18) (2026-10-19)
+
+
+### Bug Fixes
+
+* **runtime:** handle untyped MCP attachments ([0a1b7d2](https://github.com/jr-k/auxilia/commit/0a1b7d2c720138549879b78e92ecbe325c13cae3))
+
 ## [0.11.17](https://github.com/jr-k/auxilia/compare/backend-v0.11.16...backend-v0.11.17) (2026-10-19)
 
 
