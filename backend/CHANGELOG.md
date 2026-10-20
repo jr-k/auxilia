@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.21](https://github.com/jr-k/auxilia/compare/backend-v0.11.20...backend-v0.11.21) (2026-10-20)
+
+
+### Features
+
+* **slack:** support file attachments ([aea76f7](https://github.com/jr-k/auxilia/commit/aea76f79ad2227bda64c03f4847f7ddcf72ee8ff))
+
 ## [0.11.20](https://github.com/jr-k/auxilia/compare/backend-v0.11.19...backend-v0.11.20) (2026-10-20)
 
 
