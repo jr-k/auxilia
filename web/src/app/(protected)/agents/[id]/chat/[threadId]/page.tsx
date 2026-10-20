@@ -439,10 +439,11 @@ const ChatPage = () => {
               return actions.send(message);
             }}
             status={run.isLoading ? "streaming" : "ready"}
-            queueMode={run.status === "streaming"}
-            submissionDisabled={!meta.modelAvailable}
+            queueMode={run.status === "streaming" && !run.isStopping}
+            submissionDisabled={!meta.modelAvailable || run.isStopping}
             className="w-full max-w-4xl mx-auto lg:px-10 sm:px-6 px-3 py-4"
             stop={actions.stop}
+            stopping={run.isStopping}
             selectedModel={thread?.modelId ?? undefined}
             onModelChange={actions.changeModel}
             modelChangeDisabled={
@@ -472,7 +473,9 @@ const ChatPage = () => {
             onBeginQueuedEdit={promptQueue.beginEdit}
             onEndQueuedEdit={promptQueue.endEdit}
             onSendQueuedNow={promptQueue.sendNow}
-            sendQueuedNowDisabled={run.status === "interrupted"}
+            sendQueuedNowDisabled={
+              run.status === "interrupted" || run.isStopping
+            }
             onRemoveQueued={promptQueue.remove}
             onReorderQueued={promptQueue.reorder}
           />

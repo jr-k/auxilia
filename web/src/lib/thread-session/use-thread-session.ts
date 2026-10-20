@@ -9,7 +9,7 @@ import type {
 	BaseMessage,
 	BaseMessageLike,
 } from "@langchain/core/messages";
-import { useStream } from "@langchain/react";
+import { STREAM_CONTROLLER, useStream } from "@langchain/react";
 import type { AnyStream, SubagentDiscoverySnapshot } from "@langchain/react";
 import type { Interrupt } from "@langchain/langgraph-sdk";
 import type { RunCompletedInfo } from "@langchain/langgraph-sdk/stream";
@@ -48,7 +48,14 @@ import {
 const EMPTY_TODOS: Todo[] = [];
 /** Render cadence for the streamed views (tokens arrive far faster). */
 const THROTTLE_MS = 60;
+const STOP_SETTLE_POLL_MS = 100;
+const STOP_SETTLE_TIMEOUT_MS = 10_000;
 const snapshotMessages = (messages: BaseMessage[]): BaseMessage[] => [...messages];
+
+const wait = (ms: number) =>
+	new Promise<void>((resolve) => {
+		window.setTimeout(resolve, ms);
+	});
 
 /** Everything the session reaches the network through. Tests script it. */
 export type ThreadSessionTransport = {
@@ -86,6 +93,8 @@ export type ThreadSession = {
 		status: "idle" | "streaming" | "interrupted";
 		/** A submission is starting or the stream reports a run in flight. */
 		isLoading: boolean;
+		/** STOP was requested and the durable run has not been reconciled yet. */
+		isStopping: boolean;
 		/** The local submit started, but the server stream has not taken over yet. */
 		isStarting: boolean;
 		/** The stream stack's last error (command rejection or run failure). */
@@ -144,6 +153,8 @@ export function useThreadSession({
 	pendingMessageCapMs,
 }: ThreadSessionOptions): ThreadSession {
 	const [state, dispatch] = useReducer(sessionReducer, initialSessionState);
+	const currentThreadId = useRef(threadId);
+	currentThreadId.current = threadId;
 
 	const callbacks = useRef({ onStaleInterrupt, onCompleted });
 	useEffect(() => {
@@ -221,9 +232,22 @@ export function useThreadSession({
 		snapshot: snapshotMessages,
 	});
 	const liveToolCalls = useThrottledValue(stream.toolCalls, THROTTLE_MS);
+	const [stoppingThreadId, setStoppingThreadId] = useState<string | null>(null);
+	const stoppingRef = useRef<string | null>(null);
+	const stopSequence = useRef(0);
+	const isStopping = stoppingThreadId === threadId;
 	const toolCalls = useMemo(
-		() => pairToolCalls(messages, liveToolCalls),
-		[messages, liveToolCalls],
+		() => {
+			const paired = pairToolCalls(messages, liveToolCalls);
+			// Events already in flight can arrive after STOP. Do not let those
+			// transient handles leave a tool spinner behind while server state
+			// is converging; the authoritative rehydrate below restores anything
+			// that genuinely belongs to a following queued run.
+			return isStopping
+				? paired.filter((toolCall) => toolCall.status !== "running")
+				: paired;
+		},
+		[isStopping, messages, liveToolCalls],
 	);
 	const todos =
 		((stream.values as Record<string, unknown>).todos as Todo[] | undefined) ??
@@ -252,6 +276,7 @@ export function useThreadSession({
 
 	const send = useCallback(
 		async (message: PromptInputMessage) => {
+			if (stoppingRef.current === threadId) return;
 			const content = promptMessageToContent(message);
 			if (content == null) return;
 			userActed();
@@ -277,27 +302,89 @@ export function useThreadSession({
 	);
 
 	const regenerate = useCallback(() => {
+		if (stoppingRef.current === threadId) return;
 		if (!messages.some(isHumanMessage)) return;
 		userActed();
 		void selectorStream.submit(null, {
 			config: { configurable: { trigger: "regenerate-message" } },
 		});
-	}, [messages, selectorStream, userActed]);
+	}, [messages, selectorStream, threadId, userActed]);
 
 	const stop = useCallback(() => {
-		void selectorStream.stop();
+		if (stoppingRef.current === threadId) return;
+		stoppingRef.current = threadId;
+		setStoppingThreadId(threadId);
+		const sequence = ++stopSequence.current;
 		useActiveRunsStore.getState().requestPoll();
-	}, [selectorStream]);
+
+		// Capture the run that is active before STOP. A queued run may become
+		// active immediately after it, so polling "the active run" afterwards
+		// could wait for the wrong turn.
+		const activeRun = transport
+			.listThreadRuns(threadId)
+			.then(
+				(runs) => runs.find((run) => run.status === "running") ?? null,
+				() => null,
+			);
+
+		void (async () => {
+			try {
+				await selectorStream.stop();
+				const stoppedRun = await activeRun;
+				if (stoppedRun != null) {
+					const deadline = Date.now() + STOP_SETTLE_TIMEOUT_MS;
+					while (
+						stopSequence.current === sequence &&
+						currentThreadId.current === threadId &&
+						Date.now() < deadline
+					) {
+						const runs = await transport.listThreadRuns(threadId).catch(() => []);
+						const current = runs.find((run) => run.id === stoppedRun.id);
+						if (
+							current == null ||
+							(current.status !== "pending" && current.status !== "running")
+						) {
+							break;
+						}
+						await wait(STOP_SETTLE_POLL_MS);
+					}
+				}
+
+				if (
+					stopSequence.current === sequence &&
+					currentThreadId.current === threadId
+				) {
+					// stop() preserves the SDK's projections, including partial
+					// tool handles. Swap away and back to discard that transient
+					// stream state and rebuild from the durable checkpoint.
+					const controller = selectorStream[STREAM_CONTROLLER];
+					await controller.hydrate(null);
+					await controller.hydrate(currentThreadId.current);
+				}
+			} catch (error) {
+				console.error("Could not synchronize the stopped run:", error);
+			} finally {
+				useActiveRunsStore.getState().requestPoll();
+				if (stopSequence.current === sequence) {
+					stoppingRef.current = null;
+					setStoppingThreadId((current) =>
+						current === threadId ? null : current,
+					);
+				}
+			}
+		})();
+	}, [selectorStream, threadId, transport]);
 
 	const respond = useCallback(
 		(response: HitlResponse, addressedId: string | null) => {
+			if (stoppingRef.current === threadId) return;
 			userActed();
 			void selectorStream.respond(
 				response,
 				addressedId != null ? { interruptId: addressedId } : undefined,
 			);
 		},
-		[selectorStream, userActed],
+		[selectorStream, threadId, userActed],
 	);
 
 	const loadLatestMessages = useCallback(async () => {
@@ -420,7 +507,7 @@ export function useThreadSession({
 
 	const runStatus: ThreadSession["run"]["status"] = isInterrupted
 		? "interrupted"
-		: stream.isLoading || submissionPending
+		: stream.isLoading || submissionPending || isStopping
 			? "streaming"
 			: "idle";
 	const visibleStreamError =
@@ -434,7 +521,8 @@ export function useThreadSession({
 		openError: state.openError,
 		run: {
 			status: runStatus,
-			isLoading: stream.isLoading || submissionPending,
+			isLoading: stream.isLoading || submissionPending || isStopping,
+			isStopping,
 			isStarting: submissionStarting,
 			error: visibleStreamError,
 			rehydratedError: state.rehydratedError,

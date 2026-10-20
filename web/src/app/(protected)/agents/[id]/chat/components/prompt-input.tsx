@@ -90,6 +90,7 @@ interface ChatPromptInputProps {
 	queueMode?: boolean;
 	className?: string;
 	stop?: () => void;
+	stopping?: boolean;
 	onModelChange?: (modelId: string) => void | Promise<void>;
 	selectedModel?: string;
 	readOnlyModel?: boolean;
@@ -153,6 +154,7 @@ const ChatPromptInput = ({
 	queueMode = false,
 	className,
 	stop,
+	stopping = false,
 	onModelChange,
 	selectedModel: externalSelectedModel,
 	readOnlyModel = false,
@@ -1249,7 +1251,9 @@ const ChatPromptInput = ({
 								)}
 					</PromptInputTools>
 					<div className="flex shrink-0 items-center gap-1.5">
-						{status === "streaming" && stop && <StopButton stop={stop} />}
+						{status === "streaming" && stop && (
+							<StopButton stop={stop} stopping={stopping} />
+						)}
 						<SubmitButton
 							disabled={
 								queueLoading || submissionDisabled || modelUpdatePending
@@ -1406,16 +1410,27 @@ const SubmitButton = ({ disabled = false }: { disabled?: boolean }) => {
 	);
 };
 
-const StopButton = ({ stop }: { stop: () => void }) => (
+const StopButton = ({
+	stop,
+	stopping,
+}: {
+	stop: () => void;
+	stopping: boolean;
+}) => (
 	<button
 		type="button"
+		disabled={stopping}
 		onClick={stop}
-		aria-label="Stop current response"
-		className="flex size-[38px] cursor-pointer items-center justify-center rounded-full border border-input bg-card text-subtle transition-colors hover:border-destructive/35 hover:bg-destructive/8 hover:text-destructive"
+		aria-label={stopping ? "Stopping current response" : "Stop current response"}
+		className="flex size-[38px] cursor-pointer items-center justify-center rounded-full border border-input bg-card text-subtle transition-colors hover:border-destructive/35 hover:bg-destructive/8 hover:text-destructive disabled:cursor-wait disabled:border-input disabled:bg-card disabled:text-subtle"
 	>
-		<svg width="18" height="18" viewBox="0 0 20 20" fill="currentColor">
-			<rect x="5" y="5" width="10" height="10" rx="2" />
-		</svg>
+		{stopping ? (
+			<Loader2 className="size-[18px] animate-spin" />
+		) : (
+			<svg width="18" height="18" viewBox="0 0 20 20" fill="currentColor">
+				<rect x="5" y="5" width="10" height="10" rx="2" />
+			</svg>
+		)}
 	</button>
 );
 
