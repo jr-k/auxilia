@@ -30,6 +30,7 @@ interface TriggerBase {
 	disabledSkillIds: string[] | null;
 	disabledSandboxIds: string[] | null;
 	disabledSubagentIds: string[] | null;
+	disabledMcpTools: Record<string, string[]> | null;
 }
 
 export interface ScheduleTrigger extends TriggerBase {
@@ -64,6 +65,7 @@ interface TriggerCreateBase {
 	disabledSkillIds?: string[] | null;
 	disabledSandboxIds?: string[] | null;
 	disabledSubagentIds?: string[] | null;
+	disabledMcpTools?: Record<string, string[]> | null;
 }
 
 export interface ScheduleTriggerCreate extends TriggerCreateBase {
@@ -93,6 +95,7 @@ export interface TriggerUpdate {
 	disabledSkillIds?: string[] | null;
 	disabledSandboxIds?: string[] | null;
 	disabledSubagentIds?: string[] | null;
+	disabledMcpTools?: Record<string, string[]> | null;
 }
 
 export interface TriggerRun {

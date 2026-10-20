@@ -51,6 +51,14 @@ class TriggerCreate(TriggerBase):
             "[] enables every allowed subagent."
         ),
     )
+    disabled_mcp_tools: dict[UUID, list[str]] | None = Field(
+        default=None,
+        description=(
+            "Rejected tool names keyed by MCP server ID. Null derives safe "
+            "automated defaults; omitted server keys do the same. Tools requiring "
+            "approval are rejected unless their server is explicitly configured."
+        ),
+    )
 
     @field_validator("group")
     @classmethod
@@ -83,6 +91,7 @@ class TriggerCreateDB(TriggerBase):
     disabled_skill_ids: list[str] | None = None
     disabled_sandbox_ids: list[str] | None = None
     disabled_subagent_ids: list[str] | None = None
+    disabled_mcp_tools: dict[str, list[str]] | None = None
 
 
 class TriggerPatch(SQLModel):
@@ -115,6 +124,13 @@ class TriggerPatch(SQLModel):
         default=None,
         description="Replace the disabled subagent IDs; null restores agent defaults.",
     )
+    disabled_mcp_tools: dict[UUID, list[str]] | None = Field(
+        default=None,
+        description=(
+            "Replace rejected tool names by MCP server; null or omitted server keys "
+            "restore safe defaults."
+        ),
+    )
 
     @field_validator("group")
     @classmethod
@@ -145,6 +161,7 @@ class TriggerResponse(SQLModel):
     disabled_skill_ids: list[UUID] | None = None
     disabled_sandbox_ids: list[UUID] | None = None
     disabled_subagent_ids: list[UUID] | None = None
+    disabled_mcp_tools: dict[UUID, list[str]] | None = None
     created_at: datetime
     updated_at: datetime
     # Whether the trigger's model can run right now (whitelist ∧ provider key

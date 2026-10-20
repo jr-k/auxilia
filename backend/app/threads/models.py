@@ -38,6 +38,14 @@ def _json_list_column() -> Column:
     )
 
 
+def _json_object_column() -> Column:
+    return Column(
+        JSON().with_variant(JSONB(), "postgresql"),
+        nullable=False,
+        server_default=text("'{}'"),
+    )
+
+
 class ThreadBase(SQLModel):
     workspace_id: UUID = Field(foreign_key="workspaces.id", nullable=False, index=True)
     user_id: UUID = Field(foreign_key="users.id", nullable=False)
@@ -99,6 +107,9 @@ class ThreadDB(ThreadBase, TimestampMixin, table=True):
     )
     disabled_subagent_ids: list[str] = Field(
         default_factory=list, sa_column=_json_list_column()
+    )
+    disabled_mcp_tools: dict[str, list[str]] = Field(
+        default_factory=dict, sa_column=_json_object_column()
     )
     # Terminal status of the thread's most recent run, stamped in the same
     # transaction as the run's terminal update. NULL = no finished run

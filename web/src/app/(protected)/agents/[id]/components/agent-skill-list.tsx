@@ -26,6 +26,8 @@ interface AgentSkillListProps {
 	/** Whether the agent has a sandbox bound — what a skill's scripts need. */
 	runsCode: boolean;
 	readOnly?: boolean;
+	canToggleDefault?: boolean;
+	mode?: "agent" | "trigger";
 	onChange?: (skillIds: string[]) => void;
 	onDefaultEnabledChange?: (skillId: string, enabled: boolean) => void;
 	/** Edit mode: open the tool picker on its sandbox choice. */
@@ -48,6 +50,8 @@ export default function AgentSkillList({
 	fallbackSkills = [],
 	runsCode,
 	readOnly,
+	canToggleDefault,
+	mode = "agent",
 	onChange,
 	onDefaultEnabledChange,
 	onEnableCodeExecution,
@@ -172,19 +176,30 @@ export default function AgentSkillList({
 										<div className="flex items-center gap-3 bg-petrol-tint/55 px-4 py-3 dark:bg-white/5">
 											<div className="min-w-0 flex-1">
 												<p className="text-[12.5px] font-semibold text-foreground">
-													New conversations
+													{mode === "trigger"
+														? "This trigger"
+														: "New conversations"}
 												</p>
 												<p className="mt-0.5 text-[11.5px] text-muted-foreground">
-													Enable this skill by default
+													{mode === "trigger"
+														? "Allow this skill during automated runs"
+														: "Enable this skill by default"}
 												</p>
 											</div>
 											<Switch
 												checked={enabledByDefault}
-												disabled={readOnly}
+												disabled={
+													canToggleDefault === false ||
+													(readOnly && !canToggleDefault)
+												}
 												onCheckedChange={(checked) => {
 													onDefaultEnabledChange?.(skill.id, checked);
 												}}
-												aria-label={`Enable ${skill.name} by default in new conversations`}
+												aria-label={
+													mode === "trigger"
+														? `Allow ${skill.name} for this trigger`
+														: `Enable ${skill.name} by default in new conversations`
+												}
 											/>
 										</div>
 										{scriptsInactive && (

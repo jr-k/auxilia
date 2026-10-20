@@ -2,7 +2,7 @@
 
 import { memo, useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
-import { BanIcon, Loader2, XCircleIcon } from "lucide-react";
+import { BanIcon, Globe2, Loader2, XCircleIcon } from "lucide-react";
 import { parseToolPayload } from "@langchain/langgraph-sdk/stream";
 import {
   ChainStep,
@@ -32,6 +32,7 @@ type ToolIdentity = {
   serverName: string;
   toolName: string;
   icon: string | undefined;
+  iconKind?: "web";
 };
 
 export type DescribeTool = (toolName: string) => ToolIdentity;
@@ -58,6 +59,14 @@ export function useDescribeTool(
               ? sandboxImageUrl(sandbox.id, sandbox.imageRevision)
               : SANDBOX_PROVIDER_ICONS[sandbox.provider]
             : undefined,
+        };
+      }
+      if (/^(?:web_search|google_search)(?:_\d+)?$/.test(name)) {
+        return {
+          serverName: "Web search",
+          toolName: "web_search",
+          icon: undefined,
+          iconKind: "web",
         };
       }
       const { serverName, toolName } = getToolMetadata(name, known);
@@ -112,7 +121,7 @@ export const ToolStep = memo(function ToolStep({
   nested = false,
   approval,
 }: ToolStepProps) {
-  const { serverName, toolName, icon } = describe(tc.name);
+  const { serverName, toolName, icon, iconKind } = describe(tc.name);
   const awaiting = state === "awaiting-approval";
   const showResult =
     state === "rejected" || state === "error" || tc.output !== undefined;
@@ -134,7 +143,15 @@ export const ToolStep = memo(function ToolStep({
     <ChainStep
       nested={nested}
       node={
-        <ChainStepIcon icon={icon} name={serverName} />
+        <ChainStepIcon
+          icon={icon}
+          name={serverName}
+          fallback={
+            iconKind === "web" ? (
+              <Globe2 className="size-[13px] text-label dark:text-panel-dim" />
+            ) : undefined
+          }
+        />
       }
       title={humanizeToolName(toolName)}
       summary={summarizeToolArgs(tc.args)}

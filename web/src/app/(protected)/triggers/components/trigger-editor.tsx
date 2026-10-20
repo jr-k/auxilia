@@ -48,6 +48,7 @@ interface TriggerFormState {
 	disabledSkillIds: string[] | null;
 	disabledSandboxIds: string[] | null;
 	disabledSubagentIds: string[] | null;
+	disabledMcpTools: Record<string, string[]> | null;
 }
 
 function browserTimezone(): string {
@@ -69,6 +70,7 @@ function defaultForm(): TriggerFormState {
 		disabledSkillIds: null,
 		disabledSandboxIds: null,
 		disabledSubagentIds: null,
+		disabledMcpTools: null,
 	};
 }
 
@@ -93,6 +95,7 @@ function fromTrigger(trigger: Trigger): TriggerFormState {
 		disabledSkillIds: trigger.disabledSkillIds,
 		disabledSandboxIds: trigger.disabledSandboxIds,
 		disabledSubagentIds: trigger.disabledSubagentIds,
+		disabledMcpTools: trigger.disabledMcpTools,
 	};
 }
 
@@ -109,6 +112,7 @@ function toComparablePayload(form: TriggerFormState, triggerType: TriggerType) {
 		disabledSkillIds: form.disabledSkillIds,
 		disabledSandboxIds: form.disabledSandboxIds,
 		disabledSubagentIds: form.disabledSubagentIds,
+		disabledMcpTools: form.disabledMcpTools,
 		...(triggerType === "schedule"
 			? {
 					cronExpression: buildCronExpression(form.schedule),
@@ -124,6 +128,8 @@ interface TriggerEditorProps {
 	triggerType?: TriggerType;
 	onSaved: (trigger: Trigger) => void;
 	onCancel?: () => void;
+	initialRightTab?: "frequency" | "resources";
+	onRightTabChange?: (tab: "frequency" | "resources") => void;
 }
 
 export default function TriggerEditor({
@@ -131,6 +137,8 @@ export default function TriggerEditor({
 	triggerType,
 	onSaved,
 	onCancel,
+	initialRightTab = "frequency",
+	onRightTabChange,
 }: TriggerEditorProps) {
 	const createTrigger = useTriggersStore((state) => state.createTrigger);
 	const updateTrigger = useTriggersStore((state) => state.updateTrigger);
@@ -148,7 +156,7 @@ export default function TriggerEditor({
 	const [isSaving, setIsSaving] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const [rightTab, setRightTab] = useState<"frequency" | "resources">(
-		"frequency",
+		initialRightTab,
 	);
 	const availableGroups = useMemo(() => groupOptions(triggers), [triggers]);
 
@@ -196,6 +204,7 @@ export default function TriggerEditor({
 			disabledSkillIds: form.disabledSkillIds,
 			disabledSandboxIds: form.disabledSandboxIds,
 			disabledSubagentIds: form.disabledSubagentIds,
+			disabledMcpTools: form.disabledMcpTools,
 		};
 		try {
 			let saved: Trigger;
@@ -326,6 +335,7 @@ export default function TriggerEditor({
 									disabledSkillIds: null,
 									disabledSandboxIds: null,
 									disabledSubagentIds: null,
+									disabledMcpTools: null,
 								}));
 							}}
 						/>
@@ -374,7 +384,10 @@ export default function TriggerEditor({
 							{ key: "resources", label: "Resources" },
 						]}
 						value={rightTab}
-						onChange={setRightTab}
+						onChange={(tab) => {
+							setRightTab(tab);
+							onRightTabChange?.(tab);
+						}}
 						className="border-b border-border"
 					/>
 
@@ -386,6 +399,22 @@ export default function TriggerEditor({
 								disabledSkillIds={form.disabledSkillIds}
 								disabledSandboxIds={form.disabledSandboxIds}
 								disabledSubagentIds={form.disabledSubagentIds}
+								disabledMcpTools={form.disabledMcpTools}
+								onDisabledMcpServerIdsChange={(ids) => {
+									setField("disabledMcpServerIds", ids);
+								}}
+								onDisabledSkillIdsChange={(ids) => {
+									setField("disabledSkillIds", ids);
+								}}
+								onDisabledSandboxIdsChange={(ids) => {
+									setField("disabledSandboxIds", ids);
+								}}
+								onDisabledSubagentIdsChange={(ids) => {
+									setField("disabledSubagentIds", ids);
+								}}
+								onDisabledMcpToolsChange={(tools) => {
+									setField("disabledMcpTools", tools);
+								}}
 							/>
 						) : type === "schedule" ? (
 							<div className="flex flex-col rounded-[10px] border border-border bg-card">

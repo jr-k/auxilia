@@ -28,12 +28,17 @@ interface AgentMCPServerProps {
 	isExpanded: boolean;
 	onExpandedChange: (expanded: boolean) => void;
 	readOnly?: boolean;
+	canToggleDefault?: boolean;
+	mode?: "agent" | "trigger";
+	triggerDisabledTools?: string[];
+	triggerToolsReadOnly?: boolean;
 	/** Whether the viewer may edit this agent at all (default: yes). */
 	canEdit?: boolean;
 	/** Draft update: the complete per-tool map for this server. */
 	onToolsChange?: (tools: Record<string, ToolStatus>) => void;
 	/** Draft update: whether new conversations start with this server enabled. */
 	onDefaultEnabledChange?: (enabled: boolean) => void;
+	onTriggerToolEnabledChange?: (toolName: string, enabled: boolean) => void;
 	/**
 	 * Draft update: merge freshly fetched tool names into the binding's map.
 	 * Applied against the latest state (existing statuses win), so parallel
@@ -56,7 +61,12 @@ interface ProgressiveToolListProps {
 	tools: MCPServerTool[];
 	binding: AgentMCPServerForm;
 	readOnly?: boolean;
+	canToggleDefault?: boolean;
+	mode: "agent" | "trigger";
+	triggerDisabledTools: string[];
+	triggerToolsReadOnly: boolean;
 	onDefaultEnabledChange?: (enabled: boolean) => void;
+	onTriggerToolEnabledChange?: (toolName: string, enabled: boolean) => void;
 	statusFor: (toolName: string) => ToolStatus;
 	onStatusChange: (toolName: string, status: ToolStatus) => void;
 }
@@ -66,7 +76,12 @@ function ProgressiveToolList({
 	tools,
 	binding,
 	readOnly,
+	canToggleDefault,
+	mode,
+	triggerDisabledTools,
+	triggerToolsReadOnly,
 	onDefaultEnabledChange,
+	onTriggerToolEnabledChange,
 	statusFor,
 	onStatusChange,
 }: ProgressiveToolListProps) {
@@ -75,6 +90,7 @@ function ProgressiveToolList({
 	);
 	const visibleTools = tools.slice(0, visibleToolCount);
 	const remainingToolCount = tools.length - visibleTools.length;
+	const showTools = mode !== "trigger" || binding.enabledByDefault !== false;
 
 	const handleScroll = (event: UIEvent<HTMLDivElement>) => {
 		const { scrollTop, clientHeight, scrollHeight } = event.currentTarget;
@@ -96,38 +112,54 @@ function ProgressiveToolList({
 			<div className="flex items-center gap-3 border-b border-hover bg-petrol-tint/55 px-4 py-3 dark:border-white/5 dark:bg-white/5">
 				<div className="min-w-0 flex-1">
 					<p className="text-[12.5px] font-semibold text-foreground">
-						New conversations
+						{mode === "trigger" ? "This trigger" : "New conversations"}
 					</p>
 					<p className="mt-0.5 text-[11.5px] text-muted-foreground">
-						Enable this MCP server by default
+						{mode === "trigger"
+							? "Allow this MCP server during automated runs"
+							: "Enable this MCP server by default"}
 					</p>
 				</div>
 				<Switch
 					checked={binding.enabledByDefault ?? true}
-					disabled={readOnly}
+					disabled={canToggleDefault === false || (readOnly && !canToggleDefault)}
 					onCheckedChange={(checked) => {
 						onDefaultEnabledChange?.(checked);
 					}}
-					aria-label={`Enable ${serverName} by default in new conversations`}
+					aria-label={
+						mode === "trigger"
+							? `Allow ${serverName} for this trigger`
+							: `Enable ${serverName} by default in new conversations`
+					}
 				/>
 			</div>
-			{visibleTools.map((tool) => (
-				<AgentMCPTool
-					key={tool.name}
-					toolName={tool.name}
-					toolDescription={tool.description ?? undefined}
-					status={statusFor(tool.name)}
-					readOnly={readOnly}
-					onStatusChange={(status) => {
-						onStatusChange(tool.name, status);
-					}}
-				/>
-			))}
-			{remainingToolCount > 0 && (
-				<div className="border-t border-hover px-4 py-2 text-center text-[11px] text-meta dark:border-white/5 dark:text-panel-dim">
-					{remainingToolCount} more tool
-					{remainingToolCount === 1 ? "" : "s"} · scroll to load
-				</div>
+			{showTools && (
+				<>
+					{visibleTools.map((tool) => (
+						<AgentMCPTool
+							key={tool.name}
+							toolName={tool.name}
+							toolDescription={tool.description ?? undefined}
+							status={statusFor(tool.name)}
+							readOnly={readOnly}
+							mode={mode}
+							triggerEnabled={!triggerDisabledTools.includes(tool.name)}
+							triggerReadOnly={triggerToolsReadOnly}
+							onStatusChange={(status) => {
+								onStatusChange(tool.name, status);
+							}}
+							onTriggerEnabledChange={(enabled) => {
+								onTriggerToolEnabledChange?.(tool.name, enabled);
+							}}
+						/>
+					))}
+					{remainingToolCount > 0 && (
+						<div className="border-t border-hover px-4 py-2 text-center text-[11px] text-meta dark:border-white/5 dark:text-panel-dim">
+							{remainingToolCount} more tool
+							{remainingToolCount === 1 ? "" : "s"} · scroll to load
+						</div>
+					)}
+				</>
 			)}
 		</div>
 	);
@@ -140,9 +172,14 @@ export default function AgentMCPServer({
 	isExpanded,
 	onExpandedChange,
 	readOnly,
+	canToggleDefault,
+	mode = "agent",
+	triggerDisabledTools = [],
+	triggerToolsReadOnly = false,
 	canEdit = true,
 	onToolsChange,
 	onDefaultEnabledChange,
+	onTriggerToolEnabledChange,
 	onSeedTools,
 	onToolsPersisted,
 	onRemove,
@@ -390,7 +427,11 @@ export default function AgentMCPServer({
 	}, [server.id, fetchTools]);
 
 	const disabledTools = new Set(server.disabledTools ?? []);
-	const configurableTools = tools.filter((tool) => !disabledTools.has(tool.name));
+	const configurableTools = tools.filter(
+		(tool) =>
+			!disabledTools.has(tool.name) &&
+			(mode !== "trigger" || statusFor(tool.name) !== "disabled"),
+	);
 	const hasTools =
 		isConnected &&
 		!isLoading &&
@@ -487,7 +528,12 @@ export default function AgentMCPServer({
 							tools={configurableTools}
 							binding={binding}
 							readOnly={readOnly}
+							canToggleDefault={canToggleDefault}
+							mode={mode}
+							triggerDisabledTools={triggerDisabledTools}
+							triggerToolsReadOnly={triggerToolsReadOnly}
 							onDefaultEnabledChange={onDefaultEnabledChange}
+							onTriggerToolEnabledChange={onTriggerToolEnabledChange}
 							statusFor={statusFor}
 							onStatusChange={handleStatusChange}
 						/>
@@ -496,7 +542,7 @@ export default function AgentMCPServer({
 							No enabled tools available
 						</div>
 					)}
-					{(hasTools || !readOnly) && (
+					{mode === "agent" && (hasTools || !readOnly) && (
 						<div
 							className={`flex items-center border-t border-hover px-4 py-2 dark:border-white/5 ${
 								hasTools ? "justify-between" : "justify-center"

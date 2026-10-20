@@ -11,7 +11,7 @@ import {
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import { ChevronDownIcon, Loader2 } from "lucide-react";
+import { Blocks, ChevronDownIcon, Loader2 } from "lucide-react";
 import Image from "next/image";
 import type { ReactNode } from "react";
 import { useState } from "react";
@@ -224,13 +224,15 @@ export const ChainRail = ({
 // Step nodes
 // ---------------------------------------------------------------------------
 
-/** 22px MCP favicon chip (fallback: first-letter tile). */
+/** 22px MCP favicon chip (fallback: generic tool source icon). */
 export const ChainStepIcon = ({
 	icon,
 	name,
+	fallback,
 }: {
 	icon?: string | null;
 	name: string;
+	fallback?: ReactNode;
 }) => (
 	<Tooltip delayDuration={180}>
 		<TooltipTrigger asChild>
@@ -248,9 +250,9 @@ export const ChainStepIcon = ({
 						className="rounded-[2px]"
 					/>
 				) : (
-					<span className="text-[10px] font-bold text-label dark:text-panel-dim">
-						{name.charAt(0).toUpperCase()}
-					</span>
+					fallback ?? (
+						<Blocks className="size-[13px] text-label dark:text-panel-dim" />
+					)
 				)}
 			</span>
 		</TooltipTrigger>

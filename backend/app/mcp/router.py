@@ -185,8 +185,11 @@ async def get_agent_resources(agent_id: UUID, ctx: Context) -> dict[str, Any]:
     """List resources a trigger may activate for an agent graph.
 
     Returns MCP servers with their allowed tool names, plus skills, sandboxes
-    and subagents. Use these IDs to build the disabled resource lists accepted
-    by create_trigger and update_trigger.
+    and subagents. Use these IDs to build the disabled resource lists and the
+    per-server disabled_mcp_tools map accepted by create_trigger and
+    update_trigger. Trigger tools are binary: under an explicit server key,
+    omitted tool names are accepted without approval and listed names are
+    rejected. Omitted server keys retain safe agent defaults.
     """
     async with tool_session(ctx) as (db, user, workspace_id):
         service = AgentService(db, workspace_id)

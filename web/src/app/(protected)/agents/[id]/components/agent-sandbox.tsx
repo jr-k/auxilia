@@ -24,6 +24,8 @@ interface AgentSandboxProps {
 	sandbox: Sandbox;
 	enabledByDefault: boolean;
 	readOnly?: boolean;
+	canToggleDefault?: boolean;
+	mode?: "agent" | "trigger";
 	onDefaultEnabledChange?: (enabled: boolean) => void;
 	/** Draft update: detach this sandbox from the agent. */
 	onRemove?: () => void;
@@ -33,6 +35,8 @@ export default function AgentSandbox({
 	sandbox,
 	enabledByDefault,
 	readOnly,
+	canToggleDefault,
+	mode = "agent",
 	onDefaultEnabledChange,
 	onRemove,
 }: AgentSandboxProps) {
@@ -77,19 +81,28 @@ export default function AgentSandbox({
 					<div className="flex items-center gap-3 border-b border-hover bg-petrol-tint/55 px-4 py-3 dark:border-white/5 dark:bg-white/5">
 						<div className="min-w-0 flex-1">
 							<p className="text-[12.5px] font-semibold text-foreground">
-								New conversations
+								{mode === "trigger" ? "This trigger" : "New conversations"}
 							</p>
 							<p className="mt-0.5 text-[11.5px] text-muted-foreground">
-								Enable this sandbox by default
+								{mode === "trigger"
+									? "Allow this sandbox during automated runs"
+									: "Enable this sandbox by default"}
 							</p>
 						</div>
 						<Switch
 							checked={enabledByDefault}
-							disabled={readOnly}
+							disabled={
+								canToggleDefault === false ||
+								(readOnly && !canToggleDefault)
+							}
 							onCheckedChange={(checked) => {
 								onDefaultEnabledChange?.(checked);
 							}}
-							aria-label={`Enable ${sandbox.name} by default in new conversations`}
+							aria-label={
+								mode === "trigger"
+									? `Allow ${sandbox.name} for this trigger`
+									: `Enable ${sandbox.name} by default in new conversations`
+							}
 						/>
 					</div>
 					<div className="max-h-80 overflow-y-auto [scrollbar-width:thin]">

@@ -110,6 +110,11 @@ class TriggerDB(TriggerBase, BaseDBModel, table=True):
     disabled_subagent_ids: list[str] | None = Field(
         default=None, sa_column=_nullable_json_list_column()
     )
+    # Per-server tool deny lists. Trigger runs never pause for HITL: every
+    # agent-authorized tool not listed here runs without approval.
+    disabled_mcp_tools: dict[str, list[str]] | None = Field(
+        default=None, sa_column=_nullable_json_list_column()
+    )
 
 
 class TriggerTeamDB(BaseDBModel, table=True):

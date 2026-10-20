@@ -32,8 +32,11 @@ import { AgentPicker } from "@/components/editor/agent-picker";
 import { ModelPickerChip } from "@/components/editor/model-picker-chip";
 import { DropdownMenu } from "@/components/ui/dropdown-menu";
 import { Switch } from "@/components/ui/switch";
+import { UnderlineTabs } from "@/components/ui/underline-tabs";
 import TriggerEditor from "@/app/(protected)/triggers/components/trigger-editor";
 import TriggerSummaryBanner from "@/app/(protected)/triggers/components/trigger-summary-banner";
+import TriggerResources from "@/app/(protected)/triggers/components/trigger-resources";
+import NextRunsCard from "@/app/(protected)/triggers/components/next-runs-card";
 import { VisibilityBadge } from "@/components/ui/visibility-badge";
 import RunHistoryCard from "@/app/(protected)/triggers/components/run-history-card";
 
@@ -63,6 +66,9 @@ export default function TriggerDetail({ trigger }: TriggerDetailProps) {
 	const [isRunning, setIsRunning] = useState(false);
 	const [copied, setCopied] = useState(false);
 	const [error, setError] = useState<string | null>(null);
+	const [rightTab, setRightTab] = useState<"frequency" | "resources">(
+		"frequency",
+	);
 
 	useEffect(() => {
 		upsertTrigger(trigger);
@@ -135,6 +141,8 @@ export default function TriggerDetail({ trigger }: TriggerDetailProps) {
 		return (
 			<TriggerEditor
 				trigger={liveTrigger}
+				initialRightTab={rightTab}
+				onRightTabChange={setRightTab}
 				onSaved={() => {
 					setMode("read");
 				}}
@@ -186,8 +194,8 @@ export default function TriggerDetail({ trigger }: TriggerDetailProps) {
 				)}
 			</SubpageHeader>
 
-			<div className="min-h-0 flex-1 overflow-y-auto px-4 py-7 sm:px-7 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-				<div className="w-full">
+			<div className="flex min-h-0 flex-1 flex-col overflow-y-auto md:flex-row md:overflow-hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+				<div className="flex min-w-0 shrink-0 flex-col gap-7 border-b border-border bg-background px-4 py-7 sm:px-7 md:flex-[1.05] md:shrink md:overflow-y-auto md:border-r md:border-b-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
 					<EditorHeader
 						icon={
 							liveTrigger.triggerType === "schedule" ? (
@@ -214,6 +222,8 @@ export default function TriggerDetail({ trigger }: TriggerDetailProps) {
 								>
 									{liveTrigger.isActive ? "Active" : "Paused"}
 								</span>
+								<span className="size-[3px] rounded-full bg-faint dark:bg-white/20" />
+								<VisibilityBadge visibility={liveTrigger.visibility} />
 								<span className="size-[3px] rounded-full bg-faint dark:bg-white/20" />
 								<span className="text-[11px] text-meta dark:text-panel-dim">
 									{liveTrigger.triggerType === "webhook" ? (
@@ -256,66 +266,98 @@ export default function TriggerDetail({ trigger }: TriggerDetailProps) {
 					)}
 
 					{error && (
-						<div className="mt-5 rounded-[10px] bg-destructive/10 px-4 py-3 text-[13.5px] font-medium text-destructive">
+						<div className="rounded-[10px] bg-destructive/10 px-4 py-3 text-[13.5px] font-medium text-destructive">
 							{error}
 						</div>
 					)}
 
-					<div className="mt-7 flex flex-col gap-8 md:flex-row">
-						{/* Left: summary + agent + instructions (read-only) */}
-						<div className="flex min-w-0 flex-1 flex-col gap-7 pt-2">
-							<TriggerSummaryBanner
-								trigger={liveTrigger}
-								agentName={agent?.name ?? "the agent"}
-							/>
-							<VisibilityBadge
-								visibility={liveTrigger.visibility}
-								teamIds={liveTrigger.teamIds}
-								showTeams
-							/>
+					<TriggerSummaryBanner
+						trigger={liveTrigger}
+						agentName={agent?.name ?? "the agent"}
+					/>
 
-							<EditorSection label="Agent">
-								<AgentPicker
-									value={liveTrigger.agentId}
+					<EditorSection label="Agent">
+						<AgentPicker
+							value={liveTrigger.agentId}
+							onChange={() => {}}
+							disabled
+						/>
+					</EditorSection>
+
+					<EditorSection label="Instructions">
+						<div className="flex flex-col rounded-[10px] border border-border bg-sidebar p-4 dark:bg-white/5">
+							<p className="whitespace-pre-wrap text-[12.5px] leading-[1.7] text-foreground">
+								{liveTrigger.instructions}
+							</p>
+							<div className="mt-4 flex shrink-0 items-center justify-between border-t border-hairline pt-3.5 dark:border-white/5">
+								<ModelPickerChip
+									value={liveTrigger.modelId}
 									onChange={() => {}}
 									disabled
+									unavailable={!liveTrigger.modelAvailable}
+									unavailableLabel={liveTrigger.modelDisplayName}
 								/>
-							</EditorSection>
+							</div>
+						</div>
+					</EditorSection>
+				</div>
 
-							<EditorSection label="Instructions">
-								<div className="flex flex-col rounded-[10px] border border-border bg-sidebar p-4 dark:bg-white/5">
-									<p className="whitespace-pre-wrap text-[12.5px] leading-[1.7] text-foreground">
-										{liveTrigger.instructions}
-									</p>
-									<div className="mt-4 flex shrink-0 items-center justify-between border-t border-hairline pt-3.5 dark:border-white/5">
-										<ModelPickerChip
-											value={liveTrigger.modelId}
-											onChange={() => {}}
-											disabled
-											unavailable={!liveTrigger.modelAvailable}
-											unavailableLabel={liveTrigger.modelDisplayName}
-										/>
-									</div>
-								</div>
-							</EditorSection>
+				<div className="min-w-0 shrink-0 bg-sidebar px-4 py-7 sm:px-7 md:flex-1 md:shrink md:overflow-y-auto dark:bg-white/[0.02] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+					<UnderlineTabs
+						tabs={[
+							{
+								key: "frequency",
+								label:
+									liveTrigger.triggerType === "schedule"
+										? "Frequency"
+										: "Webhook",
+							},
+							{ key: "resources", label: "Resources" },
+						]}
+						value={rightTab}
+						onChange={setRightTab}
+						className="border-b border-border"
+					/>
 
-							{liveTrigger.triggerType === "schedule" && schedule ? (
-								<EditorSection label="Frequency">
-									<div className="flex items-center rounded-[10px] border border-border bg-card px-4.5 py-[18px]">
-										<span className="text-[15px] font-semibold text-foreground">
-											{describeSchedule(schedule).replace(
-												/, (?=[^,]*$)/,
-												" at ",
-											)}
-										</span>
+					<div className="pt-5">
+						{rightTab === "resources" ? (
+							<TriggerResources
+								agentId={liveTrigger.agentId}
+								disabledMcpServerIds={liveTrigger.disabledMcpServerIds}
+								disabledSkillIds={liveTrigger.disabledSkillIds}
+								disabledSandboxIds={liveTrigger.disabledSandboxIds}
+								disabledSubagentIds={liveTrigger.disabledSubagentIds}
+								disabledMcpTools={liveTrigger.disabledMcpTools}
+								readOnly
+							/>
+						) : (
+							<div className="flex flex-col gap-7">
+								{liveTrigger.triggerType === "schedule" && schedule ? (
+									<div className="overflow-hidden rounded-[10px] border border-border bg-card">
+										<div className="p-5">
+											<p className="text-[15px] font-semibold text-foreground">
+												{describeSchedule(schedule).replace(
+													/, (?=[^,]*$)/,
+													" at ",
+												)}
+											</p>
+											<p className="mt-1 text-[11.5px] text-meta dark:text-panel-dim">
+												{liveTrigger.timezone}
+											</p>
+										</div>
+										<div className="border-t border-hairline px-4.5 pt-2.5 pb-1.5 dark:border-white/5">
+											<div className="px-0.5 pb-1 text-[10.5px] font-semibold text-meta dark:text-panel-dim">
+												Next runs
+											</div>
+											<NextRunsCard
+												bare
+												cronExpression={liveTrigger.cronExpression}
+												timezone={liveTrigger.timezone}
+											/>
+										</div>
 									</div>
-								</EditorSection>
-							) : liveTrigger.triggerType === "webhook" &&
-							  liveTrigger.canManage ? (
-								<EditorSection
-									label="Webhook endpoint"
-									hint="Keep this URL private"
-								>
+								) : liveTrigger.triggerType === "webhook" &&
+								  liveTrigger.canManage ? (
 									<div className="overflow-hidden rounded-[10px] border border-border bg-card">
 										<div className="flex items-center gap-3 p-3">
 											<code className="min-w-0 flex-1 truncate rounded-md bg-sidebar px-3 py-2.5 text-[11.5px] text-foreground dark:bg-white/5">
@@ -338,30 +380,27 @@ export default function TriggerDetail({ trigger }: TriggerDetailProps) {
 										</div>
 										<div className="border-t border-hairline px-4 py-3 dark:border-white/5">
 											<p className="text-[11.5px] leading-5 text-meta dark:text-panel-dim">
-												Send JSON with optional{" "}
-												<code>agent_id</code>, <code>model_id</code>, and{" "}
-												<code>instructions</code>. Omitted fields use the
-												defaults above.
+												Send JSON with optional <code>agent_id</code>,{" "}
+												<code>model_id</code>, and <code>instructions</code>.
+												Omitted fields use the defaults shown here.
 											</p>
 										</div>
 									</div>
-								</EditorSection>
-							) : null}
-						</div>
+								) : null}
 
-						{/* Right: run history */}
-						<div className="flex w-full flex-col gap-7 md:w-1/2">
-							<EditorSection label="Run history" hint="Last 30 days">
-								<RunHistoryCard
-									triggerId={liveTrigger.id}
-									timezone={
-										liveTrigger.triggerType === "schedule"
-											? liveTrigger.timezone
-											: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC"
-									}
-								/>
-							</EditorSection>
-						</div>
+								<EditorSection label="Run history" hint="Last 30 days">
+									<RunHistoryCard
+										triggerId={liveTrigger.id}
+										timezone={
+											liveTrigger.triggerType === "schedule"
+												? liveTrigger.timezone
+												: Intl.DateTimeFormat().resolvedOptions().timeZone ||
+													"UTC"
+										}
+									/>
+								</EditorSection>
+							</div>
+						)}
 					</div>
 				</div>
 			</div>

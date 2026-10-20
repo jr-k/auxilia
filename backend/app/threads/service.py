@@ -7,6 +7,7 @@ from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.core.repository import AgentRepository
+from app.agents.models import ToolStatus
 from app.agents.run_spec import RunSpec
 from app.database import get_checkpointer, get_db
 from app.exceptions import DomainValidationError, NotFoundError
@@ -240,6 +241,22 @@ class ThreadService(BaseService[ThreadDB, ThreadRepository]):
         # whole scheduled firing.
         if reasoning_effort is not None and source != ThreadSource.trigger:
             await ModelService.validate_reasoning_effort(model_id, reasoning_effort)
+        if "disabled_mcp_tools" in data.model_fields_set:
+            disabled_mcp_tools = {
+                str(server_id): list(dict.fromkeys(tool_names))
+                for server_id, tool_names in data.disabled_mcp_tools.items()
+            }
+        elif source == ThreadSource.trigger:
+            disabled_mcp_tools: dict[str, list[str]] = {}
+            for binding in spec.all_mcp_bindings:
+                rejected = disabled_mcp_tools.setdefault(str(binding.mcp_server_id), [])
+                rejected.extend(
+                    name
+                    for name, status in (binding.tools or {}).items()
+                    if status == ToolStatus.needs_approval and name not in rejected
+                )
+        else:
+            disabled_mcp_tools = {}
         # `trigger_id` is a keyword (not a ThreadCreate field) so API clients
         # can't attach arbitrary threads to a trigger — only the scanner sets it.
         thread = ThreadDB(
@@ -252,6 +269,7 @@ class ThreadService(BaseService[ThreadDB, ThreadRepository]):
                     "disabled_skill_ids",
                     "disabled_sandbox_ids",
                     "disabled_subagent_ids",
+                    "disabled_mcp_tools",
                 },
             ),
             model_id=model_id,
@@ -264,6 +282,7 @@ class ThreadService(BaseService[ThreadDB, ThreadRepository]):
             disabled_skill_ids=disabled_skill_ids,
             disabled_sandbox_ids=disabled_sandbox_ids,
             disabled_subagent_ids=disabled_subagent_ids,
+            disabled_mcp_tools=disabled_mcp_tools,
         )
         self.db.add(thread)
         await self.db.flush()

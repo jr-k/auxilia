@@ -20,6 +20,7 @@ class ThreadCreate(SQLModel):
     disabled_skill_ids: list[UUID] = Field(default_factory=list)
     disabled_sandbox_ids: list[UUID] = Field(default_factory=list)
     disabled_subagent_ids: list[UUID] = Field(default_factory=list)
+    disabled_mcp_tools: dict[UUID, list[str]] = Field(default_factory=dict)
 
 
 class ThreadPatch(SQLModel):
@@ -37,6 +38,7 @@ class ThreadResourcesPatch(SQLModel):
     disabled_skill_ids: list[UUID] = Field(default_factory=list)
     disabled_sandbox_ids: list[UUID] = Field(default_factory=list)
     disabled_subagent_ids: list[UUID] = Field(default_factory=list)
+    disabled_mcp_tools: dict[UUID, list[str]] = Field(default_factory=dict)
 
 
 class ThreadResponse(ThreadBase):

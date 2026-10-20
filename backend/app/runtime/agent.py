@@ -30,7 +30,7 @@ from langgraph.types import Command
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.core.repository import AgentRepository
-from app.agents.models import ToolDiscoveryMode
+from app.agents.models import AgentMCPServerDB, ToolDiscoveryMode, ToolStatus
 from app.agents.run_spec import AgentSpec, RunSpec
 from app.artifacts.tool import present_files_tool
 from app.database import AsyncSessionLocal, get_checkpointer
@@ -93,7 +93,7 @@ from app.skills.runtime import (
     upload_skills,
 )
 from app.skills.schemas import SkillBundle
-from app.threads.models import ThreadDB
+from app.threads.models import ThreadDB, ThreadSource
 from app.threads.repository import ThreadRepository
 
 
@@ -661,10 +661,29 @@ class Agent:
         )
 
         def filter_resources(agent_spec: AgentSpec) -> AgentSpec:
+            def configure_binding(binding: AgentMCPServerDB) -> AgentMCPServerDB:
+                if thread.source != ThreadSource.trigger:
+                    return binding
+                rejected = set(
+                    thread.disabled_mcp_tools.get(str(binding.mcp_server_id), [])
+                )
+                return binding.model_copy(
+                    update={
+                        "tools": {
+                            name: (
+                                ToolStatus.disabled
+                                if status == ToolStatus.disabled or name in rejected
+                                else ToolStatus.always_allow
+                            )
+                            for name, status in (binding.tools or {}).items()
+                        }
+                    }
+                )
+
             return replace(
                 agent_spec,
                 mcp_servers=[
-                    binding
+                    configure_binding(binding)
                     for binding in agent_spec.mcp_servers
                     if binding.mcp_server_id not in exclusions.mcp_server_ids
                 ],

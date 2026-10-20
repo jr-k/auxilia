@@ -21,6 +21,11 @@ interface AgentToolListProps {
 	mcpServers: AgentMCPServerForm[];
 	sandboxes: AgentSandboxForm[];
 	readOnly?: boolean;
+	/** Allow the per-conversation switch while keeping membership/tool editing read-only. */
+	canToggleDefault?: boolean;
+	mode?: "agent" | "trigger";
+	triggerDisabledTools?: Record<string, string[]>;
+	triggerToolsReadOnly?: boolean;
 	/** Whether the viewer may edit this agent at all (default: yes). */
 	canEdit?: boolean;
 	/**
@@ -34,6 +39,11 @@ interface AgentToolListProps {
 	) => void;
 	/** Plain array in/out — sandbox bindings have no async seeding. */
 	onSandboxesChange?: (sandboxes: AgentSandboxForm[]) => void;
+	onTriggerToolEnabledChange?: (
+		serverId: string,
+		toolName: string,
+		enabled: boolean,
+	) => void;
 	/**
 	 * Names of enabled skills whose scripts need the sandbox. Removing the
 	 * sandbox while any exist asks first (design 23d: the skills stay
@@ -58,9 +68,14 @@ export default function AgentToolList({
 	mcpServers,
 	sandboxes,
 	readOnly,
+	canToggleDefault,
+	mode = "agent",
+	triggerDisabledTools = {},
+	triggerToolsReadOnly = false,
 	canEdit = true,
 	onMcpServersChange,
 	onSandboxesChange,
+	onTriggerToolEnabledChange,
 	onBindingPersisted,
 	scriptSkillNames = [],
 	addDialogOpen,
@@ -269,12 +284,23 @@ export default function AgentToolList({
 									setServerExpanded(server.id, expanded);
 								}}
 								readOnly={readOnly}
+								canToggleDefault={canToggleDefault}
+								mode={mode}
+								triggerDisabledTools={triggerDisabledTools[server.id] ?? []}
+								triggerToolsReadOnly={triggerToolsReadOnly}
 								canEdit={canEdit}
 								onToolsChange={(tools) => {
 									handleToolsChange(server.id, tools);
 								}}
 								onDefaultEnabledChange={(enabled) => {
 									handleDefaultEnabledChange(server.id, enabled);
+								}}
+								onTriggerToolEnabledChange={(toolName, enabled) => {
+									onTriggerToolEnabledChange?.(
+										server.id,
+										toolName,
+										enabled,
+									);
 								}}
 								onSeedTools={(fetchedNames) => {
 									handleSeedTools(server.id, fetchedNames);
@@ -328,6 +354,8 @@ export default function AgentToolList({
 									sandbox={sandbox}
 									enabledByDefault={binding?.enabledByDefault ?? true}
 									readOnly={readOnly}
+									canToggleDefault={canToggleDefault}
+									mode={mode}
 									onDefaultEnabledChange={(enabled) => {
 										onSandboxesChange?.(
 											sandboxes.map((candidate) =>

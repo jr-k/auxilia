@@ -384,9 +384,12 @@ def register_management_tools(mcp: MCPServer) -> None:
     async def create_trigger(data: TriggerCreate, ctx: Context) -> dict[str, Any]:
         """Create a scheduled or webhook trigger for an agent.
 
-        Call get_agent_resources first when choosing resources, then put every
-        unchosen ID in its matching disabled list. [] enables every resource of
-        that type; an omitted or null field inherits the agent's current defaults.
+        Call get_agent_resources first when choosing resources. Put every
+        unchosen resource ID in its matching disabled list and every rejected
+        tool name in disabled_mcp_tools under its MCP server ID. Trigger tools
+        are binary: tools not rejected under an explicit server key run without
+        approval. A null map or omitted server key rejects tools whose agent
+        setting requires approval.
         """
         async with tool_session(ctx, minimum_role=WorkspaceRole.editor) as (
             db,

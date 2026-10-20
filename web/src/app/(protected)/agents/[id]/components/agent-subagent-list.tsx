@@ -22,6 +22,8 @@ interface AgentSubagentListProps {
 	/** Display info for ids the store may not know (from agent.subagents). */
 	fallbackSubagents?: SubagentInfo[];
 	readOnly?: boolean;
+	canToggleDefault?: boolean;
+	mode?: "agent" | "trigger";
 	onChange?: (subagentIds: string[]) => void;
 	onDefaultEnabledChange?: (subagentId: string, enabled: boolean) => void;
 	/** Asked before a row navigates away to the subagent's page; return false
@@ -36,6 +38,8 @@ export default function AgentSubagentList({
 	disabledByDefaultIds = [],
 	fallbackSubagents = [],
 	readOnly,
+	canToggleDefault,
+	mode = "agent",
 	onChange,
 	onDefaultEnabledChange,
 	confirmLeave,
@@ -174,19 +178,30 @@ export default function AgentSubagentList({
 									<div className="flex items-center gap-3 bg-petrol-tint/55 px-4 py-3 dark:bg-white/5">
 										<div className="min-w-0 flex-1">
 											<p className="text-[12.5px] font-semibold text-foreground">
-												New conversations
+												{mode === "trigger"
+													? "This trigger"
+													: "New conversations"}
 											</p>
 											<p className="mt-0.5 text-[11.5px] text-muted-foreground">
-												Enable this subagent by default
+												{mode === "trigger"
+													? "Allow this subagent during automated runs"
+													: "Enable this subagent by default"}
 											</p>
 										</div>
 										<Switch
 											checked={enabledByDefault}
-											disabled={readOnly}
+											disabled={
+												canToggleDefault === false ||
+												(readOnly && !canToggleDefault)
+											}
 											onCheckedChange={(checked) => {
 												onDefaultEnabledChange?.(sub.id, checked);
 											}}
-											aria-label={`Enable ${sub.name} by default in new conversations`}
+											aria-label={
+												mode === "trigger"
+													? `Allow ${sub.name} for this trigger`
+													: `Enable ${sub.name} by default in new conversations`
+											}
 										/>
 									</div>
 									<div className="flex items-center justify-between border-t border-hover px-4 py-2 dark:border-white/5">

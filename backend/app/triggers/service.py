@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.core.repository import AgentRepository
 from app.agents.core.service import AgentService
-from app.agents.models import EffectivePermission
+from app.agents.models import EffectivePermission, ToolStatus
 from app.auth.settings import auth_settings
 from app.database import get_db
 from app.exceptions import (
@@ -58,6 +58,7 @@ _RESOURCE_FIELDS = (
     "disabled_sandbox_ids",
     "disabled_subagent_ids",
 )
+_TOOL_RESOURCE_FIELD = "disabled_mcp_tools"
 
 
 class TriggerService(BaseService[TriggerDB, TriggerRepository]):
@@ -150,28 +151,66 @@ class TriggerService(BaseService[TriggerDB, TriggerRepository]):
     async def _normalize_resource_selection(
         self,
         agent_id: UUID,
-        selection: dict[str, list[UUID] | None],
-    ) -> dict[str, list[str] | None]:
+        selection: dict[str, list[UUID] | dict[UUID, list[str]] | None],
+    ) -> dict[str, list[str] | dict[str, list[str]] | None]:
         """Validate explicit trigger overrides against the selected agent graph."""
         if not selection:
             return {}
         spec = await AgentRepository(self.db, self.workspace_id).get_run_spec(agent_id)
         if spec is None:
             raise NotFoundError("Agent not found")
+        selected_ids = {
+            field: value if isinstance(value, list) else []
+            for field in _RESOURCE_FIELDS
+            if (value := selection.get(field)) is not None
+        }
         normalized = await ThreadService(
             self.db, self.workspace_id
         ).normalize_resource_ids(
             spec,
-            selection.get("disabled_mcp_server_ids") or [],
-            selection.get("disabled_skill_ids") or [],
-            selection.get("disabled_sandbox_ids") or [],
-            selection.get("disabled_subagent_ids") or [],
+            selected_ids.get("disabled_mcp_server_ids", []),
+            selected_ids.get("disabled_skill_ids", []),
+            selected_ids.get("disabled_sandbox_ids", []),
+            selected_ids.get("disabled_subagent_ids", []),
         )
-        return {
+        result: dict[str, list[str] | dict[str, list[str]] | None] = {
             field: normalized[index] if selection.get(field) is not None else None
             for index, field in enumerate(_RESOURCE_FIELDS)
             if field in selection
         }
+        if _TOOL_RESOURCE_FIELD in selection:
+            tool_selection = selection[_TOOL_RESOURCE_FIELD]
+            if tool_selection is None:
+                result[_TOOL_RESOURCE_FIELD] = None
+            elif isinstance(tool_selection, dict):
+                available: dict[UUID, set[str]] = {}
+                safe_defaults: dict[UUID, list[str]] = {}
+                for binding in spec.all_mcp_bindings:
+                    names = available.setdefault(binding.mcp_server_id, set())
+                    names.update(
+                        name
+                        for name, status in (binding.tools or {}).items()
+                        if status != ToolStatus.disabled
+                    )
+                    rejected = safe_defaults.setdefault(binding.mcp_server_id, [])
+                    rejected.extend(
+                        name
+                        for name, status in (binding.tools or {}).items()
+                        if status == ToolStatus.needs_approval and name not in rejected
+                    )
+                normalized_tools = {
+                    str(server_id): tool_names
+                    for server_id, tool_names in safe_defaults.items()
+                }
+                for server_id, tool_names in tool_selection.items():
+                    unknown = set(tool_names) - available.get(server_id, set())
+                    if server_id not in available or unknown:
+                        raise DomainValidationError(
+                            "Tool selection contains tools unavailable to this agent"
+                        )
+                    normalized_tools[str(server_id)] = list(dict.fromkeys(tool_names))
+                result[_TOOL_RESOURCE_FIELD] = normalized_tools
+        return result
 
     # ------------------------------------------------------------------
     # Responses
@@ -285,7 +324,7 @@ class TriggerService(BaseService[TriggerDB, TriggerRepository]):
             data.agent_id,
             {
                 field: getattr(data, field)
-                for field in _RESOURCE_FIELDS
+                for field in (*_RESOURCE_FIELDS, _TOOL_RESOURCE_FIELD)
                 if getattr(data, field) is not None
             },
         )
@@ -298,7 +337,7 @@ class TriggerService(BaseService[TriggerDB, TriggerRepository]):
         )
         trigger = await self.repository.create(
             TriggerCreateDB(
-                **data.model_dump(exclude=set(_RESOURCE_FIELDS)),
+                **data.model_dump(exclude={*_RESOURCE_FIELDS, _TOOL_RESOURCE_FIELD}),
                 **normalized_resources,
                 workspace_id=self.workspace_id,
                 owner_id=owner.id,
@@ -380,10 +419,11 @@ class TriggerService(BaseService[TriggerDB, TriggerRepository]):
         agent_changed = (
             "agent_id" in update_data and update_data["agent_id"] != trigger.agent_id
         )
-        resource_fields_set = set(data.model_fields_set) & set(_RESOURCE_FIELDS)
+        all_resource_fields = (*_RESOURCE_FIELDS, _TOOL_RESOURCE_FIELD)
+        resource_fields_set = set(data.model_fields_set) & set(all_resource_fields)
         resource_selection = {
             field: getattr(data, field)
-            for field in _RESOURCE_FIELDS
+            for field in all_resource_fields
             if field in resource_fields_set
         }
         if agent_changed:
@@ -391,7 +431,7 @@ class TriggerService(BaseService[TriggerDB, TriggerRepository]):
             # explicitly choose reset to inheritance when the agent changes.
             resource_selection = {
                 field: getattr(data, field) if field in resource_fields_set else None
-                for field in _RESOURCE_FIELDS
+                for field in all_resource_fields
             }
         if resource_selection:
             data = data.model_copy(
@@ -595,6 +635,14 @@ class TriggerService(BaseService[TriggerDB, TriggerRepository]):
             if effective_agent_id == trigger.agent_id
             else {}
         )
+        if (
+            effective_agent_id == trigger.agent_id
+            and trigger.disabled_mcp_tools is not None
+        ):
+            resource_selection[_TOOL_RESOURCE_FIELD] = {
+                UUID(server_id): tool_names
+                for server_id, tool_names in trigger.disabled_mcp_tools.items()
+            }
         return await ThreadService(self.db, trigger.workspace_id).create(
             ThreadCreate(
                 agent_id=effective_agent_id,
