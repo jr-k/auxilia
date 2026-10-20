@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.30](https://github.com/jr-k/auxilia/compare/web-v0.12.29...web-v0.12.30) (2026-10-20)
+
+
+### Bug Fixes
+
+* **web:** dim disabled trigger resources ([02c8d54](https://github.com/jr-k/auxilia/commit/02c8d549017ea8389cdabc8c814daac0961730c6))
+
 ## [0.12.29](https://github.com/jr-k/auxilia/compare/web-v0.12.28...web-v0.12.29) (2026-10-20)
 
 
