@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.31](https://github.com/jr-k/auxilia/compare/web-v0.12.30...web-v0.12.31) (2026-10-20)
+
+
+### Features
+
+* **slack:** support file attachments ([aea76f7](https://github.com/jr-k/auxilia/commit/aea76f79ad2227bda64c03f4847f7ddcf72ee8ff))
+
 ## [0.12.30](https://github.com/jr-k/auxilia/compare/web-v0.12.29...web-v0.12.30) (2026-10-20)
 
 
