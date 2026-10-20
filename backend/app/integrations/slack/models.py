@@ -11,7 +11,7 @@
 #
 # As more event types are handled, add their inner-event models here.
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class SlackAssistantThread(BaseModel):
@@ -27,6 +27,16 @@ class SlackAssistantThread(BaseModel):
     thread_ts: str | None = None
 
 
+class SlackFile(BaseModel):
+    id: str
+    name: str | None = None
+    title: str | None = None
+    mimetype: str | None = None
+    size: int | None = None
+    url_private: str | None = None
+    url_private_download: str | None = None
+
+
 class SlackEvent(BaseModel):
     """The inner event object inside an event_callback payload."""
 
@@ -40,6 +50,7 @@ class SlackEvent(BaseModel):
     thread_ts: str | None = None
     channel_type: str | None = None
     assistant_thread: SlackAssistantThread | None = None
+    files: list[SlackFile] = Field(default_factory=list)
 
 
 class SlackEventPayload(BaseModel):

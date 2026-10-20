@@ -26,6 +26,13 @@ from app.exceptions import (
     SandboxUnavailableError,
     StaleApprovalError,
 )
+from app.integrations.slack.attachments import (
+    MAX_SLACK_FILE_BYTES,
+    MAX_SLACK_FILES,
+    MAX_SLACK_FILES_TOTAL_BYTES,
+    SlackAttachments,
+    load_slack_attachments,
+)
 from app.integrations.slack.blocks import build_connect_prompt_blocks, escape_mrkdwn
 from app.integrations.slack.commands.chat import (
     build_agent_picker_blocks,
@@ -37,6 +44,7 @@ from app.integrations.slack.db_models import SlackThreadBindingDB
 from app.integrations.slack.models import SlackEvent, SlackInteractionPayload
 from app.integrations.slack.repository import SlackThreadBindingRepository
 from app.integrations.slack.utils import get_slack_client, get_user_info, resolve_user
+from app.model_providers.service import ModelService
 from app.runtime.checkpoints import checkpoint_thread_id
 from app.runtime.hitl import (
     PendingInterrupt,
@@ -262,6 +270,85 @@ def _question_with_side_channel_context(
         f"{question}\n"
         "</current_request>"
     )
+
+
+def _question_with_files(question: str) -> str:
+    if question:
+        return question
+    return "Read and analyze the attached file content."
+
+
+async def _load_slack_files(
+    client: AsyncWebClient,
+    event: SlackEvent,
+) -> SlackAttachments:
+    attachments = await load_slack_attachments(client, event.files)
+    if attachments.rejected_names and event.channel:
+        labels = ", ".join(
+            escape_mrkdwn(name) for name in attachments.rejected_names[:3]
+        )
+        remainder = len(attachments.rejected_names) - 3
+        if remainder > 0:
+            labels += f" and {remainder} more"
+        await client.chat_postMessage(
+            channel=event.channel,
+            thread_ts=event.thread_ts or event.ts,
+            text=(
+                f"I couldn't read {labels}. Check the file format, the limits "
+                f"({MAX_SLACK_FILES} files, "
+                f"{MAX_SLACK_FILE_BYTES // (1024 * 1024)} MB each, "
+                f"{MAX_SLACK_FILES_TOTAL_BYTES // (1024 * 1024)} MB total), "
+                "and that the Slack app has the `files:read` permission."
+            ),
+        )
+    return attachments
+
+
+def _message_content_with_slack_files(
+    prompt: str,
+    attachments: SlackAttachments,
+) -> str | list[dict]:
+    if not attachments.content_blocks:
+        return prompt
+    return [{"type": "text", "text": prompt}, *attachments.content_blocks]
+
+
+async def _reject_files_for_text_model(
+    client: AsyncWebClient,
+    event: SlackEvent,
+    model_id: str | None,
+    workspace_id: UUID,
+    content: str | list[dict],
+    db: AsyncSession | None = None,
+) -> bool:
+    has_non_text_attachment = isinstance(content, list) and any(
+        block.get("type") != "text" for block in content
+    )
+    if not has_non_text_attachment:
+        return False
+    has_document = isinstance(content, list) and any(
+        block.get("type") == "file" for block in content
+    )
+    if db is not None:
+        supported = await ModelService(db, workspace_id).supports_attachments(
+            model_id, documents=has_document
+        )
+    else:
+        async with AsyncSessionLocal() as session:
+            supported = await ModelService(
+                session, workspace_id
+            ).supports_attachments(model_id, documents=has_document)
+    if supported:
+        return False
+    await client.chat_postMessage(
+        channel=event.channel,
+        thread_ts=event.thread_ts or event.ts,
+        text=(
+            "The model selected for this conversation does not support file "
+            "attachments. Choose a multimodal model in the conversation and try again."
+        ),
+    )
+    return True
 
 
 async def _can_use_agent(
@@ -728,9 +815,10 @@ async def handle_message(
         return
     thread_ts = event.thread_ts or event.ts
 
-    question = (event.text or "").strip()
-    if not question:
+    raw_question = (event.text or "").strip()
+    if not raw_question and not event.files:
         return
+    question = _question_with_files(raw_question)
 
     user = await resolve_user(event.user, workspace_id)
 
@@ -807,6 +895,18 @@ async def handle_message(
         transcript,
         potential_context,
     )
+    attachments = (
+        await _load_slack_files(client, event)
+        if event.files
+        else SlackAttachments([], [])
+    )
+    content = _message_content_with_slack_files(prompt, attachments)
+    if event.files and not raw_question and isinstance(content, str):
+        return
+    if await _reject_files_for_text_model(
+        client, event, thread.model_id, workspace_id, content
+    ):
+        return
 
     try:
         await _enqueue_slack_run(
@@ -816,7 +916,7 @@ async def handle_message(
             slack_user_id=event.user,
             team_id=team_id,
             workspace_id=workspace_id,
-            input={"messages": [{"type": "human", "content": prompt}]},
+            input={"messages": [{"type": "human", "content": content}]},
         )
     except ModelUnavailableError as exc:
         # exc.detail carries the precise reason (disabled by admin / provider
@@ -915,7 +1015,22 @@ async def handle_agent_message(
         )
         return
 
-    question = _agent_question(event.text or "")
+    raw_question = _agent_question(event.text or "")
+    question = _question_with_files(raw_question)
+    attachments: SlackAttachments | None = None
+    attachment_model_checked = False
+    if event.files and not raw_question:
+        async with AsyncSessionLocal() as db:
+            if not await _can_use_agent(db, workspace_id, agent_id, user):
+                await _post_agent_denial(
+                    client,
+                    event,
+                    "You don't have permission to use this agent.",
+                )
+                return
+        attachments = await _load_slack_files(client, event)
+        if not attachments.content_blocks:
+            return
     async with AsyncSessionLocal() as db:
         bindings = SlackThreadBindingRepository(db)
         binding = await bindings.get_external(
@@ -939,7 +1054,7 @@ async def handle_agent_message(
             return
 
         if binding is None:
-            if not question:
+            if not raw_question and not event.files:
                 await client.chat_postMessage(
                     channel=event.channel,
                     thread_ts=external_thread_ts,
@@ -986,7 +1101,7 @@ async def handle_agent_message(
                     "a new message to start again.",
                 )
                 return
-            if not question:
+            if not raw_question and not event.files:
                 await _post_agent_denial(
                     client,
                     event,
@@ -994,6 +1109,21 @@ async def handle_agent_message(
                 )
                 return
             thread_id = thread.id
+
+        if attachments is not None:
+            attachment_model_checked = True
+            preflight_content = _message_content_with_slack_files(
+                question, attachments
+            )
+            if await _reject_files_for_text_model(
+                client,
+                event,
+                thread.model_id,
+                workspace_id,
+                preflight_content,
+                db,
+            ):
+                return
 
         if not await _is_agent_ready(
             thread,
@@ -1030,6 +1160,19 @@ async def handle_agent_message(
         transcript,
         potential_context,
     )
+    if attachments is None:
+        attachments = (
+            await _load_slack_files(client, event)
+            if event.files
+            else SlackAttachments([], [])
+        )
+    content = _message_content_with_slack_files(prompt, attachments)
+    if event.files and not raw_question and isinstance(content, str):
+        return
+    if not attachment_model_checked and await _reject_files_for_text_model(
+        client, event, thread.model_id, workspace_id, content
+    ):
+        return
 
     try:
         enqueued = await _enqueue_slack_run(
@@ -1042,7 +1185,7 @@ async def handle_agent_message(
             workspace_id=workspace_id,
             slack_bot_id=slack_bot_id,
             force_enable_all_capabilities=force_enable_all_capabilities,
-            input={"messages": [{"type": "human", "content": prompt}]},
+            input={"messages": [{"type": "human", "content": content}]},
         )
         if enqueued and context_loaded:
             async with AsyncSessionLocal() as db:

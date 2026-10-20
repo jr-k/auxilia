@@ -169,6 +169,26 @@ class ModelService(BaseService[ModelDB, ModelRepository]):
             and (m.provider, m.model_id) in enabled
         ]
 
+    async def supports_attachments(
+        self, model_id: str | None, *, documents: bool = False
+    ) -> bool:
+        """Whether this model accepts this attachment kind on our serving path."""
+        if model_id is None:
+            return False
+        return any(
+            model.model_id == model_id and model.multimodal
+            and (
+                not documents
+                or model.provider
+                in {
+                    ModelProviderType.openai.value,
+                    ModelProviderType.anthropic.value,
+                    ModelProviderType.google.value,
+                }
+            )
+            for model in await self._effective_catalog()
+        )
+
     async def ensure_available(
         self, model_id: str | None, reasoning_effort: str | None = None
     ) -> ResolvedModel:

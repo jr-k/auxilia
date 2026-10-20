@@ -20,6 +20,7 @@ from redis.asyncio import Redis
 from slack_sdk.web.async_client import AsyncWebClient
 
 from app.appearance.service import InstanceAppearanceService
+from app.artifacts.service import ArtifactService
 from app.auth.settings import auth_settings
 from app.database import AsyncSessionLocal, get_checkpointer
 from app.integrations.slack.blocks import (
@@ -120,6 +121,8 @@ class SlackProtocolAdapter:
         self._show_tool_callouts = show_tool_callouts
         self._tools_started: set[str] = set()
         self._tools_announced: set[str] = set()
+        self.artifact_ids: list[UUID] = []
+        self._artifact_ids_seen: set[UUID] = set()
         # The role of the message currently open on the root namespace, per
         # node — deltas from a tool-role message must not reach the chat.
         self._open_role: dict[str, str] = {}
@@ -127,10 +130,11 @@ class SlackProtocolAdapter:
     def texts(self, event: dict[str, Any]) -> list[str]:
         """Markdown chunks to append for one protocol event (usually 0 or 1)."""
         params = event.get("params") or {}
-        if params.get("namespace"):
-            return []
         data = params.get("data")
         if not isinstance(data, dict):
+            return []
+        self._capture_artifacts(event.get("method"), data)
+        if params.get("namespace"):
             return []
         method = event.get("method")
         if method == "messages":
@@ -149,6 +153,29 @@ class SlackProtocolAdapter:
                     self._tools_announced.add(normalized_name)
                     return [format_tool_streamer_label(normalized_name)]
         return []
+
+    def _capture_artifacts(self, method: Any, data: dict[str, Any]) -> None:
+        if method != "tools" or data.get("event") != "tool-finished":
+            return
+        output = data.get("output")
+        artifact = output.get("artifact") if isinstance(output, dict) else None
+        items = (
+            artifact.get("auxilia_artifacts")
+            if isinstance(artifact, dict)
+            else None
+        )
+        if not isinstance(items, list):
+            return
+        for item in items:
+            raw_id = item.get("id") if isinstance(item, dict) else None
+            try:
+                artifact_id = UUID(raw_id) if isinstance(raw_id, str) else None
+            except ValueError:
+                artifact_id = None
+            if artifact_id is None or artifact_id in self._artifact_ids_seen:
+                continue
+            self._artifact_ids_seen.add(artifact_id)
+            self.artifact_ids.append(artifact_id)
 
     def _on_message(self, node: str, data: dict[str, Any]) -> list[str]:
         kind = data.get("event")
@@ -190,6 +217,7 @@ class SlackRunConsumer(DeliveryConsumer):
         self.client = client
         self.app_name = "auxilia"
         self.show_tool_callouts = True
+        self.artifact_ids: list[UUID] = []
 
     @property
     def slack_client(self) -> AsyncWebClient:
@@ -270,14 +298,28 @@ class SlackRunConsumer(DeliveryConsumer):
             except Exception:
                 logger.exception("Slack delivery crashed for run %s", self.record.id)
                 try:
-                    await RunService(self.redis).wait_for_terminal(self.record.id)
+                    record = await self._recover_artifacts_until_terminal()
                     run_finished = True
+                    if self.artifact_ids:
+                        await self._post_artifacts(channel_id, thread_ts)
                 except Exception:
                     logger.exception(
                         "Could not wait for run %s after Slack delivery crashed",
                         self.record.id,
                     )
-                await self._post_failure_notice(channel_id, thread_ts)
+                    await self._post_failure_notice(channel_id, thread_ts)
+                    return
+                if record.status is RunStatus.interrupted:
+                    await self._post_approvals(channel_id, thread_ts)
+                elif record.status is RunStatus.cancelled:
+                    pass
+                elif (
+                    record.status not in (RunStatus.error, RunStatus.timeout)
+                    or not await self._post_reauth_prompt_if_gated(
+                        channel_id, thread_ts
+                    )
+                ):
+                    await self._post_failure_notice(channel_id, thread_ts)
                 return
 
             run_finished = status is not None
@@ -287,6 +329,8 @@ class SlackRunConsumer(DeliveryConsumer):
                 status,
                 text_chars,
             )
+            if status is not None and self.artifact_ids:
+                await self._post_artifacts(channel_id, thread_ts)
             if status is None:
                 # The log ended but the record is not terminal (it vanished, or a
                 # producer this build doesn't understand finalized it): the
@@ -393,8 +437,64 @@ class SlackRunConsumer(DeliveryConsumer):
             if status is RunStatus.success:
                 final_blocks = await self._instance_link_blocks()
         finally:
+            self.artifact_ids = adapter.artifact_ids
             await streamer.stop(blocks=final_blocks)
         return text_chars, status
+
+    async def _recover_artifacts_until_terminal(self) -> RunDB:
+        """Drain a crashed delivery's log while retaining generated files."""
+        adapter = SlackProtocolAdapter(show_tool_callouts=False)
+        service = RunService(self.redis)
+        async for raw in service.stream(self.record.id):
+            event = decode_event(raw)
+            if event is not None:
+                adapter.texts(event)
+        seen = set(self.artifact_ids)
+        self.artifact_ids.extend(
+            artifact_id
+            for artifact_id in adapter.artifact_ids
+            if artifact_id not in seen
+        )
+        return await service.get(self.record.id)
+
+    async def _post_artifacts(self, channel_id: str, thread_ts: str) -> None:
+        failed: list[str] = []
+        for artifact_id in self.artifact_ids:
+            try:
+                async with AsyncSessionLocal() as db:
+                    row, data = await ArtifactService(
+                        db, self.record.workspace_id
+                    ).content(self.record.thread_id, artifact_id)
+                await self.slack_client.files_upload_v2(
+                    channel=channel_id,
+                    thread_ts=thread_ts,
+                    filename=row.filename,
+                    title=row.title,
+                    file=data,
+                )
+            except Exception:
+                logger.exception(
+                    "Could not upload artifact %s for Slack run %s",
+                    artifact_id,
+                    self.record.id,
+                )
+                failed.append(str(artifact_id))
+        if failed:
+            try:
+                await self.slack_client.chat_postMessage(
+                    channel=channel_id,
+                    thread_ts=thread_ts,
+                    text=(
+                        "I generated a file but couldn't attach it here. Make sure "
+                        "this Slack app has the `files:write` permission, or open "
+                        f"the conversation in {escape_mrkdwn(self.app_name)}."
+                    ),
+                )
+            except Exception:
+                logger.exception(
+                    "Could not post artifact upload warning for Slack run %s",
+                    self.record.id,
+                )
 
     async def _terminal_status(self) -> RunStatus | None:
         """The run's terminal status, from the durable record.

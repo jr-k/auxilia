@@ -44,6 +44,8 @@ const scopes = [
 	"channels:history",
 	"chat:write",
 	"commands",
+	"files:read",
+	"files:write",
 	"im:history",
 	"im:write",
 	"users:read",
@@ -267,8 +269,9 @@ function AgentSlackSetupGuide({
 			body: (
 				<div className="space-y-3">
 					<p>
-						Install the app from <strong>OAuth &amp; Permissions</strong> and
-						copy the <strong>Bot User OAuth Token</strong> beginning with{" "}
+						Install or reinstall the app from{" "}
+						<strong>OAuth &amp; Permissions</strong> and copy the{" "}
+						<strong>Bot User OAuth Token</strong> beginning with{" "}
 						<code className={badgeClass}>xoxb-</code>, not the{" "}
 						<code className={badgeClass}>xoxp-</code> user token.
 					</p>
