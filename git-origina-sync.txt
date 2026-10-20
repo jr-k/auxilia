@@ -1,0 +1,23 @@
+Upstream: https://github.com/keurcien/auxilia
+Synchronization date: 2026-10-19
+Mode: compatible forward-port (not verbatim cherry-picks)
+
+0cd8f036864febcbf20543d5570a77b8e65edf64	feat(agents): let agent editors manage subagents (#392)
+1318b82d480d7125e5615177ca75abc6e9a7e4bc	fix(runtime): enable Anthropic prompt caching for agents without a sandbox (#417)
+1a048d834835f2ef743e30eb2318ebdc83fcefee	feat(chat): queue messages while the agent runs, with send now (#421) [partial: interrupted-answer persistence only; local durable queue preserved]
+5098d9b3d6cf4ff20254234126557b1c91e8fab2	fix(auth): return to the original page after sign-in, and keep active users signed in (#423)
+37a7a15b7ddb25b8a1691f9401ab61ba3cccc395	fix(models): Update list (#395)
+e8db65a1f433077b410a1e8fd31705b61a095686	feat(models): add Muse Wonder and Gemini 4 Argon, enable Meta vision, structured output and effort (#404)
+b63322a189ded56be5767512d1486265bc71f1de	feat(costs): live thread cost in the chat model pill, with USD catalog prices (#406)
+b9687a93a2eba0e9b74001be4aeea877ebaaf654	feat(agents): version agent instructions in Langfuse (#408)
+28b1d331ca4c88615d8156aa000078fa4a2703ec	feat(langfuse): publish the agent's MCP servers in the prompt config (#410)
+b8f4fb017893659ddb46f857059e9249ee264aab	feat(agents): hint when instructions diverge from Langfuse production (#412)
+9262cc231e5c56c5fff3b4cd2b406038c23ab282	feat(agents): flag the Versions tab when instructions diverge from Langfuse (#414)
+0c207ee84beaacfee7f38dd307f400bfdad51445	fix(langfuse): list enabled tools in the published MCP config (#415)
+94979e1e0d5de53362688593a023d0a6a5564aa6	feat(artifacts): chat artifact previews with optional S3 persistence (#398)
+47434462ce61d00643e2b4c69c882b23fea3ae27	feat(artifacts): keyless GCS storage via ADC (#399)
+816d0db7d3114d7d323793371b5028e93ad483a3	feat(artifacts): export PPTX artifacts to Google Slides (#401)
+c153e8ea6ea33570ceba61fe897c50c2992bdada	feat(artifacts): run HTML artifact scripts, with configurable CDN sources (#403)
+77674f71e66da2045785a6db7e96555205f7682d	feat(mcp): open MCP apps in the artifact side panel (#407)
+84d2a069cb74dc3112741b146408a20ea22e32bd	feat(artifacts): edit presentations in place, from the panel and the agent (#420)
+ea77c1f5f40c2b75718f24b955f155b6847c18bf	feat(artifacts): preview JSON, Python and JavaScript files with syntax highlighting (#429)
