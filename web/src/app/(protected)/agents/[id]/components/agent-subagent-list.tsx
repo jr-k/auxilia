@@ -129,7 +129,11 @@ export default function AgentSubagentList({
 						return (
 							<div
 								key={sub.id}
-								className="overflow-hidden rounded-[10px] border border-border bg-card"
+								className={`overflow-hidden rounded-[10px] border border-border bg-card transition-opacity ${
+									mode === "trigger" && !enabledByDefault
+										? "opacity-50"
+										: ""
+								}`}
 							>
 							<button
 								type="button"

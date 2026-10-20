@@ -439,7 +439,13 @@ export default function AgentMCPServer({
 		configurableTools.length > 0;
 
 	return (
-		<div className="overflow-hidden rounded-[10px] border border-border bg-card">
+		<div
+			className={`overflow-hidden rounded-[10px] border border-border bg-card transition-opacity ${
+				mode === "trigger" && binding.enabledByDefault === false
+					? "opacity-50"
+					: ""
+			}`}
+		>
 			<button
 				type="button"
 				onClick={handleToggleExpand}
