@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.19](https://github.com/jr-k/auxilia/compare/backend-v0.11.18...backend-v0.11.19) (2026-10-20)
+
+
+### Features
+
+* **triggers:** configure execution resources ([89924b0](https://github.com/jr-k/auxilia/commit/89924b0c764e64784b581306deec3969425550a4))
+
 ## [0.11.18](https://github.com/jr-k/auxilia/compare/backend-v0.11.17...backend-v0.11.18) (2026-10-19)
 
 
