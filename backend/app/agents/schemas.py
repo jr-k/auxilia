@@ -184,6 +184,7 @@ class AgentResourceMCPServerResponse(SQLModel):
     icon_url: str | None = None
     image_revision: UUID | None = None
     description: str | None = None
+    tool_names: list[str] = Field(default_factory=list)
     configured: bool
     enabled_by_default: bool
 

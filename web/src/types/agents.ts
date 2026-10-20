@@ -128,6 +128,7 @@ export interface AgentResourceMCPServer {
 	iconUrl: string | null;
 	imageRevision: string | null;
 	description: string | null;
+	toolNames: string[];
 	configured: boolean;
 	enabledByDefault: boolean;
 }

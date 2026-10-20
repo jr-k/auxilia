@@ -23,6 +23,34 @@ class TriggerCreate(TriggerBase):
     timezone: str | None = Field(default="UTC", max_length=64)
     visibility: ResourceVisibility = ResourceVisibility.personal
     team_ids: list[UUID] = Field(default_factory=list, exclude=True)
+    disabled_mcp_server_ids: list[UUID] | None = Field(
+        default=None,
+        description=(
+            "MCP server IDs disabled for each firing. Null inherits the agent "
+            "defaults; [] enables every allowed MCP server."
+        ),
+    )
+    disabled_skill_ids: list[UUID] | None = Field(
+        default=None,
+        description=(
+            "Skill IDs disabled for each firing. Null inherits the agent defaults; "
+            "[] enables every allowed skill."
+        ),
+    )
+    disabled_sandbox_ids: list[UUID] | None = Field(
+        default=None,
+        description=(
+            "Sandbox IDs disabled for each firing. Null inherits the agent defaults; "
+            "[] enables every allowed sandbox."
+        ),
+    )
+    disabled_subagent_ids: list[UUID] | None = Field(
+        default=None,
+        description=(
+            "Subagent IDs disabled for each firing. Null inherits the agent defaults; "
+            "[] enables every allowed subagent."
+        ),
+    )
 
     @field_validator("group")
     @classmethod
@@ -51,6 +79,10 @@ class TriggerCreateDB(TriggerBase):
     trigger_type: TriggerType
     webhook_id: UUID | None = None
     next_run_at: datetime | None = None
+    disabled_mcp_server_ids: list[str] | None = None
+    disabled_skill_ids: list[str] | None = None
+    disabled_sandbox_ids: list[str] | None = None
+    disabled_subagent_ids: list[str] | None = None
 
 
 class TriggerPatch(SQLModel):
@@ -65,6 +97,24 @@ class TriggerPatch(SQLModel):
     is_active: bool | None = None
     visibility: ResourceVisibility | None = None
     team_ids: list[UUID] | None = Field(default=None, exclude=True)
+    disabled_mcp_server_ids: list[UUID] | None = Field(
+        default=None,
+        description=(
+            "Replace the disabled MCP server IDs; null restores agent defaults."
+        ),
+    )
+    disabled_skill_ids: list[UUID] | None = Field(
+        default=None,
+        description="Replace the disabled skill IDs; null restores agent defaults.",
+    )
+    disabled_sandbox_ids: list[UUID] | None = Field(
+        default=None,
+        description="Replace the disabled sandbox IDs; null restores agent defaults.",
+    )
+    disabled_subagent_ids: list[UUID] | None = Field(
+        default=None,
+        description="Replace the disabled subagent IDs; null restores agent defaults.",
+    )
 
     @field_validator("group")
     @classmethod
@@ -91,6 +141,10 @@ class TriggerResponse(SQLModel):
     is_active: bool
     next_run_at: datetime | None = None
     last_run_at: datetime | None = None
+    disabled_mcp_server_ids: list[UUID] | None = None
+    disabled_skill_ids: list[UUID] | None = None
+    disabled_sandbox_ids: list[UUID] | None = None
+    disabled_subagent_ids: list[UUID] | None = None
     created_at: datetime
     updated_at: datetime
     # Whether the trigger's model can run right now (whitelist ∧ provider key

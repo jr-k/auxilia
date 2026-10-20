@@ -3,6 +3,7 @@ from enum import StrEnum
 from uuid import UUID
 
 from sqlalchemy import (
+    JSON,
     CheckConstraint,
     DateTime,
     Enum as SAEnum,
@@ -10,6 +11,7 @@ from sqlalchemy import (
     UniqueConstraint,
     text,
 )
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Column, Field, SQLModel, Text
 
 from app.models import BaseDBModel
@@ -19,6 +21,10 @@ from app.visibility import ResourceVisibility
 class TriggerType(StrEnum):
     schedule = "schedule"
     webhook = "webhook"
+
+
+def _nullable_json_list_column() -> Column:
+    return Column(JSON().with_variant(JSONB(), "postgresql"), nullable=True)
 
 
 class TriggerBase(SQLModel):
@@ -89,6 +95,20 @@ class TriggerDB(TriggerBase, BaseDBModel, table=True):
     )
     last_run_at: datetime | None = Field(
         default=None, sa_column=Column(DateTime(timezone=True), nullable=True)
+    )
+    # Per-trigger capability narrowing. NULL inherits the agent's current
+    # default for that resource type; a list freezes an explicit selection.
+    disabled_mcp_server_ids: list[str] | None = Field(
+        default=None, sa_column=_nullable_json_list_column()
+    )
+    disabled_skill_ids: list[str] | None = Field(
+        default=None, sa_column=_nullable_json_list_column()
+    )
+    disabled_sandbox_ids: list[str] | None = Field(
+        default=None, sa_column=_nullable_json_list_column()
+    )
+    disabled_subagent_ids: list[str] | None = Field(
+        default=None, sa_column=_nullable_json_list_column()
     )
 
 

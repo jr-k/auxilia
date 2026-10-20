@@ -23,11 +23,13 @@ import { SaveActions } from "@/components/editor/save-actions";
 import { AgentPicker } from "@/components/editor/agent-picker";
 import { ModelPickerChip } from "@/components/editor/model-picker-chip";
 import { GroupPicker } from "@/components/ui/group-picker";
+import { UnderlineTabs } from "@/components/ui/underline-tabs";
 import { VisibilityPicker } from "@/components/ui/visibility-picker";
 import type { ResourceVisibility } from "@/types/visibility";
 import { groupOptions } from "@/lib/groups";
 import ScheduleBuilder from "@/app/(protected)/triggers/components/schedule-builder";
 import NextRunsCard from "@/app/(protected)/triggers/components/next-runs-card";
+import TriggerResources from "@/app/(protected)/triggers/components/trigger-resources";
 
 const slugify = (name: string) =>
 	name.trim().toLowerCase().replace(/\s+/g, "-") || "…";
@@ -42,6 +44,10 @@ interface TriggerFormState {
 	timezone: string;
 	visibility: ResourceVisibility;
 	teamIds: string[];
+	disabledMcpServerIds: string[] | null;
+	disabledSkillIds: string[] | null;
+	disabledSandboxIds: string[] | null;
+	disabledSubagentIds: string[] | null;
 }
 
 function browserTimezone(): string {
@@ -59,6 +65,10 @@ function defaultForm(): TriggerFormState {
 		timezone: browserTimezone(),
 		visibility: "personal",
 		teamIds: [],
+		disabledMcpServerIds: null,
+		disabledSkillIds: null,
+		disabledSandboxIds: null,
+		disabledSubagentIds: null,
 	};
 }
 
@@ -79,6 +89,10 @@ function fromTrigger(trigger: Trigger): TriggerFormState {
 				: browserTimezone(),
 		visibility: trigger.visibility,
 		teamIds: trigger.teamIds,
+		disabledMcpServerIds: trigger.disabledMcpServerIds,
+		disabledSkillIds: trigger.disabledSkillIds,
+		disabledSandboxIds: trigger.disabledSandboxIds,
+		disabledSubagentIds: trigger.disabledSubagentIds,
 	};
 }
 
@@ -91,6 +105,10 @@ function toComparablePayload(form: TriggerFormState, triggerType: TriggerType) {
 		modelId: form.modelId,
 		visibility: form.visibility,
 		teamIds: [...form.teamIds].sort(),
+		disabledMcpServerIds: form.disabledMcpServerIds,
+		disabledSkillIds: form.disabledSkillIds,
+		disabledSandboxIds: form.disabledSandboxIds,
+		disabledSubagentIds: form.disabledSubagentIds,
 		...(triggerType === "schedule"
 			? {
 					cronExpression: buildCronExpression(form.schedule),
@@ -129,6 +147,9 @@ export default function TriggerEditor({
 	const [form, setForm] = useState<TriggerFormState>(initialForm);
 	const [isSaving, setIsSaving] = useState(false);
 	const [error, setError] = useState<string | null>(null);
+	const [rightTab, setRightTab] = useState<"frequency" | "resources">(
+		"frequency",
+	);
 	const availableGroups = useMemo(() => groupOptions(triggers), [triggers]);
 
 	useEffect(() => {
@@ -171,6 +192,10 @@ export default function TriggerEditor({
 			modelId: selectedModelId,
 			visibility: form.visibility,
 			teamIds: form.teamIds,
+			disabledMcpServerIds: form.disabledMcpServerIds,
+			disabledSkillIds: form.disabledSkillIds,
+			disabledSandboxIds: form.disabledSandboxIds,
+			disabledSubagentIds: form.disabledSubagentIds,
 		};
 		try {
 			let saved: Trigger;
@@ -248,161 +273,183 @@ export default function TriggerEditor({
 				/>
 			</SubpageHeader>
 
-			<div className="min-h-0 flex-1 overflow-y-auto px-4 py-7 sm:px-7 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-				<div className="w-full">
+			<div className="flex min-h-0 flex-1 flex-col overflow-y-auto md:flex-row md:overflow-hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+				{/* Left: trigger definition */}
+				<div className="flex min-w-0 shrink-0 flex-col gap-7 border-b border-border bg-background px-4 py-7 sm:px-7 md:flex-[1.05] md:shrink md:overflow-y-auto md:border-r md:border-b-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
 					{error && (
-						<div className="mb-5 rounded-[10px] bg-destructive/10 px-4 py-3 text-[13.5px] font-medium text-destructive">
+						<div className="rounded-[10px] bg-destructive/10 px-4 py-3 text-[13.5px] font-medium text-destructive">
 							{error}
 						</div>
 					)}
 
-					<div className="flex flex-col gap-8 md:flex-row">
-						{/* Left: name, agent, instructions */}
-						<div className="flex min-w-0 flex-1 flex-col gap-7">
-							<EditorSection label="Trigger name">
-								<input
-									type="text"
-									autoFocus={!trigger}
-									maxLength={255}
-									value={form.name}
-									onChange={(e) => {
-										setField("name", e.target.value);
-									}}
-									placeholder="What does this trigger do?"
-									className="w-full rounded-[10px] border border-input bg-card px-3.5 py-3 text-[15px] font-semibold leading-[1.5] text-foreground outline-none transition-[border-color,box-shadow] placeholder:font-medium placeholder:text-meta dark:placeholder:text-panel-dim focus:border-petrol focus:shadow-[0_0_0_3px_rgba(22,96,110,0.10)]"
-								/>
-							</EditorSection>
+					<EditorSection label="Trigger name">
+						<input
+							type="text"
+							autoFocus={!trigger}
+							maxLength={255}
+							value={form.name}
+							onChange={(e) => {
+								setField("name", e.target.value);
+							}}
+							placeholder="What does this trigger do?"
+							className="w-full rounded-[10px] border border-input bg-card px-3.5 py-3 text-[15px] font-semibold leading-[1.5] text-foreground outline-none transition-[border-color,box-shadow] placeholder:font-medium placeholder:text-meta dark:placeholder:text-panel-dim focus:border-petrol focus:shadow-[0_0_0_3px_rgba(22,96,110,0.10)]"
+						/>
+					</EditorSection>
 
-							<GroupPicker
-								value={form.group}
-								groups={availableGroups}
-								onChange={(group) => {
-									setField("group", group);
+					<GroupPicker
+						value={form.group}
+						groups={availableGroups}
+						onChange={(group) => {
+							setField("group", group);
+						}}
+					/>
+					<VisibilityPicker
+						visibility={form.visibility}
+						teamIds={form.teamIds}
+						onChange={(visibility, teamIds) => {
+							setForm((current) => ({
+								...current,
+								visibility,
+								teamIds,
+							}));
+						}}
+					/>
+
+					<EditorSection label="Agent">
+						<AgentPicker
+							value={form.agentId}
+							onChange={(agentId) => {
+								setForm((current) => ({
+									...current,
+									agentId,
+									disabledMcpServerIds: null,
+									disabledSkillIds: null,
+									disabledSandboxIds: null,
+									disabledSubagentIds: null,
+								}));
+							}}
+						/>
+					</EditorSection>
+
+					<EditorSection label="Instructions" className="flex-1">
+						<div className="flex min-h-[300px] flex-1 flex-col rounded-[10px] border border-input bg-sidebar p-4 transition-[border-color,box-shadow] focus-within:border-petrol focus-within:shadow-[0_0_0_3px_rgba(22,96,110,0.10)] dark:bg-white/5">
+							<textarea
+								value={form.instructions}
+								onChange={(e) => {
+									setField("instructions", e.target.value);
 								}}
+								placeholder="The message sent to the agent on every run…"
+								className="w-full flex-1 resize-none border-none bg-transparent text-[12.5px] leading-[1.7] text-foreground placeholder:text-meta dark:placeholder:text-panel-dim focus:outline-none [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
 							/>
-							<VisibilityPicker
-								visibility={form.visibility}
-								teamIds={form.teamIds}
-								onChange={(visibility, teamIds) => {
-									setForm((current) => ({
-										...current,
-										visibility,
-										teamIds,
-									}));
-								}}
-							/>
-
-							<EditorSection label="Agent">
-								<AgentPicker
-									value={form.agentId}
-									onChange={(agentId) => {
-										setField("agentId", agentId);
+							<div className="mt-4 flex shrink-0 items-center border-t border-hairline pt-3.5 dark:border-white/5">
+								<ModelPickerChip
+									value={selectedModelId}
+									onChange={(modelId) => {
+										setField("modelId", modelId);
 									}}
+									unavailable={
+										trigger && selectedModelId === trigger.modelId
+											? !trigger.modelAvailable
+											: undefined
+									}
+									unavailableLabel={
+										trigger && selectedModelId === trigger.modelId
+											? trigger.modelDisplayName
+											: undefined
+									}
 								/>
-							</EditorSection>
+							</div>
+						</div>
+					</EditorSection>
+				</div>
 
-							<EditorSection label="Instructions" className="flex-1">
-								<div className="flex min-h-[300px] flex-1 flex-col rounded-[10px] border border-input bg-sidebar p-4 transition-[border-color,box-shadow] focus-within:border-petrol focus-within:shadow-[0_0_0_3px_rgba(22,96,110,0.10)] dark:bg-white/5">
-									<textarea
-										value={form.instructions}
-										onChange={(e) => {
-											setField("instructions", e.target.value);
+				{/* Right: launch configuration and inherited resources */}
+				<div className="min-w-0 shrink-0 bg-sidebar px-4 py-7 sm:px-7 md:flex-1 md:shrink md:overflow-y-auto dark:bg-white/[0.02] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+					<UnderlineTabs
+						tabs={[
+							{
+								key: "frequency",
+								label: type === "schedule" ? "Frequency" : "Webhook",
+							},
+							{ key: "resources", label: "Resources" },
+						]}
+						value={rightTab}
+						onChange={setRightTab}
+						className="border-b border-border"
+					/>
+
+					<div className="pt-5">
+						{rightTab === "resources" ? (
+							<TriggerResources
+								agentId={form.agentId}
+								disabledMcpServerIds={form.disabledMcpServerIds}
+								disabledSkillIds={form.disabledSkillIds}
+								disabledSandboxIds={form.disabledSandboxIds}
+								disabledSubagentIds={form.disabledSubagentIds}
+							/>
+						) : type === "schedule" ? (
+							<div className="flex flex-col rounded-[10px] border border-border bg-card">
+								<div className="p-5">
+									<ScheduleBuilder
+										bare
+										value={form.schedule}
+										onChange={(schedule) => {
+											setField("schedule", schedule);
 										}}
-										placeholder="The message sent to the agent on every run…"
-										className="w-full flex-1 resize-none border-none bg-transparent text-[12.5px] leading-[1.7] text-foreground placeholder:text-meta dark:placeholder:text-panel-dim focus:outline-none [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+										timezone={form.timezone}
+										onTimezoneChange={(timezone) => {
+											setField("timezone", timezone);
+										}}
 									/>
-									<div className="mt-4 flex shrink-0 items-center border-t border-hairline pt-3.5 dark:border-white/5">
-										<ModelPickerChip
-											value={selectedModelId}
-											onChange={(modelId) => {
-												setField("modelId", modelId);
-											}}
-											unavailable={
-												trigger && selectedModelId === trigger.modelId
-													? !trigger.modelAvailable
-													: undefined
-											}
-											unavailableLabel={
-												trigger && selectedModelId === trigger.modelId
-													? trigger.modelDisplayName
-													: undefined
-											}
-										/>
+								</div>
+								<div className="border-t border-hairline px-4.5 pt-2.5 pb-1.5 dark:border-white/5">
+									<div className="px-0.5 pb-1 text-[10.5px] font-semibold text-meta dark:text-panel-dim">
+										Next runs
+									</div>
+									<NextRunsCard
+										bare
+										cronExpression={cronExpression}
+										timezone={form.timezone}
+									/>
+								</div>
+							</div>
+						) : (
+							<div className="overflow-hidden rounded-[10px] border border-border bg-card">
+								<div className="flex gap-3.5 p-5">
+									<div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-petrol-tint text-petrol dark:bg-white/10 dark:text-panel-terminal">
+										<Webhook className="size-5" />
+									</div>
+									<div>
+										<p className="text-[14px] font-semibold text-foreground">
+											A unique URL will be generated
+										</p>
+										<p className="mt-1 text-[12.5px] leading-5 text-meta dark:text-panel-dim">
+											Each POST starts a fresh thread. You can copy the endpoint
+											after creating the trigger.
+										</p>
 									</div>
 								</div>
-							</EditorSection>
-						</div>
-
-						{/* Right: type-specific configuration */}
-						<div className="flex w-full flex-col gap-7 md:w-1/2">
-							{type === "schedule" ? (
-								<EditorSection label="Frequency">
-									<div className="flex flex-col rounded-[10px] border border-border bg-card">
-										<div className="p-5">
-											<ScheduleBuilder
-												bare
-												value={form.schedule}
-												onChange={(schedule) => {
-													setField("schedule", schedule);
-												}}
-												timezone={form.timezone}
-												onTimezoneChange={(timezone) => {
-													setField("timezone", timezone);
-												}}
-											/>
-										</div>
-										<div className="border-t border-hairline px-4.5 pt-2.5 pb-1.5 dark:border-white/5">
-											<div className="px-0.5 pb-1 text-[10.5px] font-semibold text-meta dark:text-panel-dim">
-												Next runs
-											</div>
-											<NextRunsCard
-												bare
-												cronExpression={cronExpression}
-												timezone={form.timezone}
-											/>
-										</div>
+								<div className="border-t border-hairline bg-sidebar/60 p-5 dark:border-white/5 dark:bg-white/3">
+									<div className="mb-3 flex items-center gap-2">
+										<Braces className="size-3.5 text-petrol dark:text-panel-terminal" />
+										<span className="text-[11px] font-semibold text-foreground">
+											Optional POST overrides
+										</span>
 									</div>
-								</EditorSection>
-							) : (
-								<EditorSection label="Webhook">
-									<div className="overflow-hidden rounded-[10px] border border-border bg-card">
-										<div className="flex gap-3.5 p-5">
-											<div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-petrol-tint text-petrol dark:bg-white/10 dark:text-panel-terminal">
-												<Webhook className="size-5" />
-											</div>
-											<div>
-												<p className="text-[14px] font-semibold text-foreground">
-													A unique URL will be generated
-												</p>
-												<p className="mt-1 text-[12.5px] leading-5 text-meta dark:text-panel-dim">
-													Each POST starts a fresh thread. You can copy the
-													endpoint after creating the trigger.
-												</p>
-											</div>
-										</div>
-										<div className="border-t border-hairline bg-sidebar/60 p-5 dark:border-white/5 dark:bg-white/3">
-											<div className="mb-3 flex items-center gap-2">
-												<Braces className="size-3.5 text-petrol dark:text-panel-terminal" />
-												<span className="text-[11px] font-semibold text-foreground">
-													Optional POST overrides
-												</span>
-											</div>
-											<pre className="overflow-x-auto rounded-lg bg-foreground px-4 py-3 text-[11.5px] leading-5 text-background">
+									<pre className="overflow-x-auto rounded-lg bg-foreground px-4 py-3 text-[11.5px] leading-5 text-background">
 {`{
   "agent_id": "uuid",
   "model_id": "provider/model",
   "instructions": "Run-specific prompt"
 }`}
-											</pre>
-											<p className="mt-3 text-[11.5px] leading-5 text-meta dark:text-panel-dim">
-												Any omitted value falls back to this trigger&apos;s
-												configuration.
-											</p>
-										</div>
-									</div>
-								</EditorSection>
-							)}
-						</div>
+									</pre>
+									<p className="mt-3 text-[11.5px] leading-5 text-meta dark:text-panel-dim">
+										Any omitted value falls back to this trigger&apos;s
+										configuration.
+									</p>
+								</div>
+							</div>
+						)}
 					</div>
 				</div>
 			</div>

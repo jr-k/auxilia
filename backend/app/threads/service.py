@@ -173,7 +173,7 @@ class ThreadService(BaseService[ThreadDB, ThreadRepository]):
             disabled_skill_ids,
             disabled_sandbox_ids,
             disabled_subagent_ids,
-        ) = await self._normalize_resource_ids(
+        ) = await self.normalize_resource_ids(
             spec,
             (
                 data.disabled_mcp_server_ids
@@ -205,6 +205,30 @@ class ThreadService(BaseService[ThreadDB, ThreadRepository]):
                     for subagent in spec.subagents
                     if not subagent.enabled_by_default
                 ]
+            ),
+            tolerated_mcp_ids=(
+                set(data.disabled_mcp_server_ids)
+                if source == ThreadSource.trigger
+                and "disabled_mcp_server_ids" in data.model_fields_set
+                else None
+            ),
+            tolerated_skill_ids=(
+                set(data.disabled_skill_ids)
+                if source == ThreadSource.trigger
+                and "disabled_skill_ids" in data.model_fields_set
+                else None
+            ),
+            tolerated_sandbox_ids=(
+                set(data.disabled_sandbox_ids)
+                if source == ThreadSource.trigger
+                and "disabled_sandbox_ids" in data.model_fields_set
+                else None
+            ),
+            tolerated_subagent_ids=(
+                set(data.disabled_subagent_ids)
+                if source == ThreadSource.trigger
+                and "disabled_subagent_ids" in data.model_fields_set
+                else None
             ),
         )
         # Strict at selection time (unlike model availability, which is only
@@ -296,7 +320,7 @@ class ThreadService(BaseService[ThreadDB, ThreadRepository]):
             disabled_skill_ids,
             disabled_sandbox_ids,
             disabled_subagent_ids,
-        ) = await self._normalize_resource_ids(
+        ) = await self.normalize_resource_ids(
             spec,
             data.disabled_mcp_server_ids,
             data.disabled_skill_ids,
@@ -324,7 +348,7 @@ class ThreadService(BaseService[ThreadDB, ThreadRepository]):
         )
         return await self.get_with_agent(thread_id)
 
-    async def _normalize_resource_ids(
+    async def normalize_resource_ids(
         self,
         spec: RunSpec,
         disabled_mcp_server_ids: list[UUID],

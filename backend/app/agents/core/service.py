@@ -19,6 +19,7 @@ from app.agents.models import (
     AgentUserPermissionDB,
     EffectivePermission,
     PermissionLevel,
+    ToolStatus,
 )
 from app.agents.schemas import (
     AgentConfig,
@@ -41,7 +42,7 @@ from app.agents.schemas import (
 from app.database import get_db
 from app.database_connections.models import DATABASE_ENGINE_ICON_URLS
 from app.database_connections.repository import DatabaseConnectionRepository
-from app.database_connections.tools import DBHUB_MANAGED_BY
+from app.database_connections.tools import DBHUB_MANAGED_BY, allowed_tool_names
 from app.exceptions import (
     DomainValidationError,
     NotFoundError,
@@ -160,6 +161,28 @@ class AgentService(BaseService[AgentDB, AgentRepository]):
             )
             for server_id in server_ids
         }
+        tool_names_by_id: dict[UUID, list[str]] = {}
+        for server_id in server_ids:
+            server = server_rows.get(server_id)
+            if server is None:
+                continue
+            managed_allowed = (
+                allowed_tool_names(server.managed_resource_id)
+                if server.managed_by == DBHUB_MANAGED_BY
+                and server.managed_resource_id is not None
+                else None
+            )
+            tool_names_by_id[server_id] = list(
+                dict.fromkeys(
+                    name
+                    for binding in spec.all_mcp_bindings
+                    if binding.mcp_server_id == server_id
+                    for name, status in (binding.tools or {}).items()
+                    if status != ToolStatus.disabled
+                    and name not in server.disabled_tools
+                    and (managed_allowed is None or name in managed_allowed)
+                )
+            )
         mcp_servers = [
             AgentResourceMCPServerResponse(
                 id=server.id,
@@ -172,6 +195,7 @@ class AgentService(BaseService[AgentDB, AgentRepository]):
                 ),
                 image_revision=server.image_revision,
                 description=server.description,
+                tool_names=tool_names_by_id.get(server_id, []),
                 configured=configured_by_id[server_id],
                 enabled_by_default=all(
                     binding.enabled_by_default

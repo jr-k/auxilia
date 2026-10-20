@@ -382,7 +382,12 @@ def register_management_tools(mcp: MCPServer) -> None:
 
     @mcp.tool()
     async def create_trigger(data: TriggerCreate, ctx: Context) -> dict[str, Any]:
-        """Create a scheduled or webhook trigger for an agent."""
+        """Create a scheduled or webhook trigger for an agent.
+
+        Call get_agent_resources first when choosing resources, then put every
+        unchosen ID in its matching disabled list. [] enables every resource of
+        that type; an omitted or null field inherits the agent's current defaults.
+        """
         async with tool_session(ctx, minimum_role=WorkspaceRole.editor) as (
             db,
             user,
@@ -396,7 +401,7 @@ def register_management_tools(mcp: MCPServer) -> None:
     async def update_trigger(
         trigger_id: UUID, data: TriggerPatch, ctx: Context
     ) -> dict[str, Any]:
-        """Update, pause, or resume a trigger managed by the caller."""
+        """Update, pause, resume, or change resource selection for a trigger."""
         async with tool_session(ctx) as (db, user, workspace_id):
             return to_json(
                 await TriggerService(db, workspace_id).update(trigger_id, data, user)

@@ -52,6 +52,13 @@ from app.workspaces.repository import WorkspaceRepository
 
 logger = logging.getLogger(__name__)
 
+_RESOURCE_FIELDS = (
+    "disabled_mcp_server_ids",
+    "disabled_skill_ids",
+    "disabled_sandbox_ids",
+    "disabled_subagent_ids",
+)
+
 
 class TriggerService(BaseService[TriggerDB, TriggerRepository]):
     not_found_message = "Trigger not found"
@@ -139,6 +146,32 @@ class TriggerService(BaseService[TriggerDB, TriggerRepository]):
             raise DomainValidationError("Trigger owner no longer belongs to workspace")
         owner.set_workspace_membership(membership)
         return owner
+
+    async def _normalize_resource_selection(
+        self,
+        agent_id: UUID,
+        selection: dict[str, list[UUID] | None],
+    ) -> dict[str, list[str] | None]:
+        """Validate explicit trigger overrides against the selected agent graph."""
+        if not selection:
+            return {}
+        spec = await AgentRepository(self.db, self.workspace_id).get_run_spec(agent_id)
+        if spec is None:
+            raise NotFoundError("Agent not found")
+        normalized = await ThreadService(
+            self.db, self.workspace_id
+        ).normalize_resource_ids(
+            spec,
+            selection.get("disabled_mcp_server_ids") or [],
+            selection.get("disabled_skill_ids") or [],
+            selection.get("disabled_sandbox_ids") or [],
+            selection.get("disabled_subagent_ids") or [],
+        )
+        return {
+            field: normalized[index] if selection.get(field) is not None else None
+            for index, field in enumerate(_RESOURCE_FIELDS)
+            if field in selection
+        }
 
     # ------------------------------------------------------------------
     # Responses
@@ -248,6 +281,14 @@ class TriggerService(BaseService[TriggerDB, TriggerRepository]):
             owner_id=owner.id,
             team_ids=data.team_ids,
         )
+        normalized_resources = await self._normalize_resource_selection(
+            data.agent_id,
+            {
+                field: getattr(data, field)
+                for field in _RESOURCE_FIELDS
+                if getattr(data, field) is not None
+            },
+        )
         next_run_at = (
             compute_next_run_at(
                 data.cron_expression, data.timezone, after=datetime.now(UTC)
@@ -257,7 +298,8 @@ class TriggerService(BaseService[TriggerDB, TriggerRepository]):
         )
         trigger = await self.repository.create(
             TriggerCreateDB(
-                **data.model_dump(),
+                **data.model_dump(exclude=set(_RESOURCE_FIELDS)),
+                **normalized_resources,
                 workspace_id=self.workspace_id,
                 owner_id=owner.id,
                 webhook_id=(
@@ -338,6 +380,26 @@ class TriggerService(BaseService[TriggerDB, TriggerRepository]):
         agent_changed = (
             "agent_id" in update_data and update_data["agent_id"] != trigger.agent_id
         )
+        resource_fields_set = set(data.model_fields_set) & set(_RESOURCE_FIELDS)
+        resource_selection = {
+            field: getattr(data, field)
+            for field in _RESOURCE_FIELDS
+            if field in resource_fields_set
+        }
+        if agent_changed:
+            # A selection belongs to one agent graph. Fields the caller did not
+            # explicitly choose reset to inheritance when the agent changes.
+            resource_selection = {
+                field: getattr(data, field) if field in resource_fields_set else None
+                for field in _RESOURCE_FIELDS
+            }
+        if resource_selection:
+            data = data.model_copy(
+                update=await self._normalize_resource_selection(
+                    update_data.get("agent_id", trigger.agent_id),
+                    resource_selection,
+                )
+            )
         reactivating = data.is_active is True and not trigger.is_active
         if agent_changed or reactivating:
             # Check against the owner, not the caller — an admin may edit
@@ -523,9 +585,19 @@ class TriggerService(BaseService[TriggerDB, TriggerRepository]):
         reasoning_effort: str | None = None,
     ):
         """One fresh thread per firing, owned by the trigger owner."""
+        effective_agent_id = agent_id or trigger.agent_id
+        resource_selection = (
+            {
+                field: [UUID(resource_id) for resource_id in value]
+                for field in _RESOURCE_FIELDS
+                if (value := getattr(trigger, field, None)) is not None
+            }
+            if effective_agent_id == trigger.agent_id
+            else {}
+        )
         return await ThreadService(self.db, trigger.workspace_id).create(
             ThreadCreate(
-                agent_id=agent_id or trigger.agent_id,
+                agent_id=effective_agent_id,
                 model_id=model_id or trigger.model_id,
                 reasoning_effort=(
                     trigger.reasoning_effort
@@ -533,6 +605,7 @@ class TriggerService(BaseService[TriggerDB, TriggerRepository]):
                     else reasoning_effort
                 ),
                 first_message_content=trigger.name,
+                **resource_selection,
             ),
             user_id=trigger.owner_id,
             source=ThreadSource.trigger,

@@ -181,6 +181,25 @@ async def get_agent(agent_id: UUID, ctx: Context) -> dict[str, Any]:
 
 
 @auxilia_mcp.tool()
+async def get_agent_resources(agent_id: UUID, ctx: Context) -> dict[str, Any]:
+    """List resources a trigger may activate for an agent graph.
+
+    Returns MCP servers with their allowed tool names, plus skills, sandboxes
+    and subagents. Use these IDs to build the disabled resource lists accepted
+    by create_trigger and update_trigger.
+    """
+    async with tool_session(ctx) as (db, user, workspace_id):
+        service = AgentService(db, workspace_id)
+        await service.get(
+            agent_id,
+            user_id=user.id,
+            user_role=user.role,
+            user_team_id=user.team_id,
+        )
+        return to_json(await service.get_resources(agent_id))
+
+
+@auxilia_mcp.tool()
 async def create_agent(config: AgentConfig, ctx: Context) -> dict[str, Any]:
     """Create an agent with its complete skills, MCP, sandbox, and subagent config."""
     async with tool_session(ctx, minimum_role=WorkspaceRole.editor) as (

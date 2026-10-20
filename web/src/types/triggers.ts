@@ -26,6 +26,10 @@ interface TriggerBase {
 	 * unavailable. Null = the model left the whitelist; fall back to modelId. */
 	modelDisplayName: string | null;
 	canManage: boolean;
+	disabledMcpServerIds: string[] | null;
+	disabledSkillIds: string[] | null;
+	disabledSandboxIds: string[] | null;
+	disabledSubagentIds: string[] | null;
 }
 
 export interface ScheduleTrigger extends TriggerBase {
@@ -56,6 +60,10 @@ interface TriggerCreateBase {
 	isActive?: boolean;
 	visibility?: ResourceVisibility;
 	teamIds?: string[];
+	disabledMcpServerIds?: string[] | null;
+	disabledSkillIds?: string[] | null;
+	disabledSandboxIds?: string[] | null;
+	disabledSubagentIds?: string[] | null;
 }
 
 export interface ScheduleTriggerCreate extends TriggerCreateBase {
@@ -81,6 +89,10 @@ export interface TriggerUpdate {
 	isActive?: boolean;
 	visibility?: ResourceVisibility;
 	teamIds?: string[];
+	disabledMcpServerIds?: string[] | null;
+	disabledSkillIds?: string[] | null;
+	disabledSandboxIds?: string[] | null;
+	disabledSubagentIds?: string[] | null;
 }
 
 export interface TriggerRun {
