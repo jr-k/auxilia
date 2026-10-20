@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.12.28](https://github.com/jr-k/auxilia/compare/web-v0.12.27...web-v0.12.28) (2026-10-20)
+
+
+### Features
+
+* **triggers:** configure execution resources ([89924b0](https://github.com/jr-k/auxilia/commit/89924b0c764e64784b581306deec3969425550a4))
+
+
+### Bug Fixes
+
+* **web:** reconcile stopped tool runs ([3cf24d1](https://github.com/jr-k/auxilia/commit/3cf24d1560d9df521e0b38b4c099957859897b29))
+
 ## [0.12.27](https://github.com/jr-k/auxilia/compare/web-v0.12.26...web-v0.12.27) (2026-10-19)
 
 
