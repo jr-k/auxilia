@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.29](https://github.com/jr-k/auxilia/compare/web-v0.12.28...web-v0.12.29) (2026-10-20)
+
+
+### Features
+
+* **triggers:** configure automated run resources ([67f9ab9](https://github.com/jr-k/auxilia/commit/67f9ab9e56c521c32cbb45bd1432e77ba3db83e2))
+
 ## [0.12.28](https://github.com/jr-k/auxilia/compare/web-v0.12.27...web-v0.12.28) (2026-10-20)
 
 
