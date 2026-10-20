@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.20](https://github.com/jr-k/auxilia/compare/backend-v0.11.19...backend-v0.11.20) (2026-10-20)
+
+
+### Features
+
+* **triggers:** configure automated run resources ([67f9ab9](https://github.com/jr-k/auxilia/commit/67f9ab9e56c521c32cbb45bd1432e77ba3db83e2))
+
 ## [0.11.19](https://github.com/jr-k/auxilia/compare/backend-v0.11.18...backend-v0.11.19) (2026-10-20)
 
 
