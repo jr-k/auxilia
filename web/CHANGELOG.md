@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.32](https://github.com/jr-k/auxilia/compare/web-v0.12.31...web-v0.12.32) (2026-10-21)
+
+
+### Bug Fixes
+
+* **web:** allow selecting database MCP servers ([2c6d4fa](https://github.com/jr-k/auxilia/commit/2c6d4fad1849466babeb67d08a8d02f25b21b010))
+
 ## [0.12.31](https://github.com/jr-k/auxilia/compare/web-v0.12.30...web-v0.12.31) (2026-10-20)
 
 
