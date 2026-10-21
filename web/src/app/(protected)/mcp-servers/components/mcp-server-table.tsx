@@ -168,12 +168,7 @@ export default function MCPServerTable({
 	const groupTree = useMemo(() => buildGroupTree(filtered), [filtered]);
 	const orderedServers = useMemo(() => flattenGroupTree(groupTree), [groupTree]);
 	const selectableServerIds = useMemo(
-		() =>
-			isAdmin
-				? orderedServers
-						.filter((server) => server.managedBy !== "database")
-						.map((server) => server.id)
-				: [],
+		() => (isAdmin ? orderedServers.map((server) => server.id) : []),
 		[isAdmin, orderedServers],
 	);
 	const selection = useRowSelection({
@@ -192,6 +187,13 @@ export default function MCPServerTable({
 		setBulkItems(
 			selected.map((server, index) => {
 				const result = checks.at(index);
+				if (server.managedBy === "database" && !server.managedResourceId) {
+					return {
+						id: server.id,
+						name: server.name,
+						blockedReason: "Its managed database connection could not be found.",
+					};
+				}
 				if (!result) {
 					return {
 						id: server.id,
@@ -348,7 +350,7 @@ export default function MCPServerTable({
 					<SelectableLeading
 						selected={selection.isSelected(server.id)}
 						selectionMode={selection.selectionMode}
-						disabled={!isAdmin || server.managedBy === "database"}
+						disabled={!isAdmin}
 						label={`Select ${server.name}`}
 						onToggle={(shiftKey) => {
 							selection.toggle(server.id, shiftKey);
@@ -501,37 +503,69 @@ export default function MCPServerTable({
 			<BulkConfirmDialog
 				open={bulkOpen}
 				onOpenChange={setBulkOpen}
-				title="Delete selected MCP servers?"
-				description="The servers will be removed permanently. Servers used by agents will first be detached from them."
+				title="Delete selected connections?"
+				description="The selected MCP servers and database connections will be removed permanently. Connections used by agents will first be detached from them."
 				items={bulkItems}
 				confirmLabel="Delete"
 				busyLabel="Deleting…"
 				acknowledgement={
 					bulkDetachIds.size > 0
-						? "I understand that these MCP servers will be removed from every agent using them and deleted permanently."
+						? "I understand that these connections will be removed from every agent using them and deleted permanently."
 						: undefined
 				}
 				onConfirm={async (items) => {
 					const results = await Promise.allSettled(
-						items.map((item) =>
-							deleteMcpServer(item.id, {
+						items.map((item) => {
+							const server = orderedServers.find(
+								(candidate) => candidate.id === item.id,
+							);
+							if (
+								server?.managedBy === "database" &&
+								server.managedResourceId
+							) {
+								return deleteDatabaseConnection(server.managedResourceId, {
+									detachAgents: bulkDetachIds.has(item.id),
+								});
+							}
+							return deleteMcpServer(item.id, {
 								detachAgents: bulkDetachIds.has(item.id),
-							}),
-						),
+							});
+						}),
 					);
 					const succeeded: string[] = [];
 					const failures: BulkFailure[] = [];
+					let deletedDatabase = false;
 					results.forEach((result, index) => {
 						const item = items.at(index);
 						if (!item) return;
-						if (result.status === "fulfilled") succeeded.push(item.id);
-						else
+						if (result.status === "fulfilled") {
+							succeeded.push(item.id);
+							const server = orderedServers.find(
+								(candidate) => candidate.id === item.id,
+							);
+							if (server?.managedBy === "database") {
+								deletedDatabase = true;
+							}
+						} else {
 							failures.push({
 								id: item.id,
 								name: item.name,
 								message: getApiErrorMessage(result.reason, "Delete failed."),
 							});
+						}
 					});
+					if (deletedDatabase) {
+						try {
+							await refreshMcpServers();
+						} catch (error) {
+							setActionError(
+								getApiErrorMessage(
+									error,
+									"Connections were deleted, but the list could not be refreshed.",
+								),
+							);
+						}
+					}
 					selection.remove(succeeded);
 					return failures;
 				}}
@@ -591,8 +625,7 @@ export default function MCPServerTable({
 									onClick={(event) => {
 										if (
 											!selection.selectionMode ||
-											!isAdmin ||
-											server.managedBy === "database"
+											!isAdmin
 										)
 											return;
 										event.preventDefault();
@@ -606,7 +639,7 @@ export default function MCPServerTable({
 									<SelectableLeading
 										selected={selection.isSelected(server.id)}
 										selectionMode={selection.selectionMode}
-										disabled={!isAdmin || server.managedBy === "database"}
+										disabled={!isAdmin}
 										label={`Select ${server.name}`}
 										onToggle={(shiftKey) => {
 											selection.toggle(server.id, shiftKey);
@@ -702,9 +735,7 @@ export default function MCPServerTable({
 					onRowSelectionClick={(server, shiftKey) => {
 						selection.toggle(server.id, shiftKey);
 					}}
-					isRowSelectable={(server) =>
-						isAdmin && server.managedBy !== "database"
-					}
+					isRowSelectable={() => isAdmin}
 					isLoading={isLoading}
 					scrollBody
 					minTableWidth="950px"
