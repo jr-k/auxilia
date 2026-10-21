@@ -200,6 +200,10 @@ export const ConversationBody = memo(function ConversationBody({
     () => groupChains(messages, toolCalls),
     [messages, toolCalls],
   );
+  const todosByUserTurn = useMemo(
+    () => mapTodosToUserTurns(messages, toolCalls, supervisorTodos),
+    [messages, toolCalls, supervisorTodos],
+  );
 
   const lastVisibleIndex = messages.findLastIndex((m) => !isToolMessage(m));
   const lastVisible =
@@ -230,12 +234,6 @@ export const ConversationBody = memo(function ConversationBody({
 
   return (
     <>
-      {supervisorTodos.length > 0 && (
-        <TodoList
-          todos={supervisorTodos}
-          className="mb-4 rounded-lg border border-border/50 bg-muted/30 p-4"
-        />
-      )}
       {messages.map((message, index) => {
         const key = message.id ?? index;
         if (isHumanMessage(message)) {
@@ -247,6 +245,7 @@ export const ConversationBody = memo(function ConversationBody({
               message={message}
               anchorId={threadMapAnchor(index)}
               sending={index === pendingUserIndex}
+              todos={todosByUserTurn.get(key)}
             />
           );
         }
@@ -436,14 +435,89 @@ const WebSearchSources = ({ sources }: { sources: WebSearchSource[] }) => (
   </div>
 );
 
+/**
+ * `todos` is a single graph-state channel, so rendering it globally detaches
+ * the plan from the prompt that caused it. Persisted `write_todos` calls keep
+ * every turn's snapshots: the last call in a turn is that prompt's final list.
+ * The live channel then refreshes only the most recent turn that owns a list.
+ */
+function mapTodosToUserTurns(
+  messages: readonly BaseMessage[],
+  toolCalls: readonly ToolCallView[],
+  latestTodos: Todo[],
+): Map<string | number, Todo[]> {
+  const callsByMessage = new Map<string, ToolCallView[]>();
+  for (const toolCall of toolCalls) {
+    if (!toolCall.messageId) continue;
+    const calls = callsByMessage.get(toolCall.messageId);
+    if (calls) calls.push(toolCall);
+    else callsByMessage.set(toolCall.messageId, [toolCall]);
+  }
+
+  const todosByUserTurn = new Map<string | number, Todo[]>();
+  let currentUserTurn: string | number | null = null;
+  let latestTodoTurn: string | number | null = null;
+
+  messages.forEach((message, index) => {
+    const key = message.id ?? index;
+    if (isHumanMessage(message)) {
+      if (!isHostNotice(message)) currentUserTurn = key;
+      return;
+    }
+    if (!isAIMessage(message) || !message.id || currentUserTurn == null) return;
+
+    for (const toolCall of callsByMessage.get(message.id) ?? []) {
+      if (toolCall.name !== "write_todos") continue;
+      const todos = parseTodos(toolCall.args?.todos);
+      if (todos == null) continue;
+      todosByUserTurn.set(currentUserTurn, todos);
+      latestTodoTurn = currentUserTurn;
+    }
+  });
+
+  if (latestTodoTurn != null) {
+    todosByUserTurn.set(latestTodoTurn, latestTodos);
+  }
+  return todosByUserTurn;
+}
+
+function parseTodos(value: unknown): Todo[] | null {
+  if (!Array.isArray(value)) return null;
+  const todos: Todo[] = [];
+  for (const item of value) {
+    if (
+      item == null ||
+      typeof item !== "object" ||
+      typeof (item as { content?: unknown }).content !== "string"
+    ) {
+      return null;
+    }
+    const status = (item as { status?: unknown }).status;
+    if (
+      status !== "pending" &&
+      status !== "in_progress" &&
+      status !== "completed"
+    ) {
+      return null;
+    }
+    todos.push({
+      content: (item as { content: string }).content,
+      status,
+    });
+  }
+  return todos;
+}
+
 const UserTurn = ({
   message,
   anchorId,
   sending,
+  todos,
 }: {
   message: BaseMessage;
   anchorId: string;
   sending: boolean;
+  todos?: Todo[];
 }) => {
   const { text, context, source } = presentSideChannelMessage(message.text);
   const attachments = getFileAttachments(message);
@@ -531,6 +605,12 @@ const UserTurn = ({
             </MessageContent>
           </div>
         </Message>
+      )}
+      {todos && todos.length > 0 && (
+        <TodoList
+          todos={todos}
+          className="ml-auto w-full max-w-[82%] rounded-lg border border-border/50 bg-muted/30 p-4"
+        />
       )}
     </div>
   );
