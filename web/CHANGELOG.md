@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.33](https://github.com/jr-k/auxilia/compare/web-v0.12.32...web-v0.12.33) (2026-10-21)
+
+
+### Features
+
+* **web:** show todo lists under the prompt that created them ([43b5310](https://github.com/jr-k/auxilia/commit/43b53100047fc34aa447bd08772a9d15cfad05b0))
+
 ## [0.12.32](https://github.com/jr-k/auxilia/compare/web-v0.12.31...web-v0.12.32) (2026-10-21)
 
 
