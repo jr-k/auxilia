@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.22](https://github.com/jr-k/auxilia/compare/backend-v0.11.21...backend-v0.11.22) (2026-10-24)
+
+
+### Bug Fixes
+
+* **database-connections:** sync DBHub endpoint from environment ([82e891b](https://github.com/jr-k/auxilia/commit/82e891bb7b80fdc0a0729889ed8ae84b7d8fafca))
+
 ## [0.11.21](https://github.com/jr-k/auxilia/compare/backend-v0.11.20...backend-v0.11.21) (2026-10-20)
 
 
