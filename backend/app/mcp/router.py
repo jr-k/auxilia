@@ -25,6 +25,7 @@ from app.mcp.servers.service import MCPServerService
 from app.model_providers.service import ModelService
 from app.pagination import PageParams
 from app.runtime.api.protocol_service import ProtocolService
+from app.settings import app_settings
 from app.skills.schemas import SkillSave
 from app.skills.service import SkillService
 from app.threads.service import ThreadService
@@ -33,9 +34,11 @@ from app.users.models import WorkspaceRole
 
 def transport_security_settings() -> TransportSecuritySettings:
     public_origin = issuer_url()
+    backend_origin = app_settings.backend_url.rstrip("/")
     return TransportSecuritySettings(
         allowed_hosts=[
             urlparse(public_origin).netloc,
+            urlparse(backend_origin).netloc,
             "backend:8000",
             "127.0.0.1:*",
             "localhost:*",
