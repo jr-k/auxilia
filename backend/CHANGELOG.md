@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.24](https://github.com/jr-k/auxilia/compare/backend-v0.11.23...backend-v0.11.24) (2026-10-24)
+
+
+### Features
+
+* **attachments:** persist chat files in sandboxes ([bbf2338](https://github.com/jr-k/auxilia/commit/bbf2338163b4d112b05b5479d613881bbde32e90))
+
 ## [0.11.23](https://github.com/jr-k/auxilia/compare/backend-v0.11.22...backend-v0.11.23) (2026-10-24)
 
 
