@@ -84,7 +84,7 @@ services:
       # DBHub is an internal MCP data plane. The backend owns and reconciles
       # its generated config through the shared volume below.
       DBHUB_ENABLED: ${DBHUB_ENABLED:-true}
-      DBHUB_URL: http://dbhub:8080
+      DBHUB_URL: ${DBHUB_URL:-http://auxilia-dbhub:8080}
       DBHUB_AUTH_TOKEN: ${DBHUB_AUTH_TOKEN:?Set DBHUB_AUTH_TOKEN}
       DBHUB_CONFIG_PATH: /var/lib/auxilia/dbhub/dbhub.toml
       DATABASE_FILES_STORAGE_PATH: /var/lib/auxilia/databases
@@ -125,7 +125,7 @@ services:
     user: "1000:1000"
     environment:
       DBHUB_AUTH_TOKEN: ${DBHUB_AUTH_TOKEN:?Set DBHUB_AUTH_TOKEN}
-      DBHUB_ALLOWED_HOSTS: dbhub,dbhub:8080,localhost,127.0.0.1
+      DBHUB_ALLOWED_HOSTS: dbhub,dbhub:8080,auxilia-dbhub,auxilia-dbhub:8080,localhost,127.0.0.1
     entrypoint: ["node", "/opt/auxilia/dbhub-reloader.mjs"]
     command:
       [

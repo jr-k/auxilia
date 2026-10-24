@@ -107,6 +107,24 @@ async def _persist_managed_tools_disabled(
             db.add(server)
 
 
+async def _sync_managed_server_settings(
+    mcp_repository: MCPServerRepository,
+    connections: list[DatabaseConnectionDB],
+) -> None:
+    """Keep materialized MCP rows aligned with DBHub's environment config."""
+    for connection in connections:
+        server = await mcp_repository.get_scoped(connection.mcp_server_id)
+        if server is None:
+            continue
+        if server.url != dbhub_settings.mcp_url:
+            server.url = dbhub_settings.mcp_url
+            mcp_repository.db.add(server)
+        if await mcp_repository.get_api_key(server.id) != dbhub_settings.auth_token:
+            await mcp_repository.create_or_update_api_key(
+                server.id, dbhub_settings.auth_token
+            )
+
+
 class DBHubReconciler:
     def __init__(self) -> None:
         self._last_file_cleanup = 0.0
@@ -143,6 +161,8 @@ class DBHubReconciler:
                 return
             repository = DatabaseConnectionRepository(db)
             connections = await repository.list_all()
+            mcp_repository = MCPServerRepository(db)
+            await _sync_managed_server_settings(mcp_repository, connections)
             hydrated = await _hydrate_connections(repository, connections)
             content = build_dbhub_config(hydrated)
             current = await asyncio.to_thread(
@@ -157,7 +177,6 @@ class DBHubReconciler:
             # disable the full managed tool surface until DBHub has loaded and
             # verified the new file; the regular tick then syncs agent bindings.
             await repository.bump_desired_revision()
-            mcp_repository = MCPServerRepository(db)
             for connection in connections:
                 connection.desired_revision += 1
                 connection.status = DatabaseConnectionStatus.pending
@@ -225,16 +244,7 @@ class DBHubReconciler:
                 state = await repository.get_control_state(for_update=True)
                 connections = await repository.list_all()
                 mcp_repository = MCPServerRepository(db)
-                for connection in connections:
-                    server = await mcp_repository.get_scoped(connection.mcp_server_id)
-                    if (
-                        server is not None
-                        and await mcp_repository.get_api_key(server.id)
-                        != dbhub_settings.auth_token
-                    ):
-                        await mcp_repository.create_or_update_api_key(
-                            server.id, dbhub_settings.auth_token
-                        )
+                await _sync_managed_server_settings(mcp_repository, connections)
                 hydrated = await _hydrate_connections(repository, connections)
                 content = build_dbhub_config(hydrated)
                 current_content = await asyncio.to_thread(
