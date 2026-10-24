@@ -100,6 +100,7 @@ interface ChatPromptInputProps {
 	selectedEffort?: string | null;
 	onEffortChange?: (effort: string | null) => void;
 	agentReady?: boolean | null;
+	acceptsFiles?: boolean | null;
 	disconnectedServers?: MCPServer[];
 	onAllConnected?: () => void;
 	resourceSettings: ThreadResourceSettings;
@@ -163,6 +164,7 @@ const ChatPromptInput = ({
 	selectedEffort = null,
 	onEffortChange,
 	agentReady,
+	acceptsFiles = null,
 	disconnectedServers = [],
 	onAllConnected,
 	resourceSettings,
@@ -215,6 +217,8 @@ const ChatPromptInput = ({
 	// once the run ends). The stream must still carry the first prompt of
 	// an idle thread: that is what attaches it to the thread's events.
 	const directRunLockRef = useRef(false);
+	const [preparingSubmission, setPreparingSubmission] = useState(false);
+	const configurationLocked = modelChangeDisabled || preparingSubmission;
 	const draftRef = useRef<string | null>(null);
 	const restoreFrameRef = useRef<number | null>(null);
 	const effectiveEditingId =
@@ -249,12 +253,21 @@ const ChatPromptInput = ({
 		: effortDefault
 			? effortLabel(effortDefault)
 			: "Auto";
-	// Text-only models can't take image attachments. Per model, not per chef:
-	// e.g. GLM 5.3 Flash accepts images while plain GLM 5.3 does not. Unknown
-	// model (not in the picker list, e.g. the current model was disabled) → allow,
-	// matching the old lookup-miss behavior.
-	const noAttachments =
-		selectedModelData !== undefined && !selectedModelData.multimodal;
+	const vision =
+		selectedModelData === undefined || selectedModelData.multimodal;
+	const noAttachments = !vision && acceptsFiles === false;
+	useEffect(() => {
+		if (acceptsFiles !== false) return;
+		const unsupported = controller.attachments.files.filter(
+			(file) => !file.mediaType.startsWith("image/"),
+		);
+		for (const file of unsupported) {
+			controller.attachments.remove(file.id);
+		}
+		if (unsupported.length > 0) {
+			toast.error("Non-image files are unavailable for this agent.");
+		}
+	}, [acceptsFiles, controller.attachments]);
 	const enabledDisconnectedServers = useMemo(() => {
 		const disabledIds = new Set(resourceSettings.disabledMcpServerIds);
 		return disconnectedServers.filter((server) => !disabledIds.has(server.id));
@@ -438,7 +451,7 @@ const ChatPromptInput = ({
 	};
 
 	const handleModelChange = async (modelId: string) => {
-		if (modelChangeDisabled) return;
+		if (configurationLocked) return;
 		if (modelId === currentModel) {
 			handleModelSelectorOpenChange(false);
 			return;
@@ -581,28 +594,41 @@ const ChatPromptInput = ({
 		directRunLockRef.current = true;
 		try {
 			await onSubmit(message);
-		} finally {
+		} catch (error) {
 			directRunLockRef.current = false;
+			throw error;
 		}
 	};
 
 	const handleSubmit = (message: PromptInputMessage) => {
-		if (!message || queueLoading || submissionDisabled || modelUpdatePending) return;
+		if (
+			!message ||
+			queueLoading ||
+			submissionDisabled ||
+			modelUpdatePending ||
+			preparingSubmission
+		) {
+			return;
+		}
 		const hasText = Boolean("text" in message && message.text);
 		const hasAttachments = Boolean("files" in message && message.files?.length);
 		if (!(hasText || hasAttachments)) return;
 
-		const awaitSubmission =
-			effectiveEditingId !== null ||
-			queueMode ||
-			directRunLockRef.current;
 		const submission = submitMessage(message);
+		setPreparingSubmission(true);
 		requestAnimationFrame(() => {
 			textareaRef.current?.focus({ preventScroll: true });
 		});
-		if (awaitSubmission) return submission;
-		void submission.catch(() => {});
+		return submission.finally(() => {
+			setPreparingSubmission(false);
+		});
 	};
+
+	useEffect(() => {
+		if (status === "ready") {
+			directRunLockRef.current = false;
+		}
+	}, [status]);
 
 	const finishEditingLocally = () => {
 		setEditingId(null);
@@ -765,6 +791,8 @@ const ChatPromptInput = ({
 				<PromptInput
 					globalDrop
 					multiple
+					maxFiles={10}
+					accept={acceptsFiles === true ? undefined : "image/*"}
 					disableAttachments={
 						noAttachments || effectiveEditingId !== null
 					}
@@ -773,6 +801,13 @@ const ChatPromptInput = ({
 							? "Attachments cannot be changed while editing a queued prompt"
 							: undefined
 					}
+					onError={(error) => {
+						toast.error(
+							error.code === "accept"
+								? "Only images can be attached for this agent."
+								: error.message,
+						);
+					}}
 					onSubmit={handleSubmit}
 					className={cn(
 					"min-h-[116px] transition-all duration-200",
@@ -827,7 +862,7 @@ const ChatPromptInput = ({
 									</span>
 								</TooltipTrigger>
 								<TooltipContent>
-									This model does not support attachments.
+									File uploads are unavailable for this model and agent.
 								</TooltipContent>
 							</Tooltip>
 						) : (
@@ -1101,7 +1136,7 @@ const ChatPromptInput = ({
 							>
 								<DialogTrigger asChild>
 									<PromptInputButton
-										disabled={modelUpdatePending || modelChangeDisabled}
+										disabled={modelUpdatePending || configurationLocked}
 										className={cn(
 											composerPillClass,
 											"min-w-0 max-w-52 cursor-pointer",
@@ -1168,7 +1203,7 @@ const ChatPromptInput = ({
 																		data-keyboard-option="true"
 																		aria-selected={isActive}
 																		disabled={
-																			modelUpdatePending || modelChangeDisabled
+																			modelUpdatePending || configurationLocked
 																		}
 																		onClick={() => {
 																			void handleModelChange(m.id);
@@ -1226,19 +1261,20 @@ const ChatPromptInput = ({
 													: "Auto",
 												active: !validatedEffort,
 												onClick: () => {
-													onEffortChange?.(null);
+													if (!preparingSubmission) onEffortChange?.(null);
 												},
 											},
 											...effortLevels.map((level) => ({
 												label: effortLabel(level),
 												active: validatedEffort === level,
 												onClick: () => {
-													onEffortChange?.(level);
+													if (!preparingSubmission) onEffortChange?.(level);
 												},
 											})),
 										]}
 										trigger={
 											<PromptInputButton
+												disabled={preparingSubmission}
 												className={cn(composerPillClass, "cursor-pointer")}
 											>
 												<BrainIcon className="size-3.5" />
@@ -1256,7 +1292,10 @@ const ChatPromptInput = ({
 						)}
 						<SubmitButton
 							disabled={
-								queueLoading || submissionDisabled || modelUpdatePending
+								queueLoading ||
+								submissionDisabled ||
+								modelUpdatePending ||
+								preparingSubmission
 							}
 						/>
 					</div>
@@ -1271,7 +1310,9 @@ const ChatPromptInput = ({
 				onConnectionChange={() => onAllConnected?.()}
 				resourceSettings={resourceSettings}
 				onResourceSettingsChange={onResourceSettingsChange}
-				resourceSettingsSaving={resourceSettingsSaving}
+				resourceSettingsSaving={
+					resourceSettingsSaving || preparingSubmission
+				}
 			/>
 		</>
 	);
@@ -1384,7 +1425,9 @@ const ConversationTokenCallRow = ({
 const SubmitButton = ({ disabled = false }: { disabled?: boolean }) => {
 	const controller = usePromptInputController();
 	const input = controller.textInput.value;
-	const isDisabled = disabled || !input.trim();
+	const hasContent =
+		Boolean(input.trim()) || controller.attachments.files.length > 0;
+	const isDisabled = disabled || !hasContent;
 
 	return (
 		<button

@@ -3,8 +3,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { PromptInputMessage } from "@/components/ai-elements/prompt-input";
+import * as artifactsApi from "@/lib/api/resources/artifacts";
 import * as threadsApi from "@/lib/api/resources/threads";
-import { promptMessageToContent } from "@/lib/thread-session/build-content";
+import { promptMessageToInput } from "@/lib/thread-session/build-content";
+import { useModelsStore } from "@/stores/models-store";
 import { useWorkspaceEventsStore } from "@/stores/workspace-events-store";
 import type { QueuedPrompt } from "@/types/runs";
 
@@ -22,6 +24,7 @@ export function usePromptQueue(
 	threadId: string,
 	runActive: boolean,
 	userMessageCount: number,
+	modelId?: string | null,
 ) {
 	const connection = useWorkspaceEventsStore((state) => state.connection);
 	const syncVersion = useWorkspaceEventsStore((state) => state.syncVersion);
@@ -71,6 +74,8 @@ export function usePromptQueue(
 	// (already stale) list over the optimistic item.
 	const enqueueChain = useRef<Promise<void>>(Promise.resolve());
 	const enqueueInFlight = useRef(0);
+	const models = useModelsStore((state) => state.models);
+	const vision = models.find((model) => model.id === modelId)?.multimodal !== false;
 
 	useEffect(() => {
 		threadIdRef.current = threadId;
@@ -84,7 +89,6 @@ export function usePromptQueue(
 		if (!runActive) return;
 		// This state mirrors an external stream transition, so clearing it in
 		// the transition effect is intentional.
-		// eslint-disable-next-line react-hooks/set-state-in-effect
 		setClaimedRunStart((current) =>
 			current?.threadId === threadId ? null : current,
 		);
@@ -223,13 +227,34 @@ export function usePromptQueue(
 
 	const enqueue = useCallback(
 		(message: PromptInputMessage) => {
-			const content = promptMessageToContent(message);
-			if (content == null) return Promise.resolve();
 			const version = requestVersion.current;
 			enqueueInFlight.current += 1;
 			const operation = enqueueChain.current.then(async () => {
 				try {
-					const item = await threadsApi.enqueuePrompt(threadId, content);
+					const input = await promptMessageToInput(message, {
+						vision,
+						upload: async (file) => {
+							const blob = await (await fetch(file.url)).blob();
+							const artifact = await artifactsApi.attachFile(
+								threadId,
+								blob,
+								file.filename || "file",
+							);
+							return {
+								id: artifact.id,
+								filename: artifact.filename,
+								mediaType: artifact.mime_type,
+							};
+						},
+					});
+					if (input == null) return undefined;
+					if (
+						threadIdRef.current !== threadId ||
+						version !== requestVersion.current
+					) {
+						return undefined;
+					}
+					const item = await threadsApi.enqueuePrompt(threadId, input);
 					if (
 						threadIdRef.current !== threadId ||
 						version !== requestVersion.current
@@ -265,7 +290,7 @@ export function usePromptQueue(
 			);
 			return operation;
 		},
-		[loadedThreadId, refresh, threadId],
+		[loadedThreadId, refresh, threadId, vision],
 	);
 
 	const update = useCallback(

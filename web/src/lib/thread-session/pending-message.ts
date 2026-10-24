@@ -6,7 +6,7 @@
  */
 export async function submitPendingAfterHydration(
 	hydration: Promise<unknown>,
-	submit: () => void,
+	submit: () => void | Promise<void>,
 	{ capMs = 4_000 }: { capMs?: number } = {},
 ): Promise<void> {
 	let timer: ReturnType<typeof setTimeout> | undefined;
@@ -22,5 +22,5 @@ export async function submitPendingAfterHydration(
 	} finally {
 		clearTimeout(timer);
 	}
-	submit();
+	await submit();
 }

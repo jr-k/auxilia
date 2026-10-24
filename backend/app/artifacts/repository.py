@@ -52,12 +52,51 @@ class ArtifactRepository(BaseRepository[ArtifactDB]):
                 ArtifactDB.workspace_id == self.workspace_id,
                 ArtifactDB.thread_id == thread_id,
                 ArtifactDB.source_path == path,
+                ArtifactDB.origin == "artifact",
             )
             .order_by(col(ArtifactDB.created_at).desc(), col(ArtifactDB.id).desc())
             .limit(1)
         )
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
+
+    async def paths_in_thread(self, thread_id: str) -> set[str]:
+        stmt = select(ArtifactDB.source_path).where(
+            ArtifactDB.workspace_id == self.workspace_id,
+            ArtifactDB.thread_id == thread_id,
+        )
+        result = await self.db.execute(stmt)
+        return set(result.scalars().all())
+
+    async def list_stored_in(
+        self,
+        thread_id: str,
+        kind: str,
+        bucket: str | None,
+        endpoint: str | None,
+    ) -> list[ArtifactDB]:
+        """Latest stored thread file for every sandbox path."""
+        stmt = (
+            select(ArtifactDB)
+            .where(
+                ArtifactDB.workspace_id == self.workspace_id,
+                ArtifactDB.thread_id == thread_id,
+                ArtifactDB.storage_kind == kind,
+                col(ArtifactDB.storage_bucket).is_not_distinct_from(bucket),
+                col(ArtifactDB.storage_endpoint).is_not_distinct_from(endpoint),
+            )
+            .order_by(
+                col(ArtifactDB.source_path),
+                col(ArtifactDB.created_at).desc(),
+                col(ArtifactDB.id).desc(),
+            )
+        )
+        result = await self.db.execute(stmt)
+        rows = result.scalars().all()
+        latest: dict[str, ArtifactDB] = {}
+        for row in rows:
+            latest.setdefault(row.source_path, row)
+        return list(latest.values())
 
     async def in_thread(
         self, thread_id: str, artifact_id: UUID, *, for_update: bool = False
@@ -71,6 +110,21 @@ class ArtifactRepository(BaseRepository[ArtifactDB]):
             stmt = stmt.with_for_update()
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
+
+    async def attachments_by_ids(
+        self, thread_id: str, attachment_ids: list[UUID]
+    ) -> list[ArtifactDB]:
+        if not attachment_ids:
+            return []
+        stmt = select(ArtifactDB).where(
+            ArtifactDB.workspace_id == self.workspace_id,
+            ArtifactDB.thread_id == thread_id,
+            ArtifactDB.origin == "attachment",
+            col(ArtifactDB.id).in_(attachment_ids),
+        )
+        result = await self.db.execute(stmt)
+        rows = {row.id: row for row in result.scalars().all()}
+        return [rows[item_id] for item_id in attachment_ids if item_id in rows]
 
     async def save(self, row: ArtifactDB) -> ArtifactDB:
         self.db.add(row)

@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.core.service import AgentService, get_agent_service
 from app.agents.models import EffectivePermission
+from app.artifacts.service import ArtifactService, get_artifact_service
 from app.auth.dependencies import get_current_user
 from app.database import get_db
 from app.exceptions import (
@@ -211,6 +212,7 @@ async def create_run(
         trigger=trigger,
         config_overrides=config_overrides,
         multitask_strategy=body.multitask_strategy,
+        output_schema=body.output_schema,
     )
     return RunResponse.from_record(record)
 
@@ -254,16 +256,20 @@ async def enqueue_prompt(
     body: QueuedPromptCreate,
     thread: ThreadResponse = Depends(authorize_thread),
     runs: RunService = Depends(get_run_service),
+    artifacts: ArtifactService = Depends(get_artifact_service),
     db: AsyncSession = Depends(get_db),
 ) -> QueuedPromptResponse:
     content = body.content if body.content is not None else (body.text or "")
-    if not has_queued_prompt_content(content):
+    if not has_queued_prompt_content(content) and not body.attachment_ids:
         raise DomainValidationError("A queued prompt cannot be empty.")
+    attachment_metadata = await artifacts.attachment_metadata(
+        thread_id, body.attachment_ids
+    )
     await db.commit()
     record = await runs.create(
         thread_id=thread_id,
         user_id=str(thread.user_id),
-        input=queued_prompt_input(content),
+        input=queued_prompt_input(content, attachment_metadata),
         multitask_strategy="enqueue",
         force_queue_position=True,
     )

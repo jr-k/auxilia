@@ -7,7 +7,7 @@
  */
 import { api } from "@/lib/api/client";
 import type { Paginated } from "@/types/api";
-import type { HumanContent } from "@/lib/thread-session/build-content";
+import type { HumanInput } from "@/lib/thread-session/build-content";
 import type { QueuedPrompt, Run } from "@/types/runs";
 import type {
 	AgentThread,
@@ -109,8 +109,9 @@ export async function listQueuedPrompts(
 
 export async function enqueuePrompt(
 	threadId: string,
-	content: HumanContent,
+	input: HumanInput,
 ): Promise<QueuedPrompt> {
+	const { content, attachments } = input;
 	const text =
 		typeof content === "string"
 			? content
@@ -123,7 +124,11 @@ export async function enqueuePrompt(
 					.join("\n");
 	const response = await api.post<QueuedPromptWire>(
 		`/threads/${threadId}/runs/queue`,
-		{ content, ...(text.trim() ? { text } : {}) },
+		{
+			content,
+			attachmentIds: attachments.map((attachment) => attachment.id),
+			...(text.trim() ? { text } : {}),
+		},
 	);
 	return normalizeQueuedPrompt(response.data);
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { BaseMessage } from "@langchain/core/messages";
 import {
   isAIMessage,
@@ -147,6 +147,7 @@ const ChatPage = () => {
     threadId,
     run.status !== "idle",
     userMessageCount,
+    meta.thread?.modelId,
   );
   const {
     acknowledgeClaimedPrompt,
@@ -176,17 +177,20 @@ const ChatPage = () => {
     userMessageCount,
   ]);
   const thread = meta.thread;
-  const resourceSettings =
-    resourceSettingsOverride?.threadId === threadId
-      ? resourceSettingsOverride.settings
-      : thread
-        ? {
-            disabledMcpServerIds: thread.disabledMcpServerIds ?? [],
-            disabledSkillIds: thread.disabledSkillIds ?? [],
-            disabledSandboxIds: thread.disabledSandboxIds ?? [],
-            disabledSubagentIds: thread.disabledSubagentIds ?? [],
-          }
-        : EMPTY_RESOURCE_SETTINGS;
+  const resourceSettings = useMemo(
+    () =>
+      resourceSettingsOverride?.threadId === threadId
+        ? resourceSettingsOverride.settings
+        : thread
+          ? {
+              disabledMcpServerIds: thread.disabledMcpServerIds ?? [],
+              disabledSkillIds: thread.disabledSkillIds ?? [],
+              disabledSandboxIds: thread.disabledSandboxIds ?? [],
+              disabledSubagentIds: thread.disabledSubagentIds ?? [],
+            }
+          : EMPTY_RESOURCE_SETTINGS,
+    [resourceSettingsOverride, thread, threadId],
+  );
 
   const updateResourceSettings = async (next: ThreadResourceSettings) => {
     if (resourceSettingsSaving) return;
@@ -239,11 +243,15 @@ const ChatPage = () => {
 
   const {
     ready: agentReady,
+    acceptsFiles,
     status: agentStatus,
     detail: agentStatusDetail,
     disconnectedMcpServers,
     refetch: refetchReady,
-  } = useAgentReadiness(meta.agentArchived ? undefined : agentId);
+  } = useAgentReadiness(
+    meta.agentArchived ? undefined : agentId,
+    resourceSettings,
+  );
   // Two ways the sandbox can be down: readiness said so when the page opened,
   // or a command 409'd mid-session after the provider fell over. One notice
   // either way, cleared by "Check again".
@@ -452,6 +460,7 @@ const ChatPage = () => {
             readOnlyEffort={true}
             selectedEffort={thread?.reasoningEffort ?? null}
             agentReady={agentReady}
+            acceptsFiles={acceptsFiles}
             disconnectedServers={disconnectedMcpServers}
             onAllConnected={refetchReady}
             resourceSettings={resourceSettings}

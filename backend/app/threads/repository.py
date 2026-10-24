@@ -28,6 +28,14 @@ class ThreadRepository(BaseRepository[ThreadDB]):
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
+    async def lock(self, thread_id: str) -> ThreadDB | None:
+        """Serialize operations that allocate names within one thread."""
+        stmt = self._scope(
+            select(ThreadDB).where(ThreadDB.id == thread_id).with_for_update()
+        )
+        result = await self.db.execute(stmt)
+        return result.scalar_one_or_none()
+
     async def list_ids_for_agent(self, agent_id: UUID) -> list[str]:
         stmt = self._scope(select(ThreadDB.id).where(ThreadDB.agent_id == agent_id))
         result = await self.db.execute(stmt)

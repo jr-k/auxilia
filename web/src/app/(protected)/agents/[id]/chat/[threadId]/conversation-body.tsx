@@ -20,6 +20,7 @@ import type { Interrupt } from "@langchain/langgraph-sdk";
 import {
   ChevronDownIcon,
   CopyIcon,
+  DownloadIcon,
   ExternalLinkIcon,
   MessagesSquareIcon,
   PaperclipIcon,
@@ -54,6 +55,7 @@ import {
   Attachments,
   getAttachmentLabel,
   getMediaCategory,
+  type AttachmentData,
 } from "@/components/ai-elements/attachments";
 import { TodoList } from "@/components/ai-elements/todo-list";
 import type { Todo } from "@/components/ai-elements/todo-list";
@@ -68,11 +70,17 @@ import * as agentsApi from "@/lib/api/resources/agents";
 import type { HitlDecision, HitlResponse } from "@/hooks/use-hitl-approvals";
 import type { AgentResourceSandbox } from "@/types/agents";
 import type { QueuedPrompt } from "@/types/runs";
-import { AppSlot, ArtifactCards } from "@/components/artifacts/workspace";
+import {
+  AppSlot,
+  ArtifactCards,
+  useAttachedFiles,
+} from "@/components/artifacts/workspace";
+import { contentUrl } from "@/lib/api/resources/artifacts";
 import {
   type ChainStepData,
   type ToolCallView,
   type ToolStepState,
+  getAttachmentIds,
   getFileAttachments,
   getMcpAppInfo,
   getReasoning,
@@ -349,7 +357,7 @@ export function isHostNotice(message: BaseMessage): boolean {
 
 const HostNotice = ({ message }: { message: BaseMessage }) => (
   <div className="my-2 flex justify-center">
-    <p className="max-w-[80%] rounded-md border border-dashed border-border px-3 py-1.5 text-center text-[11.5px] leading-[1.5] text-muted-foreground">
+    <p className="max-w-[80%] whitespace-pre-line rounded-md border border-dashed border-border px-3 py-1.5 text-center text-[11.5px] leading-[1.5] text-muted-foreground">
       {message.text.replace(/^\[Host notice\]\s*/, "")}
     </p>
   </div>
@@ -520,7 +528,24 @@ const UserTurn = ({
   todos?: Todo[];
 }) => {
   const { text, context, source } = presentSideChannelMessage(message.text);
-  const attachments = getFileAttachments(message);
+  const inline = getFileAttachments(message);
+  const hasInlineImages = inline.some(
+    (attachment) => getMediaCategory(attachment) === "image",
+  );
+  const files = useAttachedFiles(getAttachmentIds(message))
+    .filter(
+      (file) => !(hasInlineImages && file.mime_type.startsWith("image/")),
+    )
+    .map(
+      (file): AttachmentData => ({
+        id: file.id,
+        type: "file",
+        url: contentUrl(file),
+        filename: file.filename,
+        mediaType: file.mime_type,
+      }),
+    );
+  const attachments = [...inline, ...files];
   return (
     <div id={anchorId} className="flex flex-col gap-2">
       {attachments.length > 0 && (
@@ -567,6 +592,16 @@ const UserTurn = ({
                           {label}
                         </h4>
                       </div>
+                      {attachment.type === "file" && attachment.url && (
+                        <a
+                          className="inline-flex items-center gap-1.5 whitespace-nowrap text-sm font-medium text-petrol hover:underline"
+                          download={attachment.filename}
+                          href={attachment.url}
+                        >
+                          <DownloadIcon className="size-3.5" />
+                          Download
+                        </a>
+                      )}
                     </div>
                   </AttachmentHoverCardContent>
                 </AttachmentHoverCard>

@@ -1,7 +1,7 @@
 import logging
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, Header, UploadFile
+from fastapi import APIRouter, Depends, File, Header, Query, UploadFile
 from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -453,10 +453,21 @@ async def delete_subagent(
 )
 async def is_ready(
     agent_id: UUID,
+    disabled_mcp_server_ids: list[UUID] | None = Query(default=None),
+    disabled_sandbox_ids: list[UUID] | None = Query(default=None),
+    disabled_subagent_ids: list[UUID] | None = Query(default=None),
+    force_enable_all_capabilities: bool | None = Query(default=None),
     current_user: UserDB = Depends(get_current_user),
     service: AgentService = Depends(get_agent_service),
 ):
-    return await service.describe_readiness(agent_id, str(current_user.id))
+    return await service.describe_readiness(
+        agent_id,
+        str(current_user.id),
+        disabled_mcp_server_ids=set(disabled_mcp_server_ids or []),
+        disabled_sandbox_ids=set(disabled_sandbox_ids or []),
+        disabled_subagent_ids=set(disabled_subagent_ids or []),
+        force_enable_all_capabilities=force_enable_all_capabilities,
+    )
 
 
 @router.get(

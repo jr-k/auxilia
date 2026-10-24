@@ -39,6 +39,7 @@ from app.agents.schemas import (
     AgentSkillResponse,
     SubagentResponse,
 )
+from app.artifacts.settings import artifact_settings
 from app.database import get_db
 from app.database_connections.models import DATABASE_ENGINE_ICON_URLS
 from app.database_connections.repository import DatabaseConnectionRepository
@@ -1503,22 +1504,25 @@ class AgentService(BaseService[AgentDB, AgentRepository]):
             if spec and exclusions
             else []
         )
+        enabled_sandbox_rows = (
+            [
+                agent_spec.sandbox.row
+                for agent_spec in enabled_specs
+                if agent_spec.sandbox is not None
+                and agent_spec.sandbox.row.id not in exclusions.sandbox_ids
+            ]
+            if exclusions
+            else []
+        )
+        accepts_files = bool(artifact_settings.provider and enabled_sandbox_rows)
         # The sandbox first: an outage blocks the agent outright, and there is
         # nothing the user can click to fix it (unlike an MCP reconnect).
         try:
-            await ensure_sandboxes_available(
-                [
-                    agent_spec.sandbox.row
-                    for agent_spec in enabled_specs
-                    if agent_spec.sandbox is not None
-                    and agent_spec.sandbox.row.id not in exclusions.sandbox_ids
-                ]
-                if exclusions
-                else []
-            )
+            await ensure_sandboxes_available(enabled_sandbox_rows)
         except SandboxUnavailableError as exc:
             return {
                 "ready": False,
+                "accepts_files": accepts_files,
                 "disconnected_servers": [],
                 "status": "sandbox_unavailable",
                 "detail": exc.detail,
@@ -1538,7 +1542,12 @@ class AgentService(BaseService[AgentDB, AgentRepository]):
         )
 
         if not bindings:
-            return {"ready": True, "disconnected_servers": [], "status": "ready"}
+            return {
+                "ready": True,
+                "accepts_files": accepts_files,
+                "disconnected_servers": [],
+                "status": "ready",
+            }
 
         is_configured = all(binding.tools is not None for binding in bindings)
 
@@ -1555,12 +1564,14 @@ class AgentService(BaseService[AgentDB, AgentRepository]):
         if not is_configured:
             return {
                 "ready": False,
+                "accepts_files": accepts_files,
                 "disconnected_servers": disconnected,
                 "status": "not_configured",
             }
 
         return {
             "ready": True,
+            "accepts_files": accepts_files,
             "disconnected_servers": disconnected,
             "status": "disconnected" if disconnected else "ready",
         }

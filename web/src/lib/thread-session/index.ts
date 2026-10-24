@@ -9,4 +9,4 @@ export {
 	type SessionMeta,
 	type SessionState,
 } from "./session-reducer";
-export { promptMessageToContent } from "./build-content";
+export { promptMessageToContent, promptMessageToInput } from "./build-content";

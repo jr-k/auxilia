@@ -4,7 +4,8 @@ import { protocolFetch } from "@/lib/api/protocol";
 export interface Artifact {
   id: string;
   thread_id: string;
-  tool_call_id: string;
+  origin: "attachment" | "artifact";
+  tool_call_id: string | null;
   title: string;
   filename: string;
   mime_type: string;
@@ -13,6 +14,25 @@ export interface Artifact {
   sha256: string;
   temporary: boolean;
   created_at: string | null;
+}
+
+/** Persist one user attachment as a thread file. */
+export async function attachFile(
+  threadId: string,
+  file: Blob,
+  filename: string,
+): Promise<Artifact> {
+  const response = await protocolFetch(
+    `${API_BASE_URL}/threads/${encodeURIComponent(threadId)}/artifacts?filename=${encodeURIComponent(filename)}`,
+    { method: "POST", body: file },
+  );
+  if (!response.ok) {
+    const body = (await response.json().catch(() => null)) as {
+      detail?: string;
+    } | null;
+    throw new Error(body?.detail ?? `Could not attach ${filename}.`);
+  }
+  return (await response.json()) as Artifact;
 }
 
 export class ArtifactConflictError extends Error {}

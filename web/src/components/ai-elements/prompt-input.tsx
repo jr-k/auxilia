@@ -135,8 +135,24 @@ export function PromptInputProvider({
 	const [attachements, setAttachements] = useState<
 		(FileUIPart & { id: string })[]
 	>([]);
+	const attachmentsRef = useRef(attachements);
 	const fileInputRef = useRef<HTMLInputElement | null>(null);
 	const openRef = useRef<() => void>(() => {});
+
+	useEffect(() => {
+		attachmentsRef.current = attachements;
+	}, [attachements]);
+
+	useEffect(
+		() => () => {
+			for (const file of attachmentsRef.current) {
+				if (file.url?.startsWith("blob:")) {
+					URL.revokeObjectURL(file.url);
+				}
+			}
+		},
+		[],
+	);
 
 	const add = useCallback((files: File[] | FileList) => {
 		const incoming = Array.from(files);
@@ -258,6 +274,9 @@ const LocalAttachmentsContext = createContext<AttachmentsContext | null>(null);
 // True when the surrounding PromptInput has attachments disabled (e.g. the
 // selected model can't take files) — lets paste/button handlers opt out too.
 const AttachmentsDisabledContext = createContext(false);
+const AttachmentsAddContext = createContext<
+	((files: File[] | FileList) => void) | null
+>(null);
 
 const usePromptInputAttachments = () => {
 	// Dual-mode: prefer provider if present, otherwise use local
@@ -570,7 +589,37 @@ export const PromptInput = ({
 	);
 
 	const addFiles = usingProvider
-		? (files: File[] | FileList) => { controller.attachments.add(files); }
+		? (fileList: File[] | FileList) => {
+				const incoming = Array.from(fileList);
+				const accepted = incoming.filter(matchesAccept);
+				if (accepted.length !== incoming.length) {
+					onError?.({
+						code: "accept",
+						message: "Some files do not match the accepted types.",
+					});
+				}
+				const sized = accepted.filter(
+					(file) => !maxFileSize || file.size <= maxFileSize,
+				);
+				if (sized.length !== accepted.length) {
+					onError?.({
+						code: "max_file_size",
+						message: "Some files exceed the maximum size.",
+					});
+				}
+				const capacity =
+					typeof maxFiles === "number"
+						? Math.max(0, maxFiles - files.length)
+						: sized.length;
+				const capped = sized.slice(0, capacity);
+				if (capped.length !== sized.length) {
+					onError?.({
+						code: "max_files",
+						message: "Too many files. Some were not added.",
+					});
+				}
+				if (capped.length > 0) controller.attachments.add(capped);
+			}
 		: addLocal;
 	// Every ingestion path (file dialog, drop, paste) funnels through here.
 	const add = disableAttachments ? () => {} : addFiles;
@@ -762,9 +811,14 @@ export const PromptInput = ({
 		}),
 		[files, add, remove, clear, openFileDialog],
 	);
+	const submittingRef = useRef(false);
+	const latestTextRef = useRef(controller?.textInput.value ?? "");
+	latestTextRef.current = controller?.textInput.value ?? "";
 
 	const handleSubmit: FormEventHandler<HTMLFormElement> = (event) => {
 		event.preventDefault();
+		if (submittingRef.current) return;
+		submittingRef.current = true;
 
 		const form = event.currentTarget;
 		const text = usingProvider
@@ -779,51 +833,41 @@ export const PromptInput = ({
 		if (!usingProvider) {
 			form.reset();
 		}
+		const submittedFiles = [...files];
 
-		// Convert blob URLs to data URLs asynchronously
-		Promise.all(
-			files.map(async ({ id, ...item }) => {
-				if (item.url && item.url.startsWith("blob:")) {
-					return {
-						...item,
-						url: await convertBlobUrlToDataUrl(item.url),
-					};
-				}
-				return item;
-			}),
-		).then((convertedFiles: FileUIPart[]) => {
+		void (async () => {
 			try {
-				const result = onSubmit({ text, files: convertedFiles }, event);
-
-				// Handle both sync and async onSubmit
-				if (result instanceof Promise) {
-					result
-						.then(() => {
-							clear();
-							if (usingProvider) {
-								controller.textInput.clear();
-							}
-						})
-						.catch(() => {
-							// Don't clear on error - user may want to retry
-						});
-				} else {
-					// Sync function completed without throwing, clear attachments
-					clear();
-					if (usingProvider) {
-						controller.textInput.clear();
-					}
+				const convertedFiles = await Promise.all(
+					submittedFiles.map(async ({ id, ...item }) => {
+						if (item.url && item.url.startsWith("blob:")) {
+							return {
+								...item,
+								url: await convertBlobUrlToDataUrl(item.url),
+							};
+						}
+						return item;
+					}),
+				);
+				await onSubmit({ text, files: convertedFiles }, event);
+				for (const file of submittedFiles) {
+					remove(file.id);
 				}
-			} catch (error) {
+				if (usingProvider && latestTextRef.current === text) {
+					controller.textInput.clear();
+				}
+			} catch {
 				// Don't clear on error - user may want to retry
+			} finally {
+				submittingRef.current = false;
 			}
-		});
+		})();
 	};
 
 	// Render with or without local provider
 	const inner = (
-		<AttachmentsDisabledContext.Provider value={!!disableAttachments}>
-			<span aria-hidden="true" className="hidden" ref={anchorRef} />
+		<AttachmentsAddContext.Provider value={add}>
+			<AttachmentsDisabledContext.Provider value={!!disableAttachments}>
+				<span aria-hidden="true" className="hidden" ref={anchorRef} />
 			<input
 				accept={accept}
 				aria-label="Upload files"
@@ -867,8 +911,9 @@ export const PromptInput = ({
 						</div>
 					)}
 				</InputGroup>
-			</form>
-		</AttachmentsDisabledContext.Provider>
+				</form>
+			</AttachmentsDisabledContext.Provider>
+		</AttachmentsAddContext.Provider>
 	);
 
 	return usingProvider ? (
@@ -903,6 +948,7 @@ export const PromptInputTextarea = ({
 	const controller = useOptionalPromptInputController();
 	const attachments = usePromptInputAttachments();
 	const attachmentsDisabled = useContext(AttachmentsDisabledContext);
+	const addChecked = useContext(AttachmentsAddContext);
 	const [isComposing, setIsComposing] = useState(false);
 
 	const handleKeyDown: KeyboardEventHandler<HTMLTextAreaElement> = (e) => {
@@ -964,7 +1010,7 @@ export const PromptInputTextarea = ({
 
 		if (files.length > 0) {
 			event.preventDefault();
-			attachments.add(files);
+			(addChecked ?? attachments.add)(files);
 		}
 	};
 

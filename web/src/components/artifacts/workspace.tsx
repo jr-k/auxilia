@@ -322,6 +322,20 @@ export function ArtifactCards({ toolCallId }: { toolCallId: string }) {
     ));
 }
 
+/** Resolve attachment references on human messages against the thread files. */
+export function useAttachedFiles(ids: string[]): Artifact[] {
+  const { items } = useContext(ArtifactContext);
+  const byId = new Map(
+    items
+      .filter((item) => item.origin === "attachment")
+      .map((item) => [item.id, item]),
+  );
+  return ids.flatMap((id) => {
+    const item = byId.get(id);
+    return item ? [item] : [];
+  });
+}
+
 /** An MCP app in the transcript: live inline, or a card while it is open in
  *  the panel, so exactly one copy of the app runs at a time. */
 export function AppSlot({
@@ -647,7 +661,9 @@ export function ArtifactWorkspace({
           known.current === null
             ? []
             : next.filter(
-                (item) => known.current?.get(item.id) !== item.sha256,
+                (item) =>
+                  item.origin === "artifact" &&
+                  known.current?.get(item.id) !== item.sha256,
               );
         known.current = new Map(next.map((item) => [item.id, item.sha256]));
         setItems(next);
@@ -686,12 +702,17 @@ export function ArtifactWorkspace({
   }, [threadId, running, refreshKey, attempt]);
   const app = openAppId ? apps.get(openAppId) : undefined;
   const entries: Entry[] = [
-    ...items.map((item): Entry => ({
-      kind: "file",
-      key: item.id,
-      toolCallId: item.tool_call_id,
-      item,
-    })),
+    ...items
+      .filter(
+        (item): item is Artifact & { tool_call_id: string } =>
+          item.origin === "artifact" && item.tool_call_id !== null,
+      )
+      .map((item): Entry => ({
+        kind: "file",
+        key: item.id,
+        toolCallId: item.tool_call_id,
+        item,
+      })),
     ...Array.from(apps, ([toolCallId, app]): Entry => ({
       kind: "app",
       key: toolCallId,

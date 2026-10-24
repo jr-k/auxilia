@@ -19,6 +19,7 @@ import type { Todo } from "@/components/ai-elements/todo-list";
 import { type HitlDecision, type HitlResponse, useHitlApprovals } from "@/hooks/use-hitl-approvals";
 import { useProtocolFetch } from "@/hooks/use-protocol-fetch";
 import { useThrottledValue } from "@/hooks/use-throttled-value";
+import * as artifactsApi from "@/lib/api/resources/artifacts";
 import { protocolApiUrl } from "@/lib/api/protocol";
 import * as threadsApi from "@/lib/api/resources/threads";
 import {
@@ -29,11 +30,12 @@ import {
 	type ToolCallView,
 } from "@/lib/transcript";
 import { useActiveRunsStore } from "@/stores/active-runs-store";
+import { useModelsStore } from "@/stores/models-store";
 import { usePendingMessageStore } from "@/stores/pending-message-store";
 import type { Run } from "@/types/runs";
 import type { ThreadRead } from "@/types/threads";
 
-import { promptMessageToContent } from "./build-content";
+import { promptMessageToInput } from "./build-content";
 import { EMPTY_HELD, holdInterrupts } from "./interrupt-hold";
 import { submitPendingAfterHydration } from "./pending-message";
 import {
@@ -63,12 +65,15 @@ export type ThreadSessionTransport = {
 	fetch?: typeof fetch;
 	readThread: (threadId: string) => Promise<ThreadRead>;
 	listThreadRuns: (threadId: string) => Promise<Run[]>;
+	attachFile?: (threadId: string, file: Blob, filename: string) => Promise<string>;
 	updateThreadModel?: (threadId: string, modelId: string) => Promise<ThreadRead["thread"]>;
 };
 
 export const defaultTransport: ThreadSessionTransport = {
 	readThread: threadsApi.readThread,
 	listThreadRuns: threadsApi.listThreadRuns,
+	attachFile: async (threadId, file, filename) =>
+		(await artifactsApi.attachFile(threadId, file, filename)).id,
 	updateThreadModel: threadsApi.updateThreadModel,
 };
 
@@ -155,6 +160,7 @@ export function useThreadSession({
 	const [state, dispatch] = useReducer(sessionReducer, initialSessionState);
 	const currentThreadId = useRef(threadId);
 	currentThreadId.current = threadId;
+	const models = useModelsStore((store) => store.models);
 
 	const callbacks = useRef({ onStaleInterrupt, onCompleted });
 	useEffect(() => {
@@ -277,28 +283,71 @@ export function useThreadSession({
 	const send = useCallback(
 		async (message: PromptInputMessage) => {
 			if (stoppingRef.current === threadId) return;
-			const content = promptMessageToContent(message);
-			if (content == null) return;
+			if (!message.text?.trim() && (message.files?.length ?? 0) === 0) return;
 			userActed();
+			const vision =
+				models.find((model) => model.id === state.meta.thread?.modelId)
+					?.multimodal !== false;
+			const input = await promptMessageToInput(message, {
+				vision,
+				upload: async (file) => {
+					const blob = await (await fetch(file.url)).blob();
+					const id = await (
+						transport.attachFile ?? defaultTransport.attachFile!
+					)(threadId, blob, file.filename || "file");
+					return {
+						id,
+						filename: file.filename || "file",
+						mediaType: file.mediaType || "application/octet-stream",
+					};
+				},
+			});
+			if (input == null || currentThreadId.current !== threadId) return;
 			const sequence = ++submissionSequence.current;
 			setPendingSubmission({
 				threadId,
 				sequence,
 				baselineUserMessageCount: renderedUserMessageCount,
 			});
-			try {
-				await selectorStream.submit({
-					messages: [{ type: "human", content }],
-				});
-			} finally {
-				setPendingSubmission((current) =>
-					current?.threadId === threadId && current.sequence === sequence
-						? null
-						: current,
-				);
-			}
+			const additional_kwargs =
+				input.attachments.length > 0
+					? {
+							attachments: input.attachments.map((attachment) => ({
+								id: attachment.id,
+								filename: attachment.filename,
+								media_type: attachment.mediaType,
+							})),
+						}
+					: undefined;
+			void selectorStream
+				.submit({
+					messages: [
+						{
+							type: "human",
+							content: input.content,
+							...(additional_kwargs ? { additional_kwargs } : {}),
+						},
+					],
+				})
+				.finally(() => {
+					setPendingSubmission((current) =>
+						current?.threadId === threadId &&
+						current.sequence === sequence
+							? null
+							: current,
+					);
+				})
+				.catch(() => {});
 		},
-		[renderedUserMessageCount, selectorStream, threadId, userActed],
+		[
+			models,
+			renderedUserMessageCount,
+			selectorStream,
+			state.meta.thread?.modelId,
+			threadId,
+			transport,
+			userActed,
+		],
 	);
 
 	const regenerate = useCallback(() => {
@@ -465,13 +514,13 @@ export function useThreadSession({
 				claimed = pending;
 				await submitPendingAfterHydration(
 					latestStream.current.hydrationPromise,
-					() => {
+					async () => {
 						// Cancelled while waiting: the cleanup has already parked
 						// the message again; sending it here would reach a stream
 						// nobody is watching.
 						if (cancelled) return;
+						await send(pending);
 						claimed = null;
-						void send(pending);
 					},
 					{ capMs: pendingMessageCapMs },
 				);
@@ -490,6 +539,10 @@ export function useThreadSession({
 		};
 		open().catch((error: unknown) => {
 			if (cancelled) return;
+			if (claimed) {
+				setPendingMessage(threadId, claimed);
+				claimed = null;
+			}
 			console.error("Could not open the thread:", error);
 			dispatch({ type: "open-failed", threadId, error });
 		});

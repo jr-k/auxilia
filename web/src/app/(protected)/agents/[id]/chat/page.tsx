@@ -20,6 +20,7 @@ import { AgentAvatar } from "@/components/ui/agent-avatar";
 import { getDefaultModel } from "@/lib/utils/get-default-model";
 import { useAgentReadiness } from "@/hooks/use-agent-readiness";
 import type { ThreadResourceSettings } from "@/types/threads";
+import { toast } from "sonner";
 
 const EMPTY_RESOURCE_SETTINGS: ThreadResourceSettings = {
 	disabledMcpServerIds: [],
@@ -62,11 +63,12 @@ const StarterChatPage = () => {
 	const currentAgent = loadedAgentId === agentId ? agent : null;
 	const {
 		ready: agentReady,
+		acceptsFiles,
 		status,
 		detail: statusDetail,
 		disconnectedMcpServers,
 		refetch: refetchReady,
-	} = useAgentReadiness(agentId);
+	} = useAgentReadiness(agentId, resourceSettings);
 
 	const handleSubmit = async (message: PromptInputMessage) => {
 		if (!message) return;
@@ -93,11 +95,9 @@ const StarterChatPage = () => {
 			resourceSettingsState.agentId === submittedAgentId
 				? resourceSettingsState.settings
 				: null;
+		const threadId = generateUuid();
 
 		try {
-			// Generate thread ID on frontend
-			const threadId = generateUuid();
-
 			// Store the pending message (with files) to be consumed by the thread page
 			setPendingMessage(threadId, message);
 
@@ -115,7 +115,9 @@ const StarterChatPage = () => {
 			if (agentRequestIdRef.current !== submittedAgentRequestId) {
 				usePendingMessageStore.getState().consumePendingMessage(threadId);
 				setIsCreating(false);
-				return;
+				const error = new Error("Conversation creation was superseded");
+				error.name = "AbortError";
+				throw error;
 			}
 
 			const thread = {
@@ -130,8 +132,14 @@ const StarterChatPage = () => {
 
 			router.push(`/agents/${submittedAgentId}/chat/${threadId}`);
 		} catch (error) {
-			console.error("Error creating thread:", error);
+			usePendingMessageStore.getState().consumePendingMessage(threadId);
 			setIsCreating(false);
+			const aborted = error instanceof Error && error.name === "AbortError";
+			if (!aborted) {
+				console.error("Error creating thread:", error);
+				toast.error("Could not start the conversation. Try again.");
+			}
+			throw error;
 		}
 	};
 
@@ -287,9 +295,7 @@ const StarterChatPage = () => {
 					) : (
 						<ChatPromptInput
 							agentId={agentId}
-							onSubmit={(message) => {
-								void handleSubmit(message);
-							}}
+							onSubmit={handleSubmit}
 							status={isCreating ? "streaming" : "ready"}
 							className="w-full"
 							selectedModel={selectedModel}
@@ -302,6 +308,7 @@ const StarterChatPage = () => {
 							selectedEffort={reasoningEffort}
 							onEffortChange={setReasoningEffort}
 							agentReady={agentReady}
+							acceptsFiles={acceptsFiles}
 							disconnectedServers={disconnectedMcpServers}
 							onAllConnected={() => {
 								refetchReady();

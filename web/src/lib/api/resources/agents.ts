@@ -6,6 +6,7 @@
  * with `ApiError`. Cache updates belong to the store that calls these.
  */
 import { api } from "@/lib/api/client";
+import type { ThreadResourceSettings } from "@/types/threads";
 import type { Paginated } from "@/types/api";
 import type {
 	Agent,
@@ -63,6 +64,7 @@ export type AgentReadyStatus =
 /** `GET /agents/{id}/is-ready` — can the agent run right now? */
 export interface AgentReadiness {
 	ready: boolean;
+	acceptsFiles: boolean;
 	disconnectedServers: string[];
 	status: AgentReadyStatus;
 	/** Human-readable reason, set with `sandbox_unavailable`. */
@@ -156,8 +158,20 @@ export async function permanentlyDeleteAgent(agentId: string): Promise<void> {
 	await api.delete(`/agents/${agentId}/permanent`);
 }
 
-export async function getAgentReadiness(agentId: string): Promise<AgentReadiness> {
-	const response = await api.get<AgentReadiness>(`/agents/${agentId}/is-ready`);
+export async function getAgentReadiness(
+	agentId: string,
+	resources?: ThreadResourceSettings,
+): Promise<AgentReadiness> {
+	const params = resources
+		? {
+				disabledMcpServerIds: resources.disabledMcpServerIds,
+				disabledSandboxIds: resources.disabledSandboxIds,
+				disabledSubagentIds: resources.disabledSubagentIds,
+			}
+		: undefined;
+	const response = resources
+		? await api.get<AgentReadiness>(`/agents/${agentId}/is-ready`, { params })
+		: await api.get<AgentReadiness>(`/agents/${agentId}/is-ready`);
 	return response.data;
 }
 

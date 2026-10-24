@@ -43,6 +43,39 @@ async def list_artifacts(
     return await service.list(thread_id, after)
 
 
+async def read_capped(request: Request) -> bytes:
+    data = bytearray()
+    async for chunk in request.stream():
+        data += chunk
+        if len(data) > artifact_settings.max_bytes:
+            raise DomainValidationError("File exceeds the size limit")
+    return bytes(data)
+
+
+@router.post("")
+async def attach_file(
+    thread_id: str,
+    request: Request,
+    filename: str = Query(min_length=1, max_length=1024),
+    thread: ThreadDB = Depends(authorize_thread_read),
+    user: UserDB = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    service: ArtifactService = Depends(get_artifact_service),
+) -> ArtifactResponse:
+    """Persist a user attachment; the runtime restores it into the sandbox."""
+    if thread.user_id != user.id:
+        raise PermissionDeniedError("Only the thread owner can attach files")
+    try:
+        item = await service.attach(thread_id, filename, await read_capped(request))
+    except BaseException:
+        await service.discard_uploads()
+        raise
+    # Keep commit outside cleanup: a lost connection can report failure after
+    # the commit reached Postgres, and deleting then would orphan a live row.
+    await db.commit()
+    return item
+
+
 def content_disposition(filename: str) -> str:
     """RFC 6266: an ASCII `filename` fallback plus the UTF-8 `filename*` form."""
     fallback = re.sub(r"[^A-Za-z0-9._ -]", "_", filename).strip() or "download"
@@ -90,13 +123,8 @@ async def replace_artifact_content(
     """Save an edited presentation over the artifact (thread owner only)."""
     if thread.user_id != user.id:
         raise PermissionDeniedError("Only the thread owner can edit its files")
-    data = bytearray()
-    async for chunk in request.stream():
-        data += chunk
-        if len(data) > artifact_settings.max_bytes:
-            raise DomainValidationError("Artifact exceeds the size limit")
     item = await service.replace_content(
-        thread_id, artifact_id, bytes(data), if_match.strip('"')
+        thread_id, artifact_id, await read_capped(request), if_match.strip('"')
     )
     # Commit before deleting the superseded object: deleting first and then
     # failing to commit would leave the row pointing at nothing.

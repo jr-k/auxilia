@@ -1,5 +1,5 @@
 Upstream: https://github.com/keurcien/auxilia
-Synchronization date: 2026-10-19
+Synchronization date: 2026-10-24
 Mode: compatible forward-port (not verbatim cherry-picks)
 
 0cd8f036864febcbf20543d5570a77b8e65edf64	feat(agents): let agent editors manage subagents (#392)
@@ -21,3 +21,9 @@ c153e8ea6ea33570ceba61fe897c50c2992bdada	feat(artifacts): run HTML artifact scri
 77674f71e66da2045785a6db7e96555205f7682d	feat(mcp): open MCP apps in the artifact side panel (#407)
 84d2a069cb74dc3112741b146408a20ea22e32bd	feat(artifacts): edit presentations in place, from the panel and the agent (#420)
 ea77c1f5f40c2b75718f24b955f155b6847c18bf	feat(artifacts): preview JSON, Python and JavaScript files with syntax highlighting (#429)
+be7bad9dada180c5e1f5e4af2a00fcdb0dcef593	feat(runtime): accept output schema for async runs (#431)
+ade63ccf25d405a06c61626bff8ee45c6f6a9dac	feat(attachments): place chat attachments on the sandbox disk (#433) [compatible forward-port: multi-workspace + durable queue]
+61cee4cb455ad50fa1be7a7e5f6d2e08c89e1261	fix(attachments): always create /workspace/files on the sandbox [upstream/fix/attachments-workspace-path]
+143a77d248e69f72e5e15d99bae16ced8e09f04c	fix(artifacts): let the agent present an attachment it edited in place [upstream/fix/attachments-workspace-path]
+6a1a932ef098785602756e0629d8170c8127cc89	fix(attachments): make the folder mkdir best-effort inside the check [upstream/fix/attachments-workspace-path]
+a36eb78b457995216369912768c25f1af67eb2fd	fix(attachments): tolerate a failed folder mkdir when nothing is checked [upstream/fix/attachments-workspace-path]

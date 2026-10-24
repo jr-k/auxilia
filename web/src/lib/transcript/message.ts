@@ -55,6 +55,23 @@ export function getFileAttachments(message: BaseMessage): AttachmentData[] {
   return attachments;
 }
 
+/** Persistent thread-file ids recorded on a human message. */
+export function getAttachmentIds(message: BaseMessage): string[] {
+  const attachments = message.additional_kwargs?.attachments;
+  if (!Array.isArray(attachments)) return [];
+  return attachments.flatMap((item) => {
+    if (typeof item === "string") return [item];
+    if (
+      typeof item === "object" &&
+      item !== null &&
+      typeof (item as { id?: unknown }).id === "string"
+    ) {
+      return [(item as { id: string }).id];
+    }
+    return [];
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Tool identity
 // ---------------------------------------------------------------------------

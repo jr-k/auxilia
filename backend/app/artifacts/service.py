@@ -1,6 +1,9 @@
 import asyncio
+import builtins
 import hashlib
 import logging
+import mimetypes
+import re
 import shlex
 from pathlib import PurePosixPath
 from uuid import NAMESPACE_URL, UUID, uuid5
@@ -38,6 +41,7 @@ from app.runtime.runs.repository import RunRepository
 from app.sandbox.provider import SandboxGoneError, build_provider
 from app.sandbox.repository import SandboxRepository
 from app.service import BaseService
+from app.threads.repository import ThreadRepository
 from app.workspaces.dependencies import get_active_workspace_id
 
 
@@ -48,6 +52,7 @@ def describe(row: ArtifactDB) -> ArtifactResponse:
     return ArtifactResponse(
         id=row.id,
         thread_id=row.thread_id,
+        origin=row.origin,
         tool_call_id=row.tool_call_id,
         title=row.title,
         filename=row.filename,
@@ -66,6 +71,70 @@ class ArtifactGoneError(NotFoundError):
 
 # Inside the execution sandbox (not the Auxilia host).
 SNAPSHOT_ROOT = "/tmp/.auxilia-artifacts"  # nosec B108
+# Persistent thread files are restored here inside the execution sandbox.
+ATTACHMENTS_ROOT = "/workspace/files"
+
+
+def attachment_filename(name: str) -> str:
+    """Make a browser-supplied name safe as one sandbox path segment."""
+    name = PurePosixPath(name.replace("\\", "/")).name
+    name = re.sub(r"[\x00-\x1f\x7f]", "_", name).strip()
+    # Filesystems limit a path segment in bytes, not Unicode code points.
+    # Keep the tail so a filename extension survives truncation.
+    name = name.encode("utf-8")[-200:].decode("utf-8", errors="ignore")
+    return "file" if name in ("", ".", "..") else name
+
+
+def free_path(filename: str, taken: set[str]) -> str:
+    stem = PurePosixPath(filename).stem
+    suffix = PurePosixPath(filename).suffix
+    path = f"{ATTACHMENTS_ROOT}/{filename}"
+    number = 1
+    while path in taken:
+        number += 1
+        path = f"{ATTACHMENTS_ROOT}/{stem}-{number}{suffix}"
+    return path
+
+
+def attachment_mime(filename: str, data: bytes) -> str:
+    """Best-effort MIME detection; arbitrary user files remain attachable."""
+    try:
+        mime_type = detect_mime(filename, data)
+    except DomainValidationError:
+        mime_type = "application/octet-stream"
+    if mime_type == "application/octet-stream":
+        mime_type = mimetypes.guess_type(filename)[0] or mime_type
+    return mime_type
+
+
+def missing_on_disk(backend: BaseSandbox, paths: builtins.list[str]) -> set[str]:
+    """Create the thread-file folder and return paths absent from the disk."""
+    script = f"mkdir -p -- {shlex.quote(ATTACHMENTS_ROOT)} 2>/dev/null || true"
+    if paths:
+        script += (
+            "; for p in "
+            + " ".join(shlex.quote(path) for path in paths)
+            + '; do [ -f "$p" ] || printf \'%s\\n\' "$p"; done'
+        )
+    result = backend.execute(script)  # nosemgrep — sandbox shell, paths are quoted
+    if result.exit_code != 0:
+        raise RuntimeError(f"Could not list thread files: {result.output[:2000]}")
+    return set(result.output.splitlines()) & set(paths)
+
+
+def put_on_disk(backend: BaseSandbox, files: builtins.list[tuple[str, bytes]]) -> None:
+    directories = {str(PurePosixPath(path).parent) for path, _ in files}
+    created = backend.execute(  # nosemgrep — sandbox shell, paths are quoted
+        "mkdir -p -- " + " ".join(shlex.quote(path) for path in sorted(directories))
+    )
+    if created.exit_code != 0:
+        raise RuntimeError(
+            f"Could not create thread file directories: {created.output[:2000]}"
+        )
+    result = backend.upload_files(files)
+    failed = [item.path for item in result if item.error]
+    if len(result) != len(files) or failed:
+        raise RuntimeError(f"Could not place thread files on the sandbox: {failed}")
 
 
 class ArtifactService(BaseService[ArtifactDB, ArtifactRepository]):
@@ -87,6 +156,23 @@ class ArtifactService(BaseService[ArtifactDB, ArtifactRepository]):
             for row in await self.repository.list_for_thread(thread_id, after)
         ]
 
+    async def attachment_metadata(
+        self, thread_id: str, attachment_ids: builtins.list[UUID]
+    ) -> builtins.list[dict[str, str]]:
+        rows = await self.repository.attachments_by_ids(thread_id, attachment_ids)
+        if len(rows) != len(attachment_ids):
+            raise DomainValidationError(
+                "An attachment does not belong to this conversation"
+            )
+        return [
+            {
+                "id": str(row.id),
+                "filename": row.filename,
+                "media_type": row.mime_type,
+            }
+            for row in rows
+        ]
+
     async def publish(
         self,
         *,
@@ -103,7 +189,11 @@ class ArtifactService(BaseService[ArtifactDB, ArtifactRepository]):
         cfg = artifact_settings
         try:
             data = await asyncio.to_thread(
-                read_bytes, backend, file.path, cfg.allowed_roots, cfg.max_bytes
+                read_bytes,
+                backend,
+                file.path,
+                [*cfg.allowed_roots, ATTACHMENTS_ROOT],
+                cfg.max_bytes,
             )
         except SandboxFileMissingError as exc:
             raise DomainValidationError(
@@ -141,6 +231,117 @@ class ArtifactService(BaseService[ArtifactDB, ArtifactRepository]):
         row.sandbox_id = backend.id
         await self._store(row, data, backend)
         return describe(await self.repository.save(row))
+
+    async def attach(
+        self, thread_id: str, filename: str, data: bytes
+    ) -> ArtifactResponse:
+        """Store a user attachment as a persistent thread file."""
+        if not artifact_settings.provider:
+            raise DomainValidationError("Attachments need a configured object store")
+        if len(data) > artifact_settings.max_bytes:
+            raise DomainValidationError("Attachment exceeds the size limit")
+        safe_filename = attachment_filename(filename)
+        thread = await ThreadRepository(self.db, self.workspace_id).lock(thread_id)
+        if thread is None:
+            raise NotFoundError("Thread not found")
+        path = free_path(
+            safe_filename, await self.repository.paths_in_thread(thread_id)
+        )
+        row = ArtifactDB(
+            workspace_id=self.workspace_id,
+            thread_id=thread_id,
+            origin="attachment",
+            source_path=path,
+            title=safe_filename,
+            filename=PurePosixPath(path).name,
+            mime_type=await asyncio.to_thread(attachment_mime, safe_filename, data),
+            size=0,
+            sha256="",
+            storage_kind="",
+            storage_key="",
+        )
+        await self._store(row, data, None)
+        return describe(await self.repository.save(row))
+
+    async def restore(
+        self,
+        thread_id: str,
+        backend: BaseSandbox,
+        sandbox_source_id: UUID | None,
+        *,
+        current_attachment_ids: set[str] | None = None,
+        visible_attachment_ids: set[str] | None = None,
+    ) -> builtins.list[ArtifactDB]:
+        """Restore visible thread files and return the ones to announce."""
+        cfg = artifact_settings
+        rows = (
+            await self.repository.list_stored_in(
+                thread_id,
+                cfg.provider,
+                cfg.bucket_name or None,
+                cfg.endpoint,
+            )
+            if cfg.provider
+            else []
+        )
+        current_ids = current_attachment_ids or set()
+        if current_ids:
+            try:
+                current_uuids = [UUID(attachment_id) for attachment_id in current_ids]
+            except ValueError as exc:
+                raise DomainValidationError("Invalid attachment reference") from exc
+            current_rows = await self.repository.attachments_by_ids(
+                thread_id, current_uuids
+            )
+            if len(current_rows) != len(current_ids):
+                raise DomainValidationError(
+                    "An attachment does not belong to this conversation"
+                )
+            location = (cfg.provider, cfg.bucket_name or None, cfg.endpoint)
+            if any(
+                (row.storage_kind, row.storage_bucket, row.storage_endpoint) != location
+                for row in current_rows
+            ):
+                raise DomainValidationError(
+                    "An attachment's storage configuration is no longer available"
+                )
+            # The file attached to this turn wins if another artifact later reused
+            # the same sandbox path while this prompt was waiting in the queue.
+            by_path = {row.source_path: row for row in rows}
+            by_path.update((row.source_path, row) for row in current_rows)
+            rows = list(by_path.values())
+        if visible_attachment_ids is not None:
+            rows = [
+                row
+                for row in rows
+                if row.origin != "attachment"
+                or str(row.id) in visible_attachment_ids
+            ]
+        missing = await asyncio.to_thread(
+            missing_on_disk, backend, [row.source_path for row in rows]
+        )
+        if not rows:
+            return []
+        restored = [
+            row
+            for row in rows
+            if row.source_path in missing
+            or (row.origin == "attachment" and str(row.id) in current_ids)
+        ]
+        for row in restored:
+            _, data = await self.content(thread_id, row.id)
+            await asyncio.to_thread(put_on_disk, backend, [(row.source_path, data)])
+        for row in rows:
+            row.sandbox_id = backend.id
+            row.sandbox_source_id = sandbox_source_id
+        await self.db.flush()
+        announced = {row.id: row for row in restored}
+        announced.update(
+            (row.id, row)
+            for row in rows
+            if row.origin == "attachment" and str(row.id) in current_ids
+        )
+        return list(announced.values())
 
     async def replace_content(
         self, thread_id: str, artifact_id: UUID, data: bytes, revision: str

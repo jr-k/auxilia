@@ -22,7 +22,10 @@ class ArtifactDB(BaseDBModel, table=True):
         foreign_key="workspaces.id", ondelete="CASCADE", nullable=False, index=True
     )
     thread_id: str = Field(foreign_key="threads.id", ondelete="CASCADE", index=True)
-    tool_call_id: str
+    origin: str = Field(
+        default="artifact", sa_column_kwargs={"server_default": "artifact"}
+    )
+    tool_call_id: str | None = None
     source_path: str
     title: str
     filename: str

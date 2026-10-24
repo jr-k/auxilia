@@ -1,12 +1,16 @@
 import { useEffect, useMemo } from "react";
 import { useAgentConnectionStatus } from "@/hooks/use-agent-connection-status";
 import { useMcpServersStore } from "@/stores/mcp-servers-store";
+import type { ThreadResourceSettings } from "@/types/threads";
 
-export function useAgentReadiness(agentId: string | undefined) {
+export function useAgentReadiness(
+	agentId: string | undefined,
+	resources?: ThreadResourceSettings,
+) {
 	const mcpServers = useMcpServersStore((state) => state.mcpServers);
 	const fetchMcpServers = useMcpServersStore((state) => state.fetchMcpServers);
-	const { ready, disconnectedServers, status, detail, refetch } =
-		useAgentConnectionStatus(agentId);
+	const { ready, acceptsFiles, disconnectedServers, status, detail, refetch } =
+		useAgentConnectionStatus(agentId, resources);
 
 	useEffect(() => {
 		fetchMcpServers().catch(console.error);
@@ -18,5 +22,12 @@ export function useAgentReadiness(agentId: string | undefined) {
 		return mcpServers.filter((s) => set.has(s.id));
 	}, [mcpServers, disconnectedServers]);
 
-	return { ready, status, detail, disconnectedMcpServers, refetch };
+	return {
+		ready,
+		acceptsFiles,
+		status,
+		detail,
+		disconnectedMcpServers,
+		refetch,
+	};
 }

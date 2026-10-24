@@ -30,6 +30,7 @@ export interface QueuedPrompt {
 	id: string;
 	text: string;
 	attachments: Array<{
+		id?: string | null;
 		filename: string;
 		mediaType: string;
 	}>;
