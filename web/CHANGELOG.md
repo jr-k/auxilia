@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.35](https://github.com/jr-k/auxilia/compare/web-v0.12.34...web-v0.12.35) (2026-10-24)
+
+
+### Bug Fixes
+
+* **onboarding:** allow immediate model setup skip ([909448b](https://github.com/jr-k/auxilia/commit/909448beeac5fb1f10e30c9c55a62483f0114a4a))
+
 ## [0.12.34](https://github.com/jr-k/auxilia/compare/web-v0.12.33...web-v0.12.34) (2026-10-24)
 
 
