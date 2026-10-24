@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.23](https://github.com/jr-k/auxilia/compare/backend-v0.11.22...backend-v0.11.23) (2026-10-24)
+
+
+### Bug Fixes
+
+* **mcp:** allow configured backend host ([cbe81d5](https://github.com/jr-k/auxilia/commit/cbe81d5eb222a1940e7c3645e7ce7b21cf6d32ca))
+
 ## [0.11.22](https://github.com/jr-k/auxilia/compare/backend-v0.11.21...backend-v0.11.22) (2026-10-24)
 
 
