@@ -1,5 +1,7 @@
 import logging
+import sqlite3
 from dataclasses import dataclass
+from pathlib import Path
 from uuid import UUID, uuid4
 
 from fastapi import Depends, UploadFile
@@ -9,6 +11,7 @@ from app.agents.mcp_servers.service import AgentMCPServerService
 from app.database import get_db
 from app.database_connections.client import list_dbhub_source_ids
 from app.database_connections.files import (
+    create_download_snapshot,
     delete_stored_file,
     runtime_path_for_stored_file,
     store_sqlite_upload,
@@ -56,6 +59,18 @@ logger = logging.getLogger(__name__)
 class DatabaseConnectionUpdateResult:
     response: DatabaseConnectionResponse
     replaced_file: DatabaseFileDB | None
+
+
+@dataclass(frozen=True)
+class SQLiteDownload:
+    path: Path
+    filename: str
+
+
+@dataclass(frozen=True)
+class SQLiteDownloadSource:
+    stored_name: str
+    filename: str
 
 
 def _public_connection_error(error: str | None) -> str | None:
@@ -183,6 +198,36 @@ class DatabaseConnectionService(
             runtime_path=str(runtime_path_for_stored_file(database_file.stored_name)),
             size_bytes=database_file.size_bytes,
         )
+
+    async def get_sqlite_download_source(
+        self, connection_id: UUID
+    ) -> SQLiteDownloadSource:
+        connection = await self.get_scoped(connection_id)
+        if (
+            connection.engine is not DatabaseEngine.sqlite
+            or connection.sqlite_file_id is None
+        ):
+            raise DomainValidationError("This connection is not a SQLite database")
+        database_file = await self.files.get_scoped(connection.sqlite_file_id)
+        if database_file is None:
+            raise NotFoundError("SQLite database file not found")
+        return SQLiteDownloadSource(
+            stored_name=database_file.stored_name,
+            filename=database_file.original_name,
+        )
+
+    async def prepare_sqlite_download(
+        self, source: SQLiteDownloadSource
+    ) -> SQLiteDownload:
+        try:
+            path = await create_download_snapshot(source.stored_name)
+        except FileNotFoundError as exc:
+            raise NotFoundError("SQLite database file not found") from exc
+        except (OSError, sqlite3.Error) as exc:
+            raise DomainValidationError(
+                "The SQLite database could not be prepared for download"
+            ) from exc
+        return SQLiteDownload(path=path, filename=source.filename)
 
     async def list_responses(self) -> list[DatabaseConnectionResponse]:
         return [

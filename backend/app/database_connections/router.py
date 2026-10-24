@@ -1,8 +1,12 @@
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, UploadFile
+from fastapi.responses import FileResponse
+from sqlalchemy.ext.asyncio import AsyncSession
+from starlette.background import BackgroundTask
 
 from app.auth.dependencies import require_admin
+from app.database import get_db
 from app.database_connections.schemas import (
     DatabaseConnectionCreate,
     DatabaseConnectionPatch,
@@ -64,6 +68,31 @@ async def get_database_connection(
     service: DatabaseConnectionService = Depends(get_database_connection_service),
 ) -> DatabaseConnectionResponse:
     return await service.to_response(await service.get_scoped(connection_id))
+
+
+@router.get("/{connection_id}/sqlite-file", response_class=FileResponse)
+async def download_sqlite_file(
+    connection_id: UUID,
+    _: UserDB = Depends(require_admin),
+    service: DatabaseConnectionService = Depends(get_database_connection_service),
+    db: AsyncSession = Depends(get_db),
+) -> FileResponse:
+    source = await service.get_sqlite_download_source(connection_id)
+    # Release the request transaction before snapshotting and streaming a file
+    # that may be up to 1 GiB; neither operation needs a pooled DB connection.
+    await db.commit()
+    download = await service.prepare_sqlite_download(source)
+    return FileResponse(
+        download.path,
+        media_type="application/vnd.sqlite3",
+        filename=download.filename,
+        content_disposition_type="attachment",
+        headers={
+            "Cache-Control": "private, no-store",
+            "X-Content-Type-Options": "nosniff",
+        },
+        background=BackgroundTask(download.path.unlink, missing_ok=True),
+    )
 
 
 @router.patch("/{connection_id}", response_model=DatabaseConnectionResponse)

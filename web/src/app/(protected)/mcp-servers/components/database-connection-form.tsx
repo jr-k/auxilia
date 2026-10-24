@@ -4,6 +4,7 @@ import {
 	AlertCircle,
 	CheckCircle2,
 	Database,
+	Download,
 	Loader2,
 	RefreshCw,
 	ShieldCheck,
@@ -32,6 +33,7 @@ import {
 	deleteDatabaseConnection,
 	getDatabaseConnection,
 	reconcileDatabaseConnection,
+	sqliteFileDownloadUrl,
 	uploadSQLiteFile,
 	updateDatabaseConnection,
 } from "@/lib/api/resources/database-connections";
@@ -246,6 +248,11 @@ export function DatabaseConnectionForm({
 		sqliteFile?.name ?? (isSQLite ? connection?.sqliteFileName : null);
 	const sqliteFileSize =
 		sqliteFile?.size ?? (isSQLite ? connection?.sqliteFileSizeBytes : null);
+	const canDownloadSQLite = Boolean(
+		isSQLite &&
+			connection?.engine === "sqlite" &&
+			connection.sqliteFileId,
+	);
 	const hasReusablePassword =
 		connection?.engine !== "sqlite" && Boolean(connection?.hasPassword);
 
@@ -978,10 +985,22 @@ export function DatabaseConnectionForm({
 														}}
 													/>
 												</label>
-												<span className="text-[11px] leading-5 text-meta dark:text-panel-dim">
-													The file is uploaded securely when you save this
-													connection.
-												</span>
+												<div className="flex flex-wrap items-center justify-between gap-2">
+													<span className="text-[11px] leading-5 text-meta dark:text-panel-dim">
+														The file is uploaded securely when you save this
+														connection.
+													</span>
+													{canDownloadSQLite && connection ? (
+														<a
+															href={sqliteFileDownloadUrl(connection.id)}
+															download
+															className="inline-flex items-center gap-1.5 rounded-md border border-input bg-card px-2.5 py-1.5 text-[11.5px] font-semibold text-body transition-colors hover:border-petrol/40 hover:text-petrol dark:text-panel-body"
+														>
+															<Download className="size-3.5" aria-hidden="true" />
+															Download saved file
+														</a>
+													) : null}
+												</div>
 												{!sqliteFile &&
 												connection?.sqliteStoredName &&
 												connection.sqliteRuntimePath ? (

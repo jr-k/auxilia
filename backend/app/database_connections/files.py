@@ -1,6 +1,8 @@
 import asyncio
 import os
 import re
+import sqlite3
+import tempfile
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -107,6 +109,42 @@ def runtime_path_for_stored_file(stored_name: str) -> Path:
     if not _STORED_FILE_PATTERN.fullmatch(stored_name):
         raise ValueError("Invalid stored database filename")
     return database_file_settings.runtime_path / stored_name
+
+
+def storage_path_for_stored_file(stored_name: str) -> Path:
+    if not _STORED_FILE_PATTERN.fullmatch(stored_name):
+        raise ValueError("Invalid stored database filename")
+    return database_file_settings.storage_path / stored_name
+
+
+def _create_download_snapshot(stored_name: str) -> Path:
+    source_path = storage_path_for_stored_file(stored_name)
+    if not source_path.is_file():
+        raise FileNotFoundError(source_path)
+    descriptor, temporary_name = tempfile.mkstemp(
+        prefix="auxilia-sqlite-", suffix=".sqlite3"
+    )
+    os.close(descriptor)
+    snapshot_path = Path(temporary_name)
+    source = destination = None
+    try:
+        source = sqlite3.connect(f"file:{source_path}?mode=ro", uri=True)
+        destination = sqlite3.connect(snapshot_path)
+        source.backup(destination)
+        return snapshot_path
+    except Exception:
+        snapshot_path.unlink(missing_ok=True)
+        raise
+    finally:
+        if destination is not None:
+            destination.close()
+        if source is not None:
+            source.close()
+
+
+async def create_download_snapshot(stored_name: str) -> Path:
+    """Copy a consistent database image, including committed WAL contents."""
+    return await asyncio.to_thread(_create_download_snapshot, stored_name)
 
 
 def _ensure_stored_file_permissions(known_names: set[str]) -> int:

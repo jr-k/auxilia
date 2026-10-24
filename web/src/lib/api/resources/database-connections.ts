@@ -1,4 +1,4 @@
-import { api } from "@/lib/api/client";
+import { API_BASE_URL, api } from "@/lib/api/client";
 import type {
 	DatabaseConnectorStatus,
 	DatabaseConnection,
@@ -41,6 +41,10 @@ export async function uploadSQLiteFile(file: File): Promise<SQLiteFile> {
 		form,
 	);
 	return response.data;
+}
+
+export function sqliteFileDownloadUrl(connectionId: string): string {
+	return `${API_BASE_URL}/database-connections/${encodeURIComponent(connectionId)}/sqlite-file`;
 }
 
 export async function updateDatabaseConnection(
