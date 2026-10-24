@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.36](https://github.com/jr-k/auxilia/compare/web-v0.12.35...web-v0.12.36) (2026-10-24)
+
+
+### Features
+
+* **database-connections:** download SQLite databases ([96a442c](https://github.com/jr-k/auxilia/commit/96a442cf1ea103e664472b00d78209b9d3d26199))
+
 ## [0.12.35](https://github.com/jr-k/auxilia/compare/web-v0.12.34...web-v0.12.35) (2026-10-24)
 
 

@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.25](https://github.com/jr-k/auxilia/compare/backend-v0.11.24...backend-v0.11.25) (2026-10-24)
+
+
+### Features
+
+* **database-connections:** download SQLite databases ([96a442c](https://github.com/jr-k/auxilia/commit/96a442cf1ea103e664472b00d78209b9d3d26199))
+
 ## [0.11.24](https://github.com/jr-k/auxilia/compare/backend-v0.11.23...backend-v0.11.24) (2026-10-24)
 
 
