@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.34](https://github.com/jr-k/auxilia/compare/web-v0.12.33...web-v0.12.34) (2026-10-24)
+
+
+### Features
+
+* **attachments:** persist chat files in sandboxes ([bbf2338](https://github.com/jr-k/auxilia/commit/bbf2338163b4d112b05b5479d613881bbde32e90))
+
 ## [0.12.33](https://github.com/jr-k/auxilia/compare/web-v0.12.32...web-v0.12.33) (2026-10-21)
 
 
