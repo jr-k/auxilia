@@ -2,6 +2,7 @@
 
 import { Suspense } from "react";
 import { Loader2 } from "lucide-react";
+import Link from "next/link";
 import WorkspaceModels from "@/app/(protected)/settings/workspace-models";
 import { AuthShell } from "@/components/auth/auth-shell";
 
@@ -37,13 +38,12 @@ export default function ModelOnboardingPage() {
 				/>
 			</Suspense>
 
-			<button
-				type="button"
-				onClick={continueToAgents}
-				className="mt-1.5 cursor-pointer rounded-md bg-ink p-3.5 text-[15px] font-semibold text-white transition-opacity hover:opacity-90"
+			<Link
+				href="/agents"
+				className="mt-1.5 cursor-pointer rounded-md bg-ink p-3.5 text-center text-[15px] font-semibold text-white transition-opacity hover:opacity-90"
 			>
 				Continue to agents →
-			</button>
+			</Link>
 		</AuthShell>
 	);
 }
