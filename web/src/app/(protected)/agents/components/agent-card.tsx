@@ -55,6 +55,8 @@ const NO_ACCESS_BADGE = {
 	text: "text-[#A35462] dark:text-rose-300",
 };
 
+const MCP_SERVER_PREVIEW_LIMIT = 8;
+
 export default function AgentCard({
 	agent,
 	archived = false,
@@ -176,7 +178,9 @@ export default function AgentCard({
 				{(resolvedServers.length > 0 || agent.subagents?.length > 0) && (
 					<div className="flex items-center justify-between border-t border-[#edf2ef] dark:border-white/5 py-2.5">
 						<div className="flex items-center">
-							{resolvedServers.map((server) => (
+							{resolvedServers
+								.slice(0, MCP_SERVER_PREVIEW_LIMIT)
+								.map((server) => (
 								<span
 									key={server.id}
 									title={server.name}
@@ -197,6 +201,17 @@ export default function AgentCard({
 									/>
 								</span>
 							))}
+							{resolvedServers.length > MCP_SERVER_PREVIEW_LIMIT && (
+								<span
+									title={resolvedServers
+										.slice(MCP_SERVER_PREVIEW_LIMIT)
+										.map((server) => server.name)
+										.join(", ")}
+									className="-ml-1.5 flex size-5 items-center justify-center rounded-full border border-[#e1ebe6] bg-surface text-[9px] font-semibold text-[#7d8077] first:ml-0 dark:border-white/10 dark:bg-white/5 dark:text-muted-foreground"
+								>
+									+{resolvedServers.length - MCP_SERVER_PREVIEW_LIMIT}
+								</span>
+							)}
 						</div>
 						{agent.subagents?.length > 0 && (
 							<div className="flex items-center">
