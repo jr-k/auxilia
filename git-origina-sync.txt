@@ -1,5 +1,5 @@
 Upstream: https://github.com/keurcien/auxilia
-Synchronization date: 2026-10-24
+Synchronization date: 2026-10-25
 Mode: compatible forward-port (not verbatim cherry-picks)
 
 0cd8f036864febcbf20543d5570a77b8e65edf64	feat(agents): let agent editors manage subagents (#392)
@@ -27,3 +27,8 @@ ade63ccf25d405a06c61626bff8ee45c6f6a9dac	feat(attachments): place chat attachmen
 143a77d248e69f72e5e15d99bae16ced8e09f04c	fix(artifacts): let the agent present an attachment it edited in place [upstream/fix/attachments-workspace-path]
 6a1a932ef098785602756e0629d8170c8127cc89	fix(attachments): make the folder mkdir best-effort inside the check [upstream/fix/attachments-workspace-path]
 a36eb78b457995216369912768c25f1af67eb2fd	fix(attachments): tolerate a failed folder mkdir when nothing is checked [upstream/fix/attachments-workspace-path]
+09612f27b235c83abaea6115cee920ca8482bb32	fix(artifacts): keep HTML artifact links from loading the app in the viewer [upstream/fix/html-viewer-links]
+6c8a783615ddd75212ec680a9a4919d9c73d5464	fix(artifacts): harden the HTML viewer link guard; scope sandbox.html framing [upstream/fix/html-viewer-links]
+db65e7705f22b15f56c1cf558c485c2e474eccf1	fix(artifacts): find guarded links through open shadow roots; test auxclick [compatible forward-port without tests]
+f40f1e0a3a2f203caca0aeb37c80d992de74676b	build(web): upgrade Node.js from 22 to 24 [upstream/codex/bump-node-24]
+cd5c223be3b105ed0a5ce3b75a427e4b787d09fa	feat(skills): sync applies upstream skill updates directly (#424) [compatible forward-port for multi-workspace and current UI]
