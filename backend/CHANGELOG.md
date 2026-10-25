@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.32](https://github.com/jr-k/auxilia/compare/backend-v0.11.31...backend-v0.11.32) (2026-10-25)
+
+
+### Bug Fixes
+
+* **threads:** publish conversation snapshots ([7217f3c](https://github.com/jr-k/auxilia/commit/7217f3c4b1562aa075a3f0a37efd45b074cbf3a2))
+
 ## [0.11.31](https://github.com/jr-k/auxilia/compare/backend-v0.11.30...backend-v0.11.31) (2026-10-25)
 
 
