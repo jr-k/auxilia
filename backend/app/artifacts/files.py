@@ -18,6 +18,71 @@ from app.exceptions import DomainValidationError
 
 PPTX_MIME = "application/vnd.openxmlformats-officedocument.presentationml.presentation"
 
+TEXT_MIME_BY_SUFFIX = {
+    ".bash": "application/x-sh",
+    ".c": "text/x-c",
+    ".cc": "text/x-c++",
+    ".conf": "text/plain",
+    ".cpp": "text/x-c++",
+    ".css": "text/css",
+    ".csv": "text/csv",
+    ".cts": "text/typescript",
+    ".env": "text/plain",
+    ".go": "text/x-go",
+    ".graphql": "application/graphql",
+    ".gql": "application/graphql",
+    ".h": "text/x-c",
+    ".hpp": "text/x-c++",
+    ".htm": "text/html",
+    ".html": "text/html",
+    ".ini": "text/plain",
+    ".java": "text/x-java-source",
+    ".js": "text/javascript",
+    ".json": "application/json",
+    ".jsonc": "application/json",
+    ".jsonl": "application/x-ndjson",
+    ".jsonld": "application/ld+json",
+    ".jsx": "text/jsx",
+    ".kt": "text/x-kotlin",
+    ".kts": "text/x-kotlin",
+    ".less": "text/css",
+    ".lua": "text/x-lua",
+    ".markdown": "text/markdown",
+    ".md": "text/markdown",
+    ".mjs": "text/javascript",
+    ".mts": "text/typescript",
+    ".ndjson": "application/x-ndjson",
+    ".ipynb": "application/json",
+    ".php": "application/x-httpd-php",
+    ".properties": "text/plain",
+    ".py": "text/x-python",
+    ".pyi": "text/x-python",
+    ".r": "text/x-r",
+    ".rb": "text/x-ruby",
+    ".rs": "text/x-rust",
+    ".sass": "text/css",
+    ".scss": "text/css",
+    ".sh": "application/x-sh",
+    ".sql": "application/sql",
+    ".svelte": "text/plain",
+    ".swift": "text/x-swift",
+    ".toml": "application/toml",
+    ".ts": "text/typescript",
+    ".tsx": "text/tsx",
+    ".txt": "text/plain",
+    ".vue": "text/plain",
+    ".xml": "application/xml",
+    ".yaml": "application/yaml",
+    ".yml": "application/yaml",
+    ".zsh": "application/x-sh",
+}
+
+TEXT_MIME_BY_FILENAME = {
+    ".env": "text/plain",
+    "dockerfile": "text/plain",
+    "makefile": "text/plain",
+}
+
 
 class SandboxFileMissingError(Exception):
     pass
@@ -81,7 +146,23 @@ def read_bytes(backend: BaseSandbox, path: str, roots: list[str], limit: int) ->
     return data
 
 
+def text_encoding(data: bytes) -> str:
+    if data.startswith((b"\xff\xfe", b"\xfe\xff")):
+        return "utf-16"
+    sample = data[:256]
+    pairs = len(sample) // 2
+    if pairs >= 2:
+        even_zeroes = sample[: pairs * 2 : 2].count(0)
+        odd_zeroes = sample[1 : pairs * 2 : 2].count(0)
+        if odd_zeroes > pairs / 2 and even_zeroes < pairs / 10:
+            return "utf-16-le"
+        if even_zeroes > pairs / 2 and odd_zeroes < pairs / 10:
+            return "utf-16-be"
+    return "utf-8-sig"
+
+
 def detect_mime(filename: str, data: bytes) -> str:
+    name = PurePosixPath(filename).name.lower()
     suffix = PurePosixPath(filename).suffix.lower()
     if suffix == ".pptx":
         try:
@@ -101,21 +182,26 @@ def detect_mime(filename: str, data: bytes) -> str:
         return PPTX_MIME
     if suffix == ".pdf" and data.startswith(b"%PDF-"):
         return "application/pdf"
-    types = {
-        ".html": "text/html",
-        ".htm": "text/html",
-        ".csv": "text/csv",
-        ".md": "text/markdown",
-        ".markdown": "text/markdown",
-        ".txt": "text/plain",
-        ".json": "application/json",
-        ".py": "text/x-python",
-        ".js": "text/javascript",
-    }
-    if suffix in types:
+    text_mime = TEXT_MIME_BY_FILENAME.get(name) or TEXT_MIME_BY_SUFFIX.get(suffix)
+    if text_mime is not None:
         try:
-            data.decode("utf-8-sig")
-        except UnicodeDecodeError as exc:
-            raise DomainValidationError("Text previews require UTF-8 files") from exc
-        return types[suffix]
+            text = data.decode(text_encoding(data))
+        except UnicodeDecodeError:
+            try:
+                text = data.decode("cp1252")
+            except UnicodeDecodeError:
+                return "application/octet-stream"
+        if not any(ord(char) < 32 and char not in "\t\n\r\f\x1b" for char in text):
+            return text_mime
+        return "application/octet-stream"
+
+    # An uncommon or extensionless UTF-8 text file remains previewable as
+    # plain text. Reject C0 controls so arbitrary binary payloads keep the
+    # download-only application/octet-stream treatment.
+    try:
+        text = data.decode(text_encoding(data))
+    except UnicodeDecodeError:
+        return "application/octet-stream"
+    if not any(ord(char) < 32 and char not in "\t\n\r\f\x1b" for char in text):
+        return "text/plain"
     return "application/octet-stream"
