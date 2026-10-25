@@ -498,7 +498,6 @@ export const PromptInput = ({
 
 	// Refs
 	const inputRef = useRef<HTMLInputElement | null>(null);
-	const anchorRef = useRef<HTMLSpanElement>(null);
 	const formRef = useRef<HTMLFormElement | null>(null);
 
 	// ----- Drag & drop visual state
@@ -506,14 +505,6 @@ export const PromptInput = ({
 	// dragenter/dragleave fire for every child element crossed; count the depth
 	// so the overlay doesn't flicker while moving inside the drop zone.
 	const dragDepth = useRef(0);
-
-	// Find nearest form to scope drag & drop
-	useEffect(() => {
-		const root = anchorRef.current?.closest("form");
-		if (root instanceof HTMLFormElement) {
-			formRef.current = root;
-		}
-	}, []);
 
 	// ----- Local attachments (only used when no provider)
 	const [items, setItems] = useState<(FileUIPart & { id: string })[]>([]);
@@ -867,7 +858,6 @@ export const PromptInput = ({
 	const inner = (
 		<AttachmentsAddContext.Provider value={add}>
 			<AttachmentsDisabledContext.Provider value={!!disableAttachments}>
-				<span aria-hidden="true" className="hidden" ref={anchorRef} />
 			<input
 				accept={accept}
 				aria-label="Upload files"
@@ -879,6 +869,7 @@ export const PromptInput = ({
 				type="file"
 			/>
 			<form
+				ref={formRef}
 				className={cn("w-full", className)}
 				onSubmit={handleSubmit}
 				{...props}

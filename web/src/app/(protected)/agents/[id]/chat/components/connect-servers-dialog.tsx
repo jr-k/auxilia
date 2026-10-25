@@ -6,7 +6,6 @@ import {
 	useState,
 	useCallback,
 	useEffect,
-	useLayoutEffect,
 	useMemo,
 	useRef,
 } from "react";
@@ -73,14 +72,6 @@ export function ConnectServersDialog({
 	const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 	const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const resourceRequestRef = useRef(0);
-	const resourcePanelRef = useRef<HTMLDivElement | null>(null);
-	const scrollPositionsRef = useRef<Record<ResourceTab, number>>({
-		servers: 0,
-		skills: 0,
-		sandboxes: 0,
-		subagents: 0,
-	});
-	const scrollRestorePendingRef = useRef(false);
 	const rangeAnchorRef = useRef<Record<ResourceTab, string | null>>({
 		servers: null,
 		skills: null,
@@ -208,22 +199,6 @@ export function ConnectServersDialog({
 
 	useEffect(() => clearPolling, [clearPolling]);
 
-	useLayoutEffect(() => {
-		const panel = resourcePanelRef.current;
-		if (!panel) return;
-		const restoreScroll = () => {
-			panel.scrollTop = scrollPositionsRef.current[activeTab];
-		};
-		restoreScroll();
-		const frame = requestAnimationFrame(() => {
-			restoreScroll();
-			scrollRestorePendingRef.current = false;
-		});
-		return () => {
-			cancelAnimationFrame(frame);
-		};
-	});
-
 	const markConnected = useCallback(
 		(serverId: string) => {
 			setConnectedIds((previous) => new Set(previous).add(serverId));
@@ -332,11 +307,6 @@ export function ConnectServersDialog({
 			if (enabled) disabledIds.delete(id);
 			else disabledIds.add(id);
 		}
-		const panel = resourcePanelRef.current;
-		if (panel) {
-			scrollPositionsRef.current[type] = panel.scrollTop;
-			scrollRestorePendingRef.current = true;
-		}
 		onResourceSettingsChange({
 			...resourceSettings,
 			[disabledKey]: [...disabledIds],
@@ -366,11 +336,6 @@ export function ConnectServersDialog({
 			else disabledIds.add(id);
 		}
 		rangeAnchorRef.current[type] = null;
-		const panel = resourcePanelRef.current;
-		if (panel) {
-			scrollPositionsRef.current[type] = panel.scrollTop;
-			scrollRestorePendingRef.current = true;
-		}
 		onResourceSettingsChange({
 			...resourceSettings,
 			[disabledKey]: [...disabledIds],
@@ -471,15 +436,8 @@ export function ConnectServersDialog({
 					</div>
 
 					<div
-						ref={resourcePanelRef}
 						id="conversation-resource-panel"
 						role="tabpanel"
-						onScroll={(event) => {
-							if (!scrollRestorePendingRef.current) {
-								scrollPositionsRef.current[activeTab] =
-									event.currentTarget.scrollTop;
-							}
-						}}
 						className="order-1 min-h-0 min-w-0 flex-1 overflow-y-auto p-2.5 [scrollbar-width:thin] sm:order-none sm:p-3"
 					>
 					{isLoadingResources ? (
@@ -560,7 +518,7 @@ export function ConnectServersDialog({
 													{!isDisconnected && (
 														<Checkbox
 															checked={isEnabled}
-															disabled={resourceSettingsSaving}
+															aria-disabled={resourceSettingsSaving}
 															onCheckedChange={(checked, event) => {
 																setResourceEnabled(
 																	"servers",
@@ -637,7 +595,7 @@ export function ConnectServersDialog({
 											</Link>
 											<Checkbox
 												checked={isEnabled}
-												disabled={resourceSettingsSaving}
+												aria-disabled={resourceSettingsSaving}
 												onCheckedChange={(checked, event) => {
 													setResourceEnabled(
 														"skills",
@@ -703,7 +661,7 @@ export function ConnectServersDialog({
 												<ConnectionStatusBadge />
 												<Checkbox
 													checked={isEnabled}
-													disabled={resourceSettingsSaving}
+													aria-disabled={resourceSettingsSaving}
 													onCheckedChange={(checked, event) => {
 														setResourceEnabled(
 															"sandboxes",
@@ -771,7 +729,7 @@ export function ConnectServersDialog({
 											<ConnectionStatusBadge />
 											<Checkbox
 												checked={isEnabled}
-												disabled={resourceSettingsSaving}
+												aria-disabled={resourceSettingsSaving}
 												onCheckedChange={(checked, event) => {
 													setResourceEnabled(
 														"subagents",
@@ -819,7 +777,7 @@ function ResourceAllToggle({
 			</span>
 			<Checkbox
 				checked={checked}
-				disabled={disabled}
+				aria-disabled={disabled}
 				onCheckedChange={onCheckedChange}
 				aria-label={`${checked === true ? "Disable" : "Enable"} ${label.toLowerCase()} for this conversation`}
 			/>
