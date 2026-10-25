@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.27](https://github.com/jr-k/auxilia/compare/backend-v0.11.26...backend-v0.11.27) (2026-10-25)
+
+
+### Bug Fixes
+
+* **mcp:** serialize OAuth token refreshes ([261e519](https://github.com/jr-k/auxilia/commit/261e5197ac8123f4bd66877f0869d88aff58e53c))
+
 ## [0.11.26](https://github.com/jr-k/auxilia/compare/backend-v0.11.25...backend-v0.11.26) (2026-10-25)
 
 
