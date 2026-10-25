@@ -25,6 +25,7 @@ from app.threads.shares.models import (
 )
 from app.threads.shares.repository import ConversationShareRepository
 from app.threads.shares.schemas import (
+    ConversationShareCreateDB,
     ConversationShareResponse,
     PublicAgent,
     PublicArtifact,
@@ -141,7 +142,7 @@ class ConversationShareService:
         if agent is None:
             raise NotFoundError("Agent not found")
         share = await self.repository.create(
-            ConversationShareDB(
+            ConversationShareCreateDB(
                 workspace_id=workspace_id,
                 thread_id=thread_id,
                 created_by_id=user_id,

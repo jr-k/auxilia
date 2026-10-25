@@ -3,6 +3,18 @@ from typing import Any
 from uuid import UUID
 
 from pydantic import BaseModel
+from sqlmodel import SQLModel
+
+
+class ConversationShareCreateDB(SQLModel):
+    workspace_id: UUID
+    thread_id: str
+    created_by_id: UUID
+    checkpoint_id: str
+    title: str | None = None
+    agent_name: str
+    agent_emoji: str | None = None
+    agent_color: str | None = None
 
 
 class ConversationShareResponse(BaseModel):
