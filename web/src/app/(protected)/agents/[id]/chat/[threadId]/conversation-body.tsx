@@ -133,6 +133,17 @@ export type ConversationBodyProps = {
   rehydratedError: string | null;
 };
 
+function errorDetail(error: unknown, rehydratedError: string | null) {
+  if (error != null) {
+    return error instanceof globalThis.Error ? error.message : String(error);
+  }
+  return rehydratedError;
+}
+
+function userTurnKey(message: BaseMessage, index: number) {
+  return message.id != null ? `message:${message.id}` : `index:${index}`;
+}
+
 /**
  * The conversation render tree, memoized so the page that owns `useStream`
  * (notified on every store tick) renders almost nothing itself. Every prop is
@@ -212,6 +223,31 @@ export const ConversationBody = memo(function ConversationBody({
     () => mapTodosToUserTurns(messages, toolCalls, supervisorTodos),
     [messages, toolCalls, supervisorTodos],
   );
+  const [errorsByUserTurn, setErrorsByUserTurn] = useState<
+    Readonly<Record<string, string>>
+  >({});
+  const latestUserIndex = messages.findLastIndex(
+    (message) => isHumanMessage(message) && !isHostNotice(message),
+  );
+  const latestUserKey =
+    latestUserIndex >= 0
+      ? userTurnKey(messages[latestUserIndex], latestUserIndex)
+      : null;
+  const currentErrorDetail = errorDetail(error, rehydratedError);
+  // useStream retains the previous run's error while the next run starts.
+  // Record errors only once a run is idle so that stale errors cannot move
+  // from the turn that failed to the newly submitted user message.
+  if (
+    !isLoading &&
+    latestUserKey != null &&
+    currentErrorDetail != null &&
+    errorsByUserTurn[latestUserKey] !== currentErrorDetail
+  ) {
+    setErrorsByUserTurn({
+      ...errorsByUserTurn,
+      [latestUserKey]: currentErrorDetail,
+    });
+  }
 
   const lastVisibleIndex = messages.findLastIndex((m) => !isToolMessage(m));
   const lastVisible =
@@ -254,6 +290,7 @@ export const ConversationBody = memo(function ConversationBody({
               anchorId={threadMapAnchor(index)}
               sending={index === pendingUserIndex}
               todos={todosByUserTurn.get(key)}
+              error={errorsByUserTurn[userTurnKey(message, index)]}
             />
           );
         }
@@ -322,21 +359,6 @@ export const ConversationBody = memo(function ConversationBody({
 
       {showThinking && pendingUserIndex < 0 && optimisticPrompt == null && (
         <ChainThinking />
-      )}
-
-      {(error != null || rehydratedError != null) && (
-        <Error>
-          <ErrorContent>An error occurred.</ErrorContent>
-          <ErrorDetails>
-            <div>
-              {error != null
-                ? error instanceof globalThis.Error
-                  ? error.message
-                  : String(error)
-                : rehydratedError}
-            </div>
-          </ErrorDetails>
-        </Error>
       )}
     </>
   );
@@ -521,11 +543,13 @@ const UserTurn = ({
   anchorId,
   sending,
   todos,
+  error,
 }: {
   message: BaseMessage;
   anchorId: string;
   sending: boolean;
   todos?: Todo[];
+  error?: string;
 }) => {
   const { text, context, source } = presentSideChannelMessage(message.text);
   const inline = getFileAttachments(message);
@@ -646,6 +670,14 @@ const UserTurn = ({
           todos={todos}
           className="ml-auto w-full max-w-[82%] rounded-lg border border-border/50 bg-muted/30 p-4"
         />
+      )}
+      {error != null && (
+        <Error>
+          <ErrorContent>An error occurred.</ErrorContent>
+          <ErrorDetails>
+            <div>{error}</div>
+          </ErrorDetails>
+        </Error>
       )}
     </div>
   );
