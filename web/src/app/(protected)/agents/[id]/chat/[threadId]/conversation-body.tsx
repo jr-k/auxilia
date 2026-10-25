@@ -22,6 +22,7 @@ import {
   CopyIcon,
   DownloadIcon,
   ExternalLinkIcon,
+  InfoIcon,
   MessagesSquareIcon,
   PaperclipIcon,
   RefreshCcwIcon,
@@ -370,18 +371,24 @@ export const ConversationBody = memo(function ConversationBody({
  * the thread was replaced). Rendered as a muted event line, never as a
  * user bubble, so the transcript keeps who said what.
  */
+const HOST_NOTICE_PREFIX = /^\s*\[Host notice\]\s*/;
+
 export function isHostNotice(message: BaseMessage): boolean {
   return (
-    message.name === "host" &&
-    typeof message.additional_kwargs?.host_notice === "string"
+    (message.name === "host" &&
+      typeof message.additional_kwargs?.host_notice === "string") ||
+    HOST_NOTICE_PREFIX.test(message.text)
   );
 }
 
 const HostNotice = ({ message }: { message: BaseMessage }) => (
-  <div className="my-2 flex justify-center">
-    <p className="max-w-[80%] whitespace-pre-line rounded-md border border-dashed border-border px-3 py-1.5 text-center text-[11.5px] leading-[1.5] text-muted-foreground">
-      {message.text.replace(/^\[Host notice\]\s*/, "")}
-    </p>
+  <div className="my-2 flex w-full justify-start">
+    <div className="flex max-w-[80%] items-start gap-2 border-l-2 border-border px-3 py-1 text-left text-[11.5px] leading-[1.5] text-muted-foreground">
+      <InfoIcon aria-hidden="true" className="mt-0.5 size-3.5 shrink-0" />
+      <p className="whitespace-pre-line">
+        {message.text.replace(HOST_NOTICE_PREFIX, "")}
+      </p>
+    </div>
   </div>
 );
 
