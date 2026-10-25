@@ -1,8 +1,10 @@
 from functools import lru_cache
+from typing import Any
 
 import google.auth
 from google.auth.exceptions import DefaultCredentialsError
 from langchain_anthropic import ChatAnthropic
+from langchain_core.language_models import LanguageModelInput
 from langchain_deepseek import ChatDeepSeek
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_openai import ChatOpenAI
@@ -76,6 +78,72 @@ def provider_api_keys() -> dict[str, str]:
     return {name: key for name, key in keys.items() if key}
 
 
+_WEB_SEARCH_ACTION_TYPES = frozenset({"search", "open_page", "find_in_page"})
+_WEB_SEARCH_STATUSES = frozenset(
+    {"in_progress", "searching", "completed", "failed", "incomplete"}
+)
+
+
+def _repair_web_search_call(item: dict[str, Any]) -> dict[str, Any]:
+    """Give a replayed `web_search_call` fields the Responses API accepts.
+
+    The API occasionally streams a web search whose `action` is missing,
+    incomplete, or outside the documented variants. The block is persisted
+    as-is in the thread checkpoint, and every later turn that replays the
+    history then 400s — the thread is stuck. Normalize the action and status,
+    defaulting to a bare completed search (all search fields are optional).
+    """
+    if item.get("type") != "web_search_call":
+        return item
+    action = item.get("action")
+    if not isinstance(action, dict):
+        action = {}
+
+    action_type = action.get("type")
+    if action_type not in _WEB_SEARCH_ACTION_TYPES:
+        if isinstance(action.get("pattern"), str) and isinstance(
+            action.get("url"), str
+        ):
+            action_type = "find_in_page"
+        elif "url" in action and "query" not in action and "queries" not in action:
+            action_type = "open_page"
+        else:
+            action_type = "search"
+
+    # `find_in_page` requires both fields. A partial action is still invalid,
+    # so degrade it to a valid search rather than trapping the thread again.
+    if action_type == "find_in_page" and not (
+        isinstance(action.get("pattern"), str) and isinstance(action.get("url"), str)
+    ):
+        action_type = "search"
+
+    normalized_action: dict[str, Any] = {"type": action_type}
+    if action_type == "search":
+        if isinstance(action.get("query"), str):
+            normalized_action["query"] = action["query"]
+        if isinstance(action.get("queries"), list) and all(
+            isinstance(query, str) for query in action["queries"]
+        ):
+            normalized_action["queries"] = action["queries"]
+        # Do not replay `sources`: langchain-openai intentionally strips them
+        # because the Responses endpoint has rejected provider-returned sources.
+    elif action_type == "open_page":
+        if action.get("url") is None or isinstance(action.get("url"), str):
+            normalized_action["url"] = action.get("url")
+    else:
+        normalized_action["url"] = action["url"]
+        normalized_action["pattern"] = action["pattern"]
+
+    status = item.get("status")
+    if status == "success":
+        status = "completed"
+    elif status == "error":
+        status = "failed"
+    elif status not in _WEB_SEARCH_STATUSES:
+        status = "completed"
+    return {**item, "action": normalized_action, "status": status}
+
+
 class ResponsesChatOpenAI(ChatOpenAI):
     def bind_tools(self, tools, *, strict=None, **kwargs):
         # Responses defaults to strict normalization, which makes optional MCP
@@ -84,6 +152,22 @@ class ResponsesChatOpenAI(ChatOpenAI):
         return super().bind_tools(
             tools, strict=False if strict is None else strict, **kwargs
         )
+
+    def _get_request_payload(
+        self,
+        input_: LanguageModelInput,
+        *,
+        stop: list[str] | None = None,
+        **kwargs: Any,
+    ) -> dict:
+        payload = super()._get_request_payload(input_, stop=stop, **kwargs)
+        items = payload.get("input")
+        if isinstance(items, list):
+            payload["input"] = [
+                _repair_web_search_call(item) if isinstance(item, dict) else item
+                for item in items
+            ]
+        return payload
 
 
 class ChatModelFactory:
