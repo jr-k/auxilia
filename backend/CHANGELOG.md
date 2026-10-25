@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.33](https://github.com/jr-k/auxilia/compare/backend-v0.11.32...backend-v0.11.33) (2026-10-25)
+
+
+### Bug Fixes
+
+* **mcp:** surface skill validation errors ([c7f621a](https://github.com/jr-k/auxilia/commit/c7f621a6e2214ebce4fc403bf01b629a0481a5fc))
+
 ## [0.11.32](https://github.com/jr-k/auxilia/compare/backend-v0.11.31...backend-v0.11.32) (2026-10-25)
 
 
