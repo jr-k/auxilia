@@ -7,10 +7,16 @@ import {
 	TooltipProvider,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
+import ConfirmDialog from "@/components/ui/confirm-dialog";
+import { useConfirmExternalLinks } from "@/lib/user-preferences";
 import { cn } from "@/lib/utils";
 import type { ComponentProps, HTMLAttributes } from "react";
-import { memo } from "react";
-import { Streamdown } from "streamdown";
+import { memo, useCallback, useContext, useState } from "react";
+import {
+	Streamdown,
+	StreamdownContext,
+	type ExtraProps,
+} from "streamdown";
 
 export type MessageProps = HTMLAttributes<HTMLDivElement> & {
 	from: "user" | "assistant";
@@ -117,16 +123,132 @@ export const MessageAction = ({
 
 export type MessageResponseProps = ComponentProps<typeof Streamdown>;
 
+type MessageLinkProps = ComponentProps<"a"> & ExtraProps;
+
+function MessageLink({
+	children,
+	className,
+	href,
+	onClick,
+	...props
+}: MessageLinkProps) {
+	const { linkSafety } = useContext(StreamdownContext);
+	const [confirmationOpen, setConfirmationOpen] = useState(false);
+	const isIncomplete = href === "streamdown:incomplete-link";
+	const linkProps = { ...props };
+	delete linkProps.node;
+
+	const openLink = useCallback(() => {
+		if (href && !isIncomplete) {
+			window.open(href, "_blank", "noopener,noreferrer");
+		}
+	}, [href, isIncomplete]);
+
+	const requestConfirmation = useCallback(async () => {
+		if (href && linkSafety?.onLinkCheck) {
+			const isSafe = await linkSafety.onLinkCheck(href);
+			if (isSafe) {
+				openLink();
+				return;
+			}
+		}
+		setConfirmationOpen(true);
+	}, [href, linkSafety, openLink]);
+
+	const handleClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
+		onClick?.(event);
+		if (event.defaultPrevented) return;
+		if (isIncomplete) {
+			event.preventDefault();
+			return;
+		}
+		if (
+			!linkSafety?.enabled ||
+			event.ctrlKey ||
+			event.metaKey ||
+			event.shiftKey ||
+			event.altKey
+		) {
+			return;
+		}
+		event.preventDefault();
+		void requestConfirmation();
+	};
+
+	const modalProps = {
+		isOpen: confirmationOpen,
+		onClose: () => {
+			setConfirmationOpen(false);
+		},
+		onConfirm: openLink,
+		url: href ?? "",
+	};
+
+	return (
+		<>
+			<a
+				className={cn(
+					"wrap-anywhere font-medium text-primary underline",
+					className,
+				)}
+				{...linkProps}
+				data-incomplete={isIncomplete}
+				data-streamdown="link"
+				href={isIncomplete ? undefined : href}
+				rel="noopener noreferrer"
+				target="_blank"
+				onClick={handleClick}
+			>
+				{children}
+			</a>
+			{linkSafety?.enabled &&
+				(linkSafety.renderModal ? (
+					linkSafety.renderModal(modalProps)
+				) : (
+					<ConfirmDialog
+						open={confirmationOpen}
+						onOpenChange={setConfirmationOpen}
+						title="Open external link?"
+						description={
+							<>
+								This link leads to an external website:
+								<span className="mt-2 block break-all font-medium text-foreground">
+									{href}
+								</span>
+							</>
+						}
+						confirmLabel="Open link"
+						onConfirm={openLink}
+					/>
+				))}
+		</>
+	);
+}
+
 export const MessageResponse = memo(
-	({ className, ...props }: MessageResponseProps) => (
-		<Streamdown
-			className={cn(
-				"size-full [&>*:first-child]:mt-0 [&>*:last-child]:mb-0",
-				className,
-			)}
-			{...props}
-		/>
-	),
+	({
+		className,
+		components,
+		linkSafety,
+		...props
+	}: MessageResponseProps) => {
+		const confirmExternalLinks = useConfirmExternalLinks();
+
+		return (
+			<Streamdown
+				className={cn(
+					"size-full [&>*:first-child]:mt-0 [&>*:last-child]:mb-0",
+					className,
+				)}
+				components={{ ...components, a: MessageLink }}
+				linkSafety={{
+					...linkSafety,
+					enabled: confirmExternalLinks,
+				}}
+				{...props}
+			/>
+		);
+	},
 	(prevProps, nextProps) => prevProps.children === nextProps.children,
 );
 

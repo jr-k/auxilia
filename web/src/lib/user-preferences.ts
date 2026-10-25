@@ -4,10 +4,13 @@ import { useSyncExternalStore } from "react";
 
 const RESPONSE_SOUND_KEY = "auxilia:play-response-sound";
 const SHOW_SHORTCUTS_IN_MENU_KEY = "auxilia:show-shortcuts-in-menu";
+const CONFIRM_EXTERNAL_LINKS_KEY = "auxilia:confirm-external-links";
 const responseSoundListeners = new Set<() => void>();
 const shortcutsMenuListeners = new Set<() => void>();
+const externalLinksListeners = new Set<() => void>();
 let responseSoundFallback = true;
 let shortcutsMenuFallback = true;
+let externalLinksFallback = true;
 
 function readPreference(key: string, fallback: boolean): boolean {
 	if (typeof window === "undefined") return fallback;
@@ -30,6 +33,14 @@ function readShowShortcutsInMenuPreference(): boolean {
 		shortcutsMenuFallback,
 	);
 	return shortcutsMenuFallback;
+}
+
+function readConfirmExternalLinksPreference(): boolean {
+	externalLinksFallback = readPreference(
+		CONFIRM_EXTERNAL_LINKS_KEY,
+		externalLinksFallback,
+	);
+	return externalLinksFallback;
 }
 
 function subscribeToPreference(
@@ -64,6 +75,14 @@ function subscribeToShortcutsMenu(listener: () => void): () => void {
 	);
 }
 
+function subscribeToExternalLinks(listener: () => void): () => void {
+	return subscribeToPreference(
+		CONFIRM_EXTERNAL_LINKS_KEY,
+		externalLinksListeners,
+		listener,
+	);
+}
+
 export function useResponseSoundEnabled(): boolean {
 	return useSyncExternalStore(
 		subscribeToResponseSound,
@@ -76,6 +95,14 @@ export function useShowShortcutsInMenu(): boolean {
 	return useSyncExternalStore(
 		subscribeToShortcutsMenu,
 		readShowShortcutsInMenuPreference,
+		() => true,
+	);
+}
+
+export function useConfirmExternalLinks(): boolean {
+	return useSyncExternalStore(
+		subscribeToExternalLinks,
+		readConfirmExternalLinksPreference,
 		() => true,
 	);
 }
@@ -104,6 +131,18 @@ export function setShowShortcutsInMenu(enabled: boolean): void {
 		// Keep the in-memory preference when storage is unavailable.
 	}
 	shortcutsMenuListeners.forEach((listener) => {
+		listener();
+	});
+}
+
+export function setConfirmExternalLinks(enabled: boolean): void {
+	externalLinksFallback = enabled;
+	try {
+		window.localStorage.setItem(CONFIRM_EXTERNAL_LINKS_KEY, String(enabled));
+	} catch {
+		// Keep the in-memory preference when storage is unavailable.
+	}
+	externalLinksListeners.forEach((listener) => {
 		listener();
 	});
 }

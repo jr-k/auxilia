@@ -16,8 +16,10 @@ import { Switch } from "@/components/ui/switch";
 import { getApiErrorMessage } from "@/lib/api/errors";
 import * as usersApi from "@/lib/api/resources/users";
 import {
+	setConfirmExternalLinks,
 	setResponseSoundEnabled,
 	setShowShortcutsInMenu,
+	useConfirmExternalLinks,
 	useResponseSoundEnabled,
 	useShowShortcutsInMenu,
 } from "@/lib/user-preferences";
@@ -647,6 +649,7 @@ function TwoFactorCard({ user }: { user: CurrentUser }) {
 
 function PreferencesCard() {
 	const appName = useAppearanceStore((state) => state.appearance.appName);
+	const confirmExternalLinks = useConfirmExternalLinks();
 	const responseSoundEnabled = useResponseSoundEnabled();
 	const showShortcutsInMenu = useShowShortcutsInMenu();
 
@@ -672,6 +675,30 @@ function PreferencesCard() {
 						checked={showShortcutsInMenu}
 						onCheckedChange={setShowShortcutsInMenu}
 						aria-label="Show shortcuts in the sidebar"
+						className="cursor-pointer"
+					/>
+				</div>
+			</section>
+			<section className="rounded-[12px] border border-border bg-card p-5">
+				<SectionHeading
+					icon={<ShieldCheck className="size-4" />}
+					title="External links"
+					description="Choose whether links in assistant responses require confirmation."
+				/>
+				<div className="flex items-center justify-between gap-6 rounded-[9px] border border-input px-4 py-3.5">
+					<div>
+						<p className="text-[13px] font-semibold text-foreground">
+							Confirm before opening external links
+						</p>
+						<p className="mt-0.5 text-[12px] leading-5 text-subtle dark:text-panel-body">
+							Regular clicks show a safety confirmation. Ctrl/Cmd+click opens
+							directly in a new tab. This preference is saved on this browser.
+						</p>
+					</div>
+					<Switch
+						checked={confirmExternalLinks}
+						onCheckedChange={setConfirmExternalLinks}
+						aria-label="Confirm before opening external links"
 						className="cursor-pointer"
 					/>
 				</div>
