@@ -1,4 +1,5 @@
 import logging
+import secrets
 from datetime import UTC, datetime, timedelta
 
 from mcp.client.auth import TokenStorage
@@ -10,12 +11,17 @@ from mcp.shared.auth import (
 )
 from pydantic import BaseModel
 from redis.asyncio import Redis
+from redis.asyncio.lock import Lock
+from redis.exceptions import WatchError
 
 from app.redis_client import get_redis
 from app.utils.encryption import decrypt_value, encrypt_value
 
 
 logger = logging.getLogger(__name__)
+
+_REFRESH_LOCK_TTL_SECONDS = 30
+_REFRESH_LOCK_WAIT_SECONDS = 10
 
 
 class StoredToken(BaseModel):
@@ -55,6 +61,9 @@ class RedisTokenStorage(TokenStorage):
 
     def _tokens_key(self) -> str:
         return f"{self._base()}:tokens"
+
+    def _refresh_lock_key(self) -> str:
+        return f"{self._base()}:refresh_lock"
 
     def _client_info_key(self) -> str:
         return f"{self._base()}:client_info"
@@ -127,6 +136,53 @@ class RedisTokenStorage(TokenStorage):
         """Forget the token pair, keeping client and discovery metadata so the
         next authorization skips dynamic registration."""
         await self.redis.delete(self._tokens_key())
+
+    def refresh_lock(self) -> Lock:
+        """Serialize refresh-token rotation across every backend instance."""
+        return self.redis.lock(
+            self._refresh_lock_key(),
+            timeout=_REFRESH_LOCK_TTL_SECONDS,
+            blocking=True,
+            blocking_timeout=_REFRESH_LOCK_WAIT_SECONDS,
+        )
+
+    async def delete_tokens_if_unchanged(self, expected: OAuthToken) -> bool:
+        """Delete only the token pair that produced a rejected refresh.
+
+        A refresh or OAuth callback may replace the Redis value after the
+        request started. WATCH makes the read/compare/delete atomic so that a
+        stale failure cannot erase those newer credentials.
+        """
+        key = self._tokens_key()
+        async with self.redis.pipeline(transaction=True) as pipe:
+            while True:
+                try:
+                    await pipe.watch(key)
+                    raw = await pipe.get(key)
+                    if not raw:
+                        await pipe.unwatch()
+                        return False
+                    current = StoredToken.model_validate_json(decrypt_value(raw))
+                    if not (
+                        secrets.compare_digest(
+                            current.token_payload.access_token,
+                            expected.access_token,
+                        )
+                        and secrets.compare_digest(
+                            current.token_payload.refresh_token or "",
+                            expected.refresh_token or "",
+                        )
+                    ):
+                        await pipe.unwatch()
+                        return False
+                    pipe.multi()
+                    pipe.delete(key)
+                    await pipe.execute()
+                    return True
+                except WatchError:
+                    # Another writer won between WATCH and EXEC. Re-read and
+                    # only delete if the same rejected pair is still present.
+                    continue
 
     async def get_client_info(self) -> OAuthClientInformationFull | None:
         raw = await self.redis.get(self._client_info_key())

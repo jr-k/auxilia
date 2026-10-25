@@ -25,6 +25,7 @@ the two ends of the split plus catalog-managed compatibility policies.
 
 from __future__ import annotations
 
+import contextlib
 import logging
 import secrets
 from collections.abc import AsyncGenerator, Sequence
@@ -54,9 +55,11 @@ from mcp.shared.auth import (
     ProtectedResourceMetadata,
 )
 from pydantic import AnyHttpUrl, AnyUrl
+from redis.exceptions import LockError
 
 from app.auth.settings import auth_settings
 from app.mcp.client.exceptions import OAuthAuthorizationRequired
+from app.mcp.client.storage import StoredToken
 from app.mcp.compatibility import MCPCompatibilityQuirk, matching_quirks
 from app.mcp.servers.catalog import bundled_compatibility_quirks
 
@@ -450,7 +453,9 @@ class WebOAuthClientProvider(OAuthClientProvider):
         AS *rejects* (any non-2xx other than 429 / 5xx — see
         :func:`refresh_failure_is_transient`) also deletes the stored token
         pair; a transport failure, 429 or 5xx keeps it so a transient outage
-        does not log the user out.
+        does not log the user out. Redis-backed storage serializes refreshes
+        across backend instances and conditionally deletes rejected credentials
+        so a stale request cannot erase a concurrently rotated token pair.
         """
         if not self._initialized:
             await self._initialize()
@@ -459,17 +464,64 @@ class WebOAuthClientProvider(OAuthClientProvider):
         if not stored:
             return False
 
-        is_expired = (
-            stored.expires_at is not None and datetime.now(UTC) > stored.expires_at
-        )
-        if not is_expired:
+        if not self._stored_token_is_expired(stored):
             return True
 
+        lock_factory = getattr(self.context.storage, "refresh_lock", None)
+        if lock_factory is None:
+            # Non-Redis TokenStorage implementations (notably embedders and
+            # tests) retain the SDK-compatible single-process behavior.
+            return await self._refresh_stored_token(stored)
+
+        lock = lock_factory()
+        if not await lock.acquire():
+            # The owner may have completed just as our bounded wait elapsed.
+            latest = await self.context.storage.get_stored_token()
+            if latest and not self._stored_token_is_expired(latest):
+                self._use_stored_token(latest)
+                return True
+            return False
+
+        try:
+            # Double-check after acquisition: another request may have refreshed
+            # while this one waited.
+            latest = await self.context.storage.get_stored_token()
+            if not latest:
+                return False
+            self._use_stored_token(latest)
+            if not self._stored_token_is_expired(latest):
+                return True
+            return await self._refresh_stored_token(latest)
+        finally:
+            # A slow IdP may outlive the lock TTL; in that case Redis correctly
+            # refuses to release a lock now owned by another request.
+            with contextlib.suppress(LockError):
+                await lock.release()
+
+    @staticmethod
+    def _stored_token_is_expired(stored: StoredToken) -> bool:
+        return stored.expires_at is not None and datetime.now(UTC) >= stored.expires_at
+
+    def _use_stored_token(self, stored: StoredToken) -> None:
+        """Make the SDK request builder use the token re-read under the lock."""
+        tokens = stored.token_payload
+        if stored.expires_at is not None and tokens.expires_in is not None:
+            remaining = max(
+                0, int((stored.expires_at - datetime.now(UTC)).total_seconds())
+            )
+            tokens = tokens.model_copy(update={"expires_in": remaining})
+        self.context.current_tokens = tokens
+        self.context.update_token_expiry(tokens)
+
+    async def _refresh_stored_token(self, stored: StoredToken) -> bool:
         if not stored.token_payload.refresh_token:
             return False
         if not self.context.client_info or not self.context.oauth_metadata:
             return False
 
+        # `_refresh_token` reads `context.current_tokens`, which may still hold
+        # the pre-lock pair unless it is explicitly synchronized here.
+        self._use_stored_token(stored)
         try:
             request = await self._refresh_token()
             request.headers.setdefault("User-Agent", OAUTH_USER_AGENT)
@@ -493,17 +545,27 @@ class WebOAuthClientProvider(OAuthClientProvider):
                     self.context.server_url,
                 )
                 return False
-            # The AS rejected the refresh token. That is final — revoked,
-            # rotated away by a concurrent refresh, or expired — so drop the
-            # stored pair: the next
-            # check then prompts a clean re-authorization instead of retrying
-            # the dead token on every poll and every run.
+            # The AS rejected this exact refresh token. Clear it only if no
+            # concurrent refresh or callback has replaced the pair meanwhile.
+            conditional_delete = getattr(
+                self.context.storage, "delete_tokens_if_unchanged", None
+            )
+            deleted = (
+                await conditional_delete(stored.token_payload)
+                if conditional_delete is not None
+                else False
+            )
+            if conditional_delete is None:
+                await self.context.storage.delete_tokens()
+                deleted = True
             logger.warning(
-                "OAuth refresh rejected (%s) for %s — clearing stored tokens",
+                "OAuth refresh rejected (%s) for %s — %s",
                 response.status_code,
                 self.context.server_url,
+                "cleared rejected credentials"
+                if deleted
+                else "kept newer stored credentials",
             )
-            await self.context.storage.delete_tokens()
             return False
         except Exception:  # noqa: BLE001 — a failed refresh means "not authorized", not a crash
             logger.warning(
@@ -774,9 +836,20 @@ class WebOAuthClientProvider(OAuthClientProvider):
         token_request.headers.setdefault("User-Agent", OAUTH_USER_AGENT)
 
         # The SDK's `_handle_token_response` accepts 200/201, validates scopes
-        # and persists the token to storage.
-        async with httpx2.AsyncClient() as client:
-            response = await client.send(token_request)
-            await self._handle_token_response(response)
+        # and persists the token to storage. Share the refresh lock so a slow
+        # refresh cannot overwrite this newly authorized pair after the
+        # callback returns (and vice versa).
+        lock_factory = getattr(self.context.storage, "refresh_lock", None)
+        lock = lock_factory() if lock_factory is not None else None
+        if lock is not None and not await lock.acquire():
+            raise OAuthFlowError("Timed out waiting to store OAuth credentials")
+        try:
+            async with httpx2.AsyncClient() as client:
+                response = await client.send(token_request)
+                await self._handle_token_response(response)
+        finally:
+            if lock is not None:
+                with contextlib.suppress(LockError):
+                    await lock.release()
 
         await self.context.storage.delete_verifier(state)
