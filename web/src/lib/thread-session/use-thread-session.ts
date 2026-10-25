@@ -282,7 +282,9 @@ export function useThreadSession({
 
 	const send = useCallback(
 		async (message: PromptInputMessage) => {
-			if (stoppingRef.current === threadId) return;
+			if (stoppingRef.current === threadId) {
+				throw new DOMException("Conversation changed before sending", "AbortError");
+			}
 			if (!message.text?.trim() && (message.files?.length ?? 0) === 0) return;
 			userActed();
 			const vision =
@@ -302,7 +304,9 @@ export function useThreadSession({
 					};
 				},
 			});
-			if (input == null || currentThreadId.current !== threadId) return;
+			if (input == null || currentThreadId.current !== threadId) {
+				throw new DOMException("Conversation changed before sending", "AbortError");
+			}
 			const sequence = ++submissionSequence.current;
 			setPendingSubmission({
 				threadId,

@@ -247,12 +247,20 @@ export function usePromptQueue(
 							};
 						},
 					});
-					if (input == null) return undefined;
+					if (input == null) {
+						throw new DOMException(
+							"Conversation changed before queueing",
+							"AbortError",
+						);
+					}
 					if (
 						threadIdRef.current !== threadId ||
 						version !== requestVersion.current
 					) {
-						return undefined;
+						throw new DOMException(
+							"Conversation changed before queueing",
+							"AbortError",
+						);
 					}
 					const item = await threadsApi.enqueuePrompt(threadId, input);
 					if (

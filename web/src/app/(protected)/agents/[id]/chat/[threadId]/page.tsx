@@ -443,6 +443,7 @@ const ChatPage = () => {
           <ChatPromptInput
             key={threadId}
             agentId={agentId}
+            draftKey={threadId}
             onSubmit={(message) => {
               acknowledgeCurrentResponse();
               return actions.send(message);

@@ -295,6 +295,7 @@ const StarterChatPage = () => {
 					) : (
 						<ChatPromptInput
 							agentId={agentId}
+							draftKey={`new:${agentId}`}
 							onSubmit={handleSubmit}
 							status={isCreating ? "streaming" : "ready"}
 							className="w-full"

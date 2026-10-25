@@ -34,6 +34,7 @@ import {
 	useCallback,
 	useContext,
 	useEffect,
+	useLayoutEffect,
 	useMemo,
 	useRef,
 	useState,
@@ -55,7 +56,12 @@ export type AttachmentsContext = {
 type TextInputContext = {
 	value: string;
 	setInput: (v: string) => void;
+	setDraft: (key: string, value: string) => void;
 	clear: () => void;
+	activateDraft: (key: string) => void;
+	draftIdentity: () => { key: string | null; revision: number };
+	draftValue: (key: string) => string;
+	clearDraft: (key: string | null, expectedRevision?: number) => void;
 };
 
 export type ModelSelectionContext = {
@@ -97,6 +103,15 @@ export const usePromptInputController = () => {
 	return ctx;
 };
 
+/** Select the text draft owned by one conversation before the browser paints. */
+export const usePromptInputDraft = (key: string) => {
+	const controller = usePromptInputController();
+	const activateDraft = controller.textInput.activateDraft;
+	useLayoutEffect(() => {
+		activateDraft(key);
+	}, [activateDraft, key]);
+};
+
 // Optional variants (do NOT throw). Useful for dual-mode components.
 const useOptionalPromptInputController = () =>
 	useContext(PromptInputController);
@@ -118,7 +133,93 @@ export function PromptInputProvider({
 }: PromptInputProviderProps) {
 	// ----- textInput state
 	const [textInput, setTextInput] = useState(initialTextInput);
-	const clearInput = useCallback(() => { setTextInput(""); }, []);
+	const textInputRef = useRef(initialTextInput);
+	const activeDraftKey = useRef<string | null>(null);
+	const activeDraftRevision = useRef(0);
+	const nextDraftRevision = useRef(0);
+	const drafts = useRef(new Map<string, string>());
+	const draftRevisions = useRef(new Map<string, number>());
+	const setDraft = useCallback((key: string, value: string) => {
+		const revision = ++nextDraftRevision.current;
+		if (value) drafts.current.set(key, value);
+		else drafts.current.delete(key);
+		draftRevisions.current.set(key, revision);
+		if (activeDraftKey.current !== key) return;
+		textInputRef.current = value;
+		activeDraftRevision.current = revision;
+		setTextInput(value);
+	}, []);
+	const setDraftInput = useCallback(
+		(value: string) => {
+			const key = activeDraftKey.current;
+			if (key !== null) {
+				setDraft(key, value);
+				return;
+			}
+			textInputRef.current = value;
+			activeDraftRevision.current = ++nextDraftRevision.current;
+			setTextInput(value);
+		},
+		[setDraft],
+	);
+	const clearDraft = useCallback((key: string | null, expectedRevision?: number) => {
+		const currentRevision =
+			activeDraftKey.current === key
+				? activeDraftRevision.current
+				: key === null
+					? 0
+					: (draftRevisions.current.get(key) ?? 0);
+		if (
+			expectedRevision !== undefined &&
+			currentRevision !== expectedRevision
+		) {
+			return;
+		}
+		if (key !== null) {
+			drafts.current.delete(key);
+			draftRevisions.current.delete(key);
+		}
+		if (activeDraftKey.current !== key) return;
+		const revision = ++nextDraftRevision.current;
+		textInputRef.current = "";
+		activeDraftRevision.current = revision;
+		if (key !== null) draftRevisions.current.set(key, revision);
+		setTextInput("");
+	}, []);
+	const clearInput = useCallback(() => {
+		clearDraft(activeDraftKey.current);
+	}, [clearDraft]);
+	const getDraftIdentity = useCallback(
+		() => ({
+			key: activeDraftKey.current,
+			revision: activeDraftRevision.current,
+		}),
+		[],
+	);
+	const getDraftValue = useCallback(
+		(key: string) =>
+			activeDraftKey.current === key
+				? textInputRef.current
+				: (drafts.current.get(key) ?? ""),
+		[],
+	);
+	const activateDraft = useCallback((key: string) => {
+		const previousKey = activeDraftKey.current;
+		const current = textInputRef.current;
+		if (previousKey !== null && previousKey !== key) {
+			if (current) drafts.current.set(previousKey, current);
+			else drafts.current.delete(previousKey);
+			draftRevisions.current.set(
+				previousKey,
+				activeDraftRevision.current,
+			);
+		}
+		const next = drafts.current.get(key) ?? "";
+		activeDraftKey.current = key;
+		activeDraftRevision.current = draftRevisions.current.get(key) ?? 0;
+		textInputRef.current = next;
+		setTextInput(next);
+	}, []);
 
 	// ----- model selection state
 	const [selectedModel, setSelectedModel] = useState<string | undefined>(
@@ -238,8 +339,13 @@ export function PromptInputProvider({
 		() => ({
 			textInput: {
 				value: textInput,
-				setInput: setTextInput,
+				setInput: setDraftInput,
+				setDraft,
 				clear: clearInput,
+				activateDraft,
+				draftIdentity: getDraftIdentity,
+				draftValue: getDraftValue,
+				clearDraft,
 			},
 			attachments,
 			modelSelection,
@@ -248,7 +354,13 @@ export function PromptInputProvider({
 		}),
 		[
 			textInput,
+			setDraft,
+			setDraftInput,
 			clearInput,
+			clearDraft,
+			getDraftIdentity,
+			getDraftValue,
+			activateDraft,
 			attachments,
 			modelSelection,
 			starterAgent,
@@ -803,8 +915,6 @@ export const PromptInput = ({
 		[files, add, remove, clear, openFileDialog],
 	);
 	const submittingRef = useRef(false);
-	const latestTextRef = useRef(controller?.textInput.value ?? "");
-	latestTextRef.current = controller?.textInput.value ?? "";
 
 	const handleSubmit: FormEventHandler<HTMLFormElement> = (event) => {
 		event.preventDefault();
@@ -818,6 +928,9 @@ export const PromptInput = ({
 					const formData = new FormData(form);
 					return (formData.get("message") as string) || "";
 				})();
+		const submittedDraft = usingProvider
+			? controller.textInput.draftIdentity()
+			: { key: null, revision: 0 };
 
 		// Reset form immediately after capturing text to avoid race condition
 		// where user input during async blob conversion would be lost
@@ -843,8 +956,11 @@ export const PromptInput = ({
 				for (const file of submittedFiles) {
 					remove(file.id);
 				}
-				if (usingProvider && latestTextRef.current === text) {
-					controller.textInput.clear();
+				if (usingProvider) {
+					controller.textInput.clearDraft(
+						submittedDraft.key,
+						submittedDraft.revision,
+					);
 				}
 			} catch {
 				// Don't clear on error - user may want to retry

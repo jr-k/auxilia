@@ -15,6 +15,7 @@ import {
 	PromptInputTextarea,
 	PromptInputTools,
 	usePromptInputController,
+	usePromptInputDraft,
 } from "@/components/ai-elements/prompt-input";
 import type { BaseMessage } from "@langchain/core/messages";
 import {
@@ -31,7 +32,13 @@ import {
 	PlugIcon,
 	XIcon,
 } from "lucide-react";
-import { useRef, useState, useEffect, useMemo } from "react";
+import {
+	useEffect,
+	useLayoutEffect,
+	useMemo,
+	useRef,
+	useState,
+} from "react";
 import { toast } from "sonner";
 import { DropdownMenu } from "@/components/ui/dropdown-menu";
 import { useModelsStore } from "@/stores/models-store";
@@ -85,6 +92,7 @@ const TOOL_DISCOVERY_LABELS: Record<ToolDiscoveryMode, string> = {
 
 interface ChatPromptInputProps {
 	agentId: string;
+	draftKey: string;
 	onSubmit: (message: PromptInputMessage) => void | Promise<void>;
 	status: "submitted" | "streaming" | "ready" | "error";
 	queueMode?: boolean;
@@ -150,6 +158,7 @@ const safeHttpUrl = (value: unknown): string | null => {
 
 const ChatPromptInput = ({
 	agentId,
+	draftKey,
 	onSubmit,
 	status,
 	queueMode = false,
@@ -185,6 +194,7 @@ const ChatPromptInput = ({
 	conversationMessages,
 	loadLatestConversationMessages,
 }: ChatPromptInputProps) => {
+	usePromptInputDraft(draftKey);
 	const [connectDialogOpen, setConnectDialogOpen] = useState(false);
 	const models = useModelsStore((state) => state.models);
 	const fetchModels = useModelsStore((state) => state.fetchModels);
@@ -196,6 +206,10 @@ const ChatPromptInput = ({
 	const textareaRef = useRef<HTMLTextAreaElement>(null);
 	const initialFocusPendingRef = useRef(true);
 	const controller = usePromptInputController();
+	const setThreadDraft = controller.textInput.setDraft;
+	const mountedRef = useRef(true);
+	const activeDraftKeyRef = useRef(draftKey);
+	activeDraftKeyRef.current = draftKey;
 	const [editingId, setEditingId] = useState<string | null>(null);
 	const [busyId, setBusyId] = useState<string | null>(null);
 	const [statsDialogOpen, setStatsDialogOpen] = useState(false);
@@ -220,7 +234,6 @@ const ChatPromptInput = ({
 	const [preparingSubmission, setPreparingSubmission] = useState(false);
 	const configurationLocked = modelChangeDisabled || preparingSubmission;
 	const draftRef = useRef<string | null>(null);
-	const restoreFrameRef = useRef<number | null>(null);
 	const effectiveEditingId =
 		editingId && queuedPrompts.some((item) => item.id === editingId)
 			? editingId
@@ -496,13 +509,18 @@ const ChatPromptInput = ({
 		if (!open) setModelSearch("");
 	};
 
-	useEffect(
-		() => () => {
-			if (restoreFrameRef.current !== null) {
-				cancelAnimationFrame(restoreFrameRef.current);
-			}
+	useLayoutEffect(
+		() => {
+			mountedRef.current = true;
+			return () => {
+				mountedRef.current = false;
+				if (draftRef.current !== null) {
+					setThreadDraft(draftKey, draftRef.current);
+					draftRef.current = null;
+				}
+			};
 		},
-		[],
+		[draftKey, setThreadDraft],
 	);
 
 	useEffect(() => {
@@ -525,16 +543,22 @@ const ChatPromptInput = ({
 
 		if (effectiveEditingId) {
 			if (!hasText || hasAttachments || !onUpdateQueued) return;
+			const submittedDraft = controller.textInput.draftIdentity();
+			const draft = draftRef.current;
 			setBusyId(effectiveEditingId);
 			try {
 				await onUpdateQueued(effectiveEditingId, message.text?.trim() ?? "");
 				setEditingId(null);
-				const draft = draftRef.current;
 				draftRef.current = null;
-				restoreFrameRef.current = requestAnimationFrame(() => {
-					controller.textInput.setInput(draft ?? "");
-					restoreFrameRef.current = null;
-				});
+				const currentDraft = controller.textInput.draftIdentity();
+				if (
+					mountedRef.current &&
+					activeDraftKeyRef.current === draftKey &&
+					currentDraft.key === submittedDraft.key &&
+					currentDraft.revision === submittedDraft.revision
+				) {
+					setThreadDraft(draftKey, draft ?? "");
+				}
 			} catch (error) {
 				toast.error(
 					getApiErrorMessage(
@@ -553,6 +577,9 @@ const ChatPromptInput = ({
 			try {
 				await onEnqueue(message);
 			} catch (error) {
+				if (error instanceof DOMException && error.name === "AbortError") {
+					throw error;
+				}
 				const apiError = toApiError(error);
 				if (apiError.status === 401) {
 					onQueueAuthorizationRequired?.();
@@ -633,7 +660,7 @@ const ChatPromptInput = ({
 	const finishEditingLocally = () => {
 		setEditingId(null);
 		if (draftRef.current !== null) {
-			controller.textInput.setInput(draftRef.current);
+			setThreadDraft(draftKey, draftRef.current);
 			draftRef.current = null;
 		}
 	};
@@ -647,10 +674,19 @@ const ChatPromptInput = ({
 		void (async () => {
 			try {
 				await onBeginQueuedEdit?.(item.id);
-				if (editingId === null) {
-					draftRef.current = controller.textInput.value;
+				if (
+					!mountedRef.current ||
+					activeDraftKeyRef.current !== draftKey
+				) {
+					if (onEndQueuedEdit) {
+						await onEndQueuedEdit(item.id).catch(() => {});
+					}
+					return;
 				}
-				controller.textInput.setInput(item.text);
+				if (editingId === null) {
+					draftRef.current = controller.textInput.draftValue(draftKey);
+				}
+				setThreadDraft(draftKey, item.text);
 				setEditingId(item.id);
 				requestAnimationFrame(() => {
 					textareaRef.current?.focus();
@@ -704,14 +740,14 @@ const ChatPromptInput = ({
 		// the local editing session.
 		const timeoutId = window.setTimeout(() => {
 			setEditingId(null);
-			controller.textInput.setInput(draftRef.current ?? "");
+			setThreadDraft(draftKey, draftRef.current ?? "");
 			draftRef.current = null;
 			toast.info("That prompt has started, so it can no longer be edited.");
 		}, 0);
 		return () => {
 			window.clearTimeout(timeoutId);
 		};
-	}, [controller.textInput, editingId, queuedPrompts]);
+	}, [draftKey, editingId, queuedPrompts, setThreadDraft]);
 
 	const removeQueued = async (id: string) => {
 		setBusyId(id);
