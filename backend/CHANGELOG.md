@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.31](https://github.com/jr-k/auxilia/compare/backend-v0.11.30...backend-v0.11.31) (2026-10-25)
+
+
+### Features
+
+* add public conversation sharing and bulk tool controls ([58b262b](https://github.com/jr-k/auxilia/commit/58b262b182d68ccf415d77807ab6f122f96c40fd))
+
 ## [0.11.30](https://github.com/jr-k/auxilia/compare/backend-v0.11.29...backend-v0.11.30) (2026-10-25)
 
 
