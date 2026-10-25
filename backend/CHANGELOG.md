@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.28](https://github.com/jr-k/auxilia/compare/backend-v0.11.27...backend-v0.11.28) (2026-10-25)
+
+
+### Bug Fixes
+
+* **mcp:** normalize legacy numeric schema bounds ([6c37ba4](https://github.com/jr-k/auxilia/commit/6c37ba4ade087435621ab4438bc3f3b7bac9457b))
+
 ## [0.11.27](https://github.com/jr-k/auxilia/compare/backend-v0.11.26...backend-v0.11.27) (2026-10-25)
 
 
