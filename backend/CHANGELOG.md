@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.29](https://github.com/jr-k/auxilia/compare/backend-v0.11.28...backend-v0.11.29) (2026-10-25)
+
+
+### Bug Fixes
+
+* **artifacts:** preview textual file formats ([a554ca1](https://github.com/jr-k/auxilia/commit/a554ca1645e21dc6508bc81be2a75165e48509a3))
+
 ## [0.11.28](https://github.com/jr-k/auxilia/compare/backend-v0.11.27...backend-v0.11.28) (2026-10-25)
 
 

@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.12.41](https://github.com/jr-k/auxilia/compare/web-v0.12.40...web-v0.12.41) (2026-10-25)
+
+
+### Bug Fixes
+
+* **artifacts:** preview textual file formats ([a554ca1](https://github.com/jr-k/auxilia/commit/a554ca1645e21dc6508bc81be2a75165e48509a3))
+* **chat:** isolate drafts by conversation ([228f224](https://github.com/jr-k/auxilia/commit/228f22458a66297309fe9f499017042b9d62d95c))
+
 ## [0.12.40](https://github.com/jr-k/auxilia/compare/web-v0.12.39...web-v0.12.40) (2026-10-25)
 
 
