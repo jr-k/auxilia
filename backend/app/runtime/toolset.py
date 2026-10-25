@@ -20,7 +20,7 @@ from app.mcp.client.connectivity import (
     resolve_connection,
 )
 from app.mcp.client.exceptions import as_oauth_required
-from app.mcp.client.tools import bound_tool_artifact
+from app.mcp.client.tools import bound_tool_artifact, normalize_mcp_tool_schema
 from app.mcp.servers.models import MCPServerDB
 from app.mcp.servers.repository import MCPServerRepository
 
@@ -495,6 +495,13 @@ class Toolset:
 
                 stack.push_async_exit(adapter)
                 for tool in lc_tools:
+                    if normalize_mcp_tool_schema(tool):
+                        logger.warning(
+                            "Normalized legacy exclusive bounds in MCP tool schema "
+                            "%s/%s",
+                            server_name,
+                            tool.name,
+                        )
                     original_description = tool.description.strip()
                     tool.metadata = {
                         **(tool.metadata if isinstance(tool.metadata, dict) else {}),

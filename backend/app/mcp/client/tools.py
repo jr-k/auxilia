@@ -41,6 +41,55 @@ _GENERIC_BINARY_MIME_TYPES = frozenset(
 _MAX_INLINE_TEXT_BYTES = 200_000
 
 
+def normalize_mcp_tool_schema(tool: BaseTool) -> bool:
+    """Upgrade legacy boolean exclusive bounds in an MCP tool schema.
+
+    Some servers convert Zod schemas to draft 2019/2020 while still emitting
+    the draft-04 representation ``minimum: N, exclusiveMinimum: true``.
+    OpenAI validates the declared modern draft and rejects the entire toolset
+    because modern ``exclusiveMinimum`` / ``exclusiveMaximum`` must themselves
+    be numbers. Preserve the bound's exact semantics recursively.
+    """
+    schema = getattr(tool, "args_schema", None)
+    if not isinstance(schema, dict):
+        return False
+
+    changed = False
+
+    def is_number(value: Any) -> bool:
+        return isinstance(value, int | float) and not isinstance(value, bool)
+
+    def visit(value: Any) -> None:
+        nonlocal changed
+        if isinstance(value, list):
+            for item in value:
+                visit(item)
+            return
+        if not isinstance(value, dict):
+            return
+
+        for exclusive_key, inclusive_key in (
+            ("exclusiveMinimum", "minimum"),
+            ("exclusiveMaximum", "maximum"),
+        ):
+            exclusive = value.get(exclusive_key)
+            if not isinstance(exclusive, bool):
+                continue
+            inclusive = value.get(inclusive_key)
+            if exclusive and is_number(inclusive):
+                value[exclusive_key] = inclusive
+                del value[inclusive_key]
+            else:
+                del value[exclusive_key]
+            changed = True
+
+        for child in value.values():
+            visit(child)
+
+    visit(schema)
+    return changed
+
+
 def _text_from_generic_blob(data: bytes) -> str | None:
     """Decode a generic blob only when it is clearly textual."""
     if len(data) > _MAX_INLINE_TEXT_BYTES or b"\x00" in data:
