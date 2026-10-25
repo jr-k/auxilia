@@ -94,11 +94,7 @@ class SkillService(BaseService[SkillDB, SkillRepository]):
             )
         return [
             SkillSummary(
-                **{
-                    k: v
-                    for k, v in row._mapping.items()
-                    if k != "agent_count"
-                },
+                **{k: v for k, v in row._mapping.items() if k != "agent_count"},
                 team_ids=team_ids.get(row.id, []),
                 agents=by_skill.get(row.id, []),
                 agent_count=len(by_skill.get(row.id, [])),
