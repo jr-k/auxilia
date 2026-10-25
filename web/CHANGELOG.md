@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.45](https://github.com/jr-k/auxilia/compare/web-v0.12.44...web-v0.12.45) (2026-10-25)
+
+
+### Bug Fixes
+
+* **agents:** prevent MCP icons overflowing ([f38f61e](https://github.com/jr-k/auxilia/commit/f38f61e25dc8c15055b6caa8b80568596e01bb2c))
+
 ## [0.12.44](https://github.com/jr-k/auxilia/compare/web-v0.12.43...web-v0.12.44) (2026-10-25)
 
 
