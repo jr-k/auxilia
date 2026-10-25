@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.39](https://github.com/jr-k/auxilia/compare/web-v0.12.38...web-v0.12.39) (2026-10-25)
+
+
+### Bug Fixes
+
+* **chat:** stabilize resource toggles and file drops ([932b4a1](https://github.com/jr-k/auxilia/commit/932b4a12c89614af24e5e6b65874f1c9d1705f31))
+
 ## [0.12.38](https://github.com/jr-k/auxilia/compare/web-v0.12.37...web-v0.12.38) (2026-10-25)
 
 
