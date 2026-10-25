@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.34](https://github.com/jr-k/auxilia/compare/backend-v0.11.33...backend-v0.11.34) (2026-10-25)
+
+
+### Bug Fixes
+
+* **chat:** prevent blank conversations ([68dcdf8](https://github.com/jr-k/auxilia/commit/68dcdf80f1205ced9cd21745759161dc54ab3c3f))
+
 ## [0.11.33](https://github.com/jr-k/auxilia/compare/backend-v0.11.32...backend-v0.11.33) (2026-10-25)
 
 

@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.46](https://github.com/jr-k/auxilia/compare/web-v0.12.45...web-v0.12.46) (2026-10-25)
+
+
+### Bug Fixes
+
+* **chat:** prevent blank conversations ([68dcdf8](https://github.com/jr-k/auxilia/commit/68dcdf80f1205ced9cd21745759161dc54ab3c3f))
+
 ## [0.12.45](https://github.com/jr-k/auxilia/compare/web-v0.12.44...web-v0.12.45) (2026-10-25)
 
 
