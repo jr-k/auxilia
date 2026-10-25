@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.37](https://github.com/jr-k/auxilia/compare/web-v0.12.36...web-v0.12.37) (2026-10-25)
+
+
+### Bug Fixes
+
+* **chat:** keep run errors with their prompts ([871a7c0](https://github.com/jr-k/auxilia/commit/871a7c05a08d5f716b91d1ae6384df436922277e))
+
 ## [0.12.36](https://github.com/jr-k/auxilia/compare/web-v0.12.35...web-v0.12.36) (2026-10-24)
 
 
