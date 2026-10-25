@@ -134,7 +134,10 @@ export type SubAgentCardProps = {
   /** Interrupts raised inside subagents; the card claims its own. */
   interrupts: readonly Interrupt[];
   /** Resume — `stream.respond(response, { interruptId })`. */
-  respond: (response: HitlResponse, interruptId: string | null) => void;
+  respond: (
+    response: HitlResponse,
+    interruptId: string | null,
+  ) => Promise<void>;
   /** A run is executing; approvals are held until it settles. */
   resumeInFlight: boolean;
   modelUnavailable: boolean;
@@ -293,7 +296,10 @@ export const SubAgentProgress = memo(function SubAgentProgress({
         />
       </div>
       <span>
-        <span className="font-mono">{completed}/{total}</span> complete
+        <span className="font-mono">
+          {completed}/{total}
+        </span>{" "}
+        complete
       </span>
     </div>
   );
@@ -306,7 +312,11 @@ export const SynthesisIndicator = memo(function SynthesisIndicator({
   subagents: SubagentDiscoverySnapshot[];
   isCoordinatorStreaming: boolean;
 }) {
-  if (!isCoordinatorStreaming || subagents.length === 0 || !subagents.every(isDone)) {
+  if (
+    !isCoordinatorStreaming ||
+    subagents.length === 0 ||
+    !subagents.every(isDone)
+  ) {
     return null;
   }
   return (

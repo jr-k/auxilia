@@ -1,14 +1,18 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import {
-	coerceMessageLikeToMessage,
-	isHumanMessage,
+  useCallback,
+  useEffect,
+  useMemo,
+  useReducer,
+  useRef,
+  useState,
+} from "react";
+import {
+  coerceMessageLikeToMessage,
+  isHumanMessage,
 } from "@langchain/core/messages";
-import type {
-	BaseMessage,
-	BaseMessageLike,
-} from "@langchain/core/messages";
+import type { BaseMessage, BaseMessageLike } from "@langchain/core/messages";
 import { STREAM_CONTROLLER, useStream } from "@langchain/react";
 import type { AnyStream, SubagentDiscoverySnapshot } from "@langchain/react";
 import type { Interrupt } from "@langchain/langgraph-sdk";
@@ -16,18 +20,22 @@ import type { RunCompletedInfo } from "@langchain/langgraph-sdk/stream";
 
 import type { PromptInputMessage } from "@/components/ai-elements/prompt-input";
 import type { Todo } from "@/components/ai-elements/todo-list";
-import { type HitlDecision, type HitlResponse, useHitlApprovals } from "@/hooks/use-hitl-approvals";
+import {
+  type HitlDecision,
+  type HitlResponse,
+  useHitlApprovals,
+} from "@/hooks/use-hitl-approvals";
 import { useProtocolFetch } from "@/hooks/use-protocol-fetch";
 import { useThrottledValue } from "@/hooks/use-throttled-value";
 import * as artifactsApi from "@/lib/api/resources/artifacts";
 import { protocolApiUrl } from "@/lib/api/protocol";
 import * as threadsApi from "@/lib/api/resources/threads";
 import {
-	extractHitlToolNames,
-	getToolStepState,
-	pairToolCalls,
-	splitInterrupts,
-	type ToolCallView,
+  extractHitlToolNames,
+  getToolStepState,
+  pairToolCalls,
+  splitInterrupts,
+  type ToolCallView,
 } from "@/lib/transcript";
 import { useActiveRunsStore } from "@/stores/active-runs-store";
 import { useModelsStore } from "@/stores/models-store";
@@ -39,12 +47,12 @@ import { promptMessageToInput } from "./build-content";
 import { EMPTY_HELD, holdInterrupts } from "./interrupt-hold";
 import { submitPendingAfterHydration } from "./pending-message";
 import {
-	initialSessionState,
-	lastRunFailed,
-	lastRunFallbackMessage,
-	pickFailedRunError,
-	sessionReducer,
-	type SessionMeta,
+  initialSessionState,
+  lastRunFailed,
+  lastRunFallbackMessage,
+  pickFailedRunError,
+  sessionReducer,
+  type SessionMeta,
 } from "./session-reducer";
 
 const EMPTY_TODOS: Todo[] = [];
@@ -52,93 +60,117 @@ const EMPTY_TODOS: Todo[] = [];
 const THROTTLE_MS = 60;
 const STOP_SETTLE_POLL_MS = 100;
 const STOP_SETTLE_TIMEOUT_MS = 10_000;
-const snapshotMessages = (messages: BaseMessage[]): BaseMessage[] => [...messages];
+const snapshotMessages = (messages: BaseMessage[]): BaseMessage[] => [
+  ...messages,
+];
 
 const wait = (ms: number) =>
-	new Promise<void>((resolve) => {
-		window.setTimeout(resolve, ms);
-	});
+  new Promise<void>((resolve) => {
+    window.setTimeout(resolve, ms);
+  });
 
 /** Everything the session reaches the network through. Tests script it. */
 export type ThreadSessionTransport = {
-	/** What `useStream` talks to — the protocol endpoints. */
-	fetch?: typeof fetch;
-	readThread: (threadId: string) => Promise<ThreadRead>;
-	listThreadRuns: (threadId: string) => Promise<Run[]>;
-	attachFile?: (threadId: string, file: Blob, filename: string) => Promise<string>;
-	updateThreadModel?: (threadId: string, modelId: string) => Promise<ThreadRead["thread"]>;
+  /** What `useStream` talks to — the protocol endpoints. */
+  fetch?: typeof fetch;
+  readThread: (threadId: string) => Promise<ThreadRead>;
+  listThreadRuns: (threadId: string) => Promise<Run[]>;
+  getActiveRun?: (threadId: string) => Promise<Run | null>;
+  retryFailedRun?: (threadId: string) => Promise<Run>;
+  attachFile?: (
+    threadId: string,
+    file: Blob,
+    filename: string,
+  ) => Promise<string>;
+  updateThreadModel?: (
+    threadId: string,
+    modelId: string,
+  ) => Promise<ThreadRead["thread"]>;
 };
 
 export const defaultTransport: ThreadSessionTransport = {
-	readThread: threadsApi.readThread,
-	listThreadRuns: threadsApi.listThreadRuns,
-	attachFile: async (threadId, file, filename) =>
-		(await artifactsApi.attachFile(threadId, file, filename)).id,
-	updateThreadModel: threadsApi.updateThreadModel,
+  readThread: threadsApi.readThread,
+  listThreadRuns: threadsApi.listThreadRuns,
+  getActiveRun: threadsApi.getActiveRun,
+  retryFailedRun: threadsApi.retryFailedRun,
+  attachFile: async (threadId, file, filename) =>
+    (await artifactsApi.attachFile(threadId, file, filename)).id,
+  updateThreadModel: threadsApi.updateThreadModel,
 };
 
 export type ThreadSessionOptions = {
-	threadId: string;
-	agentId: string;
-	transport?: ThreadSessionTransport;
-	/** The approval the user addressed was already handled elsewhere. The
-	 * page decides what to do (today: reload the page). */
-	onStaleInterrupt?: () => void;
-	/** A run's active streaming phase ended. */
-	onCompleted?: (info: RunCompletedInfo) => void;
-	/** Cap on waiting for hydration before a parked first message is sent. */
-	pendingMessageCapMs?: number;
+  threadId: string;
+  agentId: string;
+  transport?: ThreadSessionTransport;
+  /** The approval the user addressed was already handled elsewhere. The
+   * page decides what to do (today: reload the page). */
+  onStaleInterrupt?: () => void;
+  /** A run's active streaming phase ended. */
+  onCompleted?: (info: RunCompletedInfo) => void;
+  /** Cap on waiting for hydration before a parked first message is sent. */
+  pendingMessageCapMs?: number;
 };
 
 export type ThreadSession = {
-	meta: SessionMeta;
-	/** Why opening failed, when `meta.status === "error"`. */
-	openError: unknown;
-	run: {
-		status: "idle" | "streaming" | "interrupted";
-		/** A submission is starting or the stream reports a run in flight. */
-		isLoading: boolean;
-		/** STOP was requested and the durable run has not been reconciled yet. */
-		isStopping: boolean;
-		/** The local submit started, but the server stream has not taken over yet. */
-		isStarting: boolean;
-		/** The stream stack's last error (command rejection or run failure). */
-		error: unknown;
-		/** Kept separately: the body renders the two differently. */
-		rehydratedError: string | null;
-	};
-	transcript: {
-		messages: BaseMessage[];
-		toolCalls: ToolCallView[];
-		subagents: ReadonlyMap<string, SubagentDiscoverySnapshot>;
-		todos: Todo[];
-		/** Identity-stable handle for scoped subagent subscriptions. */
-		stream: AnyStream;
-	};
-	hitl: {
-		interrupt: Interrupt | null;
-		nestedInterrupts: Interrupt[];
-		hitlToolNames: Set<string> | null;
-		pendingToolCalls: ToolCallView[];
-		decisions: Record<string, HitlDecision>;
-		recordDecision: (toolCallId: string, decision: HitlDecision) => void;
-	};
-	actions: {
-		send: (message: PromptInputMessage) => Promise<void>;
-		regenerate: () => void;
-		stop: () => void;
-		respond: (response: HitlResponse, interruptId: string | null) => void;
-		loadLatestMessages: () => Promise<BaseMessage[]>;
-		changeModel: (modelId: string) => Promise<void>;
-		recheckModel: () => Promise<void>;
-		/** Clear the mid-session sandbox gate so the composer comes back; the
-		 * page re-polls readiness alongside it. */
-		recheckSandbox: () => void;
-		/** Run the open sequence again after `meta.status === "error"`. A parked
-		 * first message is still parked — it is consumed only once the thread
-		 * metadata has loaded. */
-		reopen: () => void;
-	};
+  meta: SessionMeta;
+  /** Why opening failed, when `meta.status === "error"`. */
+  openError: unknown;
+  run: {
+    status: "idle" | "streaming" | "interrupted";
+    /** A submission is starting or the stream reports a run in flight. */
+    isLoading: boolean;
+    /** STOP was requested and the durable run has not been reconciled yet. */
+    isStopping: boolean;
+    /** The local submit started, but the server stream has not taken over yet. */
+    isStarting: boolean;
+    /** The stream stack's last error (command rejection or run failure). */
+    error: unknown;
+    /** Kept separately: the body renders the two differently. */
+    rehydratedError: string | null;
+    /** The latest durable run failed with replayable input. */
+    canRetryInitial: boolean;
+  };
+  transcript: {
+    messages: BaseMessage[];
+    toolCalls: ToolCallView[];
+    subagents: ReadonlyMap<string, SubagentDiscoverySnapshot>;
+    todos: Todo[];
+    hydrated: boolean;
+    hydrationError: unknown;
+    /** Identity-stable handle for scoped subagent subscriptions. */
+    stream: AnyStream;
+  };
+  hitl: {
+    interrupt: Interrupt | null;
+    nestedInterrupts: Interrupt[];
+    hitlToolNames: Set<string> | null;
+    pendingToolCalls: ToolCallView[];
+    decisions: Record<string, HitlDecision>;
+    recordDecision: (toolCallId: string, decision: HitlDecision) => void;
+  };
+  actions: {
+    send: (message: PromptInputMessage) => Promise<void>;
+    regenerate: () => void;
+    stop: () => void;
+    respond: (
+      response: HitlResponse,
+      interruptId: string | null,
+    ) => Promise<void>;
+    loadLatestMessages: () => Promise<BaseMessage[]>;
+    changeModel: (modelId: string) => Promise<void>;
+    recheckModel: () => Promise<void>;
+    /** Clear the mid-session sandbox gate so the composer comes back; the
+     * page re-polls readiness alongside it. */
+    recheckSandbox: () => void;
+    /** Retry the protocol snapshot after its initial hydration failed. */
+    rehydrate: () => Promise<void>;
+    /** Replay the durable input of the latest failed run. */
+    retryInitial: () => Promise<void>;
+    /** Run the open sequence again after `meta.status === "error"`. A parked
+     * first message is still parked — it is consumed only once the thread
+     * metadata has loaded. */
+    reopen: () => void;
+  };
 };
 
 /**
@@ -150,459 +182,730 @@ export type ThreadSession = {
  * file; the page renders the result.
  */
 export function useThreadSession({
-	threadId,
-	agentId,
-	transport = defaultTransport,
-	onStaleInterrupt,
-	onCompleted,
-	pendingMessageCapMs,
+  threadId,
+  agentId,
+  transport = defaultTransport,
+  onStaleInterrupt,
+  onCompleted,
+  pendingMessageCapMs,
 }: ThreadSessionOptions): ThreadSession {
-	const [state, dispatch] = useReducer(sessionReducer, initialSessionState);
-	const currentThreadId = useRef(threadId);
-	currentThreadId.current = threadId;
-	const models = useModelsStore((store) => store.models);
+  const [state, dispatch] = useReducer(sessionReducer, initialSessionState);
+  const [durableRunActivity, setDurableRunActivity] = useState<{
+    threadId: string;
+    active: boolean;
+    retryable: boolean;
+  } | null>(null);
+  const runActivityGeneration = useRef(0);
+  const retryStartingThread = useRef<string | null>(null);
+  const submissionSequence = useRef(0);
+  const sendingThread = useRef<string | null>(null);
+  const pendingRunStarts = useRef(
+    new Map<
+      string,
+      {
+        sequence: number;
+        resolve: (accepted: boolean) => void;
+      }
+    >(),
+  );
+  const currentThreadId = useRef(threadId);
+  currentThreadId.current = threadId;
+  const models = useModelsStore((store) => store.models);
 
-	const callbacks = useRef({ onStaleInterrupt, onCompleted });
-	useEffect(() => {
-		callbacks.current = { onStaleInterrupt, onCompleted };
-	});
+  const callbacks = useRef({ onStaleInterrupt, onCompleted });
+  useEffect(() => {
+    callbacks.current = { onStaleInterrupt, onCompleted };
+  });
 
-	const protocolFetch = useProtocolFetch(threadId, {
-		baseFetch: transport.fetch,
-		onModelUnavailable: (forThread) => {
-			dispatch({ type: "model-unavailable", threadId: forThread });
-		},
-		onSandboxUnavailable: (forThread, detail) => {
-			dispatch({ type: "sandbox-unavailable", threadId: forThread, detail });
-		},
-		onStaleInterrupt: (forThread) => {
-			// A late 409 for the thread the page left must not reload this one.
-			if (forThread !== threadId) return;
-			callbacks.current.onStaleInterrupt?.();
-		},
-	});
+  const protocolFetch = useProtocolFetch(threadId, {
+    baseFetch: transport.fetch,
+    onModelUnavailable: (forThread) => {
+      dispatch({ type: "model-unavailable", threadId: forThread });
+    },
+    onSandboxUnavailable: (forThread, detail) => {
+      dispatch({ type: "sandbox-unavailable", threadId: forThread, detail });
+    },
+    onStaleInterrupt: (forThread) => {
+      // A late 409 for the thread the page left must not reload this one.
+      if (forThread !== threadId) return;
+      callbacks.current.onStaleInterrupt?.();
+    },
+    onRunStartSettled: (forThread, accepted) => {
+      const pending = pendingRunStarts.current.get(forThread);
+      if (pending == null) return;
+      pendingRunStarts.current.delete(forThread);
+      pending.resolve(accepted);
+    },
+  });
 
-	// The SDK's hydration reads (`getState`, `getHistory`) go through the
-	// client's own caller, not `fetch`; hand both the same transport so every
-	// protocol request shares the same-origin guard and the session cookie.
-	// Memoized: the SDK rebuilds its client (and controller) on identity change.
-	const callerOptions = useMemo(() => ({ fetch: protocolFetch }), [protocolFetch]);
+  // The SDK's hydration reads (`getState`, `getHistory`) go through the
+  // client's own caller, not `fetch`; hand both the same transport so every
+  // protocol request shares the same-origin guard and the session cookie.
+  // Memoized: the SDK rebuilds its client (and controller) on identity change.
+  const callerOptions = useMemo(
+    () => ({ fetch: protocolFetch, maxRetries: 0 }),
+    [protocolFetch],
+  );
+  const completionStream = useRef<AnyStream | null>(null);
 
-	const stream = useStream({
-		assistantId: agentId,
-		apiUrl: protocolApiUrl(),
-		threadId,
-		messagesKey: "messages",
-		fetch: protocolFetch,
-		callerOptions,
-		onCompleted: (info) => {
-			useActiveRunsStore.getState().requestPoll();
-			callbacks.current.onCompleted?.(info);
-		},
-	});
+  const stream = useStream({
+    assistantId: agentId,
+    apiUrl: protocolApiUrl(),
+    threadId,
+    messagesKey: "messages",
+    fetch: protocolFetch,
+    callerOptions,
+    onCreated: () => {
+      const pending = pendingRunStarts.current.get(threadId);
+      if (pending != null) {
+        pendingRunStarts.current.delete(threadId);
+        pending.resolve(true);
+      }
+    },
+    onCompleted: (info) => {
+      runActivityGeneration.current += 1;
+      setDurableRunActivity({
+        threadId,
+        active: false,
+        retryable: info.reason === "error",
+      });
+      useActiveRunsStore.getState().requestPoll();
+      callbacks.current.onCompleted?.(info);
+      if (info.runId == null) {
+        queueMicrotask(() => {
+          if (currentThreadId.current !== threadId) return;
+          const controller = completionStream.current?.[STREAM_CONTROLLER];
+          if (controller) void controller.hydrate(threadId);
+        });
+      }
+    },
+  });
 
-	// `stream` is a new object every tick; the cards subscribe through a
-	// handle whose identity never changes.
-	const [selectorStream] = useState<AnyStream>(() => stream as AnyStream);
-	// …but `hydrationPromise` is replaced by the SDK on every (re)hydrate, so
-	// waiting on it must read the latest rendered stream, not the handle.
-	const latestStream = useRef(stream);
-	useEffect(() => {
-		latestStream.current = stream;
-	}, [stream]);
-	const [dismissedStreamError, setDismissedStreamError] = useState<{
-		threadId: string;
-		error: unknown;
-	} | null>(null);
+  // `stream` is a new object every tick. Keep selector identity stable for
+  // one controller, but switch it when the SDK replaces that controller
+  // during an in-place thread transition.
+  const streamController = stream[STREAM_CONTROLLER];
+  const selectorStream = useMemo(
+    () => stream as AnyStream,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [streamController],
+  );
+  useEffect(() => {
+    completionStream.current = selectorStream;
+    return () => {
+      if (completionStream.current === selectorStream) {
+        completionStream.current = null;
+      }
+    };
+  }, [selectorStream]);
+  // …but `hydrationPromise` is replaced by the SDK on every (re)hydrate, so
+  // waiting on it must read the latest rendered stream, not the handle.
+  const latestStream = useRef(stream);
+  useEffect(() => {
+    latestStream.current = stream;
+  }, [stream]);
+  const [hydratedThreadId, setHydratedThreadId] = useState<string | null>(null);
+  const [hydrationFailure, setHydrationFailure] = useState<{
+    threadId: string;
+    error: unknown;
+  } | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    void latestStream.current.hydrationPromise.then(
+      () => {
+        if (cancelled) return;
+        setHydratedThreadId(threadId);
+        setHydrationFailure(null);
+      },
+      (error: unknown) => {
+        if (!cancelled) setHydrationFailure({ threadId, error });
+      },
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [threadId]);
+  const [dismissedStreamError, setDismissedStreamError] = useState<{
+    threadId: string;
+    error: unknown;
+  } | null>(null);
+  const durableRunActive =
+    durableRunActivity?.threadId === threadId && durableRunActivity.active;
+  const durableRunRetryable =
+    durableRunActivity?.threadId === threadId && durableRunActivity.retryable;
+  const durableRunChecking = durableRunActivity?.threadId !== threadId;
 
-	// --- interrupts: hold identity while the set is unchanged ----------------
-	const [held, setHeld] = useState(EMPTY_HELD);
-	const nextHeld = holdInterrupts(held, stream.interrupts);
-	if (nextHeld !== held) setHeld(nextHeld);
-	const { root: interrupt, nested: nestedInterrupts } = useMemo(
-		() => splitInterrupts(held.list),
-		[held],
-	);
-	const isInterrupted = interrupt != null;
-	const hitlToolNames = useMemo(
-		() => extractHitlToolNames(interrupt?.value),
-		[interrupt],
-	);
+  const readRunActivity = useCallback(async () => {
+    if (transport.getActiveRun) {
+      const active = await transport.getActiveRun(threadId);
+      if (active != null) {
+        return { active: true, retryable: false };
+      }
+    }
+    const runs = await transport.listThreadRuns(threadId);
+    const latest = runs[0];
+    return {
+      active: latest?.status === "pending" || latest?.status === "running",
+      retryable: latest?.status === "error" || latest?.status === "timeout",
+    };
+  }, [threadId, transport]);
 
-	// --- transcript views -----------------------------------------------------
-	const messages = useThrottledValue(stream.messages, THROTTLE_MS, {
-		// `message-finish` can enrich an existing message with usage metadata
-		// without replacing the messages array. The stream object still ticks
-		// for that SSE event; snapshot only at the throttled render cadence.
-		revision: stream,
-		snapshot: snapshotMessages,
-	});
-	const liveToolCalls = useThrottledValue(stream.toolCalls, THROTTLE_MS);
-	const [stoppingThreadId, setStoppingThreadId] = useState<string | null>(null);
-	const stoppingRef = useRef<string | null>(null);
-	const stopSequence = useRef(0);
-	const isStopping = stoppingThreadId === threadId;
-	const toolCalls = useMemo(
-		() => {
-			const paired = pairToolCalls(messages, liveToolCalls);
-			// Events already in flight can arrive after STOP. Do not let those
-			// transient handles leave a tool spinner behind while server state
-			// is converging; the authoritative rehydrate below restores anything
-			// that genuinely belongs to a following queued run.
-			return isStopping
-				? paired.filter((toolCall) => toolCall.status !== "running")
-				: paired;
-		},
-		[isStopping, messages, liveToolCalls],
-	);
-	const todos =
-		((stream.values as Record<string, unknown>).todos as Todo[] | undefined) ??
-		EMPTY_TODOS;
-	const submissionSequence = useRef(0);
-	const [pendingSubmission, setPendingSubmission] = useState<{
-		threadId: string;
-		sequence: number;
-		baselineUserMessageCount: number;
-	} | null>(null);
-	const submissionPending = pendingSubmission?.threadId === threadId;
-	const renderedUserMessageCount = messages.filter(
-		(message) => isHumanMessage(message) && message.name !== "host",
-	).length;
-	const submissionStarting =
-		submissionPending &&
-		renderedUserMessageCount <= pendingSubmission.baselineUserMessageCount;
+  useEffect(() => {
+    if (!durableRunActive) return;
+    let cancelled = false;
+    const refresh = async () => {
+      const generation = runActivityGeneration.current;
+      const activity = await readRunActivity();
+      if (
+        !cancelled &&
+        generation === runActivityGeneration.current &&
+        retryStartingThread.current !== threadId
+      ) {
+        setDurableRunActivity({ threadId, ...activity });
+      }
+    };
+    const timer = window.setInterval(() => {
+      void refresh().catch(() => {});
+    }, 1000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [durableRunActive, readRunActivity, threadId]);
 
-	// --- actions ----------------------------------------------------------------
-	const userActed = useCallback(() => {
-		dispatch({ type: "user-acted" });
-		if (stream.error != null) {
-			setDismissedStreamError({ threadId, error: stream.error });
-		}
-	}, [stream.error, threadId]);
+  // --- interrupts: hold identity while the set is unchanged ----------------
+  const [held, setHeld] = useState(EMPTY_HELD);
+  const nextHeld = holdInterrupts(held, stream.interrupts);
+  if (nextHeld !== held) setHeld(nextHeld);
+  const { root: interrupt, nested: nestedInterrupts } = useMemo(
+    () => splitInterrupts(held.list),
+    [held],
+  );
+  const isInterrupted = interrupt != null;
+  const hitlToolNames = useMemo(
+    () => extractHitlToolNames(interrupt?.value),
+    [interrupt],
+  );
 
-	const send = useCallback(
-		async (message: PromptInputMessage) => {
-			if (stoppingRef.current === threadId) {
-				throw new DOMException("Conversation changed before sending", "AbortError");
-			}
-			if (!message.text?.trim() && (message.files?.length ?? 0) === 0) return;
-			userActed();
-			const vision =
-				models.find((model) => model.id === state.meta.thread?.modelId)
-					?.multimodal !== false;
-			const input = await promptMessageToInput(message, {
-				vision,
-				upload: async (file) => {
-					const blob = await (await fetch(file.url)).blob();
-					const id = await (
-						transport.attachFile ?? defaultTransport.attachFile!
-					)(threadId, blob, file.filename || "file");
-					return {
-						id,
-						filename: file.filename || "file",
-						mediaType: file.mediaType || "application/octet-stream",
-					};
-				},
-			});
-			if (input == null || currentThreadId.current !== threadId) {
-				throw new DOMException("Conversation changed before sending", "AbortError");
-			}
-			const sequence = ++submissionSequence.current;
-			setPendingSubmission({
-				threadId,
-				sequence,
-				baselineUserMessageCount: renderedUserMessageCount,
-			});
-			const additional_kwargs =
-				input.attachments.length > 0
-					? {
-							attachments: input.attachments.map((attachment) => ({
-								id: attachment.id,
-								filename: attachment.filename,
-								media_type: attachment.mediaType,
-							})),
-						}
-					: undefined;
-			void selectorStream
-				.submit({
-					messages: [
-						{
-							type: "human",
-							content: input.content,
-							...(additional_kwargs ? { additional_kwargs } : {}),
-						},
-					],
-				})
-				.finally(() => {
-					setPendingSubmission((current) =>
-						current?.threadId === threadId &&
-						current.sequence === sequence
-							? null
-							: current,
-					);
-				})
-				.catch(() => {});
-		},
-		[
-			models,
-			renderedUserMessageCount,
-			selectorStream,
-			state.meta.thread?.modelId,
-			threadId,
-			transport,
-			userActed,
-		],
-	);
+  // --- transcript views -----------------------------------------------------
+  const messages = useThrottledValue(stream.messages, THROTTLE_MS, {
+    // `message-finish` can enrich an existing message with usage metadata
+    // without replacing the messages array. The stream object still ticks
+    // for that SSE event; snapshot only at the throttled render cadence.
+    revision: stream,
+    snapshot: snapshotMessages,
+  });
+  const liveToolCalls = useThrottledValue(stream.toolCalls, THROTTLE_MS);
+  const [stoppingThreadId, setStoppingThreadId] = useState<string | null>(null);
+  const stoppingRef = useRef<string | null>(null);
+  const stopSequence = useRef(0);
+  const isStopping = stoppingThreadId === threadId;
+  const toolCalls = useMemo(() => {
+    const paired = pairToolCalls(messages, liveToolCalls);
+    // Events already in flight can arrive after STOP. Do not let those
+    // transient handles leave a tool spinner behind while server state
+    // is converging; the authoritative rehydrate below restores anything
+    // that genuinely belongs to a following queued run.
+    return isStopping
+      ? paired.filter((toolCall) => toolCall.status !== "running")
+      : paired;
+  }, [isStopping, messages, liveToolCalls]);
+  const todos =
+    ((stream.values as Record<string, unknown>).todos as Todo[] | undefined) ??
+    EMPTY_TODOS;
+  const [pendingSubmission, setPendingSubmission] = useState<{
+    threadId: string;
+    sequence: number;
+    baselineUserMessageCount: number;
+  } | null>(null);
+  const submissionPending = pendingSubmission?.threadId === threadId;
+  const renderedUserMessageCount = messages.filter(
+    (message) => isHumanMessage(message) && message.name !== "host",
+  ).length;
+  const submissionStarting =
+    submissionPending &&
+    renderedUserMessageCount <= pendingSubmission.baselineUserMessageCount;
 
-	const regenerate = useCallback(() => {
-		if (stoppingRef.current === threadId) return;
-		if (!messages.some(isHumanMessage)) return;
-		userActed();
-		void selectorStream.submit(null, {
-			config: { configurable: { trigger: "regenerate-message" } },
-		});
-	}, [messages, selectorStream, threadId, userActed]);
+  // --- actions ----------------------------------------------------------------
+  const userActed = useCallback(() => {
+    dispatch({ type: "user-acted" });
+    if (stream.error != null) {
+      setDismissedStreamError({ threadId, error: stream.error });
+    }
+  }, [stream.error, threadId]);
 
-	const stop = useCallback(() => {
-		if (stoppingRef.current === threadId) return;
-		stoppingRef.current = threadId;
-		setStoppingThreadId(threadId);
-		const sequence = ++stopSequence.current;
-		useActiveRunsStore.getState().requestPoll();
+  const send = useCallback(
+    async (message: PromptInputMessage) => {
+      if (stoppingRef.current === threadId) {
+        throw new DOMException(
+          "Conversation changed before sending",
+          "AbortError",
+        );
+      }
+      if (!message.text?.trim() && (message.files?.length ?? 0) === 0) return;
+      if (sendingThread.current === threadId) {
+        throw new DOMException(
+          "A message is already being sent",
+          "InvalidStateError",
+        );
+      }
+      sendingThread.current = threadId;
+      try {
+        userActed();
+        const vision =
+          models.find((model) => model.id === state.meta.thread?.modelId)
+            ?.multimodal !== false;
+        const input = await promptMessageToInput(message, {
+          vision,
+          upload: async (file) => {
+            const blob = await (await fetch(file.url)).blob();
+            const id = await (
+              transport.attachFile ?? defaultTransport.attachFile!
+            )(threadId, blob, file.filename || "file");
+            return {
+              id,
+              filename: file.filename || "file",
+              mediaType: file.mediaType || "application/octet-stream",
+            };
+          },
+        });
+        if (input == null || currentThreadId.current !== threadId) {
+          throw new DOMException(
+            "Conversation changed before sending",
+            "AbortError",
+          );
+        }
+        const sequence = ++submissionSequence.current;
+        let settleRunStart!: (accepted: boolean) => void;
+        const runStartSettled = new Promise<boolean>((resolve) => {
+          settleRunStart = resolve;
+        });
+        const pendingStart = {
+          sequence,
+          resolve: settleRunStart,
+        };
+        pendingRunStarts.current.set(threadId, pendingStart);
+        setPendingSubmission({
+          threadId,
+          sequence,
+          baselineUserMessageCount: renderedUserMessageCount,
+        });
+        const additional_kwargs =
+          input.attachments.length > 0
+            ? {
+                attachments: input.attachments.map((attachment) => ({
+                  id: attachment.id,
+                  filename: attachment.filename,
+                  media_type: attachment.mediaType,
+                })),
+              }
+            : undefined;
+        let submissionError: unknown;
+        try {
+          await streamController.submit(
+            {
+              messages: [
+                {
+                  type: "human",
+                  content: input.content,
+                  ...(additional_kwargs ? { additional_kwargs } : {}),
+                },
+              ],
+            },
+            {
+              onError: (error) => {
+                submissionError = error;
+              },
+            },
+          );
+          if (currentThreadId.current !== threadId) {
+            throw new DOMException(
+              "Conversation changed before sending",
+              "AbortError",
+            );
+          }
+          if (submissionError !== undefined && !(await runStartSettled)) {
+            throw submissionError;
+          }
+        } finally {
+          if (pendingRunStarts.current.get(threadId) === pendingStart) {
+            pendingRunStarts.current.delete(threadId);
+            pendingStart.resolve(false);
+          }
+          setPendingSubmission((current) =>
+            current?.threadId === threadId && current.sequence === sequence
+              ? null
+              : current,
+          );
+        }
+      } finally {
+        if (sendingThread.current === threadId) {
+          sendingThread.current = null;
+        }
+      }
+    },
+    [
+      models,
+      renderedUserMessageCount,
+      state.meta.thread?.modelId,
+      streamController,
+      threadId,
+      transport,
+      userActed,
+    ],
+  );
 
-		// Capture the run that is active before STOP. A queued run may become
-		// active immediately after it, so polling "the active run" afterwards
-		// could wait for the wrong turn.
-		const activeRun = transport
-			.listThreadRuns(threadId)
-			.then(
-				(runs) => runs.find((run) => run.status === "running") ?? null,
-				() => null,
-			);
+  const regenerate = useCallback(() => {
+    if (stoppingRef.current === threadId) return;
+    if (!messages.some(isHumanMessage)) return;
+    userActed();
+    void streamController
+      .submit(null, {
+        config: { configurable: { trigger: "regenerate-message" } },
+      })
+      .catch((error: unknown) => {
+        console.error("Could not regenerate the response:", error);
+      });
+  }, [messages, streamController, threadId, userActed]);
 
-		void (async () => {
-			try {
-				await selectorStream.stop();
-				const stoppedRun = await activeRun;
-				if (stoppedRun != null) {
-					const deadline = Date.now() + STOP_SETTLE_TIMEOUT_MS;
-					while (
-						stopSequence.current === sequence &&
-						currentThreadId.current === threadId &&
-						Date.now() < deadline
-					) {
-						const runs = await transport.listThreadRuns(threadId).catch(() => []);
-						const current = runs.find((run) => run.id === stoppedRun.id);
-						if (
-							current == null ||
-							(current.status !== "pending" && current.status !== "running")
-						) {
-							break;
-						}
-						await wait(STOP_SETTLE_POLL_MS);
-					}
-				}
+  const stop = useCallback(() => {
+    if (stoppingRef.current === threadId) return;
+    stoppingRef.current = threadId;
+    setStoppingThreadId(threadId);
+    const sequence = ++stopSequence.current;
+    useActiveRunsStore.getState().requestPoll();
 
-				if (
-					stopSequence.current === sequence &&
-					currentThreadId.current === threadId
-				) {
-					// stop() preserves the SDK's projections, including partial
-					// tool handles. Swap away and back to discard that transient
-					// stream state and rebuild from the durable checkpoint.
-					const controller = selectorStream[STREAM_CONTROLLER];
-					await controller.hydrate(null);
-					await controller.hydrate(currentThreadId.current);
-				}
-			} catch (error) {
-				console.error("Could not synchronize the stopped run:", error);
-			} finally {
-				useActiveRunsStore.getState().requestPoll();
-				if (stopSequence.current === sequence) {
-					stoppingRef.current = null;
-					setStoppingThreadId((current) =>
-						current === threadId ? null : current,
-					);
-				}
-			}
-		})();
-	}, [selectorStream, threadId, transport]);
+    // Capture the run that is active before STOP. A queued run may become
+    // active immediately after it, so polling "the active run" afterwards
+    // could wait for the wrong turn.
+    const activeRun = transport.listThreadRuns(threadId).then(
+      (runs) => runs.find((run) => run.status === "running") ?? null,
+      () => null,
+    );
 
-	const respond = useCallback(
-		(response: HitlResponse, addressedId: string | null) => {
-			if (stoppingRef.current === threadId) return;
-			userActed();
-			void selectorStream.respond(
-				response,
-				addressedId != null ? { interruptId: addressedId } : undefined,
-			);
-		},
-		[selectorStream, threadId, userActed],
-	);
+    void (async () => {
+      try {
+        await streamController.stop();
+        const stoppedRun = await activeRun;
+        if (stoppedRun != null) {
+          const deadline = Date.now() + STOP_SETTLE_TIMEOUT_MS;
+          while (
+            stopSequence.current === sequence &&
+            currentThreadId.current === threadId &&
+            Date.now() < deadline
+          ) {
+            const runs = await transport
+              .listThreadRuns(threadId)
+              .catch(() => []);
+            const current = runs.find((run) => run.id === stoppedRun.id);
+            if (
+              current == null ||
+              (current.status !== "pending" && current.status !== "running")
+            ) {
+              break;
+            }
+            await wait(STOP_SETTLE_POLL_MS);
+          }
+        }
 
-	const loadLatestMessages = useCallback(async () => {
-		const snapshot = await selectorStream.client.threads.getState<{
-			messages?: BaseMessageLike[];
-		}>(threadId);
-		return (snapshot.values.messages ?? []).map(coerceMessageLikeToMessage);
-	}, [selectorStream, threadId]);
+        if (
+          stopSequence.current === sequence &&
+          currentThreadId.current === threadId
+        ) {
+          // stop() preserves the SDK's projections, including partial
+          // tool handles. Swap away and back to discard that transient
+          // stream state and rebuild from the durable checkpoint.
+          await streamController.hydrate(null);
+          const hydration = streamController.hydrate(currentThreadId.current);
+          const hydrationPromise = streamController.hydrationPromise;
+          await Promise.all([hydration, hydrationPromise]);
+        }
+      } catch (error) {
+        console.error("Could not synchronize the stopped run:", error);
+      } finally {
+        useActiveRunsStore.getState().requestPoll();
+        if (stopSequence.current === sequence) {
+          stoppingRef.current = null;
+          setStoppingThreadId((current) =>
+            current === threadId ? null : current,
+          );
+        }
+      }
+    })();
+  }, [streamController, threadId, transport]);
 
-	const recheckSandbox = useCallback(() => {
-		dispatch({ type: "sandbox-rechecked", threadId });
-	}, [threadId]);
+  const respond = useCallback(
+    async (response: HitlResponse, addressedId: string | null) => {
+      if (stoppingRef.current === threadId) return;
+      userActed();
+      await streamController.respond(
+        response,
+        addressedId != null ? { interruptId: addressedId } : undefined,
+      );
+    },
+    [streamController, threadId, userActed],
+  );
 
-	const changeModel = useCallback(
-		async (modelId: string) => {
-			const thread = await (
-				transport.updateThreadModel ?? threadsApi.updateThreadModel
-			)(threadId, modelId);
-			dispatch({ type: "thread-updated", threadId, thread });
-		},
-		[threadId, transport],
-	);
+  const loadLatestMessages = useCallback(async () => {
+    const snapshot = await stream.client.threads.getState<{
+      messages?: BaseMessageLike[];
+    }>(threadId);
+    return (snapshot.values.messages ?? []).map(coerceMessageLikeToMessage);
+  }, [stream.client, threadId]);
 
-	const recheckModel = useCallback(async () => {
-		const forThread = threadId;
-		try {
-			const { thread } = await transport.readThread(forThread);
-			dispatch({
-				type: "model-rechecked",
-				threadId: forThread,
-				available: thread.modelAvailable !== false,
-			});
-		} catch {
-			// Leave the banner as it is; the user can try again.
-		}
-	}, [transport, threadId]);
+  const recheckSandbox = useCallback(() => {
+    dispatch({ type: "sandbox-rechecked", threadId });
+  }, [threadId]);
 
-	// --- HITL batch -------------------------------------------------------------
-	const pendingToolCalls = useMemo(
-		() =>
-			toolCalls.filter(
-				(tc) =>
-					getToolStepState(tc, isInterrupted, hitlToolNames) === "awaiting-approval",
-			),
-		[toolCalls, isInterrupted, hitlToolNames],
-	);
-	const pendingIdsAreReal = pendingToolCalls.every((tc) => tc.callId != null);
-	const { decisions, recordDecision } = useHitlApprovals({
-		interruptId: pendingIdsAreReal ? (interrupt?.id ?? null) : null,
-		pendingToolCalls,
-		respond,
-	});
+  const rehydrate = useCallback(async () => {
+    setHydratedThreadId(null);
+    setHydrationFailure(null);
+    try {
+      await streamController.hydrate(null);
+      // hydrate() records fetch failures on the controller and resolves;
+      // hydrationPromise is the rejection channel for that cycle.
+      const hydration = streamController.hydrate(threadId);
+      const hydrationPromise = streamController.hydrationPromise;
+      await Promise.all([hydration, hydrationPromise]);
+      if (currentThreadId.current === threadId) {
+        setHydratedThreadId(threadId);
+      }
+    } catch (error) {
+      if (currentThreadId.current === threadId) {
+        setHydrationFailure({ threadId, error });
+      }
+      throw error;
+    }
+  }, [streamController, threadId]);
 
-	// --- open the thread ------------------------------------------------------
-	const consumePendingMessage = usePendingMessageStore((s) => s.consumePendingMessage);
-	const setPendingMessage = usePendingMessageStore((s) => s.setPendingMessage);
-	const [openAttempt, setOpenAttempt] = useState(0);
-	const reopen = useCallback(() => {
-		setOpenAttempt((n) => n + 1);
-	}, []);
-	useEffect(() => {
-		// A newer attempt (thread switch or Retry) cancels this one's effects:
-		// its responses are dropped rather than landing on the newer state.
-		let cancelled = false;
-		// The parked message this attempt has taken out of the store and not yet
-		// sent. Handed back in the cleanup — synchronously, before a newer
-		// attempt's effect body runs — so the newer attempt finds it.
-		let claimed: PromptInputMessage | null = null;
-		dispatch({ type: "opened", threadId });
+  const retryInitial = useCallback(async () => {
+    userActed();
+    retryStartingThread.current = threadId;
+    runActivityGeneration.current += 1;
+    setDurableRunActivity({ threadId, active: true, retryable: false });
+    let started = false;
+    try {
+      await (transport.retryFailedRun ?? defaultTransport.retryFailedRun!)(
+        threadId,
+      );
+      started = true;
+      runActivityGeneration.current += 1;
+      retryStartingThread.current = null;
+      setDurableRunActivity({
+        threadId,
+        active: true,
+        retryable: false,
+      });
+      useActiveRunsStore.getState().markThreadRunning(threadId);
+      // The retry starts outside StreamController.submit(). Rehydrate so
+      // an idle controller opens its deferred event pump for this run.
+      await rehydrate();
+    } catch (error) {
+      if (!started) {
+        runActivityGeneration.current += 1;
+        retryStartingThread.current = null;
+        if (currentThreadId.current === threadId) {
+          setDurableRunActivity({
+            threadId,
+            active: false,
+            retryable: true,
+          });
+        }
+        throw error;
+      }
+      // The run exists; rehydrate() already exposed its own retryable
+      // history error. Keep activity polling until it settles.
+    }
+  }, [rehydrate, threadId, transport, userActed]);
 
-		const open = async () => {
-			const read = await transport.readThread(threadId);
-			if (cancelled) return;
-			dispatch({ type: "thread-loaded", threadId, read });
+  const changeModel = useCallback(
+    async (modelId: string) => {
+      const thread = await (
+        transport.updateThreadModel ?? threadsApi.updateThreadModel
+      )(threadId, modelId);
+      dispatch({ type: "thread-updated", threadId, thread });
+    },
+    [threadId, transport],
+  );
 
-			const pending = consumePendingMessage(threadId);
-			if (pending) {
-				claimed = pending;
-				await submitPendingAfterHydration(
-					latestStream.current.hydrationPromise,
-					async () => {
-						// Cancelled while waiting: the cleanup has already parked
-						// the message again; sending it here would reach a stream
-						// nobody is watching.
-						if (cancelled) return;
-						await send(pending);
-						claimed = null;
-					},
-					{ capMs: pendingMessageCapMs },
-				);
-				return;
-			}
+  const recheckModel = useCallback(async () => {
+    const forThread = threadId;
+    try {
+      const { thread } = await transport.readThread(forThread);
+      dispatch({
+        type: "model-rechecked",
+        threadId: forThread,
+        available: thread.modelAvailable !== false,
+      });
+    } catch {
+      // Leave the banner as it is; the user can try again.
+    }
+  }, [transport, threadId]);
 
-			if (lastRunFailed(read.thread)) {
-				const fallback = lastRunFallbackMessage(read.thread);
-				const error = await transport
-					.listThreadRuns(threadId)
-					.then((runs) => pickFailedRunError(runs, fallback))
-					.catch(() => fallback);
-				if (cancelled) return;
-				dispatch({ type: "last-run-error-loaded", threadId, error });
-			}
-		};
-		open().catch((error: unknown) => {
-			if (cancelled) return;
-			if (claimed) {
-				setPendingMessage(threadId, claimed);
-				claimed = null;
-			}
-			console.error("Could not open the thread:", error);
-			dispatch({ type: "open-failed", threadId, error });
-		});
-		return () => {
-			cancelled = true;
-			if (claimed) {
-				setPendingMessage(threadId, claimed);
-				claimed = null;
-			}
-		};
-		// The open sequence runs once per thread (and per explicit reopen); the
-		// callbacks it uses are stable.
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [threadId, openAttempt]);
+  // --- HITL batch -------------------------------------------------------------
+  const pendingToolCalls = useMemo(
+    () =>
+      toolCalls.filter(
+        (tc) =>
+          getToolStepState(tc, isInterrupted, hitlToolNames) ===
+          "awaiting-approval",
+      ),
+    [toolCalls, isInterrupted, hitlToolNames],
+  );
+  const pendingIdsAreReal = pendingToolCalls.every((tc) => tc.callId != null);
+  const { decisions, recordDecision } = useHitlApprovals({
+    interruptId: pendingIdsAreReal ? (interrupt?.id ?? null) : null,
+    pendingToolCalls,
+    respond,
+  });
 
-	const runStatus: ThreadSession["run"]["status"] = isInterrupted
-		? "interrupted"
-		: stream.isLoading || submissionPending || isStopping
-			? "streaming"
-			: "idle";
-	const visibleStreamError =
-		dismissedStreamError?.threadId === threadId &&
-		Object.is(dismissedStreamError.error, stream.error)
-			? null
-			: stream.error;
+  // --- open the thread ------------------------------------------------------
+  const consumePendingMessage = usePendingMessageStore(
+    (s) => s.consumePendingMessage,
+  );
+  const setPendingMessage = usePendingMessageStore((s) => s.setPendingMessage);
+  const [openAttempt, setOpenAttempt] = useState(0);
+  const reopen = useCallback(() => {
+    setOpenAttempt((n) => n + 1);
+  }, []);
+  useEffect(() => {
+    // A newer attempt (thread switch or Retry) cancels this one's effects:
+    // its responses are dropped rather than landing on the newer state.
+    let cancelled = false;
+    // The parked message this attempt has taken out of the store and not yet
+    // sent. Handed back in the cleanup — synchronously, before a newer
+    // attempt's effect body runs — so the newer attempt finds it.
+    let claimed: PromptInputMessage | null = null;
+    dispatch({ type: "opened", threadId });
+    const activityGeneration = ++runActivityGeneration.current;
+    retryStartingThread.current = null;
+    setDurableRunActivity(null);
 
-	return {
-		meta: state.meta,
-		openError: state.openError,
-		run: {
-			status: runStatus,
-			isLoading: stream.isLoading || submissionPending || isStopping,
-			isStopping,
-			isStarting: submissionStarting,
-			error: visibleStreamError,
-			rehydratedError: state.rehydratedError,
-		},
-		transcript: { messages, toolCalls, subagents: stream.subagents, todos, stream: selectorStream },
-		hitl: {
-			interrupt,
-			nestedInterrupts,
-			hitlToolNames,
-			pendingToolCalls,
-			decisions,
-			recordDecision,
-		},
-		actions: {
-			send,
-			regenerate,
-			stop,
-			respond,
-			loadLatestMessages,
-			changeModel,
-			recheckModel,
-			recheckSandbox,
-			reopen,
-		},
-	};
+    const open = async () => {
+      const read = await transport.readThread(threadId);
+      if (cancelled) return;
+      dispatch({ type: "thread-loaded", threadId, read });
+      const activity = await readRunActivity();
+      if (cancelled || activityGeneration !== runActivityGeneration.current) {
+        return;
+      }
+      setDurableRunActivity({ threadId, ...activity });
+
+      const pending = consumePendingMessage(threadId);
+      if (pending) {
+        claimed = pending;
+        await submitPendingAfterHydration(
+          latestStream.current.hydrationPromise,
+          async () => {
+            // Cancelled while waiting: the cleanup has already parked
+            // the message again; sending it here would reach a stream
+            // nobody is watching.
+            if (cancelled) return;
+            await send(pending);
+            claimed = null;
+          },
+          { capMs: pendingMessageCapMs },
+        );
+        return;
+      }
+
+      if (lastRunFailed(read.thread)) {
+        const fallback = lastRunFallbackMessage(read.thread);
+        const error = await transport
+          .listThreadRuns(threadId)
+          .then((runs) => pickFailedRunError(runs, fallback))
+          .catch(() => fallback);
+        if (cancelled) return;
+        dispatch({ type: "last-run-error-loaded", threadId, error });
+      }
+    };
+    open().catch((error: unknown) => {
+      if (cancelled) return;
+      if (claimed) {
+        setPendingMessage(threadId, claimed);
+        claimed = null;
+      }
+      console.error("Could not open the thread:", error);
+      dispatch({ type: "open-failed", threadId, error });
+    });
+    return () => {
+      cancelled = true;
+      if (claimed) {
+        setPendingMessage(threadId, claimed);
+        claimed = null;
+      }
+    };
+    // The open sequence runs once per thread (and per explicit reopen); the
+    // callbacks it uses are stable.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [threadId, openAttempt]);
+
+  const runStatus: ThreadSession["run"]["status"] = isInterrupted
+    ? "interrupted"
+    : stream.isLoading ||
+        durableRunActive ||
+        durableRunChecking ||
+        submissionPending ||
+        isStopping
+      ? "streaming"
+      : "idle";
+  const visibleStreamError =
+    dismissedStreamError?.threadId === threadId &&
+    Object.is(dismissedStreamError.error, stream.error)
+      ? null
+      : stream.error;
+
+  return {
+    meta: state.meta,
+    openError: state.openError,
+    run: {
+      status: runStatus,
+      isLoading:
+        stream.isLoading ||
+        durableRunActive ||
+        durableRunChecking ||
+        submissionPending ||
+        isStopping,
+      isStopping,
+      isStarting: submissionStarting,
+      error: visibleStreamError,
+      rehydratedError: state.rehydratedError,
+      canRetryInitial:
+        durableRunActivity?.threadId === threadId
+          ? durableRunRetryable
+          : state.meta.thread?.lastRunStatus === "error" ||
+            state.meta.thread?.lastRunStatus === "timeout",
+    },
+    transcript: {
+      messages,
+      toolCalls,
+      subagents: stream.subagents,
+      todos,
+      hydrated: hydratedThreadId === threadId,
+      hydrationError:
+        hydrationFailure?.threadId === threadId ? hydrationFailure.error : null,
+      stream: selectorStream,
+    },
+    hitl: {
+      interrupt,
+      nestedInterrupts,
+      hitlToolNames,
+      pendingToolCalls,
+      decisions,
+      recordDecision,
+    },
+    actions: {
+      send,
+      regenerate,
+      stop,
+      respond,
+      loadLatestMessages,
+      changeModel,
+      recheckModel,
+      recheckSandbox,
+      rehydrate,
+      retryInitial,
+      reopen,
+    },
+  };
 }

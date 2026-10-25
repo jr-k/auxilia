@@ -275,8 +275,77 @@ class ProtocolService:
         public_thread_id = thread_id
         thread_id = checkpoint_thread_id(workspace_id, thread_id)
         scopes: list[InterruptScope] = []
+        active = await self.runs.get_active(public_thread_id, workspace_id)
+
+        def revision(record: RunDB | None) -> tuple | None:
+            if record is None:
+                return None
+            return (record.id, record.status, record.updated_at)
+
         async with get_checkpointer() as checkpointer:
             state = await get_checkpoint_state(checkpointer, thread_id)
+            if state.saved is not None:
+                scopes = await load_interrupt_scopes(
+                    checkpointer, thread_id, root=state
+                )
+            force_pump = bool(scopes)
+
+            if scopes:
+                # An active resume owns the approval now; do not seed the old
+                # interrupt back into another client. If no run is active,
+                # read once more after that observation so a resume that just
+                # completed is reflected in the returned tasks.
+                if active is None:
+                    active = await self.runs.get_active(public_thread_id, workspace_id)
+                if active is not None and active.command is not None:
+                    scopes = []
+                else:
+                    state = await get_checkpoint_state(checkpointer, thread_id)
+                    scopes = (
+                        await load_interrupt_scopes(checkpointer, thread_id, root=state)
+                        if state.saved is not None
+                        else []
+                    )
+            elif active is None:
+                # Stabilize an apparently idle checkpoint against the durable
+                # run generation. A run can start and finish entirely while
+                # the first checkpoint is being read; its final revision then
+                # forces a fresh checkpoint read.
+                latest = await self.runs.get_latest(public_thread_id, workspace_id)
+                for _ in range(3):
+                    state = await get_checkpoint_state(checkpointer, thread_id)
+                    observed = await self.runs.get_latest(
+                        public_thread_id, workspace_id
+                    )
+                    observed_active = await self.runs.get_active(
+                        public_thread_id, workspace_id
+                    )
+                    verified = await self.runs.get_latest(
+                        public_thread_id, workspace_id
+                    )
+                    if (
+                        revision(observed) == revision(latest)
+                        and revision(verified) == revision(observed)
+                        and (
+                            observed is None
+                            or is_terminal(observed.status)
+                            or observed_active is not None
+                        )
+                    ):
+                        active = observed_active
+                        break
+                    latest = verified
+                else:
+                    # Under sustained turnover, take one final checkpoint
+                    # and conservatively keep the pump open.
+                    state = await get_checkpoint_state(checkpointer, thread_id)
+                    force_pump = True
+
+                if state.saved is not None:
+                    scopes = await load_interrupt_scopes(
+                        checkpointer, thread_id, root=state
+                    )
+
             values: dict[str, Any] = {
                 "messages": [serialize_message_preview(m) for m in state.messages]
             }
@@ -284,15 +353,10 @@ class ProtocolService:
                 values["todos"] = state.todos
             if state.structured_response is not None:
                 values["structured_response"] = state.structured_response
-            if state.saved is not None:
-                scopes = await load_interrupt_scopes(
-                    checkpointer, thread_id, root=state
-                )
 
-        active = await self.runs.get_active(public_thread_id, workspace_id)
         # `next` non-empty ⇔ a run is executing or a resume is awaited — the
         # client's activity gate opens its live pumps only then.
-        next_nodes = ["agent"] if active is not None or scopes else []
+        next_nodes = ["agent"] if active is not None or scopes or force_pump else []
         # One task per pending interrupt (parallel subagents can pause
         # together), each with the namespace the client should pin it to.
         tasks = [

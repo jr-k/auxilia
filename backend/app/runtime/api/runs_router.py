@@ -239,6 +239,19 @@ async def get_active_run(
     return RunResponse.from_record(record) if record else None
 
 
+@router.post("/retry", status_code=201)
+async def retry_failed_run(
+    thread_id: str,
+    thread: ThreadResponse = Depends(authorize_thread_for_run_service),
+    runs: RunService = Depends(get_run_service),
+) -> RunResponse:
+    """Replay the latest failed prompt from its durable run input."""
+    record = await runs.retry_latest_failed_input(
+        thread_id, thread.workspace_id, thread.user_id
+    )
+    return RunResponse.from_record(record)
+
+
 @router.get("/queue")
 async def list_prompt_queue(
     thread_id: str,

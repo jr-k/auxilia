@@ -18,6 +18,8 @@ export type ProtocolFetchHandlers = {
   onSandboxUnavailable?: (threadId: string, detail: string) => void;
   /** The addressed approval was already handled from another surface. */
   onStaleInterrupt?: (threadId: string) => void;
+  /** Whether a run.start command reached durable run creation. */
+  onRunStartSettled?: (threadId: string, accepted: boolean) => void;
   /** The transport underneath — `protocolFetch` in the app, a scripted one in tests. */
   baseFetch?: typeof fetch;
 };
@@ -46,7 +48,18 @@ export function useProtocolFetch(
       if (method === "run.start") {
         useActiveRunsStore.getState().markThreadRunning(threadId);
       }
-      const response = await baseFetch(input, init);
+      let response: Response;
+      try {
+        response = await baseFetch(input, init);
+      } catch (error) {
+        if (method === "run.start") {
+          handlersRef.current.onRunStartSettled?.(threadId, false);
+        }
+        throw error;
+      }
+      if (method === "run.start") {
+        handlersRef.current.onRunStartSettled?.(threadId, response.ok);
+      }
       if (method === "run.start" && !response.ok) {
         useActiveRunsStore.getState().requestPoll();
       }
@@ -60,7 +73,10 @@ export function useProtocolFetch(
           if (rejection.kind === "model_unavailable") {
             handlersRef.current.onModelUnavailable?.(threadId);
           } else if (rejection.kind === "sandbox_unavailable") {
-            handlersRef.current.onSandboxUnavailable?.(threadId, rejection.detail);
+            handlersRef.current.onSandboxUnavailable?.(
+              threadId,
+              rejection.detail,
+            );
           } else {
             handlersRef.current.onStaleInterrupt?.(threadId);
           }

@@ -178,6 +178,7 @@ const ChatPage = () => {
     userMessageCount,
   ]);
   const thread = meta.thread;
+  const canRetryInitial = run.canRetryInitial;
   const resourceSettings = useMemo(
     () =>
       resourceSettingsOverride?.threadId === threadId
@@ -346,6 +347,38 @@ const ChatPage = () => {
                 actions.regenerate();
               }}
               optimisticPrompt={optimisticPrompt}
+              emptyPrompt={thread?.firstMessageContent?.trim() || null}
+              canRetryInitial={canRetryInitial}
+              showEmptyState={
+                meta.status === "ready" && transcript.hydrated
+              }
+              onRetryInitialPrompt={() => {
+                if (canRetryInitial) {
+                  void actions.retryInitial().catch((error: unknown) => {
+                    toast.error(
+                      getApiErrorMessage(
+                        error,
+                        "The original message could not be retried.",
+                      ),
+                    );
+                  });
+                  return;
+                }
+                const prompt = thread?.firstMessageContent?.trim();
+                if (!prompt) return;
+                acknowledgeCurrentResponse();
+                void actions
+                  .send({ text: prompt, files: [] })
+                  .catch((error: unknown) => {
+                    toast.error(
+                      getApiErrorMessage(error, "The message could not be sent."),
+                    );
+                  });
+              }}
+              hydrationError={transcript.hydrationError}
+              onRetryHydration={() => {
+                void actions.rehydrate().catch(() => {});
+              }}
               error={run.error}
               rehydratedError={run.rehydratedError}
             />
@@ -429,6 +462,11 @@ const ChatPage = () => {
           <div
             className="w-full max-w-4xl mx-auto lg:px-10 sm:px-6 px-3 py-4"
             aria-busy="true"
+          />
+        ) : transcript.hydrationError != null ? (
+          <div
+            className="w-full max-w-4xl mx-auto lg:px-10 sm:px-6 px-3 py-4"
+            aria-busy="false"
           />
         ) : sandboxDown ? (
           <div className="w-full max-w-4xl mx-auto lg:px-10 sm:px-6 px-3 py-6">

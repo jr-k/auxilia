@@ -45,6 +45,14 @@ class RunRepository(BaseRepository[RunDB]):
         await self.db.refresh(run)
         return run
 
+    async def creation_timestamp(self) -> datetime:
+        """Wall-clock insertion time, unaffected by PostgreSQL transaction age."""
+        if self.db.bind is not None and self.db.bind.dialect.name == "postgresql":
+            stmt = select(func.clock_timestamp())
+            result = await self.db.execute(stmt)
+            return result.scalar_one()
+        return datetime.now(UTC)
+
     async def get(self, run_id: str) -> RunDB | None:
         stmt = self._scope(select(RunDB).where(RunDB.id == run_id))
         result = await self.db.execute(stmt)
@@ -55,11 +63,27 @@ class RunRepository(BaseRepository[RunDB]):
         stmt = (
             select(RunDB)
             .where(RunDB.thread_id == thread_id)
-            .order_by(RunDB.created_at.desc())
+            .order_by(RunDB.created_at.desc(), RunDB.id.desc())
         )
         stmt = self._scope(stmt)
         result = await self.db.execute(stmt)
         return list(result.scalars().all())
+
+    async def get_latest_for_thread(
+        self, thread_id: str, *, for_update: bool = False
+    ) -> RunDB | None:
+        """Newest run in any state, including an unclaimed pending run."""
+        stmt = (
+            select(RunDB)
+            .where(RunDB.thread_id == thread_id)
+            .order_by(RunDB.created_at.desc(), RunDB.id.desc())
+            .limit(1)
+        )
+        stmt = self._scope(stmt)
+        if for_update:
+            stmt = stmt.with_for_update()
+        result = await self.db.execute(stmt)
+        return result.scalar_one_or_none()
 
     async def list_queued_prompts(
         self, thread_id: str, *, for_update: bool = False

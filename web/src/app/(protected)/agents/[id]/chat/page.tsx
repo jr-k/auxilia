@@ -9,7 +9,7 @@ import {
 import ChatPromptInput from "./components/prompt-input";
 import { SelectAgentDialog } from "./components/select-agent-dialog";
 import { useThreadsStore } from "@/stores/threads-store";
-import { usePendingMessageStore } from "@/stores/pending-message-store";
+import { useActiveRunsStore } from "@/stores/active-runs-store";
 import { useModelsStore } from "@/stores/models-store";
 import * as agentsApi from "@/lib/api/resources/agents";
 import * as threadsApi from "@/lib/api/resources/threads";
@@ -50,9 +50,6 @@ const StarterChatPage = () => {
 			? resourceSettingsState.settings
 			: EMPTY_RESOURCE_SETTINGS;
 	const addThread = useThreadsStore((state) => state.addThread);
-	const setPendingMessage = usePendingMessageStore(
-		(state) => state.setPendingMessage,
-	);
 	const models = useModelsStore((state) => state.models);
 	const fetchModels = useModelsStore((state) => state.fetchModels);
 	const [agent, setAgent] = useState<Agent | null>(null);
@@ -98,22 +95,20 @@ const StarterChatPage = () => {
 		const threadId = generateUuid();
 
 		try {
-			// Store the pending message (with files) to be consumed by the thread page
-			setPendingMessage(threadId, message);
-
-			// Extract text for display purposes (thread list preview)
-			const textContent = "text" in message ? message.text : undefined;
-
-			const created = await threadsApi.createThread({
-				id: threadId,
-				agentId: submittedAgentId,
-				modelId,
-				reasoningEffort,
-				firstMessageContent: textContent,
-				...(submittedResourceSettings ?? {}),
-			});
+			const includeImages =
+				models.find((model) => model.id === modelId)?.multimodal !== false;
+			const created = await threadsApi.startThread(
+				{
+					id: threadId,
+					agentId: submittedAgentId,
+					modelId,
+					reasoningEffort,
+					...(submittedResourceSettings ?? {}),
+				},
+				message,
+				includeImages,
+			);
 			if (agentRequestIdRef.current !== submittedAgentRequestId) {
-				usePendingMessageStore.getState().consumePendingMessage(threadId);
 				setIsCreating(false);
 				const error = new Error("Conversation creation was superseded");
 				error.name = "AbortError";
@@ -129,10 +124,10 @@ const StarterChatPage = () => {
 			};
 
 			addThread(thread);
+			useActiveRunsStore.getState().markThreadRunning(threadId);
 
 			router.push(`/agents/${submittedAgentId}/chat/${threadId}`);
 		} catch (error) {
-			usePendingMessageStore.getState().consumePendingMessage(threadId);
 			setIsCreating(false);
 			const aborted = error instanceof Error && error.name === "AbortError";
 			if (!aborted) {

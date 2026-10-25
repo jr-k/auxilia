@@ -1,6 +1,8 @@
 import logging
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, File, Form, Request, UploadFile
+from fastapi.exceptions import RequestValidationError
+from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.core.service import AgentService, get_agent_service
@@ -17,6 +19,7 @@ from app.threads.schemas import (
     ThreadPatch,
     ThreadResourcesPatch,
     ThreadResponse,
+    ThreadStartCreate,
 )
 from app.threads.service import ThreadService, get_thread_service
 from app.users.models import UserDB
@@ -25,6 +28,38 @@ from app.users.models import UserDB
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/threads", tags=["threads"])
+
+
+@router.post("/start")
+async def start_thread(
+    request: Request,
+    payload: str = Form(),
+    files: list[UploadFile] | None = File(default=None),
+    current_user: UserDB = Depends(get_current_user),
+    service: ThreadService = Depends(get_thread_service),
+    agent_service: AgentService = Depends(get_agent_service),
+) -> ThreadResponse:
+    """Create a thread and its first durable run as one operation."""
+    try:
+        data = ThreadStartCreate.model_validate_json(payload)
+    except ValidationError as exc:
+        raise RequestValidationError(exc.errors()) from exc
+    source = (
+        ThreadSource.web
+        if detect_auth_method(request, current_user) == "cookie"
+        else ThreadSource.api
+    )
+    await agent_service.require_permission(
+        data.thread.agent_id,
+        at_least=EffectivePermission.member,
+        action="use this agent",
+        user_id=current_user.id,
+        user_role=current_user.role,
+        user_team_id=current_user.team_id,
+    )
+    return await service.create_with_initial_run(
+        data, files or [], current_user.id, source
+    )
 
 
 @router.get("/{thread_id}")

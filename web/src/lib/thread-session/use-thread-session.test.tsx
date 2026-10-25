@@ -130,7 +130,7 @@ describe("useThreadSession", () => {
 		});
 
 		act(() => {
-			result.current.actions.send({ text: "again", files: [] });
+			void result.current.actions.send({ text: "again", files: [] }).catch(() => {});
 		});
 		expect(result.current.run.rehydratedError).toBeNull();
 	});
@@ -151,7 +151,7 @@ describe("useThreadSession", () => {
 		});
 
 		act(() => {
-			result.current.actions.send({ text: "go", files: [] });
+			void result.current.actions.send({ text: "go", files: [] }).catch(() => {});
 		});
 		await act(async () => {
 			resolveRuns([]);
@@ -160,7 +160,7 @@ describe("useThreadSession", () => {
 		expect(result.current.run.rehydratedError).toBeNull();
 	});
 
-	it("submits a parked first message exactly once, after hydration", async () => {
+	it("re-parks a first message when its post-hydration dispatch fails", async () => {
 		usePendingMessageStore.getState().setPendingMessage("t1", { text: "first!", files: [] });
 		const { transport, calls } = transportWith(
 			{ thread: thread(), viewerRole: null },
@@ -174,7 +174,10 @@ describe("useThreadSession", () => {
 		});
 		const start = calls.find((c) => (c.body as { method?: string })?.method === "run.start")!;
 		expect(JSON.stringify(start.body)).toContain("first!");
-		expect(usePendingMessageStore.getState().pendingMessages.size).toBe(0);
+		expect(usePendingMessageStore.getState().pendingMessages.get("t1")).toEqual({
+			text: "first!",
+			files: [],
+		});
 		// a run.start marks the thread running for the sidebar
 		expect(Object.keys(useActiveRunsStore.getState().optimisticMarkedAt)).toEqual(["t1"]);
 	});
@@ -226,7 +229,10 @@ describe("useThreadSession", () => {
 
 		// Past attempt 1's cap: its cancelled callback must neither send nor re-park.
 		await new Promise((r) => setTimeout(r, 400));
-		expect(usePendingMessageStore.getState().pendingMessages.size).toBe(0);
+		expect(usePendingMessageStore.getState().pendingMessages.get("t1")).toEqual({
+			text: "first!",
+			files: [],
+		});
 		const starts = calls.filter((c) => (c.body as { method?: string })?.method === "run.start");
 		expect(starts.length).toBeLessThanOrEqual(1); // attempt 3's own send at most, never attempt 1's
 	});
@@ -245,7 +251,7 @@ describe("useThreadSession", () => {
 		});
 
 		act(() => {
-			result.current.actions.send({ text: "hi", files: [] });
+			void result.current.actions.send({ text: "hi", files: [] }).catch(() => {});
 		});
 		await waitFor(() => {
 			expect(result.current.meta.modelAvailable).toBe(false);
@@ -283,7 +289,10 @@ describe("useThreadSession", () => {
 		await waitFor(() => {
 			expect(calls.filter((c) => (c.body as { method?: string })?.method === "run.start")).toHaveLength(1);
 		});
-		expect(usePendingMessageStore.getState().pendingMessages.size).toBe(0);
+		expect(usePendingMessageStore.getState().pendingMessages.get("t1")).toEqual({
+			text: "first!",
+			files: [],
+		});
 	});
 
 	it("recheckModel re-reads the thread and lifts the lock when the model is back", async () => {

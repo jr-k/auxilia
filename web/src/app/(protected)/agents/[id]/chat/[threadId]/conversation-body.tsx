@@ -125,11 +125,22 @@ export type ConversationBodyProps = {
    *  one); each card claims its own and approves it itself. */
   nestedInterrupts: Interrupt[];
   /** Resume an interrupt — `stream.respond(response, { interruptId })`. */
-  respond: (response: HitlResponse, interruptId: string | null) => void;
+  respond: (
+    response: HitlResponse,
+    interruptId: string | null,
+  ) => Promise<void>;
   modelUnavailable: boolean;
   onRegenerate: () => void;
   /** A claimed queued prompt waiting for its server-authored message event. */
   optimisticPrompt: QueuedPrompt | null;
+  /** The title retained by a legacy thread whose first run never persisted. */
+  emptyPrompt: string | null;
+  /** The empty transcript belongs to a failed run whose full input is durable. */
+  canRetryInitial: boolean;
+  showEmptyState: boolean;
+  onRetryInitialPrompt: () => void;
+  hydrationError: unknown;
+  onRetryHydration: () => void;
   error: unknown;
   rehydratedError: string | null;
 };
@@ -168,6 +179,12 @@ export const ConversationBody = memo(function ConversationBody({
   modelUnavailable,
   onRegenerate,
   optimisticPrompt,
+  emptyPrompt,
+  canRetryInitial,
+  showEmptyState,
+  onRetryInitialPrompt,
+  hydrationError,
+  onRetryHydration,
   error,
   rehydratedError,
 }: ConversationBodyProps) {
@@ -178,9 +195,7 @@ export const ConversationBody = memo(function ConversationBody({
     sandbox: AgentResourceSandbox | undefined;
   } | null>(null);
   const sandbox =
-    sandboxIdentity?.agentId === agentId
-      ? sandboxIdentity.sandbox
-      : undefined;
+    sandboxIdentity?.agentId === agentId ? sandboxIdentity.sandbox : undefined;
   const describe = useDescribeTool(mcpServers, sandbox);
 
   useEffect(() => {
@@ -355,6 +370,55 @@ export const ConversationBody = memo(function ConversationBody({
           </Fragment>
         );
       })}
+
+      {hydrationError != null && (
+        <div className="mx-auto flex w-full max-w-xl flex-col gap-3 rounded-lg border border-destructive/30 bg-destructive/10 p-4">
+          <p className="text-sm font-medium text-destructive">
+            Conversation history could not be loaded.
+          </p>
+          <p className="text-xs text-destructive">
+            {hydrationError instanceof globalThis.Error
+              ? hydrationError.message
+              : String(hydrationError)}
+          </p>
+          <button
+            type="button"
+            className="w-fit shrink-0 cursor-pointer whitespace-nowrap rounded-md border border-input bg-background px-3 py-1.5 text-sm font-medium hover:bg-muted"
+            onClick={onRetryHydration}
+          >
+            Retry loading history
+          </button>
+        </div>
+      )}
+
+      {showEmptyState && messages.length === 0 && !isLoading && (
+        <div className="mx-auto flex w-full max-w-xl flex-col gap-3 rounded-lg border border-border bg-muted/30 p-4">
+          <p className="text-sm font-medium text-foreground">
+            {canRetryInitial
+              ? "The first response failed before any messages were saved."
+              : emptyPrompt
+                ? "This conversation's first message was not saved."
+                : "This conversation has no saved messages."}
+          </p>
+          {emptyPrompt && (
+            <p className="line-clamp-3 whitespace-pre-wrap text-sm text-muted-foreground">
+              {emptyPrompt}
+            </p>
+          )}
+          {currentErrorDetail && (
+            <p className="text-xs text-destructive">{currentErrorDetail}</p>
+          )}
+          {(emptyPrompt || canRetryInitial) && (
+            <button
+              type="button"
+              className="w-fit shrink-0 cursor-pointer whitespace-nowrap rounded-md border border-input bg-background px-3 py-1.5 text-sm font-medium hover:bg-muted"
+              onClick={onRetryInitialPrompt}
+            >
+              Retry original message
+            </button>
+          )}
+        </div>
+      )}
 
       {optimisticPrompt && <OptimisticUserTurn prompt={optimisticPrompt} />}
 
@@ -564,18 +628,14 @@ const UserTurn = ({
     (attachment) => getMediaCategory(attachment) === "image",
   );
   const files = useAttachedFiles(getAttachmentIds(message))
-    .filter(
-      (file) => !(hasInlineImages && file.mime_type.startsWith("image/")),
-    )
-    .map(
-      (file): AttachmentData => ({
-        id: file.id,
-        type: "file",
-        url: contentUrl(file),
-        filename: file.filename,
-        mediaType: file.mime_type,
-      }),
-    );
+    .filter((file) => !(hasInlineImages && file.mime_type.startsWith("image/")))
+    .map((file): AttachmentData => ({
+      id: file.id,
+      type: "file",
+      url: contentUrl(file),
+      filename: file.filename,
+      mediaType: file.mime_type,
+    }));
   const attachments = [...inline, ...files];
   return (
     <div id={anchorId} className="flex flex-col gap-2">
@@ -692,7 +752,11 @@ const UserTurn = ({
 
 const OptimisticUserTurn = ({ prompt }: { prompt: QueuedPrompt }) => {
   return (
-    <div className="flex flex-col gap-2" role="status" aria-label="Sending queued message">
+    <div
+      className="flex flex-col gap-2"
+      role="status"
+      aria-label="Sending queued message"
+    >
       {prompt.attachments.length > 0 && (
         <div className="flex items-center justify-end gap-2">
           {!prompt.text && (
@@ -751,9 +815,7 @@ const SideChannelContextDetails = ({
         <span className="font-semibold text-body dark:text-panel-body">
           {source === "slack" ? "Slack" : (source ?? "Side channel")}
         </span>
-        <span className="font-mono text-[10px]">
-          context
-        </span>
+        <span className="font-mono text-[10px]">context</span>
         <span className="font-mono text-[10.5px]">
           {messages.length} message{messages.length === 1 ? "" : "s"}
         </span>
@@ -763,11 +825,11 @@ const SideChannelContextDetails = ({
         <div className="mt-2 flex max-h-80 max-w-[min(34rem,72vw)] flex-col items-end gap-2.5 overflow-y-auto">
           {messages.map((message, index) => (
             <div
-                  key={`${message.participantId}-${index}`}
+              key={`${message.participantId}-${index}`}
               className="w-fit max-w-full rounded-[12px_12px_3px_12px] border border-border/60 bg-white px-3 py-1.5 shadow-[0_1px_2px_rgba(0,0,0,0.035)] dark:bg-panel"
             >
               <div className="mb-0.5 font-mono text-[9.5px] leading-none text-meta dark:text-panel-dim">
-                    {message.participantId}
+                {message.participantId}
               </div>
               <div className="whitespace-pre-wrap text-[12.5px] leading-[1.4] text-body dark:text-panel-body">
                 {message.text}
@@ -793,7 +855,10 @@ type ChainProps = {
   decisions: Partial<Record<string, HitlDecision>>;
   recordDecision: (toolCallId: string, decision: HitlDecision) => void;
   nestedInterrupts: Interrupt[];
-  respond: (response: HitlResponse, interruptId: string | null) => void;
+  respond: (
+    response: HitlResponse,
+    interruptId: string | null,
+  ) => Promise<void>;
   /** A run is executing: a card's approval waits for it to settle. */
   resumeInFlight: boolean;
   modelUnavailable: boolean;
@@ -871,7 +936,8 @@ const Chain = ({
         lockOpen={
           pausedSubagents.length > 0 ||
           tools.some(
-            (r) => !r.sub && r.state === "awaiting-approval" && !decisions[r.tc.id],
+            (r) =>
+              !r.sub && r.state === "awaiting-approval" && !decisions[r.tc.id],
           )
         }
         toolCount={tools.length - chainSubagents.length}
@@ -931,10 +997,7 @@ const Chain = ({
         </>
       )}
       {tools.map(({ tc }) => (
-        <ArtifactCards
-          key={`files-${tc.id}`}
-          toolCallId={tc.callId ?? tc.id}
-        />
+        <ArtifactCards key={`files-${tc.id}`} toolCallId={tc.callId ?? tc.id} />
       ))}
       {tools.map(({ tc, sub }) => {
         const app = sub ? null : getMcpAppInfo(tc);

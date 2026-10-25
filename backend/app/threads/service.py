@@ -1,20 +1,25 @@
 from __future__ import annotations
 
+import asyncio
+import base64
 from datetime import datetime
 from uuid import UUID
 
-from fastapi import Depends
+from fastapi import Depends, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.core.repository import AgentRepository
 from app.agents.models import ToolStatus
 from app.agents.run_spec import RunSpec
+from app.artifacts.service import ArtifactService, attachment_mime
+from app.artifacts.settings import artifact_settings
 from app.database import get_checkpointer, get_db
 from app.exceptions import DomainValidationError, NotFoundError
 from app.model_providers.service import ModelService
 from app.pagination import Page, PageParams
 from app.realtime.schemas import WorkspaceEventKind
 from app.realtime.service import stage_workspace_event
+from app.runtime.runs.service import RunService
 from app.service import BaseService
 from app.skills.repository import SkillRepository
 from app.threads.models import ThreadDB, ThreadSource
@@ -26,6 +31,7 @@ from app.threads.schemas import (
     ThreadPatch,
     ThreadResourcesPatch,
     ThreadResponse,
+    ThreadStartCreate,
 )
 from app.workspaces.dependencies import get_active_workspace_id
 
@@ -311,6 +317,84 @@ class ThreadService(BaseService[ThreadDB, ThreadRepository]):
                 ).is_available(thread.model_id)
             },
         )
+
+    async def create_with_initial_run(
+        self,
+        data: ThreadStartCreate,
+        files: list[UploadFile],
+        user_id: UUID,
+        source: ThreadSource,
+    ) -> ThreadResponse:
+        """Persist the thread, its attachments and first run atomically."""
+        text = data.message_text if data.message_text.strip() else ""
+        if not text and not files:
+            raise DomainValidationError("The first message cannot be empty")
+        if len(files) > 10:
+            raise DomainValidationError("A message can contain at most 10 files")
+
+        thread_data = data.thread.model_copy(
+            update={"first_message_content": text or None}
+        )
+        artifacts = ArtifactService(self.db, self.workspace_id)
+        try:
+            thread = await self.create(thread_data, user_id, source)
+            attachment_metadata: list[dict[str, str]] = []
+            image_parts: list[dict] = []
+            for upload in files:
+                raw = await upload.read(artifact_settings.max_bytes + 1)
+                if len(raw) > artifact_settings.max_bytes:
+                    raise DomainValidationError("Attachment exceeds the size limit")
+                filename = upload.filename or "file"
+                if artifact_settings.provider:
+                    item = await artifacts.attach(thread.id, filename, raw)
+                    mime_type = item.mime_type
+                    attachment_metadata.append(
+                        {
+                            "id": str(item.id),
+                            "filename": item.filename,
+                            "media_type": mime_type,
+                        }
+                    )
+                else:
+                    mime_type = await asyncio.to_thread(attachment_mime, filename, raw)
+                    if not (data.include_images and mime_type.startswith("image/")):
+                        raise DomainValidationError(
+                            "Attachments need a configured object store"
+                        )
+                if data.include_images and mime_type.startswith("image/"):
+                    encoded = base64.b64encode(raw).decode("ascii")
+                    image_parts.append(
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:{mime_type};base64,{encoded}",
+                                "detail": "auto",
+                            },
+                        }
+                    )
+
+            content: str | list[dict]
+            if image_parts:
+                content = (
+                    [{"type": "text", "text": text}] if text else []
+                ) + image_parts
+            else:
+                content = text
+            message: dict = {"type": "human", "content": content}
+            if attachment_metadata:
+                message["additional_kwargs"] = {"attachments": attachment_metadata}
+            await RunService().create_in_session(
+                self.db,
+                thread_id=thread.id,
+                user_id=str(user_id),
+                input={"messages": [message]},
+                multitask_strategy="enqueue",
+                text_only_when_queued=True,
+            )
+            return thread
+        except BaseException:
+            await artifacts.discard_uploads()
+            raise
 
     async def update(self, thread_id: str, data: ThreadPatch) -> ThreadResponse:
         thread = await self.get_or_404(thread_id)

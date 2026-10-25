@@ -6,6 +6,7 @@
  * with `ApiError`. Cache updates belong to the store that calls these.
  */
 import { api } from "@/lib/api/client";
+import type { PromptInputMessage } from "@/components/ai-elements/prompt-input";
 import type { Paginated } from "@/types/api";
 import type { HumanInput } from "@/lib/thread-session/build-content";
 import type { QueuedPrompt, Run } from "@/types/runs";
@@ -86,6 +87,38 @@ export async function readThread(threadId: string): Promise<ThreadRead> {
 
 export async function createThread(payload: ThreadCreate): Promise<Thread> {
 	const response = await api.post<Thread>("/threads", payload);
+	return response.data;
+}
+
+/** Create a thread, persist its files and enqueue its first run atomically. */
+export async function startThread(
+	payload: ThreadCreate,
+	message: PromptInputMessage,
+	includeImages: boolean,
+): Promise<Thread> {
+	const form = new FormData();
+	form.set(
+		"payload",
+		JSON.stringify({
+			thread: {
+				id: payload.id,
+				agent_id: payload.agentId,
+				model_id: payload.modelId,
+				reasoning_effort: payload.reasoningEffort,
+				disabled_mcp_server_ids: payload.disabledMcpServerIds,
+				disabled_skill_ids: payload.disabledSkillIds,
+				disabled_sandbox_ids: payload.disabledSandboxIds,
+				disabled_subagent_ids: payload.disabledSubagentIds,
+			},
+			message_text: message.text ?? "",
+			include_images: includeImages,
+		}),
+	);
+	for (const file of message.files ?? []) {
+		const blob = await (await fetch(file.url)).blob();
+		form.append("files", blob, file.filename || "file");
+	}
+	const response = await api.post<Thread>("/threads/start", form);
 	return response.data;
 }
 
@@ -176,6 +209,18 @@ export async function getPublicArtifact(
 /** The thread's runs, operational state only (status, error, timestamps). */
 export async function listThreadRuns(threadId: string): Promise<Run[]> {
 	const response = await api.get<Run[]>(`/threads/${threadId}/runs`);
+	return response.data;
+}
+
+export async function getActiveRun(threadId: string): Promise<Run | null> {
+	const response = await api.get<Run | null>(
+		`/threads/${threadId}/runs/active`,
+	);
+	return response.data;
+}
+
+export async function retryFailedRun(threadId: string): Promise<Run> {
+	const response = await api.post<Run>(`/threads/${threadId}/runs/retry`);
 	return response.data;
 }
 

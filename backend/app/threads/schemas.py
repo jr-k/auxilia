@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import Literal
 from uuid import UUID
 
+from pydantic import BaseModel, Field as PydanticField
 from sqlmodel import Field, SQLModel
 
 from app.runtime.runs.state import RunStatus
@@ -21,6 +22,14 @@ class ThreadCreate(SQLModel):
     disabled_sandbox_ids: list[UUID] = Field(default_factory=list)
     disabled_subagent_ids: list[UUID] = Field(default_factory=list)
     disabled_mcp_tools: dict[UUID, list[str]] = Field(default_factory=dict)
+
+
+class ThreadStartCreate(BaseModel):
+    """Create a web thread and its first durable run in one transaction."""
+
+    thread: ThreadCreate
+    message_text: str = PydanticField(default="", max_length=100_000)
+    include_images: bool = True
 
 
 class ThreadPatch(SQLModel):

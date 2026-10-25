@@ -12,6 +12,7 @@ commit before the response starts streaming.
 
 import logging
 from collections.abc import AsyncGenerator
+from copy import deepcopy
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
@@ -207,11 +208,14 @@ class RunService:
                 queue_position = await repository.allocate_queue_position(thread_id)
                 if queue_position is None:
                     queue_position = await repository.next_queue_position(thread_id)
+        created_at = await repository.creation_timestamp()
         record = await repository.create(
             RunDB(
                 workspace_id=thread.workspace_id,
                 thread_id=thread_id,
                 user_id=UUID(user_id),
+                created_at=created_at,
+                updated_at=created_at,
                 input=input,
                 command=command,
                 trigger=trigger,
@@ -334,6 +338,41 @@ class RunService:
     async def list_for_thread(self, thread_id: str, workspace_id: UUID) -> list[RunDB]:
         async with AsyncSessionLocal() as db:
             return await RunRepository(db, workspace_id).list_for_thread(thread_id)
+
+    async def get_latest(self, thread_id: str, workspace_id: UUID) -> RunDB | None:
+        async with AsyncSessionLocal() as db:
+            return await RunRepository(db, workspace_id).get_latest_for_thread(
+                thread_id
+            )
+
+    async def retry_latest_failed_input(
+        self, thread_id: str, workspace_id: UUID, user_id: UUID
+    ) -> RunDB:
+        """Replay the newest failed turn without reconstructing its attachments."""
+        await ModelService.list_whitelisted()
+        async with AsyncSessionLocal() as db:
+            repository = RunRepository(db, workspace_id)
+            # Serialize this validation with every other run creation on the
+            # thread so the selected failure cannot become historical before
+            # its replay row is inserted.
+            await repository.lock_thread_runs(thread_id)
+            failed = await repository.get_latest_for_thread(thread_id, for_update=True)
+            if (
+                failed is None
+                or failed.status not in {RunStatus.error, RunStatus.timeout}
+                or failed.input is None
+            ):
+                raise DomainValidationError("There is no failed prompt to retry.")
+            record = await self.create_in_session(
+                db,
+                thread_id=thread_id,
+                user_id=str(user_id),
+                input=deepcopy(failed.input),
+                config_overrides=deepcopy(failed.config_overrides),
+                output_schema=deepcopy(failed.output_schema),
+            )
+            await db.commit()
+            return record
 
     async def next_for_thread(
         self, thread_id: str, workspace_id: UUID, after: RunDB | None = None
