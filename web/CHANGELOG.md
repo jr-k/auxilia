@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.40](https://github.com/jr-k/auxilia/compare/web-v0.12.39...web-v0.12.40) (2026-10-25)
+
+
+### Bug Fixes
+
+* **chat:** render host notices as system events ([e225e39](https://github.com/jr-k/auxilia/commit/e225e3945d226e81ad997c6f79b0fc1fc10d8755))
+
 ## [0.12.39](https://github.com/jr-k/auxilia/compare/web-v0.12.38...web-v0.12.39) (2026-10-25)
 
 
