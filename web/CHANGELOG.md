@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.42](https://github.com/jr-k/auxilia/compare/web-v0.12.41...web-v0.12.42) (2026-10-25)
+
+
+### Bug Fixes
+
+* **chat:** improve external link handling ([97110bc](https://github.com/jr-k/auxilia/commit/97110bce8a7b33fc09eda72f76cf651ddecbf50f))
+
 ## [0.12.41](https://github.com/jr-k/auxilia/compare/web-v0.12.40...web-v0.12.41) (2026-10-25)
 
 
