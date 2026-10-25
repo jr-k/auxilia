@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.26](https://github.com/jr-k/auxilia/compare/backend-v0.11.25...backend-v0.11.26) (2026-10-25)
+
+
+### Bug Fixes
+
+* **models:** repair malformed web search history ([6b7aab3](https://github.com/jr-k/auxilia/commit/6b7aab316b17baa28610841425fd863b0d225899))
+
 ## [0.11.25](https://github.com/jr-k/auxilia/compare/backend-v0.11.24...backend-v0.11.25) (2026-10-24)
 
 
