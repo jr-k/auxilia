@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.38](https://github.com/jr-k/auxilia/compare/web-v0.12.37...web-v0.12.38) (2026-10-25)
+
+
+### Bug Fixes
+
+* **chat:** preserve resource dialog scroll ([5aa8489](https://github.com/jr-k/auxilia/commit/5aa848923553311262b045b372995d2893becfc6))
+
 ## [0.12.37](https://github.com/jr-k/auxilia/compare/web-v0.12.36...web-v0.12.37) (2026-10-25)
 
 
