@@ -19,6 +19,7 @@ import { AgentMCPServerForm } from "../../lib/agent-form";
 import * as mcpServersApi from "@/lib/api/resources/mcp-servers";
 import { ServerIconTile } from "@/app/(protected)/mcp-servers/components/server-icon-tile";
 import { Switch } from "@/components/ui/switch";
+import { ThreeStateToggle } from "@/components/ui/three-state-toggle";
 
 interface AgentMCPServerProps {
 	/** Saved agent id — undefined in create mode. */
@@ -69,6 +70,7 @@ interface ProgressiveToolListProps {
 	onTriggerToolEnabledChange?: (toolName: string, enabled: boolean) => void;
 	statusFor: (toolName: string) => ToolStatus;
 	onStatusChange: (toolName: string, status: ToolStatus) => void;
+	onAllStatusChange: (status: ToolStatus) => void;
 }
 
 function ProgressiveToolList({
@@ -84,6 +86,7 @@ function ProgressiveToolList({
 	onTriggerToolEnabledChange,
 	statusFor,
 	onStatusChange,
+	onAllStatusChange,
 }: ProgressiveToolListProps) {
 	const [visibleToolCount, setVisibleToolCount] = useState(
 		TOOL_RENDER_BATCH_SIZE,
@@ -91,6 +94,12 @@ function ProgressiveToolList({
 	const visibleTools = tools.slice(0, visibleToolCount);
 	const remainingToolCount = tools.length - visibleTools.length;
 	const showTools = mode !== "trigger" || binding.enabledByDefault !== false;
+	const firstStatus = tools[0] ? statusFor(tools[0].name) : null;
+	const allStatus =
+		firstStatus !== null &&
+		tools.every((tool) => statusFor(tool.name) === firstStatus)
+			? firstStatus
+			: null;
 
 	const handleScroll = (event: UIEvent<HTMLDivElement>) => {
 		const { scrollTop, clientHeight, scrollHeight } = event.currentTarget;
@@ -135,6 +144,22 @@ function ProgressiveToolList({
 			</div>
 			{showTools && (
 				<>
+					{mode === "agent" && !readOnly && (
+						<div className="flex items-center gap-3 border-b border-hover bg-hover/35 px-4 py-2.5 dark:border-white/5 dark:bg-white/[0.025]">
+							<div className="min-w-0 flex-1">
+								<p className="text-[10.5px] font-semibold tracking-[0.08em] text-label dark:text-muted-foreground">
+									ALL TOOLS
+								</p>
+								<p className="mt-0.5 text-[11.5px] text-muted-foreground">
+									Apply one approval policy to every tool
+								</p>
+							</div>
+							<ThreeStateToggle
+								value={allStatus}
+								onChange={onAllStatusChange}
+							/>
+						</div>
+					)}
 					{visibleTools.map((tool) => (
 						<AgentMCPTool
 							key={tool.name}
@@ -542,6 +567,14 @@ export default function AgentMCPServer({
 							onTriggerToolEnabledChange={onTriggerToolEnabledChange}
 							statusFor={statusFor}
 							onStatusChange={handleStatusChange}
+							onAllStatusChange={(status) => {
+								if (readOnly) return;
+								const next = materializeTools(tools);
+								for (const tool of configurableTools) {
+									next[tool.name] = status;
+								}
+								onToolsChange?.(next);
+							}}
 						/>
 					) : (
 						<div className="px-4 py-3 text-[13px] text-muted-foreground">

@@ -1,6 +1,10 @@
-const PUBLIC_PATHS = ["/auth", "/setup", "/invite"];
+const PUBLIC_PATHS = ["/auth", "/setup", "/invite", "/share"];
 
 let inFlight: Promise<void> | null = null;
+
+function isPathWithin(pathname: string, root: string): boolean {
+	return pathname === root || pathname.startsWith(`${root}/`);
+}
 
 /**
  * Confirm an apparent 401 is an expired session before reloading. This keeps
@@ -9,7 +13,7 @@ let inFlight: Promise<void> | null = null;
  */
 export function ensureSignedIn(): Promise<void> {
 	const { pathname } = window.location;
-	if (PUBLIC_PATHS.some((path) => pathname.startsWith(path))) {
+	if (PUBLIC_PATHS.some((path) => isPathWithin(pathname, path))) {
 		return Promise.resolve();
 	}
 	inFlight ??= checkSession().finally(() => {

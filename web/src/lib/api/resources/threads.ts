@@ -20,6 +20,35 @@ import type {
 export type PageParams = { limit: number; offset: number };
 export type ThreadPageParams = PageParams & { q?: string };
 
+export interface ConversationShare {
+	id: string;
+	threadId: string;
+	token: string;
+	createdAt: string | null;
+}
+
+export interface PublicConversationArtifact {
+	id: string;
+	tool_call_id: string | null;
+	title: string;
+	filename: string;
+	mime_type: string;
+	size: number;
+}
+
+export interface PublicConversation {
+	id: string;
+	title: string | null;
+	published_at: string | null;
+	agent: {
+		name: string;
+		emoji: string | null;
+		color: string | null;
+	};
+	messages: Record<string, unknown>[];
+	artifacts: PublicConversationArtifact[];
+}
+
 type QueuedPromptWire = Omit<QueuedPrompt, "attachments"> & {
 	attachments?: QueuedPrompt["attachments"];
 };
@@ -90,6 +119,58 @@ export async function updateThreadResources(
 
 export async function deleteThread(threadId: string): Promise<void> {
 	await api.delete(`/threads/${threadId}`);
+}
+
+export async function getConversationShare(
+	threadId: string,
+): Promise<ConversationShare | null> {
+	const response = await api.get<ConversationShare | null>(
+		`/threads/${threadId}/share`,
+	);
+	return response.data;
+}
+
+export async function createConversationShare(
+	threadId: string,
+): Promise<ConversationShare> {
+	const response = await api.post<ConversationShare>(
+		`/threads/${threadId}/share`,
+	);
+	return response.data;
+}
+
+export async function deleteConversationShare(threadId: string): Promise<void> {
+	await api.delete(`/threads/${threadId}/share`);
+}
+
+export async function getPublicConversation(
+	shareId: string,
+	token: string,
+): Promise<PublicConversation> {
+	const response = await fetch(`/api/backend/public/conversations/${shareId}`, {
+		headers: { "X-Auxilia-Share-Token": token },
+		credentials: "omit",
+		cache: "no-store",
+	});
+	if (!response.ok) throw new Error("This shared conversation is unavailable.");
+	return (await response.json()) as PublicConversation;
+}
+
+export async function getPublicArtifact(
+	shareId: string,
+	artifactId: string,
+	token: string,
+): Promise<Blob> {
+	const response = await fetch(
+		`/api/backend/public/conversations/${shareId}/artifacts/${artifactId}/content`,
+		{
+			headers: { "X-Auxilia-Share-Token": token },
+			credentials: "omit",
+			cache: "no-store",
+		},
+	);
+	if (!response.ok) throw new Error("This shared file is unavailable.");
+	return response.blob();
 }
 
 /** The thread's runs, operational state only (status, error, timestamps). */

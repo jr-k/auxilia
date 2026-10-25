@@ -88,12 +88,17 @@ def checkpoint_thread_id(workspace_id: object, thread_id: str) -> str:
 
 
 async def get_checkpoint_state(
-    checkpointer: BaseCheckpointSaver, thread_id: str, checkpoint_ns: str = ""
+    checkpointer: BaseCheckpointSaver,
+    thread_id: str,
+    checkpoint_ns: str = "",
+    checkpoint_id: str | None = None,
 ) -> CheckpointState:
-    """The latest checkpoint of ``thread_id`` under ``checkpoint_ns`` (``""``
-    for the root agent, ``tools:<task id>`` for a subagent), with its channel
-    values reconstructed. Two point reads: the tuple, then the state."""
+    """A checkpoint of ``thread_id`` under ``checkpoint_ns`` (``""`` for the
+    root agent, ``tools:<task id>`` for a subagent), with its channel values
+    reconstructed. By default the latest checkpoint is read."""
     configurable = {"thread_id": thread_id, "checkpoint_ns": checkpoint_ns}
+    if checkpoint_id is not None:
+        configurable["checkpoint_id"] = checkpoint_id
     saved = await checkpointer.aget_tuple(config={"configurable": configurable})
     if saved is None:
         return EMPTY_STATE

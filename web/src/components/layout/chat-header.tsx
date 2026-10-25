@@ -36,6 +36,17 @@ export function formatExactCost(amount: string): string {
 }
 
 function CostBreakdown({ cost }: { cost: ThreadCost }) {
+	if (cost.unpricedCallCount === cost.callCount) {
+		return (
+			<div className="text-[12px]">
+				<p className="font-semibold text-foreground">Cost unavailable</p>
+				<p className="mt-1 leading-5 text-meta">
+					Token usage or catalog pricing was not retained for these calls.
+					New compatible model calls will include usage automatically.
+				</p>
+			</div>
+		);
+	}
 	const rows = [
 		["Input", cost.usageDetails.input, cost.costDetails.input],
 		[
@@ -102,6 +113,13 @@ function ModelCostPill() {
 	if (!modelId) return null;
 
 	const showCost = cost !== null && cost.callCount > 0;
+	const costUnavailable =
+		showCost && cost.unpricedCallCount === cost.callCount;
+	const costLabel = costUnavailable
+		? "Unavailable"
+		: showCost
+			? `${cost.complete ? "" : "≥"}${formatPillCost(cost.knownCost)}`
+			: null;
 	const pill = (
 		<span
 			title={showCost ? undefined : `Model: ${modelId}`}
@@ -111,8 +129,8 @@ function ModelCostPill() {
 			{model?.chefSlug && <ModelSelectorLogo provider={model.chefSlug} />}
 			<span className="truncate">{model?.name ?? modelId}</span>
 			{showCost && (
-				<span className="min-w-[7ch] flex-none border-l border-border pl-2 text-right tabular-nums text-subtle">
-					{formatPillCost(cost.knownCost)}
+				<span className="flex-none border-l border-border pl-2 text-right tabular-nums text-subtle">
+					{costLabel}
 				</span>
 			)}
 		</span>

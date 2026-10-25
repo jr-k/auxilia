@@ -51,6 +51,10 @@ from app.skills.router import router as skills_router
 from app.skills.sources.router import router as skill_sources_router
 from app.teams.router import router as teams_router
 from app.threads.router import router as threads_router
+from app.threads.shares.router import (
+    public_router as public_conversation_shares_router,
+    router as conversation_shares_router,
+)
 from app.triggers.router import router as triggers_router
 from app.triggers.scanner import TriggerScanner
 from app.triggers.settings import trigger_settings
@@ -281,6 +285,8 @@ app.include_router(mcp_oauth_router)
 app.include_router(mcp_servers_router)
 app.include_router(database_connections_router)
 app.include_router(threads_router)
+app.include_router(conversation_shares_router)
+app.include_router(public_conversation_shares_router)
 app.include_router(triggers_router)
 app.include_router(skill_sources_router)  # before /skills/{skill_id}
 app.include_router(skills_router)

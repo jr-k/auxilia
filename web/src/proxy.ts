@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 const PUBLIC_PATHS = ["/auth", "/setup", "/invite"];
+const ALWAYS_PUBLIC_PATHS = ["/share"];
 const PUBLIC_MCP_ENDPOINTS = new Set([
 	"/mcp",
 	"/register",
@@ -13,6 +14,10 @@ const PUBLIC_MCP_ENDPOINTS = new Set([
 // Same default as lib/api/client.ts — without it, an unset BACKEND_URL makes
 // the verify fetch throw on every request and bounces signed-in users to /auth.
 const BACKEND_URL = process.env.BACKEND_URL || "http://localhost:8000";
+
+function isPathWithin(pathname: string, root: string): boolean {
+	return pathname === root || pathname.startsWith(`${root}/`);
+}
 
 function oauthReturnTo(value: string | null): string | null {
 	if (!value || !value.startsWith("/") || value.startsWith("//")) return null;
@@ -44,7 +49,7 @@ function authRedirect(request: NextRequest): NextResponse {
 		url.searchParams.set("returnTo", returnTo);
 	} else if (
 		request.nextUrl.pathname !== "/" &&
-		!PUBLIC_PATHS.some((path) => request.nextUrl.pathname.startsWith(path))
+		!PUBLIC_PATHS.some((path) => isPathWithin(request.nextUrl.pathname, path))
 	) {
 		url.searchParams.set(
 			"next",
@@ -63,8 +68,14 @@ export async function proxy(request: NextRequest) {
 		return NextResponse.next();
 	}
 	const accessToken = request.cookies.get("access_token")?.value;
-	const isPublicPath = PUBLIC_PATHS.some((path) => pathname.startsWith(path));
-	const isInvitePath = pathname.startsWith("/invite");
+	const isAlwaysPublicPath = ALWAYS_PUBLIC_PATHS.some((path) =>
+		isPathWithin(pathname, path),
+	);
+	if (isAlwaysPublicPath) {
+		return NextResponse.next();
+	}
+	const isPublicPath = PUBLIC_PATHS.some((path) => isPathWithin(pathname, path));
+	const isInvitePath = isPathWithin(pathname, "/invite");
 
 	// Router prefetches (Next 16 issues two per visible <Link>: a route-tree
 	// request and a segment request) would each pay a blocking backend
@@ -118,9 +129,7 @@ export async function proxy(request: NextRequest) {
 			return NextResponse.next();
 		}
 
-		const response = isInvitePath
-			? NextResponse.next()
-			: authRedirect(request);
+		const response = isInvitePath ? NextResponse.next() : authRedirect(request);
 		response.cookies.delete("access_token");
 		response.cookies.delete("active_workspace_id");
 		return response;

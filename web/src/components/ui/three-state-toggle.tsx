@@ -80,7 +80,7 @@ const iconMap = {
 };
 
 interface ThreeStateToggleProps {
-	value: ToggleState;
+	value: ToggleState | null;
 	onChange: (value: ToggleState) => void;
 	className?: string;
 }
@@ -99,12 +99,14 @@ export function ThreeStateToggle({
 				className,
 			)}
 		>
-			<div
-				className="absolute h-6 w-8 rounded-full bg-card shadow-raised transition-all duration-300 ease-out"
-				style={{
-					left: `${3 + selectedIndex * 32}px`,
-				}}
-			/>
+			{selectedIndex >= 0 && (
+				<div
+					className="absolute h-6 w-8 rounded-full bg-card shadow-raised transition-all duration-300 ease-out"
+					style={{
+						left: `${3 + selectedIndex * 32}px`,
+					}}
+				/>
+			)}
 
 			{states.map((state) => {
 				const Icon = iconMap[state.icon];

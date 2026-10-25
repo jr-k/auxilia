@@ -97,6 +97,110 @@ def serialize_message_preview(
     return d
 
 
+def _public_content(message_type: str, content: Any) -> str | list[dict[str, Any]]:
+    if isinstance(content, str):
+        return content
+    if not isinstance(content, list):
+        return ""
+
+    public: list[dict[str, Any]] = []
+    for block in content:
+        if not isinstance(block, dict):
+            continue
+        block_type = block.get("type")
+        if block_type == "text" and isinstance(block.get("text"), str):
+            public.append({"type": "text", "text": block["text"]})
+        elif message_type == "ai" and block_type in {"thinking", "reasoning"}:
+            reasoning = block.get("thinking", block.get("reasoning"))
+            if isinstance(reasoning, str) and reasoning:
+                public.append({"type": "reasoning", "reasoning": reasoning})
+        elif message_type == "human" and block_type == "image_url":
+            image = block.get("image_url")
+            url = image if isinstance(image, str) else None
+            if isinstance(image, dict):
+                url = image.get("url")
+            if isinstance(url, str) and url:
+                public.append({"type": "image_url", "image_url": {"url": url}})
+        elif (
+            message_type == "human"
+            and block_type == "file"
+            and isinstance(block.get("base64"), str)
+        ):
+            public.append(
+                {
+                    "type": "file",
+                    "base64": block["base64"],
+                    "filename": (
+                        block["filename"]
+                        if isinstance(block.get("filename"), str)
+                        else "file"
+                    ),
+                    "mime_type": (
+                        block["mime_type"]
+                        if isinstance(block.get("mime_type"), str)
+                        else "application/octet-stream"
+                    ),
+                }
+            )
+    return public
+
+
+def serialize_public_message(msg: Any) -> dict[str, Any] | None:
+    """Serialize only transcript fields safe for an unauthenticated snapshot."""
+    message_type = getattr(msg, "type", "unknown")
+    kwargs = getattr(msg, "additional_kwargs", {}) or {}
+    response_metadata = getattr(msg, "response_metadata", {}) or {}
+    if (
+        message_type not in {"human", "ai", "tool"}
+        or response_metadata.get("structured_output")
+        or (getattr(msg, "name", None) == "host" and kwargs.get("host_notice"))
+        or (
+            message_type == "human"
+            and text_of(getattr(msg, "content", ""))
+            .lstrip()
+            .startswith("[Host notice]")
+        )
+    ):
+        return None
+
+    serialized = serialize_message_preview(msg)
+    public: dict[str, Any] = {
+        "type": serialized["type"],
+        "content": _public_content(message_type, serialized["content"]),
+        "id": serialized["id"],
+    }
+    for key in ("tool_calls", "tool_call_id", "status", "name"):
+        if key in serialized:
+            public[key] = serialized[key]
+
+    safe_kwargs: dict[str, Any] = {}
+    attachments = kwargs.get("attachments")
+    if message_type == "human" and isinstance(attachments, list):
+        attachment_ids: list[str] = []
+        for item in attachments:
+            value = item if isinstance(item, str) else None
+            if isinstance(item, dict):
+                value = item.get("id")
+            try:
+                if isinstance(value, str):
+                    attachment_ids.append(str(UUID(value)))
+            except ValueError:
+                continue
+        if attachment_ids:
+            safe_kwargs["attachments"] = attachment_ids
+    reasoning = kwargs.get("reasoning_content")
+    if message_type == "ai" and isinstance(reasoning, str):
+        safe_kwargs["reasoning_content"] = reasoning
+    truncated = kwargs.get("truncated")
+    if message_type == "tool" and isinstance(truncated, dict):
+        chars = truncated.get("chars")
+        if type(chars) is int and chars >= 0:
+            safe_kwargs["truncated"] = {"chars": chars}
+    if safe_kwargs:
+        public["additional_kwargs"] = safe_kwargs
+    return public
+
+
 def json_default(obj: Any) -> Any:
     """`json.dumps(default=…)` for anything a LangGraph run can put in an
     event: messages, UUIDs, dataclasses (`Interrupt`), pydantic models, the

@@ -203,6 +203,7 @@ class ChatModelFactory:
                     max_retries=0,
                     use_responses_api=True,
                     reasoning_effort=reasoning_effort,
+                    stream_usage=True,
                 )
             case "deepseek":
                 # DeepSeek V4 selects thinking by parameters: `thinking.type`
@@ -222,6 +223,7 @@ class ChatModelFactory:
                     api_key=api_key,
                     max_tokens=32768,
                     max_retries=0,
+                    stream_usage=True,
                     extra_body=extra_body,
                 )
             case "anthropic":
@@ -291,6 +293,7 @@ class ChatModelFactory:
                     model=model_id,
                     api_key=api_key,
                     max_retries=0,
+                    stream_usage=True,
                 )
             case "openrouter":
                 # OpenAI-compatible gateway; model_id is the OpenRouter slug,
@@ -305,6 +308,7 @@ class ChatModelFactory:
                     api_key=api_key,
                     max_tokens=32768,
                     max_retries=0,
+                    stream_usage=True,
                     extra_body=(
                         {"reasoning_effort": reasoning_effort}
                         if reasoning_effort
@@ -319,6 +323,7 @@ class ChatModelFactory:
                     model=model_id,
                     api_key=api_key,
                     max_retries=0,
+                    stream_usage=True,
                     extra_body=(
                         {"reasoning_effort": reasoning_effort}
                         if reasoning_effort
@@ -334,6 +339,7 @@ class ChatModelFactory:
                     api_key="ollama",
                     max_retries=0,
                     streaming=True,
+                    stream_usage=True,
                     timeout=None,
                 )
             case _:

@@ -32,6 +32,7 @@ import { isResponseSoundEnabled } from "@/lib/user-preferences";
 import { ConversationBody } from "./conversation-body";
 import { usePromptQueue } from "@/hooks/use-prompt-queue";
 import { ThreadMap } from "./thread-map";
+import { ShareConversation } from "./share-conversation";
 import type { ThreadResourceSettings } from "@/types/threads";
 import { ArtifactWorkspace } from "@/components/artifacts/workspace";
 
@@ -309,6 +310,16 @@ const ChatPage = () => {
         (toolCall) => toolCall.callId ?? toolCall.id,
       )}
     >
+      {meta.status === "ready" && meta.viewerRole === null && (
+        <ShareConversation
+          threadId={threadId}
+          disabled={
+            run.status !== "idle" ||
+            promptQueue.runStarting ||
+            transcript.messages.length === 0
+          }
+        />
+      )}
       <div className="h-full flex flex-col w-full overflow-hidden">
       <div className="h-full relative flex flex-1 flex-col min-h-0 w-full">
         <Conversation>

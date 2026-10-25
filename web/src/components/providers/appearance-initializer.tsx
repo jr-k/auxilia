@@ -1,14 +1,19 @@
 "use client";
 
+import { usePathname } from "next/navigation";
 import { useEffect } from "react";
 import { appearanceLogoUrl } from "@/lib/api/resources/appearance";
 import { useAppearanceStore } from "@/stores/appearance-store";
 
 export function AppearanceInitializer() {
+	const pathname = usePathname();
+	const isPublicShare =
+		pathname === "/share" || pathname.startsWith("/share/");
 	const appearance = useAppearanceStore((state) => state.appearance);
 	const fetchAppearance = useAppearanceStore((state) => state.fetchAppearance);
 
 	useEffect(() => {
+		if (isPublicShare) return;
 		const retry = () => {
 			void fetchAppearance();
 		};
@@ -19,9 +24,10 @@ export function AppearanceInitializer() {
 			window.removeEventListener("online", retry);
 			window.removeEventListener("focus", retry);
 		};
-	}, [fetchAppearance]);
+	}, [fetchAppearance, isPublicShare]);
 
 	useEffect(() => {
+		if (isPublicShare) return;
 		const applyTitle = () => {
 			if (document.title !== appearance.appName) {
 				document.title = appearance.appName;
@@ -39,7 +45,7 @@ export function AppearanceInitializer() {
 		return () => {
 			observer.disconnect();
 		};
-	}, [appearance.appName]);
+	}, [appearance.appName, isPublicShare]);
 
 	useEffect(() => {
 		let favicon = document.querySelector<HTMLLinkElement>(
@@ -51,10 +57,12 @@ export function AppearanceInitializer() {
 			favicon.dataset.workspaceFavicon = "true";
 			document.head.appendChild(favicon);
 		}
-		favicon.href = appearance.logoRevision
+		favicon.href = isPublicShare
+			? "/pwa-icon.svg"
+			: appearance.logoRevision
 			? appearanceLogoUrl(appearance.logoRevision)
 			: "/pwa-icon.svg";
-	}, [appearance.logoRevision]);
+	}, [appearance.logoRevision, isPublicShare]);
 
 	return null;
 }

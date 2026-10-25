@@ -5,7 +5,7 @@ import hashlib
 from collections.abc import AsyncGenerator
 from contextlib import aclosing
 from decimal import Decimal
-from typing import Any, Literal
+from typing import Any, Literal, cast
 from uuid import UUID
 
 from fastapi import Depends
@@ -76,6 +76,97 @@ class ConversationCost(BaseModel):
     messages: list[MessageCost] = Field(default_factory=list)
 
 
+def _retained_usage(message: AIMessage) -> dict[str, Any] | None:
+    if message.usage_metadata:
+        return dict(message.usage_metadata)
+    raw = message.response_metadata.get("token_usage") or message.response_metadata.get(
+        "usage"
+    )
+    if raw is not None and hasattr(raw, "model_dump"):
+        raw = raw.model_dump()
+    if not isinstance(raw, dict):
+        return None
+    input_tokens = raw.get("prompt_tokens", raw.get("input_tokens"))
+    output_tokens = raw.get("completion_tokens", raw.get("output_tokens"))
+    if input_tokens is None or output_tokens is None:
+        return None
+    prompt_details = raw.get("prompt_tokens_details") or raw.get("input_tokens_details")
+    if prompt_details is not None and hasattr(prompt_details, "model_dump"):
+        prompt_details = prompt_details.model_dump()
+    cached = (
+        prompt_details.get("cached_tokens", 0)
+        if isinstance(prompt_details, dict)
+        else raw.get("cache_read_input_tokens", 0)
+    )
+    cache_creation = raw.get("cache_creation_input_tokens", 0)
+    if cached is None:
+        cached = 0
+    if cache_creation is None:
+        cache_creation = 0
+    creation_details = raw.get("cache_creation")
+    if creation_details is not None and hasattr(creation_details, "model_dump"):
+        creation_details = creation_details.model_dump()
+    ephemeral_5m = (
+        creation_details.get("ephemeral_5m_input_tokens", 0)
+        if isinstance(creation_details, dict)
+        else 0
+    )
+    ephemeral_1h = (
+        creation_details.get("ephemeral_1h_input_tokens", 0)
+        if isinstance(creation_details, dict)
+        else 0
+    )
+    if ephemeral_5m is None:
+        ephemeral_5m = 0
+    if ephemeral_1h is None:
+        ephemeral_1h = 0
+    creation_counts = (cache_creation, ephemeral_5m, ephemeral_1h)
+    normalized_creation = (
+        max(cache_creation, ephemeral_5m + ephemeral_1h)
+        if all(type(count) is int for count in creation_counts)
+        else cache_creation
+    )
+    if (
+        "prompt_tokens" not in raw
+        and (
+            "cache_read_input_tokens" in raw
+            or "cache_creation_input_tokens" in raw
+            or "cache_creation" in raw
+        )
+        and type(input_tokens) is int
+        and type(cached) is int
+        and type(normalized_creation) is int
+    ):
+        # Anthropic reports uncached, cache-read and cache-created input as
+        # disjoint counters. Normalize to LangChain's total-input contract;
+        # message_cost splits them again to apply the three different rates.
+        input_tokens += cached + normalized_creation
+    return {
+        "input_tokens": input_tokens,
+        "output_tokens": output_tokens,
+        "input_token_details": {
+            "cache_read": cached,
+            "cache_creation": cache_creation,
+            "ephemeral_5m_input_tokens": ephemeral_5m,
+            "ephemeral_1h_input_tokens": ephemeral_1h,
+        },
+    }
+
+
+def _catalog_id_for_reported_model(
+    reported: str, catalog: dict[str, SupportedModel]
+) -> str:
+    if reported in catalog:
+        return reported
+    versioned_candidates = [
+        candidate
+        for candidate in catalog
+        if reported.startswith(f"{candidate}-")
+        and reported[len(candidate) + 1 : len(candidate) + 2].isdigit()
+    ]
+    return max(versioned_candidates, key=len) if versioned_candidates else reported
+
+
 def message_cost(
     message: AIMessage, model_id: str | None, catalog: dict[str, SupportedModel]
 ) -> MessageCost:
@@ -85,12 +176,10 @@ def message_cost(
     reported = message.response_metadata.get(
         "model_name"
     ) or message.response_metadata.get("model")
-    if isinstance(reported, str) and (
-        reported in catalog or not (model_id and reported.startswith(model_id))
-    ):
-        model_id = reported
+    if isinstance(reported, str):
+        model_id = _catalog_id_for_reported_model(reported, catalog)
     result = MessageCost(message_id=message.id, model_id=model_id)
-    usage = message.usage_metadata
+    usage = _retained_usage(message)
     if not usage:
         result.reason = "missing_usage"
         return result
@@ -115,16 +204,21 @@ def message_cost(
     if any(type(count) is not int or count < 0 for count in counts):
         result.reason = "invalid_usage"
         return result
-    written = max(details.get("cache_creation", 0), sum(ephemeral))
-    if cached + written > input_tokens:
+    input_count = cast(int, input_tokens)
+    output_count = cast(int, output_tokens)
+    cached_count = cast(int, cached)
+    cache_creation = cast(int, details.get("cache_creation", 0))
+    ephemeral_counts = cast(list[int], ephemeral)
+    written = max(cache_creation, sum(ephemeral_counts))
+    if cached_count + written > input_count:
         result.reason = "invalid_usage"
         return result
     result.usage_details = UsageDetails(
-        input=input_tokens - cached - written,
-        input_cache_read=cached,
+        input=input_count - cached_count - written,
+        input_cache_read=cached_count,
         input_cache_creation=written,
-        output=output_tokens,
-        total=input_tokens + output_tokens,
+        output=output_count,
+        total=input_count + output_count,
     )
     model = catalog.get(model_id) if model_id else None
     if model is None or model.prices is None:
@@ -136,10 +230,10 @@ def message_cost(
         if prices.input_cache_creation is None
         else prices.input_cache_creation
     )
-    input_cost = Decimal(input_tokens - cached - written) * prices.input
-    cached_input_cost = Decimal(cached) * prices.input_cache_read
+    input_cost = Decimal(input_count - cached_count - written) * prices.input
+    cached_input_cost = Decimal(cached_count) * prices.input_cache_read
     cache_write_cost = Decimal(written) * write_rate
-    output_cost = Decimal(output_tokens) * prices.output
+    output_cost = Decimal(output_count) * prices.output
     result.cost_details = CostDetails(
         input=input_cost,
         input_cache_read=cached_input_cost,
@@ -223,7 +317,7 @@ class CostService:
                 )
                 if key not in costs_by_id or (
                     costs_by_id[key].reason == "missing_usage"
-                    and message.usage_metadata
+                    and _retained_usage(message)
                 ):
                     costs_by_id[key] = message_cost(message, model_id, catalog)
         costs = list(costs_by_id.values())

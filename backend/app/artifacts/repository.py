@@ -126,6 +126,20 @@ class ArtifactRepository(BaseRepository[ArtifactDB]):
         rows = {row.id: row for row in result.scalars().all()}
         return [rows[item_id] for item_id in attachment_ids if item_id in rows]
 
+    async def by_ids(
+        self, thread_id: str, artifact_ids: list[UUID]
+    ) -> list[ArtifactDB]:
+        if not artifact_ids:
+            return []
+        stmt = select(ArtifactDB).where(
+            ArtifactDB.workspace_id == self.workspace_id,
+            ArtifactDB.thread_id == thread_id,
+            col(ArtifactDB.id).in_(artifact_ids),
+        )
+        result = await self.db.execute(stmt)
+        rows = {row.id: row for row in result.scalars().all()}
+        return [rows[item_id] for item_id in artifact_ids if item_id in rows]
+
     async def save(self, row: ArtifactDB) -> ArtifactDB:
         self.db.add(row)
         await self.db.flush()
