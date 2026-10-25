@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.12.43](https://github.com/jr-k/auxilia/compare/web-v0.12.42...web-v0.12.43) (2026-10-25)
+
+
+### Features
+
+* **skills:** sync applies upstream skill updates directly ([#424](https://github.com/jr-k/auxilia/issues/424)) ([cbd786b](https://github.com/jr-k/auxilia/commit/cbd786bb16a38785834fd4e4f966e7fb76b3a9c1))
+
+
+### Bug Fixes
+
+* **artifacts:** harden HTML viewer links ([42c3ab0](https://github.com/jr-k/auxilia/commit/42c3ab09d3e737bda06e94963615fffb7c88bb18))
+
 ## [0.12.42](https://github.com/jr-k/auxilia/compare/web-v0.12.41...web-v0.12.42) (2026-10-25)
 
 

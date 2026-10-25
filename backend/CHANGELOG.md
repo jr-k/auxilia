@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.30](https://github.com/jr-k/auxilia/compare/backend-v0.11.29...backend-v0.11.30) (2026-10-25)
+
+
+### Features
+
+* **skills:** sync applies upstream skill updates directly ([#424](https://github.com/jr-k/auxilia/issues/424)) ([cbd786b](https://github.com/jr-k/auxilia/commit/cbd786bb16a38785834fd4e4f966e7fb76b3a9c1))
+
 ## [0.11.29](https://github.com/jr-k/auxilia/compare/backend-v0.11.28...backend-v0.11.29) (2026-10-25)
 
 
