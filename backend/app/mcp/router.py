@@ -21,6 +21,7 @@ from app.mcp.context import to_json, tool_session
 from app.mcp.management import register_management_tools
 from app.mcp.oauth.provider import auxilia_oauth_provider
 from app.mcp.oauth.service import issuer_url, resource_url
+from app.mcp.schemas import SkillDocumentCreate
 from app.mcp.servers.service import MCPServerService
 from app.model_providers.service import ModelService
 from app.pagination import PageParams
@@ -91,14 +92,19 @@ async def get_skill(skill_id: UUID, ctx: Context) -> dict[str, Any]:
 
 
 @auxilia_mcp.tool()
-async def create_skill(data: SkillSave, ctx: Context) -> dict[str, Any]:
-    """Create a skill. The content must be a complete valid SKILL.md document."""
+async def create_skill(data: SkillDocumentCreate, ctx: Context) -> dict[str, Any]:
+    """Create a single-file skill from a complete valid SKILL.md document.
+
+    Auxiliary files and scripts must come from a connected skill repository.
+    Include small examples directly in the SKILL.md content.
+    """
     async with tool_session(ctx, minimum_role=WorkspaceRole.editor) as (
         db,
         user,
         workspace_id,
     ):
-        return to_json(await SkillService(db, workspace_id).create(data, user))
+        payload = SkillSave(**data.model_dump())
+        return to_json(await SkillService(db, workspace_id).create(payload, user))
 
 
 @auxilia_mcp.tool()

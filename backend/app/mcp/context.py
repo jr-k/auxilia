@@ -5,14 +5,17 @@ from uuid import UUID
 
 from mcp.server.auth.middleware.auth_context import get_access_token
 from mcp.server.mcpserver import Context
+from mcp.server.mcpserver.exceptions import ToolError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import ROLE_HIERARCHY
 from app.database import AsyncSessionLocal
 from app.exceptions import (
+    DomainError,
     DomainValidationError,
     InvalidCredentialsError,
     PermissionDeniedError,
+    root_cause,
 )
 from app.users.models import UserDB, WorkspaceRole
 from app.workspaces.repository import WorkspaceRepository
@@ -55,8 +58,11 @@ async def tool_session(
             ):
                 raise PermissionDeniedError(f"{minimum_role.value} access required")
             yield db, user, workspace_id
-        except Exception:
+        except Exception as exc:
             await db.rollback()
+            cause = root_cause(exc)
+            if isinstance(cause, DomainError):
+                raise ToolError(cause.detail) from cause
             raise
         else:
             await db.commit()
