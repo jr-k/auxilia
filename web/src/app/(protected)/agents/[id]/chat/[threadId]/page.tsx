@@ -24,6 +24,7 @@ import { useParams } from "next/navigation";
 import { toast } from "sonner";
 import { useAgentReadiness } from "@/hooks/use-agent-readiness";
 import { useChatHeaderStore } from "@/stores/chat-header-store";
+import { usePendingMessageStore } from "@/stores/pending-message-store";
 import { chatHeaderFromThread, useThreadSession } from "@/lib/thread-session";
 import * as threadsApi from "@/lib/api/resources/threads";
 import { getApiErrorMessage } from "@/lib/api/errors";
@@ -34,6 +35,7 @@ import { usePromptQueue } from "@/hooks/use-prompt-queue";
 import { ThreadMap } from "./thread-map";
 import { ShareConversation } from "./share-conversation";
 import type { ThreadResourceSettings } from "@/types/threads";
+import type { QueuedPrompt } from "@/types/runs";
 import { ArtifactWorkspace } from "@/components/artifacts/workspace";
 
 const EMPTY_RESOURCE_SETTINGS: ThreadResourceSettings = {
@@ -144,6 +146,32 @@ const ChatPage = () => {
   const userMessageCount = transcript.messages.filter(
     (message) => isHumanMessage(message) && message.name !== "host",
   ).length;
+  const initialOptimisticMessage = usePendingMessageStore(
+    (store) => store.optimisticMessages.get(threadId) ?? null,
+  );
+  const clearOptimisticMessage = usePendingMessageStore(
+    (store) => store.clearOptimisticMessage,
+  );
+  useEffect(() => {
+    if (userMessageCount > 0) clearOptimisticMessage(threadId);
+  }, [clearOptimisticMessage, threadId, userMessageCount]);
+  const initialOptimisticPrompt = useMemo<QueuedPrompt | null>(() => {
+    if (initialOptimisticMessage == null || userMessageCount > 0) return null;
+    const text = initialOptimisticMessage.text?.trim() ?? "";
+    const attachments = (initialOptimisticMessage.files ?? []).map((file) => ({
+      filename: file.filename ?? "file",
+      mediaType: file.mediaType ?? "application/octet-stream",
+    }));
+    if (!text && attachments.length === 0) return null;
+    return {
+      id: `initial-${threadId}`,
+      text,
+      attachments,
+      position: 0,
+      createdAt: "",
+      updatedAt: "",
+    };
+  }, [initialOptimisticMessage, threadId, userMessageCount]);
   const promptQueue = usePromptQueue(
     threadId,
     run.status !== "idle",
@@ -161,6 +189,8 @@ const ChatPage = () => {
       userMessageCount <= claimedPromptBaseline)
       ? claimedPrompt
       : null;
+  const visibleOptimisticPrompt =
+    initialOptimisticPrompt ?? optimisticPrompt;
 
   useEffect(() => {
     if (
@@ -346,7 +376,7 @@ const ChatPage = () => {
                 acknowledgeCurrentResponse();
                 actions.regenerate();
               }}
-              optimisticPrompt={optimisticPrompt}
+              optimisticPrompt={visibleOptimisticPrompt}
               emptyPrompt={thread?.firstMessageContent?.trim() || null}
               canRetryInitial={canRetryInitial}
               showEmptyState={

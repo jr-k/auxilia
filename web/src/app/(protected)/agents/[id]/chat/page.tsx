@@ -11,6 +11,7 @@ import { SelectAgentDialog } from "./components/select-agent-dialog";
 import { useThreadsStore } from "@/stores/threads-store";
 import { useActiveRunsStore } from "@/stores/active-runs-store";
 import { useModelsStore } from "@/stores/models-store";
+import { usePendingMessageStore } from "@/stores/pending-message-store";
 import * as agentsApi from "@/lib/api/resources/agents";
 import * as threadsApi from "@/lib/api/resources/threads";
 import { generateUuid } from "@/lib/utils/uuid";
@@ -124,6 +125,9 @@ const StarterChatPage = () => {
 			};
 
 			addThread(thread);
+			usePendingMessageStore
+				.getState()
+				.setOptimisticMessage(threadId, message);
 			useActiveRunsStore.getState().markThreadRunning(threadId);
 
 			router.push(`/agents/${submittedAgentId}/chat/${threadId}`);

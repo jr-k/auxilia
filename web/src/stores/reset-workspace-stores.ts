@@ -33,7 +33,10 @@ export function resetWorkspaceStores(): void {
 		pendingSince: null,
 		pollSeq: state.pollSeq + 1,
 	}));
-	usePendingMessageStore.setState({ pendingMessages: new Map() });
+	usePendingMessageStore.setState({
+		pendingMessages: new Map(),
+		optimisticMessages: new Map(),
+	});
 	useWorkspaceEventsStore.getState().reset();
 	useChatHeaderStore.getState().clearCurrentChat();
 }
