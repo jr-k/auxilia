@@ -34,6 +34,11 @@ export function usePromptQueue(
 	const [items, setItems] = useState<QueuedPrompt[]>([]);
 	const [isLoading, setIsLoading] = useState(true);
 	const [loadedThreadId, setLoadedThreadId] = useState<string | null>(null);
+	// The last list request failed (network blip, proxy restart, expired
+	// session being refreshed). Until one succeeds the composer stays in its
+	// loading state, so keep retrying rather than waiting for a push event
+	// that may never come.
+	const [refreshFailed, setRefreshFailed] = useState(false);
 	// A queued item that vanished from a poll without this client removing
 	// it was claimed by the worker: a run is active server-side, even though
 	// the stream's `running` lifecycle event hasn't landed yet. The composer
@@ -180,6 +185,16 @@ export function usePromptQueue(
 					setItems(next.sort(byPosition));
 				}
 				setLoadedThreadId(threadId);
+				setRefreshFailed(false);
+			})
+			.catch((error: unknown) => {
+				if (
+					version === requestVersion.current &&
+					threadIdRef.current === threadId
+				) {
+					setRefreshFailed(true);
+				}
+				throw error;
 			})
 			.finally(() => {
 				if (refreshInFlight.current?.promise === promise) {
@@ -212,9 +227,16 @@ export function usePromptQueue(
 
 	// A boolean dependency, not `items.length`: resetting the interval on
 	// every enqueue meant it never fired while the user was typing fast.
+	// Push events only flow while the workspace stream is `connected`; the
+	// `idle` and `connecting` states (stream not opened yet, reconnecting
+	// after a proxy restart) are as silent as `disconnected`, so poll through
+	// all of them. A list that has not loaded yet, or whose last request
+	// failed, is retried regardless of the stream — without it the composer
+	// would stay disabled until a hard refresh.
 	const shouldPoll =
-		connection === "disconnected" &&
-		(runActive || items.length > 0 || loadedThreadId !== threadId);
+		loadedThreadId !== threadId ||
+		refreshFailed ||
+		(connection !== "connected" && (runActive || items.length > 0));
 	useEffect(() => {
 		if (!shouldPoll) return;
 		const timer = window.setInterval(() => {

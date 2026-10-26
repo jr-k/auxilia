@@ -234,8 +234,11 @@ export async function retryFailedRun(threadId: string): Promise<Run> {
 export async function listQueuedPrompts(
 	threadId: string,
 ): Promise<QueuedPrompt[]> {
+	// The queue hook deduplicates in-flight list requests per thread: a
+	// request that never settles would pin the composer in its loading state.
 	const response = await api.get<QueuedPromptWire[]>(
 		`/threads/${threadId}/runs/queue`,
+		{ signal: AbortSignal.timeout(10_000) },
 	);
 	return response.data.map(normalizeQueuedPrompt);
 }

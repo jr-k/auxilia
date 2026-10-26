@@ -618,13 +618,19 @@ const ChatPromptInput = ({
 		try {
 			await onSubmit(message);
 		} catch (error) {
-			directRunLockRef.current = false;
 			if (!(error instanceof DOMException && error.name === "AbortError")) {
 				toast.error(
 					getApiErrorMessage(error, "The message could not be sent."),
 				);
 			}
 			throw error;
+		} finally {
+			// The stream's `submit` settles only once the run has ended, so the
+			// lock can be released here as well as on the `status` transition.
+			// A run short enough for `status` to never render as "streaming"
+			// would otherwise leave the lock held, and every later prompt would
+			// go through the queue instead of the stream.
+			directRunLockRef.current = false;
 		}
 	};
 
