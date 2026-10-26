@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.55](https://github.com/jr-k/auxilia/compare/web-v0.12.54...web-v0.12.55) (2026-10-26)
+
+
+### Bug Fixes
+
+* **sidebar:** refine thread item actions ([84d967b](https://github.com/jr-k/auxilia/commit/84d967b36c5770e18f199fa51fbd990935992eb1))
+
 ## [0.12.54](https://github.com/jr-k/auxilia/compare/web-v0.12.53...web-v0.12.54) (2026-10-26)
 
 
