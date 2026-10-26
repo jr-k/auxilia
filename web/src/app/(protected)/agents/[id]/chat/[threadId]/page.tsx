@@ -359,6 +359,7 @@ const ChatPage = () => {
               key={threadId}
               agentId={agentId}
               messages={transcript.messages}
+              runs={transcript.runs}
               toolCalls={transcript.toolCalls}
               subagents={transcript.subagents}
               stream={transcript.stream}

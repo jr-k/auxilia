@@ -19,6 +19,7 @@ import type { AnyStream, SubagentDiscoverySnapshot } from "@langchain/react";
 import type { Interrupt } from "@langchain/langgraph-sdk";
 import {
   ChevronDownIcon,
+  Clock3Icon,
   CopyIcon,
   DownloadIcon,
   ExternalLinkIcon,
@@ -70,7 +71,7 @@ import { useAgentsStore } from "@/stores/agents-store";
 import * as agentsApi from "@/lib/api/resources/agents";
 import type { HitlDecision, HitlResponse } from "@/hooks/use-hitl-approvals";
 import type { AgentResourceSandbox } from "@/types/agents";
-import type { QueuedPrompt } from "@/types/runs";
+import type { QueuedPrompt, Run } from "@/types/runs";
 import {
   AppSlot,
   ArtifactCards,
@@ -107,6 +108,8 @@ export type ConversationBodyProps = {
   agentId: string;
   /** Throttled `stream.messages` (or the hydrated history when idle). */
   messages: BaseMessage[];
+  /** Durable run history used to display each prompt's response time. */
+  runs: Run[];
   /** `pairToolCalls(messages, stream.toolCalls)`, memoized by the page. */
   toolCalls: ToolCallView[];
   /** `stream.subagents` — discovery snapshots keyed by `task` tool-call id. */
@@ -164,6 +167,7 @@ function userTurnKey(message: BaseMessage, index: number) {
 export const ConversationBody = memo(function ConversationBody({
   agentId,
   messages,
+  runs,
   toolCalls,
   subagents,
   stream,
@@ -239,6 +243,10 @@ export const ConversationBody = memo(function ConversationBody({
     () => mapTodosToUserTurns(messages, toolCalls, supervisorTodos),
     [messages, toolCalls, supervisorTodos],
   );
+  const durationsByUserTurn = useMemo(
+    () => mapRunDurationsToUserTurns(messages, runs),
+    [messages, runs],
+  );
   const [errorsByUserTurn, setErrorsByUserTurn] = useState<
     Readonly<Record<string, string>>
   >({});
@@ -306,6 +314,9 @@ export const ConversationBody = memo(function ConversationBody({
               anchorId={threadMapAnchor(index)}
               sending={index === pendingUserIndex}
               todos={todosByUserTurn.get(key)}
+              durationMs={durationsByUserTurn.get(
+                userTurnKey(message, index),
+              )}
               error={errorsByUserTurn[userTurnKey(message, index)]}
             />
           );
@@ -609,17 +620,122 @@ function parseTodos(value: unknown): Todo[] | null {
   return todos;
 }
 
+function runDurationMs(run: Run): number | null {
+  const startedAt = Date.parse(run.startedAt ?? "");
+  const updatedAt = Date.parse(run.updatedAt);
+  if (!Number.isFinite(startedAt) || !Number.isFinite(updatedAt)) return null;
+  return Math.max(0, updatedAt - startedAt);
+}
+
+function mapRunDurationsToUserTurns(
+  messages: readonly BaseMessage[],
+  runs: readonly Run[],
+): Map<string, number> {
+  const userTurns = messages.flatMap((message, index) =>
+    isHumanMessage(message) && !isHostNotice(message)
+      ? [{ message, key: userTurnKey(message, index) }]
+      : [],
+  );
+  const byMessageId = new Map(
+    userTurns.flatMap(({ message, key }) =>
+      message.id != null ? [[String(message.id), key] as const] : [],
+    ),
+  );
+  const durations = new Map<string, number>();
+  const accumulated = new Map<string, number>();
+  const assignedTurns = new Set<string>();
+  let fallbackIndex = 0;
+  let currentTurn: string | null = null;
+
+  const chronological = [...runs].sort((left, right) => {
+    const leftAt = Date.parse(left.startedAt ?? left.createdAt);
+    const rightAt = Date.parse(right.startedAt ?? right.createdAt);
+    return leftAt - rightAt;
+  });
+
+  for (const run of chronological) {
+    if (run.kind === "prompt") {
+      const exact =
+        run.inputMessageId != null
+          ? byMessageId.get(run.inputMessageId)
+          : undefined;
+      while (
+        exact == null &&
+        userTurns[fallbackIndex] != null &&
+        assignedTurns.has(userTurns[fallbackIndex].key)
+      ) {
+        fallbackIndex += 1;
+      }
+      currentTurn = exact ?? userTurns[fallbackIndex]?.key ?? null;
+      if (currentTurn != null) {
+        assignedTurns.add(currentTurn);
+        accumulated.set(currentTurn, 0);
+        if (exact == null) fallbackIndex += 1;
+      }
+    } else if (run.kind === "regenerate" && currentTurn != null) {
+      accumulated.set(currentTurn, 0);
+    } else if (run.kind !== "resume") {
+      continue;
+    }
+
+    if (currentTurn == null) continue;
+    const duration = runDurationMs(run);
+    if (duration != null) {
+      accumulated.set(
+        currentTurn,
+        (accumulated.get(currentTurn) ?? 0) + duration,
+      );
+    }
+    if (run.status === "pending" || run.status === "running") {
+      durations.delete(currentTurn);
+    } else if (run.status === "interrupted") {
+      durations.delete(currentTurn);
+    } else {
+      durations.set(currentTurn, accumulated.get(currentTurn) ?? 0);
+    }
+  }
+  return durations;
+}
+
+function formatDuration(durationMs: number): string {
+  const seconds = durationMs / 1000;
+  if (seconds < 1) return `${Math.max(0.1, seconds).toFixed(1)} s`;
+  if (seconds < 10) return `${seconds.toFixed(1)} s`;
+  if (seconds < 60) return `${Math.round(seconds)} s`;
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = Math.round(seconds % 60);
+  if (minutes < 60) return `${minutes} min ${remainingSeconds} s`;
+  const hours = Math.floor(minutes / 60);
+  return `${hours} h ${minutes % 60} min`;
+}
+
+const TurnDuration = ({ durationMs }: { durationMs: number }) => {
+  const label = formatDuration(durationMs);
+  return (
+    <div
+      className="ml-auto flex items-center gap-1 pr-0.5 font-mono text-[10px] leading-none tabular-nums text-meta dark:text-panel-dim"
+      title={`Response time: ${label}`}
+      aria-label={`Response time: ${label}`}
+    >
+      <Clock3Icon aria-hidden="true" className="size-2.5" />
+      <span>{label}</span>
+    </div>
+  );
+};
+
 const UserTurn = ({
   message,
   anchorId,
   sending,
   todos,
+  durationMs,
   error,
 }: {
   message: BaseMessage;
   anchorId: string;
   sending: boolean;
   todos?: Todo[];
+  durationMs?: number;
   error?: string;
 }) => {
   const { text, context, source } = presentSideChannelMessage(message.text);
@@ -732,6 +848,7 @@ const UserTurn = ({
           </div>
         </Message>
       )}
+      {durationMs != null && <TurnDuration durationMs={durationMs} />}
       {todos && todos.length > 0 && (
         <TodoList
           todos={todos}

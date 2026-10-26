@@ -14,7 +14,7 @@ import logging
 from collections.abc import AsyncGenerator
 from copy import deepcopy
 from datetime import UTC, datetime, timedelta
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from redis.asyncio import Redis
 from sqlalchemy.exc import IntegrityError
@@ -71,6 +71,22 @@ def _is_plain_text_input(agent_input: dict) -> bool:
         and message.get("type") == "human"
         and isinstance(message.get("content"), str)
     )
+
+
+def _with_message_ids(agent_input: dict) -> dict:
+    """Copy run input and give new human messages a durable transcript id."""
+    copied = deepcopy(agent_input)
+    messages = copied.get("messages")
+    if not isinstance(messages, list):
+        return copied
+    for message in messages:
+        if (
+            isinstance(message, dict)
+            and message.get("type") == "human"
+            and not message.get("id")
+        ):
+            message["id"] = str(uuid4())
+    return copied
 
 
 class RunService:
@@ -181,6 +197,8 @@ class RunService:
             command = await self._canonical_command(
                 checkpoint_thread_id(thread.workspace_id, thread_id), command
             )
+        if input is not None:
+            input = _with_message_ids(input)
         repository = RunRepository(db)
         if multitask_strategy == "reject":
             await repository.lock_thread_runs(thread_id)

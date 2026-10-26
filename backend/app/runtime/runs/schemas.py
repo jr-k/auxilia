@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -32,9 +32,30 @@ class RunResponse(BaseModel):
     error: str | None = None
     created_at: datetime
     updated_at: datetime
+    started_at: datetime | None = None
+    kind: Literal["prompt", "resume", "regenerate", "other"]
+    input_message_id: str | None = None
 
     @classmethod
     def from_record(cls, record: RunDB) -> "RunResponse":
+        messages = (record.input or {}).get("messages")
+        input_message = (
+            messages[0]
+            if isinstance(messages, list)
+            and len(messages) == 1
+            and isinstance(messages[0], dict)
+            and messages[0].get("type") == "human"
+            else None
+        )
+        kind: Literal["prompt", "resume", "regenerate", "other"]
+        if record.trigger == "regenerate-message":
+            kind = "regenerate"
+        elif input_message is not None:
+            kind = "prompt"
+        elif record.command is not None:
+            kind = "resume"
+        else:
+            kind = "other"
         return cls(
             id=record.id,
             workspace_id=record.workspace_id,
@@ -43,6 +64,13 @@ class RunResponse(BaseModel):
             error=record.error,
             created_at=record.created_at,
             updated_at=record.updated_at,
+            started_at=record.started_at,
+            kind=kind,
+            input_message_id=(
+                str(input_message["id"])
+                if input_message is not None and input_message.get("id")
+                else None
+            ),
         )
 
 
@@ -252,6 +280,8 @@ def queued_prompt_input_with_text(record: RunDB, text: str) -> dict:
         updated = queued_prompt_input(text)
         if isinstance(additional_kwargs, dict):
             updated["messages"][0]["additional_kwargs"] = additional_kwargs
+        if isinstance(message, dict) and message.get("id"):
+            updated["messages"][0]["id"] = message["id"]
         return updated
     attachments = [
         block
@@ -261,4 +291,6 @@ def queued_prompt_input_with_text(record: RunDB, text: str) -> dict:
     updated = queued_prompt_input([{"type": "text", "text": text}, *attachments])
     if isinstance(additional_kwargs, dict):
         updated["messages"][0]["additional_kwargs"] = additional_kwargs
+    if isinstance(message, dict) and message.get("id"):
+        updated["messages"][0]["id"] = message["id"]
     return updated

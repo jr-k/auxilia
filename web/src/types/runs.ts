@@ -20,6 +20,9 @@ export interface Run {
 	error: string | null;
 	createdAt: string;
 	updatedAt: string;
+	startedAt?: string | null;
+	kind?: "prompt" | "resume" | "regenerate" | "other";
+	inputMessageId?: string | null;
 }
 
 /** What `GET /runs/active` returns: in-flight runs plus recently finished ones. */

@@ -152,9 +152,9 @@ export const ChainOfThought = ({
 						)}
 					</span>
 				)}
-				<ChevronDownIcon className="size-3 shrink-0 text-meta transition-transform duration-200 -rotate-90 group-data-[state=open]/cot:rotate-0" />
+				<ChevronDownIcon className="size-3 shrink-0 text-meta transition-transform duration-150 -rotate-90 group-data-[state=open]/cot:rotate-0" />
 			</CollapsibleTrigger>
-			<CollapsibleContent className="data-[state=closed]:animate-collapsible-up data-[state=open]:animate-collapsible-down overflow-hidden">
+			<CollapsibleContent className="data-[state=closed]:animate-collapsible-up data-[state=open]:animate-collapsible-down overflow-hidden [animation-duration:150ms]">
 				<ChainRail className="pt-1.5">{children}</ChainRail>
 			</CollapsibleContent>
 		</Collapsible>
@@ -325,7 +325,7 @@ export const ChainStep = ({
 			<span className="ml-auto flex shrink-0 items-center gap-2 pl-2">
 				{meta}
 				{children != null && (
-					<ChevronDownIcon className="size-3 text-ghost transition-transform duration-200 -rotate-90 group-data-[state=open]/step:rotate-0" />
+					<ChevronDownIcon className="size-3 text-ghost transition-transform duration-150 -rotate-90 group-data-[state=open]/step:rotate-0" />
 				)}
 			</span>
 		</>
@@ -356,7 +356,7 @@ export const ChainStep = ({
 			<CollapsibleTrigger className="flex w-full cursor-pointer items-center gap-3 py-[7px] text-left">
 				{row}
 			</CollapsibleTrigger>
-			<CollapsibleContent className="data-[state=closed]:animate-collapsible-up data-[state=open]:animate-collapsible-down overflow-hidden">
+			<CollapsibleContent className="data-[state=closed]:animate-collapsible-up data-[state=open]:animate-collapsible-down overflow-hidden [animation-duration:150ms]">
 				<div className="mb-2.5 ml-[34px] mt-1 flex min-w-0 flex-col gap-1.5">
 					{children}
 				</div>

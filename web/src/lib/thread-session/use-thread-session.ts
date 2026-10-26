@@ -133,6 +133,7 @@ export type ThreadSession = {
   transcript: {
     messages: BaseMessage[];
     toolCalls: ToolCallView[];
+    runs: Run[];
     subagents: ReadonlyMap<string, SubagentDiscoverySnapshot>;
     todos: Todo[];
     hydrated: boolean;
@@ -194,6 +195,10 @@ export function useThreadSession({
     threadId: string;
     active: boolean;
     retryable: boolean;
+  } | null>(null);
+  const [runHistory, setRunHistory] = useState<{
+    threadId: string;
+    runs: Run[];
   } | null>(null);
   const runActivityGeneration = useRef(0);
   const retryStartingThread = useRef<string | null>(null);
@@ -270,6 +275,14 @@ export function useThreadSession({
         retryable: info.reason === "error",
       });
       useActiveRunsStore.getState().requestPoll();
+      void transport
+        .listThreadRuns(threadId)
+        .then((runs) => {
+          if (currentThreadId.current === threadId) {
+            setRunHistory({ threadId, runs });
+          }
+        })
+        .catch(() => {});
       callbacks.current.onCompleted?.(info);
       if (info.runId == null) {
         queueMicrotask(() => {
@@ -785,10 +798,17 @@ export function useThreadSession({
       const read = await transport.readThread(threadId);
       if (cancelled) return;
       dispatch({ type: "thread-loaded", threadId, read });
-      const activity = await readRunActivity();
+      const runs = await transport.listThreadRuns(threadId);
+      const latest = runs[0];
+      const activity = {
+        active: latest?.status === "pending" || latest?.status === "running",
+        retryable:
+          latest?.status === "error" || latest?.status === "timeout",
+      };
       if (cancelled || activityGeneration !== runActivityGeneration.current) {
         return;
       }
+      setRunHistory({ threadId, runs });
       setDurableRunActivity({ threadId, ...activity });
 
       const pending = consumePendingMessage(threadId);
@@ -879,6 +899,7 @@ export function useThreadSession({
     transcript: {
       messages,
       toolCalls,
+      runs: runHistory?.threadId === threadId ? runHistory.runs : [],
       subagents: stream.subagents,
       todos,
       hydrated: hydratedThreadId === threadId,
