@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlmodel import SQLModel
 
 
@@ -15,6 +15,7 @@ class ConversationShareCreateDB(SQLModel):
     agent_name: str
     agent_emoji: str | None = None
     agent_color: str | None = None
+    tool_servers: list[dict[str, Any]]
 
 
 class ConversationShareResponse(BaseModel):
@@ -39,6 +40,12 @@ class PublicArtifact(BaseModel):
     size: int
 
 
+class PublicToolServer(BaseModel):
+    name: str
+    icon_url: str | None
+    tool_names: list[str] = Field(default_factory=list)
+
+
 class PublicConversationResponse(BaseModel):
     id: UUID
     title: str | None
@@ -46,3 +53,4 @@ class PublicConversationResponse(BaseModel):
     agent: PublicAgent
     messages: list[dict[str, Any]]
     artifacts: list[PublicArtifact]
+    tool_servers: list[PublicToolServer]

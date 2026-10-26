@@ -101,7 +101,7 @@ import {
   SubAgentProgress,
   SynthesisIndicator,
 } from "./subagent-card";
-import { threadMapAnchor } from "./thread-map";
+import { threadMapAnchor } from "@/components/ai-elements/thread-map";
 import { type DescribeTool, ToolStep, useDescribeTool } from "./tool-step";
 
 export type ConversationBodyProps = {

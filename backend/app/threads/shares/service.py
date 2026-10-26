@@ -8,16 +8,21 @@ from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.core.repository import AgentRepository
+from app.agents.models import AgentMCPServerDB, ToolStatus
 from app.artifacts.models import ArtifactDB
 from app.artifacts.repository import ArtifactRepository
 from app.artifacts.service import ArtifactGoneError, ArtifactService
 from app.auth.settings import auth_settings
 from app.database import get_checkpointer, get_db
 from app.exceptions import DomainValidationError, NotFoundError, PermissionDeniedError
+from app.mcp.servers.models import MCPServerDB, MCPServerImageDB
+from app.mcp.servers.repository import MCPServerRepository
 from app.runtime.checkpoints import checkpoint_thread_id, get_checkpoint_state
 from app.runtime.hitl import pending_interrupt
 from app.runtime.protocol.messages import serialize_public_message
 from app.runtime.runs.repository import RunRepository
+from app.runtime.toolset import sanitize_tool_name
+from app.threads.models import ThreadDB
 from app.threads.repository import ThreadRepository
 from app.threads.shares.models import (
     ConversationShareArtifactDB,
@@ -30,6 +35,7 @@ from app.threads.shares.schemas import (
     PublicAgent,
     PublicArtifact,
     PublicConversationResponse,
+    PublicToolServer,
 )
 
 
@@ -40,6 +46,61 @@ def _share_token(share_id: UUID) -> str:
         hashlib.sha256,
     ).digest()
     return base64.urlsafe_b64encode(digest).rstrip(b"=").decode()
+
+
+def _used_tool_names(messages: list[dict[str, Any]]) -> set[str]:
+    used: set[str] = set()
+    for message in messages:
+        tool_calls = message.get("tool_calls")
+        if not isinstance(tool_calls, list):
+            continue
+        for tool_call in tool_calls:
+            tool_name = tool_call.get("name") if isinstance(tool_call, dict) else None
+            if isinstance(tool_name, str):
+                used.add(tool_name)
+    return used
+
+
+def _runtime_tool_owners(
+    bindings: list[AgentMCPServerDB],
+    servers_by_id: dict[UUID, MCPServerDB],
+    disabled_tools: dict[str, list[str]],
+) -> dict[str, UUID]:
+    used_names: set[str] = set()
+    owners: dict[str, UUID] = {}
+    for binding in bindings:
+        server = servers_by_id.get(binding.mcp_server_id)
+        if server is None:
+            continue
+        for tool_name, status in (binding.tools or {}).items():
+            if (
+                status == ToolStatus.disabled
+                or tool_name in server.disabled_tools
+                or tool_name in disabled_tools.get(str(server.id), [])
+            ):
+                continue
+            base_name = sanitize_tool_name(f"{server.name}_{tool_name}")
+            candidate = base_name
+            suffix = 1
+            while candidate in used_names:
+                suffix += 1
+                suffix_text = f"_{suffix}"
+                truncated = base_name[: 128 - len(suffix_text)].rstrip("_") or "tool"
+                candidate = f"{truncated}{suffix_text}"
+            used_names.add(candidate)
+            owners[candidate] = server.id
+    return owners
+
+
+def _public_tool_icon(
+    server: MCPServerDB, image: MCPServerImageDB | None
+) -> str | None:
+    if image is not None and image.media_type.startswith("image/"):
+        encoded = base64.b64encode(image.data).decode("ascii")
+        return f"data:{image.media_type};base64,{encoded}"
+    if server.icon_url and server.icon_url.startswith(("https://", "http://")):
+        return server.icon_url
+    return None
 
 
 def _referenced_artifact_ids(messages: list[Any]) -> list[UUID]:
@@ -87,6 +148,72 @@ class ConversationShareService:
         self.db = db
         self.repository = ConversationShareRepository(db)
 
+    async def _snapshot_tool_servers(
+        self,
+        workspace_id: UUID,
+        thread: ThreadDB,
+        messages: list[dict[str, Any]],
+    ) -> list[dict[str, Any]]:
+        used_tool_names = _used_tool_names(messages)
+        if not used_tool_names:
+            return []
+        spec = await AgentRepository(self.db, workspace_id).get_run_spec(
+            thread.agent_id
+        )
+        if spec is None:
+            return []
+        disabled_server_ids = set(thread.disabled_mcp_server_ids)
+        disabled_subagent_ids = set(thread.disabled_subagent_ids)
+        active_agent_specs = [
+            spec.agent,
+            *(
+                subagent
+                for subagent in spec.subagents
+                if str(subagent.id) not in disabled_subagent_ids
+            ),
+        ]
+        active_bindings = [
+            binding
+            for agent_spec in active_agent_specs
+            for binding in agent_spec.mcp_servers
+            if str(binding.mcp_server_id) not in disabled_server_ids
+        ]
+        server_ids = {binding.mcp_server_id for binding in active_bindings}
+        mcp_servers = MCPServerRepository(self.db, workspace_id)
+        servers = await mcp_servers.list_by_ids(server_ids)
+        servers_by_id = {server.id: server for server in servers}
+        runtime_name_owners: dict[str, set[UUID]] = {}
+        for agent_spec in active_agent_specs:
+            for tool_name, server_id in _runtime_tool_owners(
+                [
+                    binding
+                    for binding in agent_spec.mcp_servers
+                    if str(binding.mcp_server_id) not in disabled_server_ids
+                ],
+                servers_by_id,
+                thread.disabled_mcp_tools,
+            ).items():
+                runtime_name_owners.setdefault(tool_name, set()).add(server_id)
+        matched_names_by_server: dict[UUID, list[str]] = {}
+        for tool_name in used_tool_names:
+            owner_ids = runtime_name_owners.get(tool_name, set())
+            if len(owner_ids) == 1:
+                server_id = next(iter(owner_ids))
+                matched_names_by_server.setdefault(server_id, []).append(tool_name)
+        used_server_ids = set(matched_names_by_server)
+        used_servers = [server for server in servers if server.id in used_server_ids]
+        server_images = await mcp_servers.images_by_server_ids(
+            [server.id for server in used_servers]
+        )
+        return [
+            {
+                "name": server.name,
+                "icon_url": _public_tool_icon(server, server_images.get(server.id)),
+                "tool_names": sorted(matched_names_by_server[server.id]),
+            }
+            for server in sorted(used_servers, key=lambda item: item.name.casefold())
+        ]
+
     async def _owned_thread(self, workspace_id: UUID, thread_id: str, user_id: UUID):
         thread = await ThreadRepository(self.db, workspace_id).get(thread_id)
         if thread is None:
@@ -128,11 +255,13 @@ class ConversationShareService:
             raise DomainValidationError(
                 "Resolve the pending approval before publishing this conversation"
             )
-        visible_messages = [
-            message
-            for message in state.messages
-            if serialize_public_message(message) is not None
-        ]
+        visible_messages: list[Any] = []
+        public_messages: list[dict[str, Any]] = []
+        for message in state.messages:
+            serialized = serialize_public_message(message)
+            if serialized is not None:
+                visible_messages.append(message)
+                public_messages.append(serialized)
         if not visible_messages:
             raise DomainValidationError(
                 "This conversation has no visible messages to publish"
@@ -151,6 +280,9 @@ class ConversationShareService:
                 agent_name=agent.name,
                 agent_emoji=agent.emoji,
                 agent_color=agent.color,
+                tool_servers=await self._snapshot_tool_servers(
+                    workspace_id, thread, public_messages
+                ),
             )
         )
 
@@ -227,6 +359,9 @@ class ConversationShareService:
                     size=item.size,
                 )
                 for item in artifacts
+            ],
+            tool_servers=[
+                PublicToolServer.model_validate(server) for server in share.tool_servers
             ],
         )
 

@@ -32,7 +32,7 @@ import { getThreadCost } from "@/lib/api/resources/thread-costs";
 import { isResponseSoundEnabled } from "@/lib/user-preferences";
 import { ConversationBody } from "./conversation-body";
 import { usePromptQueue } from "@/hooks/use-prompt-queue";
-import { ThreadMap } from "./thread-map";
+import { ThreadMap } from "@/components/ai-elements/thread-map";
 import { ShareConversation } from "./share-conversation";
 import type { ThreadResourceSettings } from "@/types/threads";
 import type { QueuedPrompt } from "@/types/runs";

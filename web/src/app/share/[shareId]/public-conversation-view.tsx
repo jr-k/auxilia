@@ -14,7 +14,6 @@ import {
 	Globe2,
 	ImageIcon,
 	LockKeyhole,
-	Wrench,
 } from "lucide-react";
 import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
@@ -28,9 +27,18 @@ import {
 	MessageResponse,
 } from "@/components/ai-elements/message";
 import {
+	ChainStepIcon,
+	isSandboxTool,
+} from "@/components/ai-elements/chain-of-thought";
+import {
+	ThreadMap,
+	threadMapAnchor,
+} from "@/components/ai-elements/thread-map";
+import {
 	getAttachmentIds,
 	getFileAttachments,
 	getReasoning,
+	getToolMetadata,
 	pairToolCalls,
 	type ToolCallView,
 } from "@/lib/transcript";
@@ -162,13 +170,35 @@ function SharedFile({
 	);
 }
 
-function ToolCall({ call }: { call: ToolCallView }) {
+type PublicToolIdentity = {
+	serverName: string;
+	toolName: string;
+	icon?: string;
+	iconKind?: "web";
+};
+
+function ToolCall({
+	call,
+	describe,
+}: {
+	call: ToolCallView;
+	describe: (name: string) => PublicToolIdentity;
+}) {
 	const result = call.error ?? call.output;
+	const { serverName, toolName, icon, iconKind } = describe(call.name);
 	return (
 		<details className="my-2 rounded-[9px] border border-border bg-hover/30">
 			<summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2 text-[12px] font-semibold text-subtle">
-				<Wrench className="size-3.5" />
-				{toolLabel(call.name)}
+				<ChainStepIcon
+					icon={icon}
+					name={serverName}
+					fallback={
+						iconKind === "web" ? (
+							<Globe2 className="size-[13px] text-label" />
+						) : undefined
+					}
+				/>
+				{toolLabel(toolName)}
 				<span className="ml-auto font-normal text-meta">
 					{call.status === "error"
 						? "Failed"
@@ -201,20 +231,15 @@ function ToolCall({ call }: { call: ToolCallView }) {
 
 function PublicTranscript({
 	conversation,
+	messages,
 	shareId,
 	token,
 }: {
 	conversation: PublicConversation;
+	messages: BaseMessage[];
 	shareId: string;
 	token: string;
 }) {
-	const messages = useMemo(
-		() =>
-			conversation.messages.map((message) =>
-				coerceMessageLikeToMessage(message as BaseMessageLike),
-			),
-		[conversation.messages],
-	);
 	const toolCalls = useMemo(() => pairToolCalls(messages), [messages]);
 	const toolsByMessage = useMemo(() => {
 		const grouped = new Map<string, ToolCallView[]>();
@@ -227,6 +252,57 @@ function PublicTranscript({
 		}
 		return grouped;
 	}, [toolCalls]);
+	const describeTool = useMemo(() => {
+		const toolServers = conversation.tool_servers ?? [];
+		const knownServerNames = toolServers
+			.filter((server) => server.tool_names === undefined)
+			.map((server) => server.name)
+			.sort((a, b) => b.length - a.length);
+		return (name: string): PublicToolIdentity => {
+			const exactServer = toolServers.find((server) =>
+				server.tool_names?.includes(name),
+			);
+			if (exactServer) {
+				return {
+					serverName: exactServer.name,
+					toolName: getToolMetadata(name, [exactServer.name]).toolName,
+					icon: exactServer.icon_url ?? undefined,
+				};
+			}
+			if (isSandboxTool(name)) {
+				return {
+					serverName: "Code execution",
+					toolName: name,
+				};
+			}
+			if (/^(?:web_search|google_search)(?:_\d+)?$/.test(name)) {
+				return {
+					serverName: "Web search",
+					toolName: "web_search",
+					iconKind: "web",
+				};
+			}
+			if (/^(?:search_mcp_tools|load_mcp_tools)(?:_\d+)?$/.test(name)) {
+				return {
+					serverName: "Auxilia Search",
+					toolName: name.startsWith("search_") ? "find_tools" : "load_tools",
+					icon: "/pwa-icon.svg",
+				};
+			}
+			const { serverName, toolName } = getToolMetadata(
+				name,
+				knownServerNames,
+			);
+			const server = toolServers.find(
+				(candidate) => candidate.name === serverName,
+			);
+			return {
+				serverName,
+				toolName,
+				icon: server?.icon_url ?? undefined,
+			};
+		};
+	}, [conversation.tool_servers]);
 	const artifactsById = useMemo(
 		() => new Map(conversation.artifacts.map((item) => [item.id, item])),
 		[conversation.artifacts],
@@ -267,7 +343,12 @@ function PublicTranscript({
 					),
 			);
 			return (
-				<Message key={message.id ?? index} from="user" className="py-3">
+				<Message
+					key={message.id ?? index}
+					id={threadMapAnchor(index)}
+					from="user"
+					className="py-3"
+				>
 					<MessageContent>
 						{text && <MessageResponse>{text}</MessageResponse>}
 						{visibleInline.map((file) =>
@@ -309,7 +390,7 @@ function PublicTranscript({
 				)}
 				{calls.map((call) => (
 					<div key={call.id}>
-						<ToolCall call={call} />
+						<ToolCall call={call} describe={describeTool} />
 						{(artifactsByToolCall.get(call.callId ?? call.id) ?? []).map(
 							(artifact) => (
 								<SharedFile
@@ -388,6 +469,9 @@ export function PublicConversationView({ shareId }: { shareId: string }) {
 	}
 
 	const { conversation, token } = state;
+	const messages = conversation.messages.map((message) =>
+		coerceMessageLikeToMessage(message as BaseMessageLike),
+	);
 	return (
 		<main className="flex h-dvh flex-col bg-background">
 			<header className="flex h-14 shrink-0 items-center justify-between border-b border-border px-4 md:px-6">
@@ -407,20 +491,28 @@ export function PublicConversationView({ shareId }: { shareId: string }) {
 						</p>
 					</div>
 				</div>
-				<span className="flex items-center gap-1.5 rounded-full border border-border px-3 py-1 text-[11.5px] font-medium text-subtle">
+				<span className="ml-3 flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-border px-3 py-1 text-[11.5px] font-medium text-subtle">
 					<Globe2 className="size-3.5" />
 					Read-only snapshot
 				</span>
 			</header>
-			<Conversation className="min-h-0 flex-1">
-				<ConversationContent className="mx-auto w-full max-w-4xl px-3 pb-16 sm:px-6 lg:px-10">
-					<PublicTranscript
-						conversation={conversation}
-						shareId={shareId}
-						token={token}
-					/>
-				</ConversationContent>
-			</Conversation>
+			<div className="relative flex min-h-0 flex-1">
+				<Conversation
+					initial={false}
+					showScrollbar
+					className="min-h-0 flex-1"
+				>
+					<ConversationContent className="mx-auto w-full max-w-4xl px-3 pb-16 sm:px-6 lg:px-10">
+						<PublicTranscript
+							conversation={conversation}
+							messages={messages}
+							shareId={shareId}
+							token={token}
+						/>
+					</ConversationContent>
+				</Conversation>
+				<ThreadMap messages={messages} />
+			</div>
 		</main>
 	);
 }

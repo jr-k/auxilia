@@ -16,12 +16,21 @@ const StickToBottom = _StickToBottom as unknown as FC<StickToBottomProps> & {
 	Content: FC<_StickToBottom.ContentProps>;
 };
 
-export type ConversationProps = StickToBottomProps;
+export type ConversationProps = StickToBottomProps & {
+	showScrollbar?: boolean;
+};
 
-export const Conversation = ({ className, ...props }: ConversationProps) => (
+export const Conversation = ({
+	className,
+	showScrollbar = false,
+	...props
+}: ConversationProps) => (
 	<StickToBottom
 		className={cn(
-			"relative flex-1 min-h-0 [&>div]:[scrollbar-width:none] [&>div::-webkit-scrollbar]:hidden",
+			"relative min-h-0 flex-1",
+			showScrollbar
+				? "[&>div]:[scrollbar-width:thin] [&>div::-webkit-scrollbar]:w-2 [&>div::-webkit-scrollbar-track]:bg-hover/40 [&>div::-webkit-scrollbar-thumb]:rounded-full [&>div::-webkit-scrollbar-thumb]:bg-meta/70 hover:[&>div::-webkit-scrollbar-thumb]:bg-meta"
+				: "[&>div]:[scrollbar-width:none] [&>div::-webkit-scrollbar]:hidden",
 			className
 		)}
 		initial="smooth"

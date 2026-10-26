@@ -46,6 +46,11 @@ export interface PublicConversation {
 		emoji: string | null;
 		color: string | null;
 	};
+	tool_servers?: Array<{
+		name: string;
+		icon_url: string | null;
+		tool_names?: string[];
+	}>;
 	messages: Record<string, unknown>[];
 	artifacts: PublicConversationArtifact[];
 }

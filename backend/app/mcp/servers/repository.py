@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Collection
+from collections.abc import Collection, Sequence
 from uuid import UUID
 
 from sqlalchemy import delete, func, update
@@ -62,7 +62,7 @@ class MCPServerRepository(BaseRepository[MCPServerDB]):
         await self.db.refresh(server)
         return server
 
-    async def list_by_ids(self, server_ids: Collection[UUID]) -> list[MCPServerDB]:
+    async def list_by_ids(self, server_ids: Collection[UUID]) -> Sequence[MCPServerDB]:
         """The servers behind a set of agent bindings, in one `IN` query.
 
         Order is unspecified — every caller looks rows up by id. An empty
@@ -115,6 +115,17 @@ class MCPServerRepository(BaseRepository[MCPServerDB]):
         )
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
+
+    async def images_by_server_ids(
+        self, server_ids: Collection[UUID]
+    ) -> dict[UUID, MCPServerImageDB]:
+        if not server_ids:
+            return {}
+        stmt = select(MCPServerImageDB).where(
+            MCPServerImageDB.mcp_server_id.in_(server_ids)
+        )
+        result = await self.db.execute(stmt)
+        return {image.mcp_server_id: image for image in result.scalars().all()}
 
     async def _lock_image_parent(self, server_id: UUID) -> None:
         stmt = (

@@ -1,7 +1,9 @@
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy import UniqueConstraint
-from sqlmodel import Field, SQLModel
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlmodel import Column, Field, SQLModel
 
 from app.models import BaseDBModel, TimestampMixin
 
@@ -30,6 +32,10 @@ class ConversationShareDB(BaseDBModel, table=True):
     agent_name: str
     agent_emoji: str | None = None
     agent_color: str | None = None
+    tool_servers: list[dict[str, Any]] = Field(
+        default_factory=list,
+        sa_column=Column(JSONB, nullable=False),
+    )
 
 
 class ConversationShareArtifactDB(TimestampMixin, SQLModel, table=True):
