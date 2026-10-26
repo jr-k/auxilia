@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.51](https://github.com/jr-k/auxilia/compare/web-v0.12.50...web-v0.12.51) (2026-10-26)
+
+
+### Bug Fixes
+
+* **chat:** recover prompt queue without refresh ([cd217b5](https://github.com/jr-k/auxilia/commit/cd217b597a3d3b9006b7312ed59e5af635efe76a))
+
 ## [0.12.50](https://github.com/jr-k/auxilia/compare/web-v0.12.49...web-v0.12.50) (2026-10-26)
 
 
