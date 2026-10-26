@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.50](https://github.com/jr-k/auxilia/compare/web-v0.12.49...web-v0.12.50) (2026-10-26)
+
+
+### Bug Fixes
+
+* **share:** improve public conversation navigation ([b156cc6](https://github.com/jr-k/auxilia/commit/b156cc6ef3530d1d2a5a5dc29d86070a590c4639))
+
 ## [0.12.49](https://github.com/jr-k/auxilia/compare/web-v0.12.48...web-v0.12.49) (2026-10-26)
 
 

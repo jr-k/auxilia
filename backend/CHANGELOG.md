@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.37](https://github.com/jr-k/auxilia/compare/backend-v0.11.36...backend-v0.11.37) (2026-10-26)
+
+
+### Bug Fixes
+
+* **share:** improve public conversation navigation ([b156cc6](https://github.com/jr-k/auxilia/commit/b156cc6ef3530d1d2a5a5dc29d86070a590c4639))
+
 ## [0.11.36](https://github.com/jr-k/auxilia/compare/backend-v0.11.35...backend-v0.11.36) (2026-10-26)
 
 
