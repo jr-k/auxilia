@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.52](https://github.com/jr-k/auxilia/compare/web-v0.12.51...web-v0.12.52) (2026-10-26)
+
+
+### Bug Fixes
+
+* **chat:** improve responsive conversation navigation ([25667c7](https://github.com/jr-k/auxilia/commit/25667c7babc19ca045c1798cd27c17b8f0cc29f4))
+
 ## [0.12.51](https://github.com/jr-k/auxilia/compare/web-v0.12.50...web-v0.12.51) (2026-10-26)
 
 
