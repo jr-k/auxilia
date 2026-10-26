@@ -301,7 +301,7 @@ export function AppSidebar() {
 						{/* mt-0 cancels shadcn's collapsed -mt-8 and nowrap keeps the
 						    (invisible) label the same height in the narrow rail, so the
 						 thread rows below don't move when collapsing */}
-						<SidebarGroupLabel className="h-auto overflow-hidden whitespace-nowrap px-2 pt-2 pb-1.5 font-sans text-[10px] font-semibold text-sidebar-muted-highlight group-data-[collapsible=icon]:mt-0">
+						<SidebarGroupLabel className="h-auto overflow-hidden whitespace-nowrap pl-2 pr-[5px] pt-2 pb-1.5 font-sans text-[10px] font-semibold text-sidebar-muted-highlight group-data-[collapsible=icon]:mt-0">
 							<span>Recent threads</span>
 							<Link
 								href="https://auxilia.jierka.com/settings?tab=profile&provider=openai&section=threads"
@@ -310,9 +310,9 @@ export function AppSidebar() {
 								onClick={() => {
 									if (isMobile) setOpenMobile(false);
 								}}
-								className="ml-auto flex size-5 shrink-0 items-center justify-center rounded-[5px] text-sidebar-muted transition-colors hover:bg-sidebar-hover hover:text-sidebar-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
+								className="relative ml-auto flex size-4 shrink-0 items-center justify-end rounded-[4px] text-sidebar-muted transition-colors after:absolute after:-inset-1.5 hover:text-sidebar-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
 							>
-								<List className="size-3.5" />
+								<List className="size-3" />
 							</Link>
 						</SidebarGroupLabel>
 						<SidebarGroupContent className="overflow-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -335,6 +335,9 @@ export function AppSidebar() {
 										: isTriggerThread
 											? thread.firstMessageContent
 											: thread.agentName;
+									const trailingMetadataClass = !selection.selectionMode
+										? "opacity-0 transition-opacity md:opacity-100 md:group-hover/menu-item:opacity-0 md:group-focus-within/menu-item:opacity-0"
+										: "";
 									return (
 										<SidebarMenuItem
 											key={thread.id}
@@ -377,7 +380,9 @@ export function AppSidebar() {
 															>
 																{title}
 															</span>
-															<span className="ml-auto shrink-0 font-mono text-[10px] text-sidebar-section-label">
+															<span
+																className={`ml-auto shrink-0 font-mono text-[10px] text-sidebar-section-label ${trailingMetadataClass}`}
+															>
 																{shortTimeAgo(thread.createdAt)}
 															</span>
 														</div>
@@ -388,14 +393,14 @@ export function AppSidebar() {
 															{activeRunThreadIds.has(thread.id) ? (
 																<Loader2
 																	aria-label="Running"
-																	className="ml-auto size-3 shrink-0 animate-spin text-sidebar-active-icon"
+																	className={`ml-auto size-3 shrink-0 animate-spin text-sidebar-active-icon ${trailingMetadataClass}`}
 																/>
 															) : (
 																(thread.lastRunStatus === "error" ||
 																	thread.lastRunStatus === "timeout") && (
 																	<AlertCircle
 																		aria-label="Last run failed"
-																		className="ml-auto size-3 shrink-0 text-destructive"
+																		className={`ml-auto size-3 shrink-0 text-destructive ${trailingMetadataClass}`}
 																	>
 																		<title>Last run failed</title>
 																	</AlertCircle>
@@ -407,7 +412,7 @@ export function AppSidebar() {
 																	alt="Slack"
 																	height={12}
 																	width={12}
-																	className={`size-3 shrink-0 ${activeRunThreadIds.has(thread.id) ? "" : "ml-auto"}`}
+																	className={`size-3 shrink-0 ${activeRunThreadIds.has(thread.id) ? "" : "ml-auto"} ${trailingMetadataClass}`}
 																	title="Thread initiated in Slack"
 																/>
 															)}
