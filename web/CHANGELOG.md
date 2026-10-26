@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.53](https://github.com/jr-k/auxilia/compare/web-v0.12.52...web-v0.12.53) (2026-10-26)
+
+
+### Bug Fixes
+
+* **sidebar:** expand thread titles and add history link ([376bd3c](https://github.com/jr-k/auxilia/commit/376bd3c450dfab286e60e1ea856988c16eddb9d8))
+
 ## [0.12.52](https://github.com/jr-k/auxilia/compare/web-v0.12.51...web-v0.12.52) (2026-10-26)
 
 
