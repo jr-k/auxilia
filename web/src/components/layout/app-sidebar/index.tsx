@@ -24,6 +24,7 @@ import {
 	Moon,
 	Sun,
 	PanelLeftOpen,
+	List,
 	UserRound,
 	Info,
 	type LucideIcon,
@@ -301,7 +302,18 @@ export function AppSidebar() {
 						    (invisible) label the same height in the narrow rail, so the
 						 thread rows below don't move when collapsing */}
 						<SidebarGroupLabel className="h-auto overflow-hidden whitespace-nowrap px-2 pt-2 pb-1.5 font-sans text-[10px] font-semibold text-sidebar-muted-highlight group-data-[collapsible=icon]:mt-0">
-							Recent threads
+							<span>Recent threads</span>
+							<Link
+								href="https://auxilia.jierka.com/settings?tab=profile&provider=openai&section=threads"
+								title="View all threads"
+								aria-label="View all threads"
+								onClick={() => {
+									if (isMobile) setOpenMobile(false);
+								}}
+								className="ml-auto flex size-5 shrink-0 items-center justify-center rounded-[5px] text-sidebar-muted transition-colors hover:bg-sidebar-hover hover:text-sidebar-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
+							>
+								<List className="size-3.5" />
+							</Link>
 						</SidebarGroupLabel>
 						<SidebarGroupContent className="overflow-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
 							<SidebarMenu className="gap-px">
@@ -339,7 +351,7 @@ export function AppSidebar() {
 												data-selected={
 													selection.isSelected(thread.id) || undefined
 												}
-												className="h-12 rounded-[7px] focus-visible:ring-inset hover:bg-sidebar-hover data-[active=true]:bg-sidebar-accent data-[selected=true]:bg-sidebar-accent group-data-[collapsible=icon]:h-12! group-data-[collapsible=icon]:w-[38px]! group-data-[collapsible=icon]:p-[5px]! group-data-[collapsible=icon]:data-[active=true]:bg-transparent group-data-[collapsible=icon]:data-[selected=true]:bg-sidebar-accent"
+												className="h-12 rounded-[7px] pr-[5px]! focus-visible:ring-inset hover:bg-sidebar-hover data-[active=true]:bg-sidebar-accent data-[selected=true]:bg-sidebar-accent group-data-[collapsible=icon]:h-12! group-data-[collapsible=icon]:w-[38px]! group-data-[collapsible=icon]:p-[5px]! group-data-[collapsible=icon]:data-[active=true]:bg-transparent group-data-[collapsible=icon]:data-[selected=true]:bg-sidebar-accent"
 											>
 												<Link
 													href={`/agents/${thread.agentId}/chat/${thread.id}`}
