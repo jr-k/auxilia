@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.48](https://github.com/jr-k/auxilia/compare/web-v0.12.47...web-v0.12.48) (2026-10-26)
+
+
+### Features
+
+* **chat:** show response times under prompts ([e470555](https://github.com/jr-k/auxilia/commit/e470555da0b3afaebe2fc12dbd382e6b3c4766b5))
+
 ## [0.12.47](https://github.com/jr-k/auxilia/compare/web-v0.12.46...web-v0.12.47) (2026-10-26)
 
 
