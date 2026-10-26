@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.54](https://github.com/jr-k/auxilia/compare/web-v0.12.53...web-v0.12.54) (2026-10-26)
+
+
+### Bug Fixes
+
+* **chat:** queue prompts while runs start ([7601722](https://github.com/jr-k/auxilia/commit/76017223bbeaba0802c7d3b8e7848691bb62da38))
+
 ## [0.12.53](https://github.com/jr-k/auxilia/compare/web-v0.12.52...web-v0.12.53) (2026-10-26)
 
 

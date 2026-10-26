@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.38](https://github.com/jr-k/auxilia/compare/backend-v0.11.37...backend-v0.11.38) (2026-10-26)
+
+
+### Bug Fixes
+
+* **chat:** queue prompts while runs start ([7601722](https://github.com/jr-k/auxilia/commit/76017223bbeaba0802c7d3b8e7848691bb62da38))
+
 ## [0.11.37](https://github.com/jr-k/auxilia/compare/backend-v0.11.36...backend-v0.11.37) (2026-10-26)
 
 
