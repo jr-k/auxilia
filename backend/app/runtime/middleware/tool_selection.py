@@ -207,6 +207,7 @@ class LocalToolDiscoveryMiddleware(AgentMiddleware[LocalToolDiscoveryState]):
         if not server_names:
             return []
         server_schema = {
+            "title": "select_mcp_servers",
             "type": "object",
             "properties": {
                 "servers": {
@@ -293,6 +294,7 @@ class LocalToolDiscoveryMiddleware(AgentMiddleware[LocalToolDiscoveryState]):
                 limit=LOCAL_ROUTER_CATALOG_LIMIT,
             )
             tool_schema = {
+                "title": "select_mcp_tools",
                 "type": "object",
                 "properties": {
                     "tools": {

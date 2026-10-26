@@ -257,6 +257,9 @@ export async function enqueuePrompt(
 			inlineTextFiles: input.inlineTextFiles,
 			...(displayText.trim() ? { text: displayText } : {}),
 		},
+		// Enqueues are serialized by the queue hook: one request that never
+		// settles would block every later prompt until a reload.
+		{ signal: AbortSignal.timeout(15_000) },
 	);
 	return normalizeQueuedPrompt(response.data);
 }

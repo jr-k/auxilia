@@ -568,7 +568,7 @@ const ChatPromptInput = ({
 			}
 			return;
 		}
-		if (queueMode || directRunLockRef.current) {
+		const enqueue = async () => {
 			if (!(hasText || hasAttachments) || !onEnqueue) return;
 			try {
 				await onEnqueue(message);
@@ -612,24 +612,35 @@ const ChatPromptInput = ({
 				);
 				throw error;
 			}
+		};
+		if (queueMode || directRunLockRef.current) {
+			await enqueue();
 			return;
 		}
 		directRunLockRef.current = true;
 		try {
 			await onSubmit(message);
 		} catch (error) {
-			if (!(error instanceof DOMException && error.name === "AbortError")) {
-				toast.error(
-					getApiErrorMessage(error, "The message could not be sent."),
-				);
+			if (error instanceof DOMException && error.name === "AbortError") {
+				throw error;
 			}
+			// The session refused a second direct send while a run is still
+			// active (the `queueMode` prop lagged behind): queue it instead.
+			if (
+				error instanceof DOMException &&
+				error.name === "InvalidStateError" &&
+				onEnqueue
+			) {
+				await enqueue();
+				return;
+			}
+			toast.error(getApiErrorMessage(error, "The message could not be sent."));
 			throw error;
 		} finally {
-			// The stream's `submit` settles only once the run has ended, so the
-			// lock can be released here as well as on the `status` transition.
-			// A run short enough for `status` to never render as "streaming"
-			// would otherwise leave the lock held, and every later prompt would
-			// go through the queue instead of the stream.
+			// `onSubmit` settles once the server has accepted the run (or
+			// refused it), by which point `queueMode` reflects the active run,
+			// so the lock can be released here as well as on the `status`
+			// transition.
 			directRunLockRef.current = false;
 		}
 	};

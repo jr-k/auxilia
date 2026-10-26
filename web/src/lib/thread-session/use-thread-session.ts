@@ -476,6 +476,8 @@ export function useThreadSession({
         );
       }
       sendingThread.current = threadId;
+      // Once `submit` is in flight, its own `finally` owns the send lock.
+      let released = false;
       try {
         userActed();
         const vision =
@@ -538,8 +540,15 @@ export function useThreadSession({
             : {}),
         };
         let submissionError: unknown;
-        try {
-          await streamController.submit(
+        // `submit` settles only once the run has *ended*. The composer must
+        // not wait that long: while it does, its submit guards stay held and
+        // every later prompt is dropped instead of being queued. So the
+        // promise returned here settles as soon as the server has durably
+        // accepted the run; the run itself is watched in the background and
+        // the send lock is released only when it ends (a second direct
+        // `submit` on an active run would roll it back).
+        const submission = streamController
+          .submit(
             {
               messages: [
                 {
@@ -556,29 +565,56 @@ export function useThreadSession({
                 submissionError = error;
               },
             },
-          );
+          )
+          .finally(() => {
+            if (pendingRunStarts.current.get(threadId) === pendingStart) {
+              pendingRunStarts.current.delete(threadId);
+              pendingStart.resolve(false);
+            }
+            setPendingSubmission((current) =>
+              current?.threadId === threadId && current.sequence === sequence
+                ? null
+                : current,
+            );
+            if (sendingThread.current === threadId) {
+              sendingThread.current = null;
+            }
+          });
+        released = true;
+        const first = await Promise.race([
+          runStartSettled.then((accepted) => ({
+            type: "start" as const,
+            accepted,
+          })),
+          submission.then(
+            () => ({ type: "ended" as const }),
+            (error: unknown) => ({ type: "rejected" as const, error }),
+          ),
+        ]);
+        if (first.type === "rejected") throw first.error;
+        if (first.type === "start" && first.accepted) {
           if (currentThreadId.current !== threadId) {
             throw new DOMException(
               "Conversation changed before sending",
               "AbortError",
             );
           }
-          if (submissionError !== undefined && !(await runStartSettled)) {
-            throw submissionError;
-          }
-        } finally {
-          if (pendingRunStarts.current.get(threadId) === pendingStart) {
-            pendingRunStarts.current.delete(threadId);
-            pendingStart.resolve(false);
-          }
-          setPendingSubmission((current) =>
-            current?.threadId === threadId && current.sequence === sequence
-              ? null
-              : current,
+          return;
+        }
+        // The run never started (rejected `run.start`) or ended before the
+        // start settled: wait for the submit to surface its error.
+        await submission;
+        if (currentThreadId.current !== threadId) {
+          throw new DOMException(
+            "Conversation changed before sending",
+            "AbortError",
           );
         }
+        if (submissionError !== undefined && !(await runStartSettled)) {
+          throw submissionError;
+        }
       } finally {
-        if (sendingThread.current === threadId) {
+        if (!released && sendingThread.current === threadId) {
           sendingThread.current = null;
         }
       }
