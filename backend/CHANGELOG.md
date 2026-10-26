@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.36](https://github.com/jr-k/auxilia/compare/backend-v0.11.35...backend-v0.11.36) (2026-10-26)
+
+
+### Features
+
+* **chat:** support text file attachments ([57518ac](https://github.com/jr-k/auxilia/commit/57518ac5979ed68f23d7e464a8b481a340d40c0f))
+
 ## [0.11.35](https://github.com/jr-k/auxilia/compare/backend-v0.11.34...backend-v0.11.35) (2026-10-26)
 
 
