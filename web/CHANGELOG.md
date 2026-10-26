@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.47](https://github.com/jr-k/auxilia/compare/web-v0.12.46...web-v0.12.47) (2026-10-26)
+
+
+### Bug Fixes
+
+* **chat:** show first message optimistically ([e89b6ac](https://github.com/jr-k/auxilia/commit/e89b6acf853c00d43f21b19db62372d60e01c97b))
+
 ## [0.12.46](https://github.com/jr-k/auxilia/compare/web-v0.12.45...web-v0.12.46) (2026-10-25)
 
 
