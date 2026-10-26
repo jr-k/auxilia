@@ -526,7 +526,9 @@ const ChatPage = () => {
             draftKey={threadId}
             onSubmit={(message) => {
               acknowledgeCurrentResponse();
-              return actions.send(message);
+              return actions.send(message, {
+                fileStorage: acceptsFiles === true,
+              });
             }}
             status={run.isLoading ? "streaming" : "ready"}
             queueMode={run.status === "streaming" && !run.isStopping}
@@ -556,7 +558,9 @@ const ChatPage = () => {
             queueLoading={promptQueue.isLoading}
             onQueueAuthorizationRequired={refetchReady}
             onEnqueue={async (message) => {
-              await promptQueue.enqueue(message);
+              await promptQueue.enqueue(message, {
+                fileStorage: acceptsFiles === true,
+              });
             }}
             onUpdateQueued={async (id, text) => {
               await promptQueue.update(id, text);

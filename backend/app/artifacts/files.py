@@ -82,6 +82,9 @@ TEXT_MIME_BY_FILENAME = {
     "dockerfile": "text/plain",
     "makefile": "text/plain",
 }
+TEXT_MIME_TYPES = set(TEXT_MIME_BY_SUFFIX.values()) | set(
+    TEXT_MIME_BY_FILENAME.values()
+)
 
 
 class SandboxFileMissingError(Exception):
@@ -151,7 +154,7 @@ def text_encoding(data: bytes) -> str:
         return "utf-16"
     sample = data[:256]
     pairs = len(sample) // 2
-    if pairs >= 2:
+    if pairs >= 1:
         even_zeroes = sample[: pairs * 2 : 2].count(0)
         odd_zeroes = sample[1 : pairs * 2 : 2].count(0)
         if odd_zeroes > pairs / 2 and even_zeroes < pairs / 10:
@@ -159,6 +162,30 @@ def text_encoding(data: bytes) -> str:
         if even_zeroes > pairs / 2 and odd_zeroes < pairs / 10:
             return "utf-16-be"
     return "utf-8-sig"
+
+
+def decode_text(data: bytes, *, allow_legacy: bool = True) -> str | None:
+    try:
+        text = data.decode(text_encoding(data))
+    except UnicodeDecodeError:
+        if not allow_legacy:
+            return None
+        try:
+            text = data.decode("cp1252")
+        except UnicodeDecodeError:
+            return None
+        if text and sum(ord(char) >= 128 for char in text) / len(text) > 0.3:
+            return None
+    if any(
+        (ord(char) < 32 and char not in "\t\n\r\f\x1b") or 127 <= ord(char) <= 159
+        for char in text
+    ):
+        return None
+    return text
+
+
+def is_text_mime(mime_type: str) -> bool:
+    return mime_type.startswith("text/") or mime_type in TEXT_MIME_TYPES
 
 
 def detect_mime(filename: str, data: bytes) -> str:
@@ -184,24 +211,13 @@ def detect_mime(filename: str, data: bytes) -> str:
         return "application/pdf"
     text_mime = TEXT_MIME_BY_FILENAME.get(name) or TEXT_MIME_BY_SUFFIX.get(suffix)
     if text_mime is not None:
-        try:
-            text = data.decode(text_encoding(data))
-        except UnicodeDecodeError:
-            try:
-                text = data.decode("cp1252")
-            except UnicodeDecodeError:
-                return "application/octet-stream"
-        if not any(ord(char) < 32 and char not in "\t\n\r\f\x1b" for char in text):
+        if decode_text(data) is not None:
             return text_mime
         return "application/octet-stream"
 
     # An uncommon or extensionless UTF-8 text file remains previewable as
-    # plain text. Reject C0 controls so arbitrary binary payloads keep the
+    # plain text. Reject control characters so arbitrary binary payloads keep the
     # download-only application/octet-stream treatment.
-    try:
-        text = data.decode(text_encoding(data))
-    except UnicodeDecodeError:
-        return "application/octet-stream"
-    if not any(ord(char) < 32 and char not in "\t\n\r\f\x1b" for char in text):
+    if decode_text(data, allow_legacy=False) is not None:
         return "text/plain"
     return "application/octet-stream"

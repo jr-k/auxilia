@@ -247,16 +247,30 @@ function PublicTranscript({
 		if (isToolMessage(message)) return null;
 		if (isHumanMessage(message)) {
 			const inline = getFileAttachments(message);
+			const displayText = message.additional_kwargs?.display_text;
+			const text =
+				typeof displayText === "string" ? displayText : message.text;
 			const persistent = getAttachmentIds(message)
 				.map((id) => artifactsById.get(id))
 				.filter(
 					(item): item is PublicConversationArtifact => item !== undefined,
 				);
+			const persistentFiles = new Set(
+				persistent.map(
+					(artifact) => `${artifact.filename}\0${artifact.mime_type}`,
+				),
+			);
+			const visibleInline = inline.filter(
+				(file) =>
+					!persistentFiles.has(
+						`${file.filename ?? ""}\0${file.mediaType}`,
+					),
+			);
 			return (
 				<Message key={message.id ?? index} from="user" className="py-3">
 					<MessageContent>
-						{message.text && <MessageResponse>{message.text}</MessageResponse>}
-						{inline.map((file) =>
+						{text && <MessageResponse>{text}</MessageResponse>}
+						{visibleInline.map((file) =>
 							"url" in file && file.url ? (
 								<a
 									key={file.id}

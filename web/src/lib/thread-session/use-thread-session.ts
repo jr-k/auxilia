@@ -44,6 +44,7 @@ import type { Run } from "@/types/runs";
 import type { ThreadRead } from "@/types/threads";
 
 import { promptMessageToInput } from "./build-content";
+import type { AttachmentReference } from "./build-content";
 import { EMPTY_HELD, holdInterrupts } from "./interrupt-hold";
 import { submitPendingAfterHydration } from "./pending-message";
 import {
@@ -81,7 +82,7 @@ export type ThreadSessionTransport = {
     threadId: string,
     file: Blob,
     filename: string,
-  ) => Promise<string>;
+  ) => Promise<AttachmentReference>;
   updateThreadModel?: (
     threadId: string,
     modelId: string,
@@ -93,8 +94,14 @@ export const defaultTransport: ThreadSessionTransport = {
   listThreadRuns: threadsApi.listThreadRuns,
   getActiveRun: threadsApi.getActiveRun,
   retryFailedRun: threadsApi.retryFailedRun,
-  attachFile: async (threadId, file, filename) =>
-    (await artifactsApi.attachFile(threadId, file, filename)).id,
+  attachFile: async (threadId, file, filename) => {
+    const artifact = await artifactsApi.attachFile(threadId, file, filename);
+    return {
+      id: artifact.id,
+      filename: artifact.filename,
+      mediaType: artifact.mime_type,
+    };
+  },
   updateThreadModel: threadsApi.updateThreadModel,
 };
 
@@ -150,7 +157,10 @@ export type ThreadSession = {
     recordDecision: (toolCallId: string, decision: HitlDecision) => void;
   };
   actions: {
-    send: (message: PromptInputMessage) => Promise<void>;
+    send: (
+      message: PromptInputMessage,
+      options?: { fileStorage?: boolean },
+    ) => Promise<void>;
     regenerate: () => void;
     stop: () => void;
     respond: (
@@ -448,7 +458,10 @@ export function useThreadSession({
   }, [stream.error, threadId]);
 
   const send = useCallback(
-    async (message: PromptInputMessage) => {
+    async (
+      message: PromptInputMessage,
+      options?: { fileStorage?: boolean },
+    ) => {
       if (stoppingRef.current === threadId) {
         throw new DOMException(
           "Conversation changed before sending",
@@ -470,17 +483,15 @@ export function useThreadSession({
             ?.multimodal !== false;
         const input = await promptMessageToInput(message, {
           vision,
-          upload: async (file) => {
-            const blob = await (await fetch(file.url)).blob();
-            const id = await (
-              transport.attachFile ?? defaultTransport.attachFile!
-            )(threadId, blob, file.filename || "file");
-            return {
-              id,
-              filename: file.filename || "file",
-              mediaType: file.mediaType || "application/octet-stream",
-            };
-          },
+          upload:
+            options?.fileStorage === false
+              ? undefined
+              : async (file) => {
+                  const blob = await (await fetch(file.url)).blob();
+                  return await (
+                    transport.attachFile ?? defaultTransport.attachFile!
+                  )(threadId, blob, file.filename || "file");
+                },
         });
         if (input == null || currentThreadId.current !== threadId) {
           throw new DOMException(
@@ -503,8 +514,8 @@ export function useThreadSession({
           sequence,
           baselineUserMessageCount: renderedUserMessageCount,
         });
-        const additional_kwargs =
-          input.attachments.length > 0
+        const additional_kwargs = {
+          ...(input.attachments.length > 0
             ? {
                 attachments: input.attachments.map((attachment) => ({
                   id: attachment.id,
@@ -512,7 +523,20 @@ export function useThreadSession({
                   media_type: attachment.mediaType,
                 })),
               }
-            : undefined;
+            : {}),
+          ...(Array.isArray(input.content)
+            ? { display_text: input.displayText }
+            : {}),
+          ...(input.inlineTextFiles.length > 0
+            ? {
+                inline_text_files: input.inlineTextFiles.map((file) => ({
+                  block_index: file.blockIndex,
+                  filename: file.filename,
+                  media_type: file.mediaType,
+                })),
+              }
+            : {}),
+        };
         let submissionError: unknown;
         try {
           await streamController.submit(
@@ -521,7 +545,9 @@ export function useThreadSession({
                 {
                   type: "human",
                   content: input.content,
-                  ...(additional_kwargs ? { additional_kwargs } : {}),
+                  ...(Object.keys(additional_kwargs).length > 0
+                    ? { additional_kwargs }
+                    : {}),
                 },
               ],
             },

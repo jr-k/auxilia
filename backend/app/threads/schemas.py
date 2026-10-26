@@ -30,6 +30,7 @@ class ThreadStartCreate(BaseModel):
     thread: ThreadCreate
     message_text: str = PydanticField(default="", max_length=100_000)
     include_images: bool = True
+    store_files: bool = False
 
 
 class ThreadPatch(SQLModel):

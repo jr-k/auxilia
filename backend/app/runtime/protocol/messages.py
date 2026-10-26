@@ -188,6 +188,33 @@ def serialize_public_message(msg: Any) -> dict[str, Any] | None:
                 continue
         if attachment_ids:
             safe_kwargs["attachments"] = attachment_ids
+    display_text = kwargs.get("display_text")
+    if message_type == "human" and isinstance(display_text, str):
+        safe_kwargs["display_text"] = display_text
+    inline_text_files = kwargs.get("inline_text_files")
+    if message_type == "human" and isinstance(inline_text_files, list):
+        safe_inline_files = []
+        for item in inline_text_files:
+            if not isinstance(item, dict):
+                continue
+            block_index = item.get("block_index")
+            filename = item.get("filename")
+            media_type = item.get("media_type")
+            if (
+                type(block_index) is int
+                and block_index >= 0
+                and isinstance(filename, str)
+                and isinstance(media_type, str)
+            ):
+                safe_inline_files.append(
+                    {
+                        "block_index": block_index,
+                        "filename": filename,
+                        "media_type": media_type,
+                    }
+                )
+        if safe_inline_files:
+            safe_kwargs["inline_text_files"] = safe_inline_files
     reasoning = kwargs.get("reasoning_content")
     if message_type == "ai" and isinstance(reasoning, str):
         safe_kwargs["reasoning_content"] = reasoning

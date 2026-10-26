@@ -738,7 +738,10 @@ const UserTurn = ({
   durationMs?: number;
   error?: string;
 }) => {
-  const { text, context, source } = presentSideChannelMessage(message.text);
+  const displayText = message.additional_kwargs?.display_text;
+  const { text, context, source } = presentSideChannelMessage(
+    typeof displayText === "string" ? displayText : message.text,
+  );
   const inline = getFileAttachments(message);
   const hasInlineImages = inline.some(
     (attachment) => getMediaCategory(attachment) === "image",
@@ -752,7 +755,17 @@ const UserTurn = ({
       filename: file.filename,
       mediaType: file.mime_type,
     }));
-  const attachments = [...inline, ...files];
+  const persistedFiles = new Set(
+    files.map((file) => `${file.filename ?? ""}\0${file.mediaType}`),
+  );
+  const attachments = [
+    ...inline.filter(
+      (file) =>
+        getMediaCategory(file) === "image" ||
+        !persistedFiles.has(`${file.filename ?? ""}\0${file.mediaType}`),
+    ),
+    ...files,
+  ];
   return (
     <div id={anchorId} className="flex flex-col gap-2">
       {attachments.length > 0 && (

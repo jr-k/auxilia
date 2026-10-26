@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.agents.core.repository import AgentRepository
 from app.agents.models import ToolStatus
 from app.agents.run_spec import RunSpec
+from app.artifacts.files import decode_text, is_text_mime
 from app.artifacts.service import ArtifactService, attachment_mime
 from app.artifacts.settings import artifact_settings
 from app.database import get_checkpointer, get_db
@@ -340,14 +341,28 @@ class ThreadService(BaseService[ThreadDB, ThreadRepository]):
             thread = await self.create(thread_data, user_id, source)
             attachment_metadata: list[dict[str, str]] = []
             image_parts: list[dict] = []
+            inline_text_parts: list[dict] = []
+            inline_text_files: list[dict[str, str]] = []
+            inline_text_chars = 0
             for upload in files:
                 raw = await upload.read(artifact_settings.max_bytes + 1)
                 if len(raw) > artifact_settings.max_bytes:
                     raise DomainValidationError("Attachment exceeds the size limit")
                 filename = upload.filename or "file"
-                if artifact_settings.provider:
+                inline_filename = filename
+                mime_type = await asyncio.to_thread(attachment_mime, filename, raw)
+                decoded = await asyncio.to_thread(
+                    decode_text,
+                    raw,
+                    allow_legacy=is_text_mime(mime_type),
+                )
+                is_text = decoded is not None
+                if is_text and not is_text_mime(mime_type):
+                    mime_type = "text/plain"
+                if not is_text and artifact_settings.provider and data.store_files:
                     item = await artifacts.attach(thread.id, filename, raw)
                     mime_type = item.mime_type
+                    inline_filename = item.filename
                     attachment_metadata.append(
                         {
                             "id": str(item.id),
@@ -355,12 +370,33 @@ class ThreadService(BaseService[ThreadDB, ThreadRepository]):
                             "media_type": mime_type,
                         }
                     )
-                else:
-                    mime_type = await asyncio.to_thread(attachment_mime, filename, raw)
-                    if not (data.include_images and mime_type.startswith("image/")):
+                elif not is_text and not (
+                    data.include_images and mime_type.startswith("image/")
+                ):
+                    raise DomainValidationError(
+                        "Binary attachments need a configured object store"
+                    )
+                if is_text:
+                    if decoded is None:  # narrowed above; keeps mypy explicit
                         raise DomainValidationError(
-                            "Attachments need a configured object store"
+                            f"{filename} is not a valid text file"
                         )
+                    inline_text_chars += len(decoded)
+                    if inline_text_chars > 100_000:
+                        raise DomainValidationError(
+                            "Text attachments can contain at most 100,000 characters per message"
+                        )
+                    inline_text_parts.append(
+                        {
+                            "type": "text",
+                            "text": (
+                                f'Attached text file "{inline_filename}":\n\n{decoded}'
+                            ),
+                        }
+                    )
+                    inline_text_files.append(
+                        {"filename": inline_filename, "media_type": mime_type}
+                    )
                 if data.include_images and mime_type.startswith("image/"):
                     encoded = base64.b64encode(raw).decode("ascii")
                     image_parts.append(
@@ -374,15 +410,36 @@ class ThreadService(BaseService[ThreadDB, ThreadRepository]):
                     )
 
             content: str | list[dict]
-            if image_parts:
+            if image_parts or inline_text_parts:
                 content = (
-                    [{"type": "text", "text": text}] if text else []
-                ) + image_parts
+                    ([{"type": "text", "text": text}] if text else [])
+                    + image_parts
+                    + inline_text_parts
+                )
             else:
                 content = text
             message: dict = {"type": "human", "content": content}
-            if attachment_metadata:
-                message["additional_kwargs"] = {"attachments": attachment_metadata}
+            additional_kwargs = {
+                **({"attachments": attachment_metadata} if attachment_metadata else {}),
+                **({"display_text": text} if inline_text_parts else {}),
+                **(
+                    {
+                        "inline_text_files": [
+                            {
+                                "block_index": (
+                                    (1 if text else 0) + len(image_parts) + index
+                                ),
+                                **inline_file,
+                            }
+                            for index, inline_file in enumerate(inline_text_files)
+                        ]
+                    }
+                    if inline_text_parts
+                    else {}
+                ),
+            }
+            if additional_kwargs:
+                message["additional_kwargs"] = additional_kwargs
             await RunService().create_in_session(
                 self.db,
                 thread_id=thread.id,

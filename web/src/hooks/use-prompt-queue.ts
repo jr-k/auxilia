@@ -226,26 +226,29 @@ export function usePromptQueue(
 	}, [refresh, shouldPoll]);
 
 	const enqueue = useCallback(
-		(message: PromptInputMessage) => {
+		(message: PromptInputMessage, options?: { fileStorage?: boolean }) => {
 			const version = requestVersion.current;
 			enqueueInFlight.current += 1;
 			const operation = enqueueChain.current.then(async () => {
 				try {
 					const input = await promptMessageToInput(message, {
 						vision,
-						upload: async (file) => {
-							const blob = await (await fetch(file.url)).blob();
-							const artifact = await artifactsApi.attachFile(
-								threadId,
-								blob,
-								file.filename || "file",
-							);
-							return {
-								id: artifact.id,
-								filename: artifact.filename,
-								mediaType: artifact.mime_type,
-							};
-						},
+						upload:
+							options?.fileStorage === false
+								? undefined
+								: async (file) => {
+										const blob = await (await fetch(file.url)).blob();
+										const artifact = await artifactsApi.attachFile(
+											threadId,
+											blob,
+											file.filename || "file",
+										);
+										return {
+											id: artifact.id,
+											filename: artifact.filename,
+											mediaType: artifact.mime_type,
+										};
+									},
 					});
 					if (input == null) {
 						throw new DOMException(

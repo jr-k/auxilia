@@ -18,6 +18,7 @@ from app.artifacts.files import (
     SandboxFileMissingError,
     SandboxReadError,
     detect_mime,
+    is_text_mime,
     read_bytes,
 )
 from app.artifacts.google_slides import find_export, slides_url, upload_as_slides
@@ -103,7 +104,9 @@ def attachment_mime(filename: str, data: bytes) -> str:
     except DomainValidationError:
         mime_type = "application/octet-stream"
     if mime_type == "application/octet-stream":
-        mime_type = mimetypes.guess_type(filename)[0] or mime_type
+        guessed = mimetypes.guess_type(filename)[0]
+        if guessed and not is_text_mime(guessed):
+            mime_type = guessed
     return mime_type
 
 
@@ -314,8 +317,7 @@ class ArtifactService(BaseService[ArtifactDB, ArtifactRepository]):
             rows = [
                 row
                 for row in rows
-                if row.origin != "attachment"
-                or str(row.id) in visible_attachment_ids
+                if row.origin != "attachment" or str(row.id) in visible_attachment_ids
             ]
         missing = await asyncio.to_thread(
             missing_on_disk, backend, [row.source_path for row in rows]

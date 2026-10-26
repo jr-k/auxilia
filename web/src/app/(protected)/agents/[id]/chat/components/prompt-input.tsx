@@ -47,11 +47,6 @@ import { Model } from "@/types/models";
 import { MCPServer } from "@/types/mcp-servers";
 import { ConnectServersDialog } from "./connect-servers-dialog";
 import {
-	Tooltip,
-	TooltipContent,
-	TooltipTrigger,
-} from "@/components/ui/tooltip";
-import {
 	Dialog,
 	DialogContent,
 	DialogDescription,
@@ -268,19 +263,20 @@ const ChatPromptInput = ({
 			: "Auto";
 	const vision =
 		selectedModelData === undefined || selectedModelData.multimodal;
-	const noAttachments = !vision && acceptsFiles === false;
 	useEffect(() => {
-		if (acceptsFiles !== false) return;
+		if (vision || acceptsFiles !== false) return;
 		const unsupported = controller.attachments.files.filter(
-			(file) => !file.mediaType.startsWith("image/"),
+			(file) =>
+				file.mediaType.startsWith("image/") &&
+				file.mediaType !== "image/svg+xml",
 		);
 		for (const file of unsupported) {
 			controller.attachments.remove(file.id);
 		}
 		if (unsupported.length > 0) {
-			toast.error("Non-image files are unavailable for this agent.");
+			toast.error("Images are unavailable for this model and agent.");
 		}
-	}, [acceptsFiles, controller.attachments]);
+	}, [acceptsFiles, controller.attachments, vision]);
 	const enabledDisconnectedServers = useMemo(() => {
 		const disabledIds = new Set(resourceSettings.disabledMcpServerIds);
 		return disconnectedServers.filter((server) => !disabledIds.has(server.id));
@@ -623,6 +619,11 @@ const ChatPromptInput = ({
 			await onSubmit(message);
 		} catch (error) {
 			directRunLockRef.current = false;
+			if (!(error instanceof DOMException && error.name === "AbortError")) {
+				toast.error(
+					getApiErrorMessage(error, "The message could not be sent."),
+				);
+			}
 			throw error;
 		}
 	};
@@ -640,6 +641,10 @@ const ChatPromptInput = ({
 		const hasText = Boolean("text" in message && message.text);
 		const hasAttachments = Boolean("files" in message && message.files?.length);
 		if (!(hasText || hasAttachments)) return;
+		if (hasAttachments && acceptsFiles === null) {
+			toast.error("File support is still being checked. Try again in a moment.");
+			throw new Error("File support is still being checked");
+		}
 
 		const submission = submitMessage(message);
 		setPreparingSubmission(true);
@@ -828,21 +833,14 @@ const ChatPromptInput = ({
 					globalDrop
 					multiple
 					maxFiles={10}
-					accept={acceptsFiles === true ? undefined : "image/*"}
-					disableAttachments={
-						noAttachments || effectiveEditingId !== null
-					}
+					disableAttachments={effectiveEditingId !== null}
 					attachmentsDisabledMessage={
 						effectiveEditingId
 							? "Attachments cannot be changed while editing a queued prompt"
 							: undefined
 					}
 					onError={(error) => {
-						toast.error(
-							error.code === "accept"
-								? "Only images can be attached for this agent."
-								: error.message,
-						);
+						toast.error(error.message);
 					}}
 					onSubmit={handleSubmit}
 					className={cn(
@@ -887,31 +885,13 @@ const ChatPromptInput = ({
 				</PromptInputBody>
 				<PromptInputFooter className="items-end gap-x-2 gap-y-1.5 px-3 pt-0 pb-3">
 					<PromptInputTools className="min-w-0 flex-1 flex-wrap items-center gap-1.5">
-						{noAttachments ? (
-							<Tooltip>
-								<TooltipTrigger asChild>
-									<span>
-										<PromptInputAddAttachmentButton
-											disabled
-											className={cn(composerPillClass, "w-[34px] px-0")}
-										/>
-									</span>
-								</TooltipTrigger>
-								<TooltipContent>
-									File uploads are unavailable for this model and agent.
-								</TooltipContent>
-							</Tooltip>
-						) : (
-							<PromptInputAddAttachmentButton
-								disabled={
-									effectiveEditingId !== null
-								}
-								className={cn(
-									composerPillClass,
-									"w-[34px] px-0 text-subtle dark:text-panel-body",
-								)}
-							/>
-						)}
+						<PromptInputAddAttachmentButton
+							disabled={effectiveEditingId !== null}
+							className={cn(
+								composerPillClass,
+								"w-[34px] px-0 text-subtle dark:text-panel-body",
+							)}
+						/>
 						{conversationStats && (
 							<Dialog
 								open={statsDialogOpen}

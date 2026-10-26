@@ -631,11 +631,16 @@ export const PromptInput = ({
 			if (!accept || accept.trim() === "") {
 				return true;
 			}
-			if (accept.includes("image/*")) {
-				return f.type.startsWith("image/");
-			}
-			// NOTE: keep simple; expand as needed
-			return true;
+			const filename = f.name.toLowerCase();
+			return accept.split(",").some((rawPattern) => {
+				const pattern = rawPattern.trim().toLowerCase();
+				if (!pattern) return false;
+				if (pattern.startsWith(".")) return filename.endsWith(pattern);
+				if (pattern.endsWith("/*")) {
+					return f.type.toLowerCase().startsWith(pattern.slice(0, -1));
+				}
+				return f.type.toLowerCase() === pattern;
+			});
 		},
 		[accept],
 	);
@@ -932,9 +937,16 @@ export const PromptInput = ({
 			? controller.textInput.draftIdentity()
 			: { key: null, revision: 0 };
 
-		// Reset form immediately after capturing text to avoid race condition
-		// where user input during async blob conversion would be lost
-		if (!usingProvider) {
+		// Clear the submitted prompt immediately. If submission fails, restore it
+		// only when the user has not typed a replacement in the meantime.
+		let clearedDraft: { key: string | null; revision: number } | null = null;
+		if (usingProvider) {
+			controller.textInput.clearDraft(
+				submittedDraft.key,
+				submittedDraft.revision,
+			);
+			clearedDraft = controller.textInput.draftIdentity();
+		} else {
 			form.reset();
 		}
 		const submittedFiles = [...files];
@@ -956,14 +968,20 @@ export const PromptInput = ({
 				for (const file of submittedFiles) {
 					remove(file.id);
 				}
-				if (usingProvider) {
-					controller.textInput.clearDraft(
-						submittedDraft.key,
-						submittedDraft.revision,
-					);
-				}
 			} catch {
-				// Don't clear on error - user may want to retry
+				if (usingProvider && text && clearedDraft) {
+					const currentDraft = controller.textInput.draftIdentity();
+					if (
+						currentDraft.key === clearedDraft.key &&
+						currentDraft.revision === clearedDraft.revision
+					) {
+						if (clearedDraft.key !== null) {
+							controller.textInput.setDraft(clearedDraft.key, text);
+						} else {
+							controller.textInput.setInput(text);
+						}
+					}
+				}
 			} finally {
 				submittingRef.current = false;
 			}

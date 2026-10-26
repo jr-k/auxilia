@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Any, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ValidationError
 
 from app.runtime.runs.models import RunDB
 from app.runtime.runs.state import MultitaskStrategy, RunStatus
@@ -74,10 +74,18 @@ class RunResponse(BaseModel):
         )
 
 
+class InlineTextFile(BaseModel):
+    block_index: int = Field(ge=0)
+    filename: str = Field(min_length=1, max_length=255)
+    media_type: str = Field(min_length=1, max_length=255)
+
+
 class QueuedPromptCreate(BaseModel):
     content: str | list[dict[str, Any]] | None = None
     text: str | None = Field(default=None, min_length=1, max_length=100_000)
     attachment_ids: list[UUID] = Field(default_factory=list, max_length=10)
+    display_text: str | None = Field(default=None, max_length=100_000)
+    inline_text_files: list[InlineTextFile] = Field(default_factory=list, max_length=10)
 
 
 class QueuedPromptPatch(BaseModel):
@@ -119,7 +127,7 @@ class QueuedPromptResponse(BaseModel):
             return None
         return cls(
             id=record.id,
-            text=queued_prompt_text(content),
+            text=queued_prompt_text(message),
             attachments=queued_prompt_attachments(message),
             position=record.queue_position,
             created_at=record.created_at,
@@ -127,13 +135,37 @@ class QueuedPromptResponse(BaseModel):
         )
 
 
-def queued_prompt_text(content: str | list[dict[str, Any]]) -> str:
+def _inline_text_files(message: dict[str, Any]) -> dict[int, dict[str, Any]]:
+    additional_kwargs = message.get("additional_kwargs")
+    items = (
+        additional_kwargs.get("inline_text_files")
+        if isinstance(additional_kwargs, dict)
+        else None
+    )
+    if not isinstance(items, list):
+        return {}
+    return {
+        item["block_index"]: item
+        for item in items
+        if isinstance(item, dict)
+        and type(item.get("block_index")) is int
+        and item["block_index"] >= 0
+    }
+
+
+def queued_prompt_text(message: dict[str, Any]) -> str:
+    content = message.get("content")
     if isinstance(content, str):
         return content
+    if not isinstance(content, list):
+        return ""
+    inline_indexes = set(_inline_text_files(message))
     return "\n".join(
         block["text"]
-        for block in content
-        if block.get("type") == "text" and isinstance(block.get("text"), str)
+        for index, block in enumerate(content)
+        if block.get("type") == "text"
+        and index not in inline_indexes
+        and isinstance(block.get("text"), str)
     )
 
 
@@ -144,7 +176,8 @@ def queued_prompt_attachments(
     if isinstance(content, str):
         content = []
     attachments: list[QueuedPromptAttachmentResponse] = []
-    for block in content if isinstance(content, list) else []:
+    inline_by_index = _inline_text_files(message)
+    for index, block in enumerate(content if isinstance(content, list) else []):
         if block.get("type") == "image_url":
             image = block.get("image_url")
             url = (
@@ -178,6 +211,22 @@ def queued_prompt_attachments(
                     else "application/octet-stream",
                 )
             )
+        elif block.get("type") == "text" and index in inline_by_index:
+            inline_file = inline_by_index[index]
+            attachments.append(
+                QueuedPromptAttachmentResponse(
+                    filename=(
+                        inline_file["filename"]
+                        if isinstance(inline_file.get("filename"), str)
+                        else "file.txt"
+                    ),
+                    media_type=(
+                        inline_file["media_type"]
+                        if isinstance(inline_file.get("media_type"), str)
+                        else "text/plain"
+                    ),
+                )
+            )
     additional_kwargs = message.get("additional_kwargs")
     stored = (
         additional_kwargs.get("attachments")
@@ -209,33 +258,36 @@ def queued_prompt_attachments(
                 )
             )
         for stored_item in stored_responses:
-            if stored_item.media_type.startswith("image/"):
-                duplicate = next(
-                    (
-                        index
-                        for index, inline_item in enumerate(attachments)
-                        if inline_item.id is None
-                        and inline_item.media_type.startswith("image/")
-                    ),
-                    None,
-                )
-                if duplicate is not None:
-                    attachments.pop(duplicate)
+            duplicate = next(
+                (
+                    index
+                    for index, inline_item in enumerate(attachments)
+                    if inline_item.id is None
+                    and (
+                        (
+                            stored_item.media_type.startswith("image/")
+                            and inline_item.media_type.startswith("image/")
+                        )
+                        or (
+                            inline_item.filename == stored_item.filename
+                            and inline_item.media_type == stored_item.media_type
+                        )
+                    )
+                ),
+                None,
+            )
+            if duplicate is not None:
+                attachments.pop(duplicate)
         attachments.extend(stored_responses)
     return attachments
 
 
-def has_queued_prompt_content(content: str | list[dict[str, Any]]) -> bool:
+def has_queued_prompt_content(
+    content: str | list[dict[str, Any]],
+) -> bool:
     if isinstance(content, str):
-        return bool(content.strip()) and len(content) <= 100_000
+        return bool(content.strip())
     if not content:
-        return False
-    text_length = sum(
-        len(block["text"])
-        for block in content
-        if block.get("type") == "text" and isinstance(block.get("text"), str)
-    )
-    if text_length > 100_000:
         return False
     for block in content:
         if (
@@ -259,13 +311,156 @@ def has_queued_prompt_content(content: str | list[dict[str, Any]]) -> bool:
     return False
 
 
+def queued_prompt_content_error(
+    content: str | list[dict[str, Any]],
+    inline_text_files: list[InlineTextFile],
+) -> str | None:
+    if isinstance(content, str):
+        if inline_text_files:
+            return "Inline text files require message content blocks"
+        return (
+            "A prompt can contain at most 100,000 characters"
+            if len(content) > 100_000
+            else None
+        )
+    if not all(isinstance(block, dict) for block in content):
+        return "Message content blocks must be objects"
+    indexes = [inline_file.block_index for inline_file in inline_text_files]
+    if len(indexes) != len(set(indexes)):
+        return "Inline text file references must be unique"
+    inline_by_index = {
+        inline_file.block_index: inline_file for inline_file in inline_text_files
+    }
+    if any(
+        index >= len(content)
+        or content[index].get("type") != "text"
+        or not isinstance(content[index].get("text"), str)
+        for index in inline_by_index
+    ):
+        return "An inline text file references an invalid content block"
+    prompt_text_length = sum(
+        len(block["text"])
+        for index, block in enumerate(content)
+        if index not in inline_by_index
+        and block.get("type") == "text"
+        and isinstance(block.get("text"), str)
+    )
+    inline_text_length = 0
+    for index, inline_file in inline_by_index.items():
+        text = content[index]["text"]
+        prefix = f'Attached text file "{inline_file.filename}":\n\n'
+        inline_text_length += len(text.removeprefix(prefix))
+    if prompt_text_length > 100_000:
+        return "A prompt can contain at most 100,000 characters"
+    if inline_text_length > 100_000:
+        return "Text attachments can contain at most 100,000 characters per message"
+    return None
+
+
+def _content_file_media_types(content: str | list[dict[str, Any]]) -> list[str]:
+    if isinstance(content, str):
+        return []
+    media_types: list[str] = []
+    for block in content:
+        if not isinstance(block, dict):
+            continue
+        if block.get("type") == "file":
+            media_type = block.get("mime_type")
+            media_types.append(
+                media_type
+                if isinstance(media_type, str)
+                else "application/octet-stream"
+            )
+            continue
+        if block.get("type") != "image_url":
+            continue
+        image = block.get("image_url")
+        url = image if isinstance(image, str) else None
+        if isinstance(image, dict):
+            url = image.get("url")
+        media_type = "image/jpeg"
+        if isinstance(url, str) and url.startswith("data:"):
+            declared = url[5:].split(";", 1)[0].split(",", 1)[0]
+            if declared:
+                media_type = declared
+        media_types.append(media_type)
+    return media_types
+
+
+def run_input_content_error(agent_input: dict[str, Any]) -> str | None:
+    messages = agent_input.get("messages")
+    if not isinstance(messages, list):
+        return None
+    for message in messages:
+        if not isinstance(message, dict) or message.get("type") != "human":
+            continue
+        content = message.get("content")
+        if not isinstance(content, (str, list)):
+            continue
+        kwargs = message.get("additional_kwargs")
+        kwargs = kwargs if isinstance(kwargs, dict) else {}
+        raw_inline = kwargs.get("inline_text_files", [])
+        if not isinstance(raw_inline, list):
+            return "Inline text file references must be a list"
+        try:
+            inline_text_files = [
+                InlineTextFile.model_validate(item) for item in raw_inline
+            ]
+        except ValidationError:
+            return "Inline text file metadata is invalid"
+        if len(inline_text_files) > 10:
+            return "A message can contain at most 10 files"
+        error = queued_prompt_content_error(content, inline_text_files)
+        if error is not None:
+            return error
+        raw_attachments = kwargs.get("attachments", [])
+        if not isinstance(raw_attachments, list):
+            return "Attachment references must be a list"
+        unmatched_content = _content_file_media_types(content)
+        for attachment in raw_attachments:
+            media_type = (
+                attachment.get("media_type") if isinstance(attachment, dict) else None
+            )
+            if not isinstance(media_type, str):
+                continue
+            try:
+                unmatched_content.remove(media_type)
+            except ValueError:
+                continue
+        file_count = (
+            len(inline_text_files) + len(raw_attachments) + len(unmatched_content)
+        )
+        if file_count > 10:
+            return "A message can contain at most 10 files"
+        display_text = kwargs.get("display_text")
+        if isinstance(display_text, str) and len(display_text) > 100_000:
+            return "A prompt can contain at most 100,000 characters"
+    return None
+
+
 def queued_prompt_input(
     content: str | list[dict[str, Any]],
     attachments: list[dict[str, str]] | None = None,
+    *,
+    display_text: str | None = None,
+    inline_text_files: list[InlineTextFile] | None = None,
 ) -> dict:
     message: dict[str, Any] = {"type": "human", "content": content}
-    if attachments:
-        message["additional_kwargs"] = {"attachments": attachments}
+    additional_kwargs = {
+        **({"attachments": attachments} if attachments else {}),
+        **({"display_text": display_text} if display_text is not None else {}),
+        **(
+            {
+                "inline_text_files": [
+                    inline_file.model_dump() for inline_file in inline_text_files
+                ]
+            }
+            if inline_text_files
+            else {}
+        ),
+    }
+    if additional_kwargs:
+        message["additional_kwargs"] = additional_kwargs
     return {"messages": [message]}
 
 
@@ -276,18 +471,38 @@ def queued_prompt_input_with_text(record: RunDB, text: str) -> dict:
     additional_kwargs = (
         message.get("additional_kwargs") if isinstance(message, dict) else None
     )
+    if isinstance(additional_kwargs, dict):
+        additional_kwargs = dict(additional_kwargs)
+        if "display_text" in additional_kwargs:
+            additional_kwargs["display_text"] = text
     if not isinstance(content, list):
         updated = queued_prompt_input(text)
         if isinstance(additional_kwargs, dict):
+            additional_kwargs.pop("inline_text_files", None)
             updated["messages"][0]["additional_kwargs"] = additional_kwargs
         if isinstance(message, dict) and message.get("id"):
             updated["messages"][0]["id"] = message["id"]
         return updated
-    attachments = [
-        block
-        for block in content
-        if isinstance(block, dict) and block.get("type") != "text"
-    ]
+    inline_by_index = _inline_text_files(message)
+    attachments: list[dict[str, Any]] = []
+    updated_inline_files: list[dict[str, Any]] = []
+    for index, block in enumerate(content):
+        if not isinstance(block, dict) or (
+            block.get("type") == "text" and index not in inline_by_index
+        ):
+            continue
+        attachments.append(block)
+        if index in inline_by_index:
+            updated_inline_files.append(
+                {
+                    **inline_by_index[index],
+                    "block_index": len(attachments),
+                }
+            )
+    if isinstance(additional_kwargs, dict):
+        additional_kwargs.pop("inline_text_files", None)
+        if updated_inline_files:
+            additional_kwargs["inline_text_files"] = updated_inline_files
     updated = queued_prompt_input([{"type": "text", "text": text}, *attachments])
     if isinstance(additional_kwargs, dict):
         updated["messages"][0]["additional_kwargs"] = additional_kwargs

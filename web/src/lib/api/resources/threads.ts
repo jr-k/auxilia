@@ -95,6 +95,7 @@ export async function startThread(
 	payload: ThreadCreate,
 	message: PromptInputMessage,
 	includeImages: boolean,
+	storeFiles: boolean,
 ): Promise<Thread> {
 	const form = new FormData();
 	form.set(
@@ -112,6 +113,7 @@ export async function startThread(
 			},
 			message_text: message.text ?? "",
 			include_images: includeImages,
+			store_files: storeFiles,
 		}),
 	);
 	for (const file of message.files ?? []) {
@@ -237,23 +239,15 @@ export async function enqueuePrompt(
 	threadId: string,
 	input: HumanInput,
 ): Promise<QueuedPrompt> {
-	const { content, attachments } = input;
-	const text =
-		typeof content === "string"
-			? content
-			: content
-					.filter(
-						(block) =>
-							block.type === "text" && typeof block.text === "string",
-					)
-					.map((block) => block.text as string)
-					.join("\n");
+	const { content, attachments, displayText } = input;
 	const response = await api.post<QueuedPromptWire>(
 		`/threads/${threadId}/runs/queue`,
 		{
 			content,
 			attachmentIds: attachments.map((attachment) => attachment.id),
-			...(text.trim() ? { text } : {}),
+			displayText,
+			inlineTextFiles: input.inlineTextFiles,
+			...(displayText.trim() ? { text: displayText } : {}),
 		},
 	);
 	return normalizeQueuedPrompt(response.data);

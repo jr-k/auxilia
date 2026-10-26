@@ -34,6 +34,7 @@ from app.runtime.runs.schemas import (
     RunCreate,
     RunResponse,
     has_queued_prompt_content,
+    queued_prompt_content_error,
     queued_prompt_input,
     queued_prompt_input_with_text,
 )
@@ -273,6 +274,8 @@ async def enqueue_prompt(
     db: AsyncSession = Depends(get_db),
 ) -> QueuedPromptResponse:
     content = body.content if body.content is not None else (body.text or "")
+    if validation_error := queued_prompt_content_error(content, body.inline_text_files):
+        raise DomainValidationError(validation_error)
     if not has_queued_prompt_content(content) and not body.attachment_ids:
         raise DomainValidationError("A queued prompt cannot be empty.")
     attachment_metadata = await artifacts.attachment_metadata(
@@ -282,7 +285,12 @@ async def enqueue_prompt(
     record = await runs.create(
         thread_id=thread_id,
         user_id=str(thread.user_id),
-        input=queued_prompt_input(content, attachment_metadata),
+        input=queued_prompt_input(
+            content,
+            attachment_metadata,
+            display_text=body.display_text,
+            inline_text_files=body.inline_text_files,
+        ),
         multitask_strategy="enqueue",
         force_queue_position=True,
     )

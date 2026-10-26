@@ -17,6 +17,22 @@ export function getReasoning(message: BaseMessage): string | null {
 export function getFileAttachments(message: BaseMessage): AttachmentData[] {
   if (!Array.isArray(message.content)) return [];
   const attachments: AttachmentData[] = [];
+  const inlineTextFiles = message.additional_kwargs?.inline_text_files;
+  const inlineByIndex = new Map<number, Record<string, unknown>>();
+  if (Array.isArray(inlineTextFiles)) {
+    for (const item of inlineTextFiles) {
+      if (
+        item != null &&
+        typeof item === "object" &&
+        typeof (item as { block_index?: unknown }).block_index === "number"
+      ) {
+        inlineByIndex.set(
+          (item as { block_index: number }).block_index,
+          item as Record<string, unknown>,
+        );
+      }
+    }
+  }
   message.content.forEach((block, idx) => {
     const b = block as Record<string, unknown>;
     if (b.type === "image_url") {
@@ -48,6 +64,28 @@ export function getFileAttachments(message: BaseMessage): AttachmentData[] {
         type: "file",
         url: `data:${mediaType};base64,${(b.base64 as string | undefined) ?? ""}`,
         filename: (b.filename as string | undefined) ?? "file",
+        mediaType,
+      });
+    } else if (b.type === "text" && inlineByIndex.has(idx)) {
+      const inlineFile = inlineByIndex.get(idx)!;
+      const filename =
+        typeof inlineFile.filename === "string"
+          ? inlineFile.filename
+          : "file.txt";
+      const mediaType =
+        typeof inlineFile.media_type === "string"
+          ? inlineFile.media_type
+          : "text/plain";
+      const blockText = typeof b.text === "string" ? b.text : "";
+      const prefix = `Attached text file "${filename}":\n\n`;
+      const content = blockText.startsWith(prefix)
+        ? blockText.slice(prefix.length)
+        : blockText;
+      attachments.push({
+        id: `${message.id}-file-${idx}`,
+        type: "file",
+        url: `data:${mediaType};charset=utf-8,${encodeURIComponent(content)}`,
+        filename,
         mediaType,
       });
     }

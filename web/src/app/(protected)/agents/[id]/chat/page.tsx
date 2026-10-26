@@ -22,6 +22,7 @@ import { getDefaultModel } from "@/lib/utils/get-default-model";
 import { useAgentReadiness } from "@/hooks/use-agent-readiness";
 import type { ThreadResourceSettings } from "@/types/threads";
 import { toast } from "sonner";
+import { getApiErrorMessage } from "@/lib/api/errors";
 
 const EMPTY_RESOURCE_SETTINGS: ThreadResourceSettings = {
 	disabledMcpServerIds: [],
@@ -108,6 +109,7 @@ const StarterChatPage = () => {
 				},
 				message,
 				includeImages,
+				acceptsFiles === true,
 			);
 			if (agentRequestIdRef.current !== submittedAgentRequestId) {
 				setIsCreating(false);
@@ -136,7 +138,12 @@ const StarterChatPage = () => {
 			const aborted = error instanceof Error && error.name === "AbortError";
 			if (!aborted) {
 				console.error("Error creating thread:", error);
-				toast.error("Could not start the conversation. Try again.");
+				toast.error(
+					getApiErrorMessage(
+						error,
+						"Could not start the conversation. Try again.",
+					),
+				);
 			}
 			throw error;
 		}

@@ -44,6 +44,7 @@ from app.runtime.runs.events import RunEventStream, terminal_entry
 from app.runtime.runs.liveness import RunLiveness
 from app.runtime.runs.models import RunDB
 from app.runtime.runs.repository import RunRepository
+from app.runtime.runs.schemas import run_input_content_error
 from app.runtime.runs.settings import run_settings
 from app.runtime.runs.state import (
     MultitaskStrategy,
@@ -66,10 +67,17 @@ def _is_plain_text_input(agent_input: dict) -> bool:
     if not isinstance(messages, list) or len(messages) != 1:
         return False
     message = messages[0]
-    return (
-        isinstance(message, dict)
-        and message.get("type") == "human"
-        and isinstance(message.get("content"), str)
+    if not isinstance(message, dict) or message.get("type") != "human":
+        return False
+    content = message.get("content")
+    return isinstance(content, str) or (
+        isinstance(content, list)
+        and all(
+            isinstance(block, dict)
+            and block.get("type") == "text"
+            and isinstance(block.get("text"), str)
+            for block in content
+        )
     )
 
 
@@ -184,6 +192,8 @@ class RunService:
         """
         if input is not None and command is not None:
             raise DomainValidationError("Provide either input or command, not both.")
+        if input is not None and (validation_error := run_input_content_error(input)):
+            raise DomainValidationError(validation_error)
         thread = await self._ensure_runnable_thread(
             db,
             thread_id,
