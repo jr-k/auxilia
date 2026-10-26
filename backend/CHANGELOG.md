@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.35](https://github.com/jr-k/auxilia/compare/backend-v0.11.34...backend-v0.11.35) (2026-10-26)
+
+
+### Features
+
+* **chat:** show response times under prompts ([e470555](https://github.com/jr-k/auxilia/commit/e470555da0b3afaebe2fc12dbd382e6b3c4766b5))
+
 ## [0.11.34](https://github.com/jr-k/auxilia/compare/backend-v0.11.33...backend-v0.11.34) (2026-10-25)
 
 
