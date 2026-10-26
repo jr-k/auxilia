@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.49](https://github.com/jr-k/auxilia/compare/web-v0.12.48...web-v0.12.49) (2026-10-26)
+
+
+### Features
+
+* **chat:** support text file attachments ([57518ac](https://github.com/jr-k/auxilia/commit/57518ac5979ed68f23d7e464a8b481a340d40c0f))
+
 ## [0.12.48](https://github.com/jr-k/auxilia/compare/web-v0.12.47...web-v0.12.48) (2026-10-26)
 
 
