@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.57](https://github.com/jr-k/auxilia/compare/web-v0.12.56...web-v0.12.57) (2026-10-27)
+
+
+### Bug Fixes
+
+* **agents:** preserve default state after refresh ([5cc8fba](https://github.com/jr-k/auxilia/commit/5cc8fba7c4f3f0eb12e55cee56220fb06c6e9564))
+
 ## [0.12.56](https://github.com/jr-k/auxilia/compare/web-v0.12.55...web-v0.12.56) (2026-10-27)
 
 
