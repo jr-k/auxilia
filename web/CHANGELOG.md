@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.12.62](https://github.com/jr-k/auxilia/compare/web-v0.12.61...web-v0.12.62) (2026-10-27)
+
+
+### Bug Fixes
+
+* **agents:** keep default agent in grid ([f77a148](https://github.com/jr-k/auxilia/commit/f77a148b0bd940b617075c88b4afe58a7816a380))
+* **runtime:** avoid unnecessary capability startup delays ([97ea544](https://github.com/jr-k/auxilia/commit/97ea544db070c9d5290ba3c027079ad9522e7409))
+
 ## [0.12.61](https://github.com/jr-k/auxilia/compare/web-v0.12.60...web-v0.12.61) (2026-10-27)
 
 
