@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.12.60](https://github.com/jr-k/auxilia/compare/web-v0.12.59...web-v0.12.60) (2026-10-27)
+
+
+### Features
+
+* **chat:** swipe between starter agents ([84e8bae](https://github.com/jr-k/auxilia/commit/84e8bae1c0cb62cfa383f837f8a79323432b8049))
+
+
+### Bug Fixes
+
+* **navigation:** link workspace chrome to home ([567d5f4](https://github.com/jr-k/auxilia/commit/567d5f44a792a5f1862d4903b527d3283305494f))
+* **runtime:** recover stalled chat submissions ([636bef6](https://github.com/jr-k/auxilia/commit/636bef6b35e984da5af2e4afa3e307dfce2aefb6))
+
 ## [0.12.59](https://github.com/jr-k/auxilia/compare/web-v0.12.58...web-v0.12.59) (2026-10-27)
 
 
