@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.64](https://github.com/jr-k/auxilia/compare/web-v0.12.63...web-v0.12.64) (2026-10-27)
+
+
+### Bug Fixes
+
+* **memories:** use English copy and add settings shortcut ([e368575](https://github.com/jr-k/auxilia/commit/e36857506056dcd08520644ae68aac02a55b657d))
+
 ## [0.12.63](https://github.com/jr-k/auxilia/compare/web-v0.12.62...web-v0.12.63) (2026-10-27)
 
 
