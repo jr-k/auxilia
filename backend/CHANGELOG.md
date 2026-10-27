@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.42](https://github.com/jr-k/auxilia/compare/backend-v0.11.41...backend-v0.11.42) (2026-10-27)
+
+
+### Features
+
+* **runtime:** add configurable tool policies ([fd279ae](https://github.com/jr-k/auxilia/commit/fd279ae187ad593e7faaca8a0c034926fb02eb47))
+
 ## [0.11.41](https://github.com/jr-k/auxilia/compare/backend-v0.11.40...backend-v0.11.41) (2026-10-27)
 
 

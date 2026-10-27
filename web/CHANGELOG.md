@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.61](https://github.com/jr-k/auxilia/compare/web-v0.12.60...web-v0.12.61) (2026-10-27)
+
+
+### Features
+
+* **runtime:** add configurable tool policies ([fd279ae](https://github.com/jr-k/auxilia/commit/fd279ae187ad593e7faaca8a0c034926fb02eb47))
+
 ## [0.12.60](https://github.com/jr-k/auxilia/compare/web-v0.12.59...web-v0.12.60) (2026-10-27)
 
 
