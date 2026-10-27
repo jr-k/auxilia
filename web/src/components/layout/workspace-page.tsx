@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 import { PageContainer } from "@/components/layout/page-container";
 import { SearchBar } from "@/components/ui/search-bar";
 import { cn } from "@/lib/utils";
@@ -54,9 +56,12 @@ export function WorkspacePage({
 			{/* pl-14 below md leaves room for the floating sidebar trigger */}
 			<header className="flex h-[52px] shrink-0 items-center gap-3 border-b border-border pl-14 pr-4 md:px-8">
 				<nav className="flex min-w-0 items-center whitespace-nowrap text-[11.5px] text-meta dark:text-panel-dim">
-					<span className="min-w-0 truncate">
+					<Link
+						href="/"
+						className="min-w-0 truncate rounded-[3px] transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-petrol/35"
+					>
 						{workspaceName ?? "workspace"}
-					</span>
+					</Link>
 					<span className="mx-1.5 shrink-0 text-ghost dark:text-panel-dim">
 						/
 					</span>

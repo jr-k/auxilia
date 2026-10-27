@@ -28,6 +28,7 @@ export function SubpageHeader({
 			<nav className="flex min-w-0 items-center overflow-hidden whitespace-nowrap text-[11.5px] text-meta dark:text-panel-dim">
 				{trail.map((segment, i) => {
 					const isLast = i === trail.length - 1;
+					const href = segment.href ?? (i === 0 ? "/" : undefined);
 					const segmentClass = cn(
 						"block truncate",
 						i === 0 || isLast ? "shrink-0" : "min-w-0",
@@ -40,12 +41,12 @@ export function SubpageHeader({
 									/
 								</span>
 							)}
-							{segment.href ? (
+							{href ? (
 								<Link
-									href={segment.href}
+									href={href}
 									className={cn(
 										segmentClass,
-										"transition-colors hover:text-foreground",
+										"rounded-[3px] transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-petrol/35",
 									)}
 								>
 									{segment.label}

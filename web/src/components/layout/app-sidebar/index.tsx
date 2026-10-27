@@ -150,7 +150,7 @@ export function AppSidebar() {
 	const hasMoreThreads = threads.length < total;
 	const { user, logout } = useUserStore();
 	const { resolvedTheme, setTheme } = useTheme();
-	const { isMobile, setOpenMobile, toggleSidebar } = useSidebar();
+	const { isMobile, setOpenMobile, state, toggleSidebar } = useSidebar();
 	const [renamingThread, setRenamingThread] = useState<Thread | null>(null);
 	const [aboutOpen, setAboutOpen] = useState(false);
 	const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
@@ -189,15 +189,28 @@ export function AppSidebar() {
 	const handleLogout = () => {
 		logout();
 	};
+	const navigateHome = () => {
+		router.push("/");
+		if (isMobile) setOpenMobile(false);
+	};
+	const handleBrandLogoClick = () => {
+		if (!isMobile && state === "collapsed") {
+			toggleSidebar();
+			return;
+		}
+		navigateHome();
+	};
 	return (
 		<>
 			<Sidebar collapsible="icon">
 				<SidebarHeader>
 					<div className="flex h-9 items-center gap-2 pl-2 pr-1">
 						<button
-							onClick={toggleSidebar}
-							title="Toggle sidebar"
-							aria-label="Toggle sidebar"
+							onClick={handleBrandLogoClick}
+							title={!isMobile && state === "collapsed" ? "Open sidebar" : "Home"}
+							aria-label={
+								!isMobile && state === "collapsed" ? "Open sidebar" : "Home"
+							}
 							className="group/brand relative size-[22px] shrink-0 cursor-pointer"
 						>
 							{/* Logo at rest; fades out on hover only when collapsed. */}
@@ -235,12 +248,14 @@ export function AppSidebar() {
 								<PanelLeftOpen className="size-4" />
 							</span>
 						</button>
-						<span
+						<button
+							type="button"
+							onClick={navigateHome}
 							className="font-display text-[15.5px] font-bold tracking-[-0.02em] text-sidebar-foreground group-data-[collapsible=icon]:hidden animate-in fade-in duration-200"
 							style={{ animationDelay: "100ms", animationFillMode: "both" }}
 						>
 							{appearance.appName}
-						</span>
+						</button>
 						<SidebarTrigger className="ml-auto cursor-pointer text-sidebar-muted group-data-[collapsible=icon]:hidden" />
 					</div>
 					<WorkspaceSwitcher />
