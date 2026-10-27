@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.65](https://github.com/jr-k/auxilia/compare/web-v0.12.64...web-v0.12.65) (2026-10-27)
+
+
+### Bug Fixes
+
+* **agents:** improve tool controls and loading states ([8231637](https://github.com/jr-k/auxilia/commit/8231637760d2e106063ebc6934a8baa2b0a6b58c))
+
 ## [0.12.64](https://github.com/jr-k/auxilia/compare/web-v0.12.63...web-v0.12.64) (2026-10-27)
 
 
