@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.43](https://github.com/jr-k/auxilia/compare/backend-v0.11.42...backend-v0.11.43) (2026-10-27)
+
+
+### Bug Fixes
+
+* **runtime:** avoid unnecessary capability startup delays ([97ea544](https://github.com/jr-k/auxilia/commit/97ea544db070c9d5290ba3c027079ad9522e7409))
+
 ## [0.11.42](https://github.com/jr-k/auxilia/compare/backend-v0.11.41...backend-v0.11.42) (2026-10-27)
 
 
