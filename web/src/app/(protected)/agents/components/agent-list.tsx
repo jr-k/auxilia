@@ -308,6 +308,13 @@ export default function AgentList({
 		() => buildGroupTree(remainingVisible),
 		[remainingVisible],
 	);
+	const ungroupedAgents = useMemo(
+		() =>
+			defaultAgent
+				? [defaultAgent, ...groupTree.ungrouped]
+				: groupTree.ungrouped,
+		[defaultAgent, groupTree.ungrouped],
+	);
 	const orderedAgents = useMemo(
 		() =>
 			mode === "table"
@@ -501,18 +508,6 @@ export default function AgentList({
 	return (
 		<div className="w-full animate-in fade-in duration-300">
 			{bulkControls}
-			{defaultAgent && (
-				<div className={remainingVisible.length > 0 ? "mb-6" : undefined}>
-					<AgentCardGrid
-						agents={[defaultAgent]}
-						archived={archived}
-						onRemoved={handleRemoved}
-						selectedIds={selection.selectedIds}
-						selectionMode={selection.selectionMode}
-						onToggleSelection={selection.toggle}
-					/>
-				</div>
-			)}
 			{groupTree.groups.map((group) => (
 				<AgentSection
 					key={`${view}:${group.path}`}
@@ -525,16 +520,16 @@ export default function AgentList({
 					onToggleSelection={selection.toggle}
 				/>
 			))}
-			{groupTree.ungrouped.length > 0 &&
+			{ungroupedAgents.length > 0 &&
 				(groupTree.groups.length > 0 ? (
 					<AgentSection
 						node={{
 							name: "Default",
 							path: "__ungrouped__",
 							depth: 0,
-							items: groupTree.ungrouped,
+							items: ungroupedAgents,
 							children: [],
-							count: groupTree.ungrouped.length,
+							count: ungroupedAgents.length,
 						}}
 						archived={archived}
 						onRemoved={handleRemoved}
@@ -545,7 +540,7 @@ export default function AgentList({
 					/>
 				) : (
 					<AgentCardGrid
-						agents={groupTree.ungrouped}
+						agents={ungroupedAgents}
 						archived={archived}
 						onRemoved={handleRemoved}
 						selectedIds={selection.selectedIds}
