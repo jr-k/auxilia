@@ -56,7 +56,7 @@ type MemoryDraft = {
 const emptyLibrary: MemoryLibrary = { categories: [], total: 0 };
 
 function updatedLabel(value: string): string {
-	return new Intl.DateTimeFormat("fr-FR", {
+	return new Intl.DateTimeFormat("en-US", {
 		day: "numeric",
 		month: "short",
 		year: "numeric",
@@ -90,17 +90,16 @@ function MemoryEditor({
 			<DialogContent>
 				<DialogHeader>
 					<DialogTitle>
-						{editing ? "Modifier le souvenir" : "Nouveau souvenir"}
+						{editing ? "Edit memory" : "New memory"}
 					</DialogTitle>
 					<DialogDescription>
-						Une information courte et durable que vos assistants pourront
-						réutiliser lorsque cela sera pertinent.
+						A short, durable fact your assistants can reuse when relevant.
 					</DialogDescription>
 				</DialogHeader>
 				<div className="grid gap-4">
 					<label>
 						<span className="mb-1.5 block text-[10px] font-semibold text-subtle">
-							Catégorie
+							Category
 						</span>
 						<select
 							value={draft.categoryId}
@@ -119,13 +118,13 @@ function MemoryEditor({
 					</label>
 					<label>
 						<span className="mb-1.5 block text-[10px] font-semibold text-subtle">
-							Titre
+							Title
 						</span>
 						<input
 							value={draft.title}
 							disabled={busy}
 							maxLength={200}
-							placeholder="Adresse personnelle"
+							placeholder="Home address"
 							onChange={(event) => {
 								onChange({ ...draft, title: event.target.value });
 							}}
@@ -141,7 +140,7 @@ function MemoryEditor({
 							disabled={busy}
 							maxLength={10_000}
 							rows={5}
-							placeholder="7 rue Galilée, Villeurbanne"
+							placeholder="7 Galilee Street, Villeurbanne"
 							onChange={(event) => {
 								onChange({ ...draft, content: event.target.value });
 							}}
@@ -157,7 +156,7 @@ function MemoryEditor({
 							onOpenChange(false);
 						}}
 					>
-						Annuler
+						Cancel
 					</DialogButton>
 					<DialogButton
 						disabled={
@@ -168,7 +167,7 @@ function MemoryEditor({
 						}
 						onClick={onSave}
 					>
-						{busy ? "Enregistrement…" : editing ? "Enregistrer" : "Ajouter"}
+						{busy ? "Saving…" : editing ? "Save" : "Add"}
 					</DialogButton>
 				</DialogFooter>
 			</DialogContent>
@@ -228,7 +227,7 @@ export default function ProfileMemories() {
 			setError(
 				getApiErrorMessage(
 					reason,
-					"Impossible de charger complètement vos souvenirs pour le moment.",
+					"Your memories could not be fully loaded right now.",
 				),
 			);
 		}
@@ -240,18 +239,18 @@ export default function ProfileMemories() {
 	}, []);
 
 	const filteredCategories = useMemo(() => {
-		const term = query.trim().toLocaleLowerCase("fr");
+		const term = query.trim().toLocaleLowerCase("en-US");
 		if (!term) return library.categories;
 		return library.categories
 			.map((category) => {
-				if (category.name.toLocaleLowerCase("fr").includes(term)) {
+				if (category.name.toLocaleLowerCase("en-US").includes(term)) {
 					return category;
 				}
 				return {
 					...category,
 					memories: category.memories.filter((memory) =>
 						[memory.title, memory.content, memory.key].some((value) =>
-							value.toLocaleLowerCase("fr").includes(term),
+							value.toLocaleLowerCase("en-US").includes(term),
 						),
 					),
 				};
@@ -275,7 +274,7 @@ export default function ProfileMemories() {
 			await load();
 		} catch (caught: unknown) {
 			toast.error(
-				getApiErrorMessage(caught, "La catégorie n’a pas pu être enregistrée."),
+				getApiErrorMessage(caught, "The category could not be saved."),
 			);
 		} finally {
 			setSaving(false);
@@ -307,7 +306,7 @@ export default function ProfileMemories() {
 			await load();
 		} catch (caught: unknown) {
 			toast.error(
-				getApiErrorMessage(caught, "Le souvenir n’a pas pu être enregistré."),
+				getApiErrorMessage(caught, "The memory could not be saved."),
 			);
 		} finally {
 			setSaving(false);
@@ -316,12 +315,12 @@ export default function ProfileMemories() {
 
 	const deleteCategory = async (category: MemoryCategoryGroup) => {
 		const confirmed = await confirmDialog({
-			title: `Supprimer « ${category.name} » ?`,
+			title: `Delete “${category.name}”?`,
 			description:
 				category.memoryCount > 0
-					? `Cette catégorie et ses ${category.memoryCount} souvenir${category.memoryCount > 1 ? "s" : ""} seront supprimés définitivement.`
-					: "Cette catégorie vide sera supprimée définitivement.",
-			confirmLabel: "Supprimer la catégorie",
+					? `This category and its ${category.memoryCount} ${category.memoryCount === 1 ? "memory" : "memories"} will be permanently deleted.`
+					: "This empty category will be permanently deleted.",
+			confirmLabel: "Delete category",
 			destructive: true,
 		});
 		if (!confirmed) return;
@@ -330,17 +329,16 @@ export default function ProfileMemories() {
 			await load();
 		} catch (caught: unknown) {
 			toast.error(
-				getApiErrorMessage(caught, "La catégorie n’a pas pu être supprimée."),
+				getApiErrorMessage(caught, "The category could not be deleted."),
 			);
 		}
 	};
 
 	const deleteMemory = async (memory: Memory) => {
 		const confirmed = await confirmDialog({
-			title: `Supprimer « ${memory.title} » ?`,
-			description:
-				"Ce souvenir ne sera plus disponible dans vos conversations.",
-			confirmLabel: "Supprimer le souvenir",
+			title: `Delete “${memory.title}”?`,
+			description: "This memory will no longer be available in your conversations.",
+			confirmLabel: "Delete memory",
 			destructive: true,
 		});
 		if (!confirmed) return;
@@ -349,7 +347,7 @@ export default function ProfileMemories() {
 			await load();
 		} catch (caught: unknown) {
 			toast.error(
-				getApiErrorMessage(caught, "Le souvenir n’a pas pu être supprimé."),
+				getApiErrorMessage(caught, "The memory could not be deleted."),
 			);
 		}
 	};
@@ -383,7 +381,7 @@ export default function ProfileMemories() {
 			toast.error(
 				getApiErrorMessage(
 					caught,
-					"L’ordre des catégories n’a pas été sauvegardé.",
+					"The category order could not be saved.",
 				),
 			);
 		} finally {
@@ -404,7 +402,7 @@ export default function ProfileMemories() {
 			toast.error(
 				getApiErrorMessage(
 					caught,
-					"La préférence n’a pas pu être enregistrée.",
+					"The preference could not be saved.",
 				),
 			);
 		} finally {
@@ -417,15 +415,15 @@ export default function ProfileMemories() {
 			<div className="mb-1 flex items-start justify-between gap-4">
 				<div>
 					<span className="text-[10.5px] font-semibold text-subtle dark:text-panel-dim">
-						Souvenirs
+						Memories
 					</span>
 					<p className="mt-1.5 max-w-[620px] text-[13px] leading-[1.55] text-subtle dark:text-panel-body">
-						Structurez les informations personnelles que vos assistants peuvent
-						retrouver d’une conversation à l’autre.
+						Organize personal information your assistants can recall across
+						conversations.
 					</p>
 				</div>
 				<span className="flex h-8 shrink-0 items-center rounded-full border border-border bg-card px-3 font-mono text-[10.5px] text-meta">
-					{library.total} fiche{library.total === 1 ? "" : "s"}
+					{library.total} {library.total === 1 ? "memory" : "memories"}
 				</span>
 			</div>
 
@@ -436,13 +434,12 @@ export default function ProfileMemories() {
 					</span>
 					<div className="min-w-0 flex-1">
 						<p className="text-[13px] font-semibold text-foreground">
-							Alimentation automatique
+							Automatic capture
 						</p>
 						<p className="mt-1 max-w-[590px] text-[12px] leading-5 text-subtle dark:text-panel-body">
-							Autoriser les conversations à mémoriser automatiquement des
-							informations vous concernant. Les contenus ressemblant à des mots
-							de passe, secrets d’authentification ou numéros de carte sont
-							refusés.
+							Allow conversations to automatically remember information about
+							you. Content resembling passwords, authentication secrets, or
+							payment-card numbers is rejected.
 						</p>
 					</div>
 					<Switch
@@ -451,13 +448,13 @@ export default function ProfileMemories() {
 						onCheckedChange={(checked) => {
 							void updateAutoCapture(checked);
 						}}
-						aria-label="Autoriser l’alimentation automatique des souvenirs"
+						aria-label="Allow automatic memory capture"
 						className="mt-1"
 					/>
 				</div>
 				<div className="flex items-center gap-2 px-5 py-3 text-[11px] text-meta">
 					<Brain className="size-3.5 text-petrol dark:text-panel-terminal" />
-					Les souvenirs sont globaux à votre compte et restent modifiables ici.
+					Memories are account-wide and can always be edited here.
 				</div>
 			</section>
 
@@ -467,11 +464,11 @@ export default function ProfileMemories() {
 						<Search className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-meta" />
 						<input
 							value={query}
-							aria-label="Rechercher dans vos souvenirs"
+							aria-label="Search your memories"
 							onChange={(event) => {
 								setQuery(event.target.value);
 							}}
-							placeholder="Rechercher dans vos souvenirs…"
+							placeholder="Search your memories…"
 							className={`${inputClass} pl-9`}
 						/>
 					</label>
@@ -483,7 +480,7 @@ export default function ProfileMemories() {
 						className="inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-[7px] border border-input px-3.5 py-2.5 text-[12.5px] font-semibold text-foreground transition-colors hover:border-border-hover"
 					>
 						<Plus className="size-3.5" />
-						Catégorie
+						Category
 					</button>
 					<button
 						type="button"
@@ -501,7 +498,7 @@ export default function ProfileMemories() {
 						className="inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-[7px] bg-primary px-3.5 py-2.5 text-[12.5px] font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:cursor-default disabled:opacity-40"
 					>
 						<Plus className="size-3.5" />
-						Souvenir
+						Memory
 					</button>
 				</div>
 
@@ -516,7 +513,7 @@ export default function ProfileMemories() {
 							}}
 							className="ml-2 cursor-pointer font-semibold underline underline-offset-2"
 						>
-							Réessayer
+							Retry
 						</button>
 					</div>
 				)}
@@ -533,12 +530,12 @@ export default function ProfileMemories() {
 								<Database className="size-4" />
 							</span>
 							<p className="mt-3 text-[13px] font-semibold text-foreground">
-								{query ? "Aucun souvenir trouvé" : "Aucun souvenir enregistré"}
+								{query ? "No memories found" : "No memories saved"}
 							</p>
 							<p className="mt-1 max-w-sm text-[12px] leading-5 text-subtle">
 								{query
-									? "Essayez un autre terme de recherche."
-									: "Créez d’abord une catégorie, puis ajoutez les informations que vous souhaitez retrouver plus tard."}
+									? "Try another search term."
+									: "Create a category first, then add information you want to recall later."}
 							</p>
 						</div>
 					) : (
@@ -574,7 +571,7 @@ export default function ProfileMemories() {
 										<div className="flex shrink-0 items-center">
 											<button
 												type="button"
-												title="Monter"
+												title="Move up"
 												disabled={
 													reorderSaving || index === 0 || Boolean(query)
 												}
@@ -587,7 +584,7 @@ export default function ProfileMemories() {
 											</button>
 											<button
 												type="button"
-												title="Descendre"
+												title="Move down"
 												disabled={
 													reorderSaving ||
 													index === filteredCategories.length - 1 ||
@@ -602,7 +599,7 @@ export default function ProfileMemories() {
 											</button>
 											<button
 												type="button"
-												title="Renommer"
+												title="Rename"
 												onClick={() => {
 													setCategoryDraft({
 														id: category.id,
@@ -615,7 +612,7 @@ export default function ProfileMemories() {
 											</button>
 											<button
 												type="button"
-												title="Supprimer"
+												title="Delete"
 												onClick={() => {
 													void deleteCategory(category);
 												}}
@@ -640,7 +637,7 @@ export default function ProfileMemories() {
 												className="flex w-full cursor-pointer items-center justify-center gap-1.5 px-4 py-7 text-[12px] font-medium text-meta transition-colors hover:bg-hover/40 hover:text-foreground"
 											>
 												<Plus className="size-3.5" />
-												Ajouter le premier souvenir
+												Add the first memory
 											</button>
 										) : (
 											<div className="divide-y divide-border">
@@ -663,7 +660,7 @@ export default function ProfileMemories() {
 																>
 																	{memory.source === "assistant"
 																		? "Conversation"
-																		: "Manuel"}
+																		: "Manual"}
 																</span>
 															</div>
 															<p className="mt-1 whitespace-pre-wrap text-[12.5px] leading-5 text-subtle dark:text-panel-body">
@@ -671,13 +668,13 @@ export default function ProfileMemories() {
 															</p>
 															<div className="mt-2 flex items-center gap-1.5 font-mono text-[9.5px] text-meta">
 																<Clock3 className="size-3" />
-																Mis à jour le {updatedLabel(memory.updatedAt)}
+																Updated {updatedLabel(memory.updatedAt)}
 															</div>
 														</div>
 														<div className="flex shrink-0 items-center opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
 															<button
 																type="button"
-																title="Modifier"
+																title="Edit"
 																onClick={() => {
 																	setMemoryDraft({
 																		id: memory.id,
@@ -692,7 +689,7 @@ export default function ProfileMemories() {
 															</button>
 															<button
 																type="button"
-																title="Supprimer"
+																title="Delete"
 																onClick={() => {
 																	void deleteMemory(memory);
 																}}
@@ -723,21 +720,20 @@ export default function ProfileMemories() {
 					<DialogHeader>
 						<DialogTitle>
 							{categoryDraft?.id
-								? "Renommer la catégorie"
-								: "Nouvelle catégorie"}
+								? "Rename category"
+								: "New category"}
 						</DialogTitle>
 						<DialogDescription>
-							Regroupez les informations par thème : domicile, travail,
-							préférences, proches…
+							Group information by topic: home, work, preferences, people…
 						</DialogDescription>
 					</DialogHeader>
 					<input
 						autoFocus
 						value={categoryDraft?.name ?? ""}
-						aria-label="Nom de la catégorie"
+						aria-label="Category name"
 						disabled={saving}
 						maxLength={100}
-						placeholder="Domicile"
+						placeholder="Home"
 						onChange={(event) => {
 							setCategoryDraft((current) =>
 								current ? { ...current, name: event.target.value } : current,
@@ -759,7 +755,7 @@ export default function ProfileMemories() {
 								setCategoryDraft(null);
 							}}
 						>
-							Annuler
+							Cancel
 						</DialogButton>
 						<DialogButton
 							disabled={saving || !categoryDraft?.name.trim()}
@@ -767,7 +763,7 @@ export default function ProfileMemories() {
 								void saveCategory();
 							}}
 						>
-							{saving ? "Enregistrement…" : "Enregistrer"}
+							{saving ? "Saving…" : "Save"}
 						</DialogButton>
 					</DialogFooter>
 				</DialogContent>

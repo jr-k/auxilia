@@ -366,7 +366,7 @@ export default function SettingsPage() {
 										setProfileSection("memories");
 									}}
 								>
-									Souvenirs
+									Memories
 								</button>
 							</div>
 							<div className="shrink-0">

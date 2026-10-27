@@ -1,8 +1,9 @@
 "use client";
 
-import { AlarmClock, Brain, LoaderCircle } from "lucide-react";
+import { AlarmClock, Brain, LoaderCircle, Settings2 } from "lucide-react";
 import type { ReactNode } from "react";
 import { createPortal } from "react-dom";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useChatHeaderStore } from "@/stores/chat-header-store";
 import { useModelsStore } from "@/stores/models-store";
@@ -174,42 +175,60 @@ export function ChatMemoryToggle({
 	onChange: (enabled: boolean) => void;
 }) {
 	const label = enabled
-		? "Souvenirs actifs pour cette conversation"
-		: "Souvenirs désactivés pour cette conversation";
+		? "Memories enabled for this conversation"
+		: "Memories disabled for this conversation";
 	return (
-		<Tooltip>
-			<TooltipTrigger asChild>
-				<button
-					type="button"
-					aria-label={label}
-					aria-pressed={enabled}
-					disabled={disabled || saving}
-					onClick={() => {
-						onChange(!enabled);
-					}}
-					className={`flex h-[30px] cursor-pointer items-center gap-1.5 rounded-full border px-2.5 text-[11.5px] font-semibold transition-colors disabled:cursor-default disabled:opacity-45 ${
-						enabled
-							? "border-petrol/25 bg-petrol/8 text-petrol dark:border-panel-terminal/25 dark:bg-panel-terminal/10 dark:text-panel-terminal"
-							: "border-border bg-card text-meta hover:text-foreground dark:bg-white/5"
-					}`}
-				>
-					{saving ? (
-						<LoaderCircle className="size-3.5 animate-spin" />
-					) : (
-						<Brain className="size-3.5" />
-					)}
-					<span className="hidden lg:inline">Souvenirs</span>
-					<span
-						className={`hidden size-1.5 rounded-full lg:block ${
-							enabled ? "bg-current" : "bg-meta/50"
-						}`}
-					/>
-				</button>
-			</TooltipTrigger>
-			<TooltipContent side="bottom" sideOffset={7}>
-				{label}
-			</TooltipContent>
-		</Tooltip>
+		<div
+			className={`flex h-[30px] items-center overflow-hidden rounded-full border text-[11.5px] font-semibold transition-colors ${
+				enabled
+					? "border-petrol/25 bg-petrol/8 text-petrol dark:border-panel-terminal/25 dark:bg-panel-terminal/10 dark:text-panel-terminal"
+					: "border-border bg-card text-meta dark:bg-white/5"
+			}`}
+		>
+			<Tooltip>
+				<TooltipTrigger asChild>
+					<button
+						type="button"
+						aria-label={label}
+						aria-pressed={enabled}
+						disabled={disabled || saving}
+						onClick={() => {
+							onChange(!enabled);
+						}}
+						className="flex h-full cursor-pointer items-center gap-1.5 px-2.5 transition-colors hover:bg-black/5 hover:text-foreground disabled:cursor-default disabled:opacity-45 dark:hover:bg-white/5"
+					>
+						{saving ? (
+							<LoaderCircle className="size-3.5 animate-spin" />
+						) : (
+							<Brain className="size-3.5" />
+						)}
+						<span className="hidden lg:inline">Memories</span>
+						<span
+							className={`hidden size-1.5 rounded-full lg:block ${
+								enabled ? "bg-current" : "bg-meta/50"
+							}`}
+						/>
+					</button>
+				</TooltipTrigger>
+				<TooltipContent side="bottom" sideOffset={7}>
+					{label}
+				</TooltipContent>
+			</Tooltip>
+			<Tooltip>
+				<TooltipTrigger asChild>
+					<Link
+						href="/settings?tab=profile&section=memories"
+						aria-label="Open memory settings"
+						className="flex h-full w-6 items-center justify-center border-l border-current/15 opacity-65 transition-colors hover:bg-black/5 hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-none dark:hover:bg-white/5"
+					>
+						<Settings2 className="size-3" />
+					</Link>
+				</TooltipTrigger>
+				<TooltipContent side="bottom" sideOffset={7}>
+					Open memory settings
+				</TooltipContent>
+			</Tooltip>
+		</div>
 	);
 }
 
