@@ -495,10 +495,19 @@ class Toolset:
 
                 stack.push_async_exit(adapter)
                 for tool in lc_tools:
-                    if normalize_mcp_tool_schema(tool):
+                    bounds_changed, dangling_refs = normalize_mcp_tool_schema(tool)
+                    if bounds_changed:
                         logger.warning(
                             "Normalized legacy exclusive bounds in MCP tool schema "
                             "%s/%s",
+                            server_name,
+                            tool.name,
+                        )
+                    if dangling_refs:
+                        logger.warning(
+                            "Removed unresolved references %s from MCP tool schema "
+                            "%s/%s",
+                            ", ".join(dangling_refs),
                             server_name,
                             tool.name,
                         )

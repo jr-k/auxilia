@@ -41,32 +41,63 @@ _GENERIC_BINARY_MIME_TYPES = frozenset(
 _MAX_INLINE_TEXT_BYTES = 200_000
 
 
-def normalize_mcp_tool_schema(tool: BaseTool) -> bool:
-    """Upgrade legacy boolean exclusive bounds in an MCP tool schema.
+def normalize_mcp_tool_schema(tool: BaseTool) -> tuple[bool, tuple[str, ...]]:
+    """Repair provider-breaking constructs in an MCP tool schema.
 
     Some servers convert Zod schemas to draft 2019/2020 while still emitting
     the draft-04 representation ``minimum: N, exclusiveMinimum: true``.
     OpenAI validates the declared modern draft and rejects the entire toolset
     because modern ``exclusiveMinimum`` / ``exclusiveMaximum`` must themselves
     be numbers. Preserve the bound's exact semantics recursively.
+
+    Other servers emit local ``$ref`` pointers whose target is missing. Every
+    supported provider asks LangChain to dereference the whole schema before a
+    model call, so one dangling pointer otherwise prevents *all* tools from
+    reaching the model. Drop only the invalid pointer; the MCP server remains
+    the authority that validates the eventual tool arguments.
     """
     schema = getattr(tool, "args_schema", None)
     if not isinstance(schema, dict):
-        return False
+        return False, ()
 
-    changed = False
+    bounds_changed = False
+    dangling_refs: set[str] = set()
 
     def is_number(value: Any) -> bool:
         return isinstance(value, int | float) and not isinstance(value, bool)
 
+    def resolves(ref: str) -> bool:
+        if ref == "#":
+            return True
+        if not ref.startswith("#/"):
+            return False
+        current: Any = schema
+        for raw_component in ref[2:].split("/"):
+            component = raw_component.replace("~1", "/").replace("~0", "~")
+            if isinstance(current, dict) and component in current:
+                current = current[component]
+            elif isinstance(current, list) and component.isdigit():
+                index = int(component)
+                if index >= len(current):
+                    return False
+                current = current[index]
+            else:
+                return False
+        return True
+
     def visit(value: Any) -> None:
-        nonlocal changed
+        nonlocal bounds_changed
         if isinstance(value, list):
             for item in value:
                 visit(item)
             return
         if not isinstance(value, dict):
             return
+
+        ref = value.get("$ref")
+        if isinstance(ref, str) and not resolves(ref):
+            value.pop("$ref")
+            dangling_refs.add(ref)
 
         for exclusive_key, inclusive_key in (
             ("exclusiveMinimum", "minimum"),
@@ -81,13 +112,13 @@ def normalize_mcp_tool_schema(tool: BaseTool) -> bool:
                 del value[inclusive_key]
             else:
                 del value[exclusive_key]
-            changed = True
+            bounds_changed = True
 
         for child in value.values():
             visit(child)
 
     visit(schema)
-    return changed
+    return bounds_changed, tuple(sorted(dangling_refs))
 
 
 def _text_from_generic_blob(data: bytes) -> str | None:

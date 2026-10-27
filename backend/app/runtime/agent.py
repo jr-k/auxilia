@@ -17,6 +17,7 @@ from langchain.agents.middleware import (
     ModelRetryMiddleware,
     ToolCallLimitMiddleware,
 )
+from langchain_core.exceptions import ModelError
 from langchain_core.messages import (
     AIMessage,
     BaseMessage,
@@ -425,6 +426,13 @@ def build_runnable(
     return agent.with_config(HARNESS_CONFIG) if sandbox_backend is not None else agent
 
 
+def _retry_model_call(exc: Exception) -> bool:
+    """Retry transport/provider failures, not deterministic local conversion."""
+    if isinstance(exc, ModelError):
+        return exc.is_retryable
+    return not isinstance(exc, (KeyError, TypeError, ValueError))
+
+
 def build_agent_middleware(
     created_at: datetime,
     *,
@@ -472,7 +480,7 @@ def build_agent_middleware(
     resolved_interrupt_on = discovery_interrupt_on(interrupt_on, tool_discovery_mode)
     return [
         *([PatchToolCallsMiddleware()] if checkpointed else []),
-        ModelRetryMiddleware(),
+        ModelRetryMiddleware(retry_on=_retry_model_call),
         ToolCallLimitMiddleware(
             run_limit=(recursion_limit - 1) // 2, exit_behavior="end"
         ),

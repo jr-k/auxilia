@@ -23,7 +23,7 @@ import logging
 from collections.abc import AsyncGenerator
 from typing import Any
 
-from langchain_core.messages import BaseMessage, ToolMessage
+from langchain_core.messages import BaseMessage, ToolMessage, convert_to_messages
 from langgraph.checkpoint.serde.jsonplus import JsonPlusSerializer
 from langgraph.types import Overwrite
 from redis.asyncio import Redis
@@ -42,7 +42,7 @@ from app.runtime.protocol.wire import decode_event, frame, seq_for_entry
 from app.runtime.runs.events import RunEventStream
 from app.runtime.runs.models import RunDB
 from app.runtime.runs.service import RunService
-from app.runtime.runs.state import is_terminal
+from app.runtime.runs.state import RunStatus, is_terminal
 
 
 logger = logging.getLogger(__name__)
@@ -276,6 +276,7 @@ class ProtocolService:
         thread_id = checkpoint_thread_id(workspace_id, thread_id)
         scopes: list[InterruptScope] = []
         active = await self.runs.get_active(public_thread_id, workspace_id)
+        latest = active
 
         def revision(record: RunDB | None) -> tuple | None:
             if record is None:
@@ -346,8 +347,15 @@ class ProtocolService:
                         checkpointer, thread_id, root=state
                     )
 
+            messages = list(state.messages)
+            visible_run = active or latest
+            if visible_run is not None and (
+                visible_run.status is not RunStatus.pending
+                or visible_run.queue_position is None
+            ):
+                messages = _append_missing_run_input(messages, visible_run)
             values: dict[str, Any] = {
-                "messages": [serialize_message_preview(m) for m in state.messages]
+                "messages": [serialize_message_preview(m) for m in messages]
             }
             if state.todos:
                 values["todos"] = state.todos
@@ -442,6 +450,36 @@ class ProtocolService:
             if getattr(m, "id", None) == message_id:
                 return serialize_message(m)
         raise NotFoundError("Message not found")
+
+
+def _append_missing_run_input(messages: list, run: RunDB) -> list:
+    """Expose a durable prompt before its first checkpoint write lands.
+
+    A run row is committed before the worker sees it. During that gap (or when
+    agent construction fails before LangGraph writes a checkpoint), hydration
+    would otherwise return only the previous turn and erase the client's
+    optimistic user bubble on refresh.
+    """
+    raw_messages = (run.input or {}).get("messages")
+    if not isinstance(raw_messages, list):
+        return messages
+    try:
+        input_messages = convert_to_messages(raw_messages)
+    except (ValueError, TypeError, KeyError, NotImplementedError):
+        logger.warning("Run %s contains invalid durable input", run.id, exc_info=True)
+        return messages
+
+    known_ids = {
+        str(message.id) for message in messages if getattr(message, "id", None)
+    }
+    missing = [
+        message
+        for message in input_messages
+        if message.type == "human"
+        and message.id is not None
+        and str(message.id) not in known_ids
+    ]
+    return [*messages, *missing] if missing else messages
 
 
 _TOOLS_NS_PREFIX = "tools:"

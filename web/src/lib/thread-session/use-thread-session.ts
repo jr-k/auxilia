@@ -219,10 +219,17 @@ export function useThreadSession({
       string,
       {
         sequence: number;
+        accepted: boolean;
         resolve: (accepted: boolean) => void;
       }
     >(),
   );
+  const [pendingSubmission, setPendingSubmission] = useState<{
+    threadId: string;
+    sequence: number;
+    baselineUserMessageCount: number;
+    accepted: boolean;
+  } | null>(null);
   const currentThreadId = useRef(threadId);
   currentThreadId.current = threadId;
   const models = useModelsStore((store) => store.models);
@@ -231,6 +238,32 @@ export function useThreadSession({
   useEffect(() => {
     callbacks.current = { onStaleInterrupt, onCompleted };
   });
+
+  const settleRunStart = useCallback(
+    (forThread: string, accepted: boolean) => {
+      const pending = pendingRunStarts.current.get(forThread);
+      if (pending != null) {
+        pending.accepted = accepted;
+        pendingRunStarts.current.delete(forThread);
+        pending.resolve(accepted);
+      }
+      if (accepted && currentThreadId.current === forThread) {
+        runActivityGeneration.current += 1;
+        setPendingSubmission((current) =>
+          current?.threadId === forThread
+            ? { ...current, accepted: true }
+            : current,
+        );
+        setDurableRunActivity({
+          threadId: forThread,
+          active: true,
+          retryable: false,
+        });
+        useActiveRunsStore.getState().markThreadRunning(forThread);
+      }
+    },
+    [],
+  );
 
   const protocolFetch = useProtocolFetch(threadId, {
     baseFetch: transport.fetch,
@@ -246,10 +279,7 @@ export function useThreadSession({
       callbacks.current.onStaleInterrupt?.();
     },
     onRunStartSettled: (forThread, accepted) => {
-      const pending = pendingRunStarts.current.get(forThread);
-      if (pending == null) return;
-      pendingRunStarts.current.delete(forThread);
-      pending.resolve(accepted);
+      settleRunStart(forThread, accepted);
     },
   });
 
@@ -271,11 +301,7 @@ export function useThreadSession({
     fetch: protocolFetch,
     callerOptions,
     onCreated: () => {
-      const pending = pendingRunStarts.current.get(threadId);
-      if (pending != null) {
-        pendingRunStarts.current.delete(threadId);
-        pending.resolve(true);
-      }
+      settleRunStart(threadId, true);
     },
     onCompleted: (info) => {
       runActivityGeneration.current += 1;
@@ -284,6 +310,9 @@ export function useThreadSession({
         active: false,
         retryable: info.reason === "error",
       });
+      setPendingSubmission((current) =>
+        current?.threadId === threadId ? null : current,
+      );
       useActiveRunsStore.getState().requestPoll();
       void transport
         .listThreadRuns(threadId)
@@ -436,15 +465,21 @@ export function useThreadSession({
   const todos =
     ((stream.values as Record<string, unknown>).todos as Todo[] | undefined) ??
     EMPTY_TODOS;
-  const [pendingSubmission, setPendingSubmission] = useState<{
-    threadId: string;
-    sequence: number;
-    baselineUserMessageCount: number;
-  } | null>(null);
   const submissionPending = pendingSubmission?.threadId === threadId;
   const renderedUserMessageCount = messages.filter(
     (message) => isHumanMessage(message) && message.name !== "host",
   ).length;
+  useEffect(() => {
+    if (
+      !stream.isLoading &&
+      durableRunActivity?.threadId === threadId &&
+      !durableRunActivity.active
+    ) {
+      setPendingSubmission((current) =>
+        current?.threadId === threadId && current.accepted ? null : current,
+      );
+    }
+  }, [durableRunActivity, stream.isLoading, threadId]);
   const submissionStarting =
     submissionPending &&
     renderedUserMessageCount <= pendingSubmission.baselineUserMessageCount;
@@ -508,6 +543,7 @@ export function useThreadSession({
         });
         const pendingStart = {
           sequence,
+          accepted: false,
           resolve: settleRunStart,
         };
         pendingRunStarts.current.set(threadId, pendingStart);
@@ -515,6 +551,7 @@ export function useThreadSession({
           threadId,
           sequence,
           baselineUserMessageCount: renderedUserMessageCount,
+          accepted: false,
         });
         const additional_kwargs = {
           ...(input.attachments.length > 0
@@ -571,11 +608,13 @@ export function useThreadSession({
               pendingRunStarts.current.delete(threadId);
               pendingStart.resolve(false);
             }
-            setPendingSubmission((current) =>
-              current?.threadId === threadId && current.sequence === sequence
-                ? null
-                : current,
-            );
+            if (!pendingStart.accepted) {
+              setPendingSubmission((current) =>
+                current?.threadId === threadId && current.sequence === sequence
+                  ? null
+                  : current,
+              );
+            }
             if (sendingThread.current === threadId) {
               sendingThread.current = null;
             }
