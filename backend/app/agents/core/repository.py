@@ -188,6 +188,22 @@ class AgentRepository(BaseRepository[AgentDB]):
         await self.db.execute(set_stmt)
         await self.db.flush()
 
+    async def clear_default(self, agent_id: UUID) -> None:
+        if self.workspace_id is None:
+            raise RuntimeError("workspace_id is required to clear a default agent")
+
+        stmt = (
+            update(AgentDB)
+            .where(
+                AgentDB.id == agent_id,
+                AgentDB.workspace_id == self.workspace_id,
+                AgentDB.is_default == True,  # noqa: E712
+            )
+            .values(is_default=False)
+        )
+        await self.db.execute(stmt)
+        await self.db.flush()
+
     async def get_access(
         self,
         agent_id: UUID,

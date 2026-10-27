@@ -113,6 +113,7 @@ export default function AgentEditor({
 	const createAgent = useAgentsStore((state) => state.createAgent);
 	const saveAgentConfig = useAgentsStore((state) => state.saveAgentConfig);
 	const setDefaultAgent = useAgentsStore((state) => state.setDefaultAgent);
+	const clearDefaultAgent = useAgentsStore((state) => state.clearDefaultAgent);
 	const refreshAgent = useAgentsStore((state) => state.refreshAgent);
 	const archiveAgent = useAgentsStore((state) => state.archiveAgent);
 	const workspaceAgents = useAgentsStore((state) => state.agents);
@@ -408,15 +409,20 @@ export default function AgentEditor({
 		}
 	};
 
-	const handleSetDefault = async () => {
-		if (!agent || agent.isDefault) return;
+	const handleToggleDefault = async () => {
+		if (!agent) return;
 		setIsSettingDefault(true);
 		try {
-			await setDefaultAgent(agent.id);
-			toast.success(`${agent.name} is now the default agent.`);
+			if (agent.isDefault) {
+				await clearDefaultAgent(agent.id);
+				toast.success(`${agent.name} is no longer the default agent.`);
+			} else {
+				await setDefaultAgent(agent.id);
+				toast.success(`${agent.name} is now the default agent.`);
+			}
 		} catch (error: unknown) {
 			toast.error(
-				getApiErrorMessage(error, "Could not set the default agent."),
+				getApiErrorMessage(error, "Could not update the default agent."),
 			);
 		} finally {
 			setIsSettingDefault(false);
@@ -652,14 +658,14 @@ export default function AgentEditor({
 					{agent && canSetDefaultAgent && (
 						<button
 							type="button"
-							disabled={agent.isDefault || isSettingDefault}
+							disabled={isSettingDefault}
 							title={
 								agent.isDefault
-									? "Workspace default agent"
+									? "Remove as workspace default"
 									: "Set as workspace default"
 							}
 							onClick={() => {
-								void handleSetDefault();
+								void handleToggleDefault();
 							}}
 							className={cn(
 								"inline-flex cursor-pointer items-center gap-1.5 rounded-[7px] border px-3 py-2 text-[13px] font-semibold transition-colors disabled:cursor-default",
@@ -674,9 +680,11 @@ export default function AgentEditor({
 							/>
 							<span className="hidden lg:inline">
 								{isSettingDefault
-									? "Setting…"
+									? agent.isDefault
+										? "Removing…"
+										: "Setting…"
 									: agent.isDefault
-										? "Default"
+										? "Remove default"
 										: "Set default"}
 							</span>
 						</button>

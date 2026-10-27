@@ -22,6 +22,7 @@ interface AgentsState {
 	createAgent: (payload: AgentWrite) => Promise<Agent>;
 	saveAgentConfig: (agentId: string, payload: AgentWrite) => Promise<Agent>;
 	setDefaultAgent: (agentId: string) => Promise<Agent>;
+	clearDefaultAgent: (agentId: string) => Promise<Agent>;
 	/** Soft delete: the agent leaves the live list. */
 	archiveAgent: (agentId: string) => Promise<void>;
 	/** Un-archive: the live list is reloaded so the agent reappears in place. */
@@ -96,6 +97,17 @@ export const useAgentsStore = create<AgentsState>((set, get) => {
 							: { ...agent, isDefault: false },
 					)
 					.sort((a, b) => Number(b.isDefault) - Number(a.isDefault)),
+			}));
+			return saved;
+		},
+		clearDefaultAgent: async (agentId) => {
+			const saved = await agentsApi.clearDefaultAgent(agentId);
+			set((state) => ({
+				agents: state.agents.map((agent) =>
+					agent.id === agentId
+						? { ...agent, ...saved, isDefault: false }
+						: agent,
+				),
 			}));
 			return saved;
 		},

@@ -714,6 +714,41 @@ class AgentService(BaseService[AgentDB, AgentRepository]):
         await self._stage_agents_changed()
         return response
 
+    async def clear_default(
+        self,
+        agent_id: UUID,
+        *,
+        user_id: UUID,
+        user_role: WorkspaceRole,
+        user_team_id: UUID | None = None,
+    ) -> AgentResponse:
+        """Remove this agent as the workspace default, leaving none selected."""
+        await self.require_permission(
+            agent_id,
+            at_least=EffectivePermission.editor,
+            action="clear this agent as the workspace default",
+            user_id=user_id,
+            user_role=user_role,
+            user_team_id=user_team_id,
+        )
+        if self.workspace_id is None:
+            raise RuntimeError("workspace_id is required to clear a default agent")
+
+        if not await self.workspaces.lock_for_update(self.workspace_id):
+            raise NotFoundError("Workspace not found")
+        if await self.repository.get_scoped_for_update(agent_id) is None:
+            raise NotFoundError(self.not_found_message)
+
+        await self.repository.clear_default(agent_id)
+        response = await self.get(
+            agent_id,
+            user_id=user_id,
+            user_role=user_role,
+            user_team_id=user_team_id,
+        )
+        await self._stage_agents_changed()
+        return response
+
     async def set_config(
         self,
         agent_id: UUID,

@@ -156,6 +156,12 @@ export async function setDefaultAgent(agentId: string): Promise<Agent> {
 	return response.data;
 }
 
+/** Clear this agent as the workspace default. */
+export async function clearDefaultAgent(agentId: string): Promise<Agent> {
+	const response = await api.delete<Agent>(`/agents/${agentId}/default`);
+	return response.data;
+}
+
 /** Soft delete — the agent moves to the archive. */
 export async function archiveAgent(agentId: string): Promise<void> {
 	await api.delete(`/agents/${agentId}`);
