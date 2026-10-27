@@ -14,6 +14,8 @@ from uuid import UUID
 from langchain_core.messages import BaseMessage
 from langgraph.types import Overwrite
 
+from app.memories.constants import MEMORY_TOOL_NAMES
+
 
 def serialize_message(msg: Any) -> dict[str, Any]:
     """Serialize a LangChain message or chunk to a dict for the JS SDK.
@@ -148,12 +150,14 @@ def _public_content(message_type: str, content: Any) -> str | list[dict[str, Any
 def serialize_public_message(msg: Any) -> dict[str, Any] | None:
     """Serialize only transcript fields safe for an unauthenticated snapshot."""
     message_type = getattr(msg, "type", "unknown")
+    message_name = getattr(msg, "name", None)
     kwargs = getattr(msg, "additional_kwargs", {}) or {}
     response_metadata = getattr(msg, "response_metadata", {}) or {}
     if (
         message_type not in {"human", "ai", "tool"}
+        or (message_type == "tool" and message_name in MEMORY_TOOL_NAMES)
         or response_metadata.get("structured_output")
-        or (getattr(msg, "name", None) == "host" and kwargs.get("host_notice"))
+        or (message_name == "host" and kwargs.get("host_notice"))
         or (
             message_type == "human"
             and text_of(getattr(msg, "content", ""))
@@ -164,12 +168,35 @@ def serialize_public_message(msg: Any) -> dict[str, Any] | None:
         return None
 
     serialized = serialize_message_preview(msg)
+    content = _public_content(message_type, serialized["content"])
+    raw_tool_calls = serialized.get("tool_calls")
+    public_tool_calls = (
+        [
+            tool_call
+            for tool_call in raw_tool_calls
+            if not isinstance(tool_call, dict)
+            or tool_call.get("name") not in MEMORY_TOOL_NAMES
+        ]
+        if isinstance(raw_tool_calls, list)
+        else None
+    )
+    has_content = bool(content.strip()) if isinstance(content, str) else bool(content)
+    if (
+        message_type == "ai"
+        and isinstance(raw_tool_calls, list)
+        and raw_tool_calls
+        and not public_tool_calls
+        and not has_content
+    ):
+        return None
     public: dict[str, Any] = {
         "type": serialized["type"],
-        "content": _public_content(message_type, serialized["content"]),
+        "content": content,
         "id": serialized["id"],
     }
-    for key in ("tool_calls", "tool_call_id", "status", "name"):
+    if public_tool_calls:
+        public["tool_calls"] = public_tool_calls
+    for key in ("tool_call_id", "status", "name"):
         if key in serialized:
             public[key] = serialized[key]
 

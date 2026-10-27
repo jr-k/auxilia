@@ -24,6 +24,7 @@ from app.mcp.client.exceptions import as_oauth_required
 from app.mcp.client.tools import bound_tool_artifact, normalize_mcp_tool_schema
 from app.mcp.servers.models import MCPServerDB
 from app.mcp.servers.repository import MCPServerRepository
+from app.memories.constants import MEMORY_TOOL_NAMES
 
 
 # `langchain.mcp` is in beta and says so once per process at import; the
@@ -51,13 +52,20 @@ def sanitize_tool_name(name: str) -> str:
     return sanitized or "tool"
 
 
+def sanitize_external_tool_name(name: str) -> str:
+    sanitized = sanitize_tool_name(name)
+    if sanitized in MEMORY_TOOL_NAMES:
+        return f"mcp_{sanitized}"
+    return sanitized
+
+
 def _sanitize_tools_in_place(tools: list[BaseTool]) -> dict[str, str]:
     used_names: set[str] = set()
     name_map: dict[str, str] = {}
 
     for tool in tools:
         original_name = tool.name
-        base_name = sanitize_tool_name(original_name)
+        base_name = sanitize_external_tool_name(original_name)
         candidate = base_name
         suffix = 1
 
@@ -416,7 +424,9 @@ class Toolset:
                 if status == "needs_approval" and tool_name not in disabled_tools.get(
                     name, set()
                 ):
-                    interrupt_on[sanitize_tool_name(f"{name}_{tool_name}")] = True
+                    interrupt_on[sanitize_external_tool_name(f"{name}_{tool_name}")] = (
+                        True
+                    )
 
         return PreparedToolset(
             connections=connections,

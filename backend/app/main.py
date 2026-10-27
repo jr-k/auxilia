@@ -35,6 +35,7 @@ from app.mcp.apps.router import router as mcp_apps_router
 from app.mcp.oauth.router import router as mcp_oauth_router
 from app.mcp.router import auxilia_mcp, transport_security_settings
 from app.mcp.servers.router import router as mcp_servers_router
+from app.memories.router import router as memories_router
 from app.model_providers.router import router as model_providers_router
 from app.notifications.router import router as notifications_router
 from app.observability.router import router as observability_router
@@ -283,6 +284,7 @@ app.include_router(artifacts_slides_router)
 app.include_router(mcp_apps_router)
 app.include_router(mcp_oauth_router)
 app.include_router(mcp_servers_router)
+app.include_router(memories_router)
 app.include_router(database_connections_router)
 app.include_router(threads_router)
 app.include_router(conversation_shares_router)

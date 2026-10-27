@@ -19,6 +19,7 @@ import WorkspaceAuthentication from "./workspace-authentication";
 import WorkspaceMessaging from "./workspace-notifications";
 import WorkspaceObservability from "./workspace-observability";
 import ProfileSettings, { type ProfileSection } from "./profile-settings";
+import ProfileMemories from "./profile-memories";
 import ProfileThreads from "./profile-threads";
 import { SubpageHeader } from "@/components/layout/subpage-header";
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
@@ -120,13 +121,14 @@ function isAdminSettingsTab(
 	);
 }
 
-type ProfilePageSection = ProfileSection | "threads" | "tokens";
+type ProfilePageSection = ProfileSection | "memories" | "threads" | "tokens";
 
 function isProfileSection(value: string): value is ProfilePageSection {
 	return (
 		value === "information" ||
 		value === "security" ||
 		value === "preferences" ||
+		value === "memories" ||
 		value === "threads" ||
 		value === "tokens"
 	);
@@ -356,6 +358,16 @@ export default function SettingsPage() {
 								>
 									Threads
 								</button>
+								<button
+									type="button"
+									aria-pressed={profileSection === "memories"}
+									className={railTabClass(profileSection === "memories")}
+									onClick={() => {
+										setProfileSection("memories");
+									}}
+								>
+									Souvenirs
+								</button>
 							</div>
 							<div className="shrink-0">
 								<p className="mb-1.5 px-3.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-meta dark:text-panel-dim">
@@ -476,7 +488,8 @@ export default function SettingsPage() {
 							className={
 								tab === "profile" &&
 								profileSection !== "tokens" &&
-								profileSection !== "threads"
+								profileSection !== "threads" &&
+								profileSection !== "memories"
 									? ""
 									: "hidden"
 							}
@@ -486,13 +499,26 @@ export default function SettingsPage() {
 									user={user}
 									section={
 										profileSection === "tokens" ||
-										profileSection === "threads"
+										profileSection === "threads" ||
+										profileSection === "memories"
 											? "information"
 											: profileSection
 									}
 								/>
 							) : (
 								<div className="h-40 animate-pulse rounded-[12px] border border-border bg-card" />
+							)}
+						</section>
+
+						<section
+							className={
+								tab === "profile" && profileSection === "memories"
+									? ""
+									: "hidden"
+							}
+						>
+							{tab === "profile" && profileSection === "memories" && (
+								<ProfileMemories />
 							)}
 						</section>
 

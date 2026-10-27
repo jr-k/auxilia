@@ -89,6 +89,10 @@ class ThreadBase(SQLModel):
             nullable=True,
         ),
     )
+    memories_enabled: bool = Field(
+        default=True,
+        sa_column=Column(Boolean, nullable=False, server_default="true"),
+    )
 
 
 class ThreadDB(ThreadBase, TimestampMixin, table=True):

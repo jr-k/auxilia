@@ -28,6 +28,7 @@ from app.threads.repository import ThreadRepository
 from app.threads.schemas import (
     AgentThreadResponse,
     ThreadCreate,
+    ThreadMemoriesUpdate,
     ThreadModelUpdate,
     ThreadPatch,
     ThreadResourcesPatch,
@@ -469,6 +470,13 @@ class ThreadService(BaseService[ThreadDB, ThreadRepository]):
         await self.repository.set_model(thread_id, data.model_id, data.reasoning_effort)
         return await self.get_with_agent(thread_id)
 
+    async def update_memories(
+        self, thread_id: str, data: ThreadMemoriesUpdate
+    ) -> ThreadResponse:
+        await self.get_or_404(thread_id)
+        await self.repository.set_memories_enabled(thread_id, data.memories_enabled)
+        return await self.get_with_agent(thread_id)
+
     async def update_resources(
         self, thread_id: str, data: ThreadResourcesPatch
     ) -> ThreadResponse:
@@ -669,6 +677,15 @@ class ThreadService(BaseService[ThreadDB, ThreadRepository]):
 
 def get_thread_service(
     db: AsyncSession = Depends(get_db),
+    workspace_id: UUID = Depends(get_active_workspace_id),
+) -> ThreadService:
+    return ThreadService(db, workspace_id)
+
+
+def get_thread_service_before_response(
+    # A memory toggle is immediately actionable by the next queued run. Close
+    # its transaction before responding so the worker cannot read the old flag.
+    db: AsyncSession = Depends(get_db, scope="function"),
     workspace_id: UUID = Depends(get_active_workspace_id),
 ) -> ThreadService:
     return ThreadService(db, workspace_id)

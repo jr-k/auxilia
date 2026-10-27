@@ -1,6 +1,6 @@
 "use client";
 
-import { AlarmClock } from "lucide-react";
+import { AlarmClock, Brain, LoaderCircle } from "lucide-react";
 import type { ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
@@ -12,6 +12,11 @@ import {
 	HoverCardContent,
 	HoverCardTrigger,
 } from "@/components/ui/hover-card";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipTrigger,
+} from "@/components/ui/tooltip";
 import type { ThreadCost } from "@/lib/api/resources/thread-costs";
 import { formatRunAt } from "@/lib/triggers/schedule";
 import { AgentAvatar } from "@/components/ui/agent-avatar";
@@ -41,8 +46,8 @@ function CostBreakdown({ cost }: { cost: ThreadCost }) {
 			<div className="text-[12px]">
 				<p className="font-semibold text-foreground">Cost unavailable</p>
 				<p className="mt-1 leading-5 text-meta">
-					Token usage or catalog pricing was not retained for these calls.
-					New compatible model calls will include usage automatically.
+					Token usage or catalog pricing was not retained for these calls. New
+					compatible model calls will include usage automatically.
 				</p>
 			</div>
 		);
@@ -113,8 +118,7 @@ function ModelCostPill() {
 	if (!modelId) return null;
 
 	const showCost = cost !== null && cost.callCount > 0;
-	const costUnavailable =
-		showCost && cost.unpricedCallCount === cost.callCount;
+	const costUnavailable = showCost && cost.unpricedCallCount === cost.callCount;
 	const costLabel = costUnavailable
 		? "Unavailable"
 		: showCost
@@ -158,6 +162,57 @@ export function ChatHeaderActions({ children }: { children: ReactNode }) {
 	return element ? createPortal(children, element) : null;
 }
 
+export function ChatMemoryToggle({
+	enabled,
+	disabled,
+	saving,
+	onChange,
+}: {
+	enabled: boolean;
+	disabled?: boolean;
+	saving?: boolean;
+	onChange: (enabled: boolean) => void;
+}) {
+	const label = enabled
+		? "Souvenirs actifs pour cette conversation"
+		: "Souvenirs désactivés pour cette conversation";
+	return (
+		<Tooltip>
+			<TooltipTrigger asChild>
+				<button
+					type="button"
+					aria-label={label}
+					aria-pressed={enabled}
+					disabled={disabled || saving}
+					onClick={() => {
+						onChange(!enabled);
+					}}
+					className={`flex h-[30px] cursor-pointer items-center gap-1.5 rounded-full border px-2.5 text-[11.5px] font-semibold transition-colors disabled:cursor-default disabled:opacity-45 ${
+						enabled
+							? "border-petrol/25 bg-petrol/8 text-petrol dark:border-panel-terminal/25 dark:bg-panel-terminal/10 dark:text-panel-terminal"
+							: "border-border bg-card text-meta hover:text-foreground dark:bg-white/5"
+					}`}
+				>
+					{saving ? (
+						<LoaderCircle className="size-3.5 animate-spin" />
+					) : (
+						<Brain className="size-3.5" />
+					)}
+					<span className="hidden lg:inline">Souvenirs</span>
+					<span
+						className={`hidden size-1.5 rounded-full lg:block ${
+							enabled ? "bg-current" : "bg-meta/50"
+						}`}
+					/>
+				</button>
+			</TooltipTrigger>
+			<TooltipContent side="bottom" sideOffset={7}>
+				{label}
+			</TooltipContent>
+		</Tooltip>
+	);
+}
+
 function HeaderActionsSlot() {
 	const setActionsEl = useChatHeaderStore((state) => state.setActionsEl);
 	return <div ref={setActionsEl} className="flex min-w-0 items-center gap-2" />;
@@ -171,7 +226,7 @@ function HeaderBar({
 	className?: string;
 }) {
 	return (
-		<div className="relative grid h-14 shrink-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center border-b border-border px-3 md:px-5">
+		<div className="relative grid h-14 shrink-0 grid-cols-[44px_minmax(0,1fr)_auto] items-center border-b border-border px-3 md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] md:px-5">
 			<MobileSidebarTrigger />
 			<div />
 			<div
@@ -179,7 +234,7 @@ function HeaderBar({
 			>
 				{children}
 			</div>
-			<div className="flex min-w-0 items-center gap-2 justify-self-end">
+			<div className="flex min-w-0 items-center gap-1 justify-self-end md:gap-2">
 				<ModelCostPill />
 				<HeaderActionsSlot />
 			</div>
@@ -230,7 +285,7 @@ export function ChatHeader() {
 					</span>
 				)}
 				{triggerRunAt && (
-					<>
+					<span className="hidden md:contents">
 						<span className="text-ghost dark:text-panel-dim">/</span>
 						<span className="flex-none whitespace-nowrap font-mono text-[12px] leading-none text-meta dark:text-panel-dim">
 							{formatRunAt(
@@ -238,7 +293,7 @@ export function ChatHeader() {
 								Intl.DateTimeFormat().resolvedOptions().timeZone,
 							)}
 						</span>
-					</>
+					</span>
 				)}
 			</HeaderBar>
 		);

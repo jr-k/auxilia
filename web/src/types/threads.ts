@@ -31,6 +31,8 @@ export interface Thread {
 	reasoningEffort?: string | null;
 	/** Null inherits the agent's configured discovery mode. */
 	toolMode?: ThreadToolMode | null;
+	/** Whether personal memories may be read or updated in this conversation. */
+	memoriesEnabled?: boolean;
 	/** False once the thread's current model is no longer available. */
 	modelAvailable?: boolean;
 	disabledMcpServerIds?: string[];
@@ -61,6 +63,7 @@ export interface ThreadCreate {
 	reasoningEffort: string | null;
 	/** Omitted/null inherits the agent's configured discovery mode. */
 	toolMode?: ThreadToolMode | null;
+	memoriesEnabled?: boolean;
 	firstMessageContent?: string;
 	disabledMcpServerIds?: string[];
 	disabledSkillIds?: string[];

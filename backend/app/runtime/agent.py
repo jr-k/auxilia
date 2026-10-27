@@ -40,6 +40,9 @@ from app.artifacts.tool import present_files_tool
 from app.database import AsyncSessionLocal, get_checkpointer
 from app.exceptions import DomainValidationError, NotFoundError
 from app.integrations.tracing import NoOpTracing, RunTracing, get_tracing
+from app.memories.constants import MEMORY_STATE_KEY
+from app.memories.middleware import MemoryMiddleware
+from app.memories.repository import MemoryPreferenceRepository, MemoryRepository
 from app.model_providers.catalog import ChatModelFactory
 from app.model_providers.service import ModelService
 from app.model_providers.web_search import (
@@ -190,11 +193,14 @@ class RegenerationPoint:
     the turn being redone. ``None`` means the turn being redone was the
     thread's first, so there is nothing earlier to fork from and the thread
     restarts from scratch instead. ``message`` is the user message that
-    opened the turn, re-sent as the fork's input under its original id.
+    opened the turn, re-sent as the fork's input under its original id, and
+    ``notices`` the host notices ahead of it, re-sent with it: the fork drops
+    them, and the run that made them (e.g. placing the files) won't again.
     """
 
     checkpoint_id: str | None
     message: HumanMessage | None
+    notices: tuple[HumanMessage, ...] = ()
 
 
 async def get_regeneration_point(agent, config: dict) -> RegenerationPoint | None:
@@ -221,19 +227,25 @@ async def get_regeneration_point(agent, config: dict) -> RegenerationPoint | Non
         # message is read off the thread's latest state instead: its last
         # human message.
         latest = await agent.aget_state(config)
-        message = next(
+        messages = latest.values.get("messages", [])
+        at = next(
             (
-                m
-                for m in reversed(latest.values.get("messages", []))
-                if isinstance(m, HumanMessage)
+                i
+                for i in reversed(range(len(messages)))
+                if isinstance(messages[i], HumanMessage)
             ),
             None,
         )
+        message = None if at is None else messages[at]
+        start = at or 0
+        while start > 0 and _is_host_notice(messages[start - 1]):
+            start -= 1
+        notices = tuple(messages[start:at]) if at is not None else ()
         parent = state.parent_config
-        if parent is None:
-            return RegenerationPoint(checkpoint_id=None, message=message)
         return RegenerationPoint(
-            checkpoint_id=parent["configurable"]["checkpoint_id"], message=message
+            checkpoint_id=parent["configurable"]["checkpoint_id"] if parent else None,
+            message=message,
+            notices=notices,
         )
     return None
 
@@ -322,15 +334,18 @@ def build_runnable(
     searchable_tools = list(discoverable_tools)
     if not isinstance(tool_discovery_mode, ToolDiscoveryMode):
         tool_discovery_mode = ToolDiscoveryMode.disabled
-    private_state_keys = (
-        frozenset(
-            {
-                LOCAL_DISCOVERY_STATE_KEY,
-                LOCAL_DISCOVERY_CANDIDATES_KEY,
-            }
-        )
-        if tool_discovery_mode in HIDDEN_SCHEMA_MODES
-        else None
+    private_state_keys = frozenset(
+        {
+            MEMORY_STATE_KEY,
+            *(
+                {
+                    LOCAL_DISCOVERY_STATE_KEY,
+                    LOCAL_DISCOVERY_CANDIDATES_KEY,
+                }
+                if tool_discovery_mode in HIDDEN_SCHEMA_MODES
+                else set()
+            ),
+        }
     )
     catalog = (
         ToolCatalog(searchable_tools)
@@ -909,6 +924,27 @@ class Agent:
             agent.prepared,
             agent.config.tool_discovery_mode,
         )
+        if thread.memories_enabled:
+            preference = await MemoryPreferenceRepository(db).get_for_user(
+                thread.user_id
+            )
+            memory_rows = await MemoryRepository(db).list_recent_for_user(
+                thread.user_id, limit=200
+            )
+            middleware.append(
+                MemoryMiddleware(
+                    user_id=thread.user_id,
+                    workspace_id=thread.workspace_id,
+                    thread_id=thread.id,
+                    rows=memory_rows,
+                    auto_capture_enabled=(
+                        preference.auto_capture_enabled
+                        if preference is not None
+                        else False
+                    ),
+                    tools_enabled=not force_no_tools,
+                )
+            )
 
         # Still sequential, and deliberately so: these share one AsyncSession,
         # which is not concurrency-safe. It no longer costs anything to be —
@@ -1063,6 +1099,9 @@ class Agent:
             messages = convert_to_messages(raw)
         except (ValueError, TypeError, KeyError, NotImplementedError) as e:
             raise DomainValidationError(f"Invalid run input: {e}") from e
+        for message in messages:
+            # The host-notice marker is the runtime's own; a client cannot claim it.
+            message.additional_kwargs.pop("host_notice", None)
         return {"messages": messages}
 
     async def _resolve_config(
@@ -1101,6 +1140,10 @@ class Agent:
             else:
                 if not has_input:
                     resolved_input = {"messages": [point.message]}
+                resolved_input = {
+                    **resolved_input,
+                    "messages": [*point.notices, *resolved_input["messages"]],
+                }
                 if point.checkpoint_id is None:
                     await checkpointer.adelete_thread(
                         checkpoint_thread_id(self.thread.workspace_id, self.thread.id)
@@ -1395,8 +1438,8 @@ def _with_host_notice(resolved_input, text: str, kind: str):
 
     The user role is the one channel every provider accepts mid-history and
     every harness uses for this (LangChain's summaries, OpenHands' environment
-    events, Claude Code's reminders); `name`/`host_notice` let the chat render
-    it as an event rather than as the user, and Slack skip it. A resume
+    events, Claude Code's reminders); `name`/`host_notice` let clients hide it
+    while Slack skips it. A resume
     (`Command`) carries no messages to prepend to and is left alone.
     """
     if not isinstance(resolved_input, dict):
@@ -1404,7 +1447,24 @@ def _with_host_notice(resolved_input, text: str, kind: str):
     notice = HumanMessage(
         content=text, name="host", additional_kwargs={"host_notice": kind}
     )
-    return {**resolved_input, "messages": [notice, *resolved_input.get("messages", [])]}
+    # A regeneration may carry the redone turn's notice of this kind: this one is current.
+    rest = [
+        message
+        for message in resolved_input.get("messages", [])
+        if not (
+            _is_host_notice(message)
+            and message.additional_kwargs["host_notice"] == kind
+        )
+    ]
+    return {**resolved_input, "messages": [notice, *rest]}
+
+
+def _is_host_notice(message) -> bool:
+    return (
+        isinstance(message, HumanMessage)
+        and message.name == "host"
+        and "host_notice" in message.additional_kwargs
+    )
 
 
 def extract_invoke_result(

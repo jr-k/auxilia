@@ -37,6 +37,10 @@ import { ShareConversation } from "./share-conversation";
 import type { ThreadResourceSettings } from "@/types/threads";
 import type { QueuedPrompt } from "@/types/runs";
 import { ArtifactWorkspace } from "@/components/artifacts/workspace";
+import {
+  ChatHeaderActions,
+  ChatMemoryToggle,
+} from "@/components/layout/chat-header";
 
 const EMPTY_RESOURCE_SETTINGS: ThreadResourceSettings = {
   toolMode: null,
@@ -75,6 +79,11 @@ const ChatPage = () => {
     settings: ThreadResourceSettings;
   } | null>(null);
   const [resourceSettingsSaving, setResourceSettingsSaving] = useState(false);
+  const [memoryOverride, setMemoryOverride] = useState<{
+    threadId: string;
+    enabled: boolean;
+  } | null>(null);
+  const [memorySaving, setMemorySaving] = useState(false);
 
   const acknowledgeCurrentResponse = () => {
     acknowledgedAssistantId.current =
@@ -253,6 +262,35 @@ const ChatPage = () => {
     }
   };
 
+  const memoriesEnabled =
+    memoryOverride?.threadId === threadId
+      ? memoryOverride.enabled
+      : thread?.memoriesEnabled !== false;
+
+  const updateMemoriesEnabled = async (enabled: boolean) => {
+    if (memorySaving || !thread) return;
+    const previous = memoriesEnabled;
+    setMemoryOverride({ threadId, enabled });
+    setMemorySaving(true);
+    try {
+      const updated = await threadsApi.updateThreadMemories(threadId, enabled);
+      setMemoryOverride({
+        threadId,
+        enabled: updated.memoriesEnabled !== false,
+      });
+    } catch (error) {
+      setMemoryOverride({ threadId, enabled: previous });
+      toast.error(
+        getApiErrorMessage(
+          error,
+          "Conversation memories could not be updated.",
+        ),
+      );
+    } finally {
+      setMemorySaving(false);
+    }
+  };
+
   useEffect(() => {
     if (
       successfulCompletion?.threadId !== threadId ||
@@ -344,6 +382,24 @@ const ChatPage = () => {
         (toolCall) => toolCall.callId ?? toolCall.id,
       )}
     >
+      {meta.status === "ready" && (
+        <ChatHeaderActions>
+          <ChatMemoryToggle
+            enabled={memoriesEnabled}
+            saving={memorySaving}
+            disabled={
+              meta.viewerRole === "admin" ||
+              meta.agentArchived ||
+              run.status !== "idle" ||
+              promptQueue.runStarting ||
+              promptQueue.items.length > 0
+            }
+            onChange={(enabled) => {
+              void updateMemoriesEnabled(enabled);
+            }}
+          />
+        </ChatHeaderActions>
+      )}
       {meta.status === "ready" && meta.viewerRole === null && (
         <ShareConversation
           threadId={threadId}
@@ -535,7 +591,9 @@ const ChatPage = () => {
             }}
             status={run.isLoading ? "streaming" : "ready"}
             queueMode={run.status === "streaming" && !run.isStopping}
-            submissionDisabled={!meta.modelAvailable || run.isStopping}
+            submissionDisabled={
+              !meta.modelAvailable || run.isStopping || memorySaving
+            }
             className="w-full max-w-4xl mx-auto lg:px-10 sm:px-6 px-3 py-4"
             stop={actions.stop}
             stopping={run.isStopping}

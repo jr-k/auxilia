@@ -112,6 +112,7 @@ export async function startThread(
 				model_id: payload.modelId,
 				reasoning_effort: payload.reasoningEffort,
 				tool_mode: payload.toolMode,
+				memories_enabled: payload.memoriesEnabled,
 				disabled_mcp_server_ids: payload.disabledMcpServerIds,
 				disabled_skill_ids: payload.disabledSkillIds,
 				disabled_sandbox_ids: payload.disabledSandboxIds,
@@ -162,6 +163,16 @@ export async function updateThreadResources(
 		`/threads/${threadId}/resources`,
 		settings,
 	);
+	return response.data;
+}
+
+export async function updateThreadMemories(
+	threadId: string,
+	memoriesEnabled: boolean,
+): Promise<Thread> {
+	const response = await api.put<Thread>(`/threads/${threadId}/memories`, {
+		memoriesEnabled,
+	});
 	return response.data;
 }
 

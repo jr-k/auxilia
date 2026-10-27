@@ -174,6 +174,16 @@ class ThreadRepository(BaseRepository[ThreadDB]):
             stmt = stmt.where(ThreadDB.workspace_id == self.workspace_id)
         await self.db.execute(stmt)
 
+    async def set_memories_enabled(self, thread_id: str, enabled: bool) -> None:
+        stmt = (
+            update(ThreadDB)
+            .where(ThreadDB.id == thread_id)
+            .values(memories_enabled=enabled)
+        )
+        if self.workspace_id is not None:
+            stmt = stmt.where(ThreadDB.workspace_id == self.workspace_id)
+        await self.db.execute(stmt)
+
     async def set_queue_edit_lease(
         self, thread_id: str, run_id: str, expires_at: datetime
     ) -> None:

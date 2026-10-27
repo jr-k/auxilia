@@ -31,6 +31,10 @@ import { useAgentReadiness } from "@/hooks/use-agent-readiness";
 import type { ThreadResourceSettings } from "@/types/threads";
 import { toast } from "sonner";
 import { getApiErrorMessage } from "@/lib/api/errors";
+import {
+	ChatHeaderActions,
+	ChatMemoryToggle,
+} from "@/components/layout/chat-header";
 
 const EMPTY_RESOURCE_SETTINGS: ThreadResourceSettings = {
 	toolMode: null,
@@ -48,6 +52,7 @@ const StarterChatPage = () => {
 	const router = useRouter();
 	const agentId = params.id as string;
 	const [isCreating, setIsCreating] = useState(false);
+	const [memoriesEnabled, setMemoriesEnabled] = useState(true);
 	const { modelSelection, starterAgent } = usePromptInputController();
 	const setStarterAgent = starterAgent.set;
 	const selectedModel = modelSelection.value;
@@ -205,6 +210,7 @@ const StarterChatPage = () => {
 					agentId: submittedAgentId,
 					modelId,
 					reasoningEffort,
+					memoriesEnabled,
 					...(submittedResourceSettings ?? {}),
 				},
 				message,
@@ -352,6 +358,14 @@ const StarterChatPage = () => {
 	}, [agentId, setStarterAgent]);
 
 	return (
+		<>
+			<ChatHeaderActions>
+				<ChatMemoryToggle
+					enabled={memoriesEnabled}
+					saving={isCreating}
+					onChange={setMemoriesEnabled}
+				/>
+			</ChatHeaderActions>
 		<div className="container mx-auto h-full flex flex-col items-center justify-center max-w-4xl px-6">
 			<div className="w-full max-w-3xl space-y-8">
 				<div className="text-center space-y-4">
@@ -477,6 +491,7 @@ const StarterChatPage = () => {
 				/>
 			</div>
 		</div>
+		</>
 	);
 };
 
