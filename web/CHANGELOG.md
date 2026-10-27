@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.12.59](https://github.com/jr-k/auxilia/compare/web-v0.12.58...web-v0.12.59) (2026-10-27)
+
+
+### Bug Fixes
+
+* **agents:** allow clearing workspace default ([329d827](https://github.com/jr-k/auxilia/commit/329d8270a70c792cfdfef65241cacf29327cb510))
+* **auth:** return users to workspace home ([6ad8348](https://github.com/jr-k/auxilia/commit/6ad8348fdfff9ad08e56ffa6464d1ff58bc74ef2))
+
 ## [0.12.58](https://github.com/jr-k/auxilia/compare/web-v0.12.57...web-v0.12.58) (2026-10-27)
 
 
