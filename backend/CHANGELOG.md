@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.44](https://github.com/jr-k/auxilia/compare/backend-v0.11.43...backend-v0.11.44) (2026-10-27)
+
+
+### Features
+
+* **memories:** add personal user memories ([5a7f06f](https://github.com/jr-k/auxilia/commit/5a7f06f0f711ebf883f09f3a3e2206f62a2b55e5))
+
 ## [0.11.43](https://github.com/jr-k/auxilia/compare/backend-v0.11.42...backend-v0.11.43) (2026-10-27)
 
 
