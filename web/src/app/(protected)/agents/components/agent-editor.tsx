@@ -649,6 +649,38 @@ export default function AgentEditor({
 					</span>
 				)}
 				<div className="ml-auto flex shrink-0 items-center gap-2">
+					{agent && canSetDefaultAgent && (
+						<button
+							type="button"
+							disabled={agent.isDefault || isSettingDefault}
+							title={
+								agent.isDefault
+									? "Workspace default agent"
+									: "Set as workspace default"
+							}
+							onClick={() => {
+								void handleSetDefault();
+							}}
+							className={cn(
+								"inline-flex cursor-pointer items-center gap-1.5 rounded-[7px] border px-3 py-2 text-[13px] font-semibold transition-colors disabled:cursor-default",
+								agent.isDefault
+									? "border-amber-300/70 bg-amber-50 text-amber-700 dark:border-amber-400/25 dark:bg-amber-400/10 dark:text-amber-300"
+									: "border-input bg-card text-foreground hover:border-amber-300 hover:text-amber-700 dark:hover:border-amber-400/30 dark:hover:text-amber-300",
+							)}
+						>
+							<Star
+								className="size-3.5"
+								fill={agent.isDefault ? "currentColor" : "none"}
+							/>
+							<span className="hidden lg:inline">
+								{isSettingDefault
+									? "Setting…"
+									: agent.isDefault
+										? "Default"
+										: "Set default"}
+							</span>
+						</button>
+					)}
 					{agent && (
 						<button
 							type="button"
@@ -698,38 +730,6 @@ export default function AgentEditor({
 										: "Create agent"}
 							</button>
 						</>
-					)}
-					{agent && canSetDefaultAgent && (
-						<button
-							type="button"
-							disabled={agent.isDefault || isSettingDefault}
-							title={
-								agent.isDefault
-									? "Workspace default agent"
-									: "Set as workspace default"
-							}
-							onClick={() => {
-								void handleSetDefault();
-							}}
-							className={cn(
-								"inline-flex cursor-pointer items-center gap-1.5 rounded-[7px] border px-3 py-2 text-[13px] font-semibold transition-colors disabled:cursor-default",
-								agent.isDefault
-									? "border-amber-300/70 bg-amber-50 text-amber-700 dark:border-amber-400/25 dark:bg-amber-400/10 dark:text-amber-300"
-									: "border-input bg-card text-foreground hover:border-amber-300 hover:text-amber-700 dark:hover:border-amber-400/30 dark:hover:text-amber-300",
-							)}
-						>
-							<Star
-								className="size-3.5"
-								fill={agent.isDefault ? "currentColor" : "none"}
-							/>
-							<span className="hidden lg:inline">
-								{isSettingDefault
-									? "Setting…"
-									: agent.isDefault
-										? "Default"
-										: "Set default"}
-							</span>
-						</button>
 					)}
 					{agent && canManageAgent && (
 						<DropdownMenu
