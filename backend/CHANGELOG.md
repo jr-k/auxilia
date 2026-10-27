@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.45](https://github.com/jr-k/auxilia/compare/backend-v0.11.44...backend-v0.11.45) (2026-10-27)
+
+
+### Bug Fixes
+
+* **memories:** use English copy and add settings shortcut ([e368575](https://github.com/jr-k/auxilia/commit/e36857506056dcd08520644ae68aac02a55b657d))
+
 ## [0.11.44](https://github.com/jr-k/auxilia/compare/backend-v0.11.43...backend-v0.11.44) (2026-10-27)
 
 
