@@ -1,6 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import {
+	type PointerEvent as ReactPointerEvent,
+	useCallback,
+	useEffect,
+	useMemo,
+	useRef,
+	useState,
+} from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
 	type PromptInputMessage,
@@ -12,6 +19,7 @@ import { useThreadsStore } from "@/stores/threads-store";
 import { useActiveRunsStore } from "@/stores/active-runs-store";
 import { useModelsStore } from "@/stores/models-store";
 import { usePendingMessageStore } from "@/stores/pending-message-store";
+import { useAgentsStore } from "@/stores/agents-store";
 import * as agentsApi from "@/lib/api/resources/agents";
 import * as threadsApi from "@/lib/api/resources/threads";
 import { generateUuid } from "@/lib/utils/uuid";
@@ -30,6 +38,9 @@ const EMPTY_RESOURCE_SETTINGS: ThreadResourceSettings = {
 	disabledSandboxIds: [],
 	disabledSubagentIds: [],
 };
+
+const AVATAR_SWIPE_THRESHOLD = 28;
+const AVATAR_SWIPE_LIMIT = 44;
 
 const StarterChatPage = () => {
 	const params = useParams();
@@ -52,14 +63,34 @@ const StarterChatPage = () => {
 			? resourceSettingsState.settings
 			: EMPTY_RESOURCE_SETTINGS;
 	const addThread = useThreadsStore((state) => state.addThread);
+	const agents = useAgentsStore((state) => state.agents);
+	const agentsInitialized = useAgentsStore((state) => state.isInitialized);
+	const fetchAgents = useAgentsStore((state) => state.fetchAgents);
 	const models = useModelsStore((state) => state.models);
 	const fetchModels = useModelsStore((state) => state.fetchModels);
 	const [agent, setAgent] = useState<Agent | null>(null);
+	const [agentPreview, setAgentPreview] = useState<Agent | null>(null);
 	const [loadedAgentId, setLoadedAgentId] = useState<string | null>(null);
 	const [isAgentDialogOpen, setIsAgentDialogOpen] = useState(false);
+	const [avatarDragOffset, setAvatarDragOffset] = useState(0);
+	const [avatarDragging, setAvatarDragging] = useState(false);
+	const avatarGestureRef = useRef<{
+		pointerId: number;
+		startX: number;
+		startY: number;
+	} | null>(null);
+	const suppressAvatarClickRef = useRef(false);
 	const agentRequestIdRef = useRef(0);
 	const defaultsAppliedAgentIdRef = useRef<string | null>(null);
 	const currentAgent = loadedAgentId === agentId ? agent : null;
+	const headerAgent = currentAgent ?? (agentPreview?.id === agentId ? agentPreview : null);
+	const availableAgents = useMemo(
+		() =>
+			agents.filter(
+				(candidate) => !candidate.isArchived && candidate.currentUserPermission !== null,
+			),
+		[agents],
+	);
 	const {
 		ready: agentReady,
 		acceptsFiles,
@@ -68,6 +99,74 @@ const StarterChatPage = () => {
 		disconnectedMcpServers,
 		refetch: refetchReady,
 	} = useAgentReadiness(agentId, resourceSettings);
+
+	const switchAgent = useCallback(
+		(step: -1 | 1) => {
+			if (isCreating || availableAgents.length < 2) return false;
+			const currentIndex = availableAgents.findIndex((candidate) => candidate.id === agentId);
+			if (currentIndex < 0) return false;
+			const target =
+				availableAgents[
+					(currentIndex + step + availableAgents.length) % availableAgents.length
+				];
+			if (!target || target.id === agentId) return false;
+
+			suppressAvatarClickRef.current = true;
+			setAgentPreview(target);
+			setStarterAgent({
+				name: target.name,
+				emoji: target.emoji ?? null,
+			});
+			router.replace(`/agents/${target.id}/chat`);
+			return true;
+		},
+		[agentId, availableAgents, isCreating, router, setStarterAgent],
+	);
+
+	const resetAvatarGesture = useCallback(() => {
+		avatarGestureRef.current = null;
+		setAvatarDragging(false);
+		setAvatarDragOffset(0);
+	}, []);
+
+	const handleAvatarPointerDown = (event: ReactPointerEvent<HTMLButtonElement>) => {
+		if (event.button !== 0 || isCreating || availableAgents.length < 2) {
+			return;
+		}
+		event.currentTarget.setPointerCapture(event.pointerId);
+		avatarGestureRef.current = {
+			pointerId: event.pointerId,
+			startX: event.clientX,
+			startY: event.clientY,
+		};
+		setAvatarDragging(true);
+	};
+
+	const handleAvatarPointerMove = (event: ReactPointerEvent<HTMLButtonElement>) => {
+		const gesture = avatarGestureRef.current;
+		if (gesture?.pointerId !== event.pointerId) return;
+		const deltaY = event.clientY - gesture.startY;
+		const deltaX = event.clientX - gesture.startX;
+		if (Math.abs(deltaY) <= Math.abs(deltaX)) return;
+		setAvatarDragOffset(Math.max(-AVATAR_SWIPE_LIMIT, Math.min(AVATAR_SWIPE_LIMIT, deltaY)));
+	};
+
+	const handleAvatarPointerUp = (event: ReactPointerEvent<HTMLButtonElement>) => {
+		const gesture = avatarGestureRef.current;
+		if (gesture?.pointerId !== event.pointerId) return;
+		const deltaY = event.clientY - gesture.startY;
+		const deltaX = event.clientX - gesture.startX;
+		const switched =
+			Math.abs(deltaY) >= AVATAR_SWIPE_THRESHOLD &&
+			Math.abs(deltaY) > Math.abs(deltaX) &&
+			switchAgent(deltaY < 0 ? 1 : -1);
+		resetAvatarGesture();
+		if (switched) {
+			window.setTimeout(() => {
+				suppressAvatarClickRef.current = false;
+			}, 250);
+		}
+	};
 
 	const handleSubmit = async (message: PromptInputMessage) => {
 		if (!message) return;
@@ -158,6 +257,16 @@ const StarterChatPage = () => {
 	}, [fetchModels, models.length]);
 
 	useEffect(() => {
+		if (!agentsInitialized) {
+			void fetchAgents().catch(() => {});
+		}
+	}, [agentsInitialized, fetchAgents]);
+
+	useEffect(() => {
+		resetAvatarGesture();
+	}, [agentId, resetAvatarGesture]);
+
+	useEffect(() => {
 		if (
 			currentAgent === null ||
 			models.length === 0 ||
@@ -202,6 +311,7 @@ const StarterChatPage = () => {
 				if (requestId !== agentRequestIdRef.current) return;
 				setAgent(fetchedAgent);
 				setLoadedAgentId(agentId);
+				setAgentPreview(null);
 				setResourceSettingsState((current) =>
 					current.agentId === agentId
 						? current
@@ -244,24 +354,53 @@ const StarterChatPage = () => {
 		<div className="container mx-auto h-full flex flex-col items-center justify-center max-w-4xl px-6">
 			<div className="w-full max-w-3xl space-y-8">
 				<div className="text-center space-y-4">
-					{currentAgent ? (
-						<button
-							onClick={() => {
-								setIsAgentDialogOpen(true);
-							}}
-							className="mx-auto flex cursor-pointer items-center justify-center gap-2 transition-opacity hover:opacity-80"
-						>
-							<AgentAvatar
-								agentId={currentAgent.id}
-								name={currentAgent.name}
-								imageRevision={currentAgent.imageRevision}
-								color={currentAgent.color}
-								emoji={currentAgent.emoji}
-								size="lg"
-							/>
-							<h1 className="text-4xl font-bold">{currentAgent.name}</h1>
-							<ChevronDown className="ml-8 mt-1 size-5 text-muted-foreground" />
-						</button>
+					{headerAgent ? (
+						<div className="mx-auto flex items-center justify-center gap-2">
+							<button
+								type="button"
+								aria-label={`Choose agent. Swipe up for the next agent or down for the previous agent. Current agent: ${headerAgent.name}`}
+								title="Swipe up or down to switch agents"
+								onClick={() => {
+									if (suppressAvatarClickRef.current) return;
+									setIsAgentDialogOpen(true);
+								}}
+								onPointerDown={handleAvatarPointerDown}
+								onPointerMove={handleAvatarPointerMove}
+								onPointerUp={handleAvatarPointerUp}
+								onPointerCancel={resetAvatarGesture}
+								className="touch-none cursor-grab rounded-full outline-none transition-opacity hover:opacity-80 focus-visible:ring-2 focus-visible:ring-petrol/40 active:cursor-grabbing"
+							>
+								<span
+									className={
+										avatarDragging
+											? "block"
+											: "block transition-transform duration-200 ease-out"
+									}
+									style={{
+										transform: `translate3d(0, ${avatarDragOffset}px, 0) scale(${1 - Math.min(Math.abs(avatarDragOffset), AVATAR_SWIPE_LIMIT) / 440})`,
+									}}
+								>
+									<AgentAvatar
+										agentId={headerAgent.id}
+										name={headerAgent.name}
+										imageRevision={headerAgent.imageRevision}
+										color={headerAgent.color}
+										emoji={headerAgent.emoji}
+										size="lg"
+									/>
+								</span>
+							</button>
+							<button
+								type="button"
+								onClick={() => {
+									setIsAgentDialogOpen(true);
+								}}
+								className="flex cursor-pointer items-center gap-2 transition-opacity hover:opacity-80"
+							>
+								<h1 className="text-4xl font-bold">{headerAgent.name}</h1>
+								<ChevronDown className="ml-8 mt-1 size-5 text-muted-foreground" />
+							</button>
+						</div>
 					) : (
 						<div
 							className="mx-auto flex h-[52px] items-center justify-center"
