@@ -185,6 +185,7 @@ export async function getAgentReadiness(
 				disabledMcpServerIds: resources.disabledMcpServerIds,
 				disabledSandboxIds: resources.disabledSandboxIds,
 				disabledSubagentIds: resources.disabledSubagentIds,
+				toolMode: resources.toolMode,
 			}
 		: undefined;
 	const response = resources

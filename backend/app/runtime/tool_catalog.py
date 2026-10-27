@@ -116,13 +116,20 @@ def _schema_terms(schema: dict[str, Any]) -> tuple[tuple[str, ...], str]:
     return tuple(tokens), ", ".join(signatures[:8])
 
 
-def _server_description(tool: BaseTool) -> tuple[str, str, str]:
+def tool_server_name(tool: BaseTool) -> str:
+    """The MCP server a bound tool came from (`Toolset.open` stamps it)."""
     metadata = tool.metadata if isinstance(tool.metadata, dict) else {}
     server = metadata.get("auxilia_mcp_server")
+    if isinstance(server, str) and server:
+        return server
+    match = _SERVER_PREFIX.match(" ".join((tool.description or "").split()))
+    return match.group(1).strip() if match else tool.name.split("_", 1)[0]
+
+
+def _server_description(tool: BaseTool) -> tuple[str, str, str]:
+    server = tool_server_name(tool)
     description = " ".join((tool.description or "").split())
     match = _SERVER_PREFIX.match(description)
-    if not isinstance(server, str) or not server:
-        server = match.group(1).strip() if match else tool.name.split("_", 1)[0]
     if match:
         description = description[match.end() :]
     return server, description[:300], description[:2000]

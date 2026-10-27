@@ -165,21 +165,23 @@ class RunRepository(BaseRepository[RunDB]):
         by `(created_at, id)` so two runs created in the same instant are
         still both followed, in a stable order.
         """
-        # Enqueued rows are not streamable until the dispatcher claims them:
-        # positioned rows are queue metadata, while an unpositioned direct
-        # start has no protocol events to consume yet.
+        # Positioned rows are queue metadata until the dispatcher claims them.
+        # An unpositioned direct start must be selected while still pending:
+        # its stream reader can wait for the worker, and doing so prevents a
+        # newly opened session from replaying the previous run's terminal.
         stmt = select(RunDB).where(
             RunDB.thread_id == thread_id,
             or_(
                 RunDB.status != RunStatus.pending,
                 RunDB.multitask_strategy != "enqueue",
+                RunDB.queue_position.is_(None),
             ),
         )
         if after is None:
             # Attach to work already in progress. With no running work,
             # preserve the historical "newest terminal" behavior.
             active_rank = case(
-                (RunDB.status == RunStatus.running, 0),
+                (RunDB.status.in_(ACTIVE_STATUSES), 0),
                 else_=1,
             )
             stmt = stmt.order_by(
@@ -195,17 +197,29 @@ class RunRepository(BaseRepository[RunDB]):
             )
             if execution_ordered:
                 if after.started_at is None:
-                    return None
-                stmt = stmt.where(
-                    RunDB.started_at.is_not(None),
-                    or_(
-                        RunDB.started_at > after.started_at,
-                        and_(
-                            RunDB.started_at == after.started_at,
-                            RunDB.id > after.id,
+                    # A pending run can be cancelled or timed out before it is
+                    # claimed. It still occupies one stream generation; move
+                    # past it using the stable creation order.
+                    stmt = stmt.where(
+                        or_(
+                            RunDB.created_at > after.created_at,
+                            and_(
+                                RunDB.created_at == after.created_at,
+                                RunDB.id > after.id,
+                            ),
+                        )
+                    ).order_by(RunDB.created_at, RunDB.id)
+                else:
+                    stmt = stmt.where(
+                        RunDB.started_at.is_not(None),
+                        or_(
+                            RunDB.started_at > after.started_at,
+                            and_(
+                                RunDB.started_at == after.started_at,
+                                RunDB.id > after.id,
+                            ),
                         ),
-                    ),
-                ).order_by(RunDB.started_at, RunDB.id)
+                    ).order_by(RunDB.started_at, RunDB.id)
             else:
                 stmt = stmt.where(
                     or_(

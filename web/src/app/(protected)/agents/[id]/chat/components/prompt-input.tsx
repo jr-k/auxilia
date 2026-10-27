@@ -56,12 +56,12 @@ import {
 import { SearchBar } from "@/components/ui/search-bar";
 import { getApiErrorMessage, toApiError } from "@/lib/api/errors";
 import * as agentsApi from "@/lib/api/resources/agents";
-import {
-	canConfigureAgent,
-	type ToolDiscoveryMode,
-} from "@/types/agents";
+import type { ToolDiscoveryMode } from "@/types/agents";
 import type { QueuedPrompt } from "@/types/runs";
-import type { ThreadResourceSettings } from "@/types/threads";
+import type {
+	ThreadResourceSettings,
+	ThreadToolMode,
+} from "@/types/threads";
 import { PromptQueue } from "./prompt-queue";
 
 // Petrol Mono composer pills: 34px tall, 999px radius, on the hover tint.
@@ -79,10 +79,20 @@ const composerMenuClass =
 	"max-h-[min(420px,calc(100dvh-2rem))] w-[360px] max-w-[calc(100vw-2rem)] overflow-y-auto";
 
 const STATS_LOADER_MIN_MS = 400;
-const TOOL_DISCOVERY_LABELS: Record<ToolDiscoveryMode, string> = {
-	disabled: "Eager",
-	automatic: "Automatic",
-	local: "Auxilia Search",
+const THREAD_TOOL_MODE_LABELS: Record<ThreadToolMode, string> = {
+	no_tools: "No Tools",
+	eager: "Eager",
+	lazy: "Lazy",
+	precision: "Precision",
+	force_all: "Force all",
+};
+const AGENT_DISCOVERY_TO_THREAD_MODE: Record<
+	ToolDiscoveryMode,
+	Exclude<ThreadToolMode, "no_tools" | "force_all">
+> = {
+	disabled: "eager",
+	lazy: "lazy",
+	local: "precision",
 };
 
 interface ChatPromptInputProps {
@@ -101,7 +111,9 @@ interface ChatPromptInputProps {
 	readOnlyEffort?: boolean;
 	// Reasoning-effort choice for the selected model; null = the model's default.
 	selectedEffort?: string | null;
-	onEffortChange?: (effort: string | null) => void;
+	// May persist (thread page): the pill shows a pending state and a failure
+	// toasts instead of leaving the UI out of sync with the server.
+	onEffortChange?: (effort: string | null) => void | Promise<void>;
 	agentReady?: boolean | null;
 	acceptsFiles?: boolean | null;
 	disconnectedServers?: MCPServer[];
@@ -198,6 +210,7 @@ const ChatPromptInput = ({
 	const [modelSelectorOpen, setModelSelectorOpen] = useState(false);
 	const [modelSearch, setModelSearch] = useState("");
 	const [modelUpdatePending, setModelUpdatePending] = useState(false);
+	const [effortUpdatePending, setEffortUpdatePending] = useState(false);
 	const textareaRef = useRef<HTMLTextAreaElement>(null);
 	const initialFocusPendingRef = useRef(true);
 	const controller = usePromptInputController();
@@ -214,9 +227,7 @@ const ChatPromptInput = ({
 	const [toolDiscoveryConfig, setToolDiscoveryConfig] = useState<{
 		agentId: string;
 		mode: ToolDiscoveryMode;
-		canChange: boolean;
 	} | null>(null);
-	const [toolDiscoveryPending, setToolDiscoveryPending] = useState(false);
 	// A direct `onSubmit` (the protocol stream's `submit`) must only happen
 	// while the server has no run on the thread: it shows the message
 	// optimistically, and if a run is active the server parks it in the
@@ -233,13 +244,18 @@ const ChatPromptInput = ({
 		editingId && queuedPrompts.some((item) => item.id === editingId)
 			? editingId
 			: null;
-	const toolDiscoveryMode =
+	const agentToolDiscoveryMode =
 		toolDiscoveryConfig?.agentId === agentId
 			? toolDiscoveryConfig.mode
 			: null;
-	const canChangeToolDiscovery =
-		toolDiscoveryConfig?.agentId === agentId &&
-		toolDiscoveryConfig.canChange;
+	const effectiveThreadToolMode =
+		resourceSettings.toolMode ??
+		(agentToolDiscoveryMode
+			? AGENT_DISCOVERY_TO_THREAD_MODE[agentToolDiscoveryMode]
+			: null);
+	// A resume rebuilds the graph from the thread. Changing its tool surface
+	// while a run/HITL is active could remove the very tool being resumed.
+	const canChangeToolMode = !readOnlyModel && !configurationLocked;
 
 	const currentModel = externalSelectedModel ?? model;
 	const selectedModelData = models.find((m) => m.id === currentModel);
@@ -402,7 +418,8 @@ const ChatPromptInput = ({
 	// Editable composer only: normalize a stale selection in the parent state
 	// too (not just the display), so what's shown as Default/Auto is also what
 	// gets submitted. Read-only threads keep their pinned value — the backend
-	// clamps it at run time.
+	// clamps it at run time. On a thread this persists the clamp; a failure
+	// is silent since the server clamps the same way on its own.
 	useEffect(() => {
 		if (
 			!readOnlyEffort &&
@@ -410,7 +427,7 @@ const ChatPromptInput = ({
 			selectedModelData !== undefined &&
 			!selectedModelData.reasoningEffortLevels.includes(selectedEffort)
 		) {
-			onEffortChange?.(null);
+			void Promise.resolve(onEffortChange?.(null)).catch(() => undefined);
 		}
 	}, [readOnlyEffort, selectedEffort, selectedModelData, onEffortChange]);
 
@@ -423,7 +440,6 @@ const ChatPromptInput = ({
 				setToolDiscoveryConfig({
 					agentId,
 					mode: agent.toolDiscoveryMode ?? "disabled",
-					canChange: canConfigureAgent(agent.currentUserPermission),
 				});
 			})
 			.catch(() => {
@@ -434,29 +450,14 @@ const ChatPromptInput = ({
 		};
 	}, [agentId]);
 
-	const handleToolDiscoveryChange = async (mode: ToolDiscoveryMode) => {
-		if (mode === toolDiscoveryMode || !canChangeToolDiscovery) return;
-		setToolDiscoveryPending(true);
-		try {
-			const agent = await agentsApi.patchAgent(agentId, {
-				toolDiscoveryMode: mode,
-			});
-			const savedMode = agent.toolDiscoveryMode ?? mode;
-			setToolDiscoveryConfig({
-				agentId,
-				mode: savedMode,
-				canChange: canConfigureAgent(agent.currentUserPermission),
-			});
-			toast.success(
-				`Tool discovery set to ${TOOL_DISCOVERY_LABELS[savedMode]} for the next message.`,
-			);
-		} catch (error) {
-			toast.error(
-				getApiErrorMessage(error, "Tool discovery could not be changed."),
-			);
-		} finally {
-			setToolDiscoveryPending(false);
-		}
+	const handleToolModeChange = (mode: ThreadToolMode | null) => {
+		if (mode === resourceSettings.toolMode || !canChangeToolMode) return;
+		onResourceSettingsChange({ ...resourceSettings, toolMode: mode });
+		const label =
+			mode === null
+				? "Agent default"
+				: THREAD_TOOL_MODE_LABELS[mode];
+		toast.success(`Tool mode set to ${label} for the next message.`);
 	};
 
 	const handleModelChange = async (modelId: string) => {
@@ -476,6 +477,21 @@ const ChatPromptInput = ({
 			);
 		} finally {
 			setModelUpdatePending(false);
+		}
+	};
+
+	const handleEffortChange = async (effort: string | null) => {
+		if (configurationLocked || effortUpdatePending) return;
+		if (effort === validatedEffort) return;
+		setEffortUpdatePending(true);
+		try {
+			await onEffortChange?.(effort);
+		} catch (error) {
+			toast.error(
+				getApiErrorMessage(error, "The reasoning effort could not be changed."),
+			);
+		} finally {
+			setEffortUpdatePending(false);
 		}
 	};
 
@@ -1082,55 +1098,87 @@ const ChatPromptInput = ({
 								</DialogContent>
 							</Dialog>
 						)}
-						{toolDiscoveryMode && (
+						{effectiveThreadToolMode && (
 							<DropdownMenu
 								align="start"
 								side="top"
 								className={composerMenuClass}
+								itemClassName="py-[9px]"
 								items={[
-									{ sectionLabel: "Tool discovery" },
+									{ sectionLabel: "Tool mode" },
+									{
+										label: "Agent default",
+										description: "use agent configuration",
+										active: resourceSettings.toolMode === null,
+										onClick: () => {
+											handleToolModeChange(null);
+										},
+									},
+									{ separator: true },
+									{
+										label: "No Tools",
+										description: "answer without tools",
+										active: resourceSettings.toolMode === "no_tools",
+										onClick: () => {
+											handleToolModeChange("no_tools");
+										},
+									},
 									{
 										label: "Eager",
-										description: "all schemas",
-										active: toolDiscoveryMode === "disabled",
+										description: "load every MCP schema",
+										active: resourceSettings.toolMode === "eager",
 										onClick: () => {
-											void handleToolDiscoveryChange("disabled");
+											handleToolModeChange("eager");
 										},
 									},
 									{
-										label: "Automatic",
-										description: "provider-native",
-										active: toolDiscoveryMode === "automatic",
+										label: "Lazy",
+										description: "choose servers per prompt",
+										active: resourceSettings.toolMode === "lazy",
 										onClick: () => {
-											void handleToolDiscoveryChange("automatic");
+											handleToolModeChange("lazy");
 										},
 									},
 									{
-										label: "Auxilia Search",
-										description: "adaptive",
-										active: toolDiscoveryMode === "local",
+										label: "Precision",
+										description: "retrieve tools adaptively",
+										active: resourceSettings.toolMode === "precision",
 										onClick: () => {
-											void handleToolDiscoveryChange("local");
+											handleToolModeChange("precision");
+										},
+									},
+									{
+										label: "Force all",
+										description: "force every capability",
+										active: resourceSettings.toolMode === "force_all",
+										onClick: () => {
+											handleToolModeChange("force_all");
 										},
 									},
 								]}
 								trigger={
 									<PromptInputButton
 										disabled={
-											toolDiscoveryPending || !canChangeToolDiscovery
+											resourceSettingsSaving || !canChangeToolMode
 										}
-										aria-label={`Tool discovery: ${TOOL_DISCOVERY_LABELS[toolDiscoveryMode]}`}
+										aria-label={`Tool mode: ${THREAD_TOOL_MODE_LABELS[effectiveThreadToolMode]}`}
 										title={
-											canChangeToolDiscovery
-												? `Tool discovery: ${TOOL_DISCOVERY_LABELS[toolDiscoveryMode]}`
-												: "Editor access is required to change tool discovery"
+											canChangeToolMode
+												? `Tool mode: ${THREAD_TOOL_MODE_LABELS[effectiveThreadToolMode]}${
+														resourceSettings.toolMode === null
+															? " (agent default)"
+															: ""
+													}`
+												: readOnlyModel
+													? "This conversation is read-only"
+													: "Wait for the current run to finish"
 										}
 										className={cn(
 											composerPillClass,
 											"w-[34px] cursor-pointer px-0 text-subtle dark:text-panel-body",
 										)}
 									>
-										{toolDiscoveryPending ? (
+										{resourceSettingsSaving ? (
 											<Loader2 className="size-3.5 animate-spin" />
 										) : (
 											<CpuIcon className="size-3.5" />
@@ -1294,20 +1342,20 @@ const ChatPromptInput = ({
 													: "Auto",
 												active: !validatedEffort,
 												onClick: () => {
-													if (!preparingSubmission) onEffortChange?.(null);
+													void handleEffortChange(null);
 												},
 											},
 											...effortLevels.map((level) => ({
 												label: effortLabel(level),
 												active: validatedEffort === level,
 												onClick: () => {
-													if (!preparingSubmission) onEffortChange?.(level);
+													void handleEffortChange(level);
 												},
 											})),
 										]}
 										trigger={
 											<PromptInputButton
-												disabled={preparingSubmission}
+												disabled={configurationLocked || effortUpdatePending}
 												className={cn(composerPillClass, "cursor-pointer")}
 											>
 												<BrainIcon className="size-3.5" />

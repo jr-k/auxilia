@@ -192,6 +192,10 @@ class ProtocolService:
                 raise NotFoundError("Run not found")
             async for sse in self._stream_run(run, sink, since=body.since):
                 yield sse
+            # `run` may have been selected while pending. Refresh its
+            # execution timestamp before choosing the following generation,
+            # otherwise queue ordering would use the stale pre-claim record.
+            current = await self.runs.get(run.id, workspace_id)
 
     async def _next_run(
         self, workspace_id, thread_id: str, after: RunDB | None

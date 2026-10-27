@@ -12,6 +12,7 @@ from fastapi import Header, HTTPException, Request
 from slack_sdk.web.async_client import AsyncWebClient
 
 from app.database import AsyncSessionLocal
+from app.integrations.slack.db_models import SlackToolDiscoveryMode
 from app.integrations.slack.models import SlackUserInfo
 from app.notifications.runtime import (
     SlackRuntimeConfig,
@@ -47,7 +48,9 @@ class VerifiedSlackRequest:
     agent_id: UUID | None = None
     integration_enabled: bool = True
     require_mention_in_threads: bool = True
-    force_enable_all_capabilities: bool = True
+    tool_discovery_mode: SlackToolDiscoveryMode = (
+        SlackToolDiscoveryMode.all_capabilities
+    )
 
 
 def _team_id(body: bytes) -> str | None:
@@ -177,7 +180,7 @@ async def verify_agent_slack_signature(
         agent_id=config.agent_id,
         integration_enabled=config.enabled and config.workspace_enabled,
         require_mention_in_threads=config.require_mention_in_threads,
-        force_enable_all_capabilities=config.force_enable_all_capabilities,
+        tool_discovery_mode=config.tool_discovery_mode,
     )
 
 

@@ -33,6 +33,7 @@ import { toast } from "sonner";
 import { getApiErrorMessage } from "@/lib/api/errors";
 
 const EMPTY_RESOURCE_SETTINGS: ThreadResourceSettings = {
+	toolMode: null,
 	disabledMcpServerIds: [],
 	disabledSkillIds: [],
 	disabledSandboxIds: [],

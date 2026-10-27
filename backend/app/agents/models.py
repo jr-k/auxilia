@@ -54,8 +54,15 @@ class ToolStatus(str, Enum):
 
 
 class ToolDiscoveryMode(str, Enum):
+    """How MCP tool schemas reach the model.
+
+    ``disabled`` loads every schema eagerly. ``lazy`` asks a minimal-effort
+    router, once per prompt, which MCP servers the request needs and exposes
+    only their tools. ``local`` runs the adaptive Precision retrieval.
+    """
+
     disabled = "disabled"
-    automatic = "automatic"
+    lazy = "lazy"
     local = "local"
 
 

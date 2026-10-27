@@ -20,6 +20,21 @@ class ThreadSource(str, Enum):
     trigger = "trigger"
 
 
+class ThreadToolMode(str, Enum):
+    """Conversation-level tool policy.
+
+    NULL on the thread means "inherit the agent's discovery mode". The named
+    discovery modes override it for this conversation; the two boundary modes
+    remove every capability or force-enable every attached capability.
+    """
+
+    no_tools = "no_tools"
+    eager = "eager"
+    lazy = "lazy"
+    precision = "precision"
+    force_all = "force_all"
+
+
 # Sources considered first-party — surfaced in the user's personal thread list.
 # Trigger threads are included: the owner follows (and approves HITL on) their
 # scheduled runs from the sidebar, badged by `source` / `trigger_id`.
@@ -61,6 +76,18 @@ class ThreadBase(SQLModel):
     source: ThreadSource = Field(
         default=ThreadSource.web,
         sa_column=Column(String, nullable=False, server_default=ThreadSource.web.value),
+    )
+    tool_mode: ThreadToolMode | None = Field(
+        default=None,
+        sa_column=Column(
+            SAEnum(
+                ThreadToolMode,
+                native_enum=False,
+                create_constraint=False,
+                length=16,
+            ),
+            nullable=True,
+        ),
     )
 
 

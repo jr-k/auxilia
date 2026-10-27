@@ -463,7 +463,10 @@ class ThreadService(BaseService[ThreadDB, ThreadRepository]):
     ) -> ThreadResponse:
         await self.get_or_404(thread_id)
         await ModelService(self.db, self.workspace_id).ensure_available(data.model_id)
-        await self.repository.set_model(thread_id, data.model_id)
+        await ModelService.validate_reasoning_effort(
+            data.model_id, data.reasoning_effort
+        )
+        await self.repository.set_model(thread_id, data.model_id, data.reasoning_effort)
         return await self.get_with_agent(thread_id)
 
     async def update_resources(
@@ -505,6 +508,7 @@ class ThreadService(BaseService[ThreadDB, ThreadRepository]):
             disabled_skill_ids,
             disabled_sandbox_ids,
             disabled_subagent_ids,
+            data.tool_mode,
         )
         return await self.get_with_agent(thread_id)
 

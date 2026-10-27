@@ -136,12 +136,19 @@ export async function renameThread(
 	await api.patch(`/threads/${threadId}`, { firstMessageContent });
 }
 
+/**
+ * Set the thread's model and reasoning effort for its next runs. `null`
+ * effort = the model's default; a model change without an explicit effort
+ * drops the previous model's choice.
+ */
 export async function updateThreadModel(
 	threadId: string,
 	modelId: string,
+	reasoningEffort: string | null = null,
 ): Promise<Thread> {
 	const response = await api.put<Thread>(`/threads/${threadId}/model`, {
 		modelId,
+		reasoningEffort,
 	});
 	return response.data;
 }

@@ -40,7 +40,10 @@ from app.integrations.slack.commands.chat import (
     post_agent_picker,
 )
 from app.integrations.slack.consumer import build_slack_delivery
-from app.integrations.slack.db_models import SlackThreadBindingDB
+from app.integrations.slack.db_models import (
+    SlackThreadBindingDB,
+    SlackToolDiscoveryMode,
+)
 from app.integrations.slack.models import SlackEvent, SlackInteractionPayload
 from app.integrations.slack.repository import SlackThreadBindingRepository
 from app.integrations.slack.utils import get_slack_client, get_user_info, resolve_user
@@ -335,9 +338,9 @@ async def _reject_files_for_text_model(
         )
     else:
         async with AsyncSessionLocal() as session:
-            supported = await ModelService(
-                session, workspace_id
-            ).supports_attachments(model_id, documents=has_document)
+            supported = await ModelService(session, workspace_id).supports_attachments(
+                model_id, documents=has_document
+            )
     if supported:
         return False
     await client.chat_postMessage(
@@ -377,7 +380,7 @@ async def _enqueue_slack_run(
     team_id: str | None,
     workspace_id: UUID,
     slack_bot_id: UUID | None = None,
-    force_enable_all_capabilities: bool | None = None,
+    tool_discovery_mode: SlackToolDiscoveryMode | None = None,
     thread_ts: str | None = None,
     input: dict | None = None,
     command: dict | None = None,
@@ -393,7 +396,7 @@ async def _enqueue_slack_run(
         team_id=team_id,
         workspace_id=workspace_id,
         slack_bot_id=slack_bot_id,
-        force_enable_all_capabilities=force_enable_all_capabilities,
+        tool_discovery_mode=tool_discovery_mode,
         thread_ts=thread_ts or thread_id,
     )
     try:
@@ -755,7 +758,7 @@ async def _is_agent_ready(
     workspace_id: UUID,
     db: AsyncSession,
     *,
-    force_enable_all_capabilities: bool | None = None,
+    tool_discovery_mode: SlackToolDiscoveryMode | None = None,
 ) -> bool:
     """Whether a Slack run can start.
 
@@ -782,7 +785,11 @@ async def _is_agent_ready(
             disabled_subagent_ids={
                 UUID(subagent_id) for subagent_id in thread.disabled_subagent_ids
             },
-            force_enable_all_capabilities=force_enable_all_capabilities,
+            force_enable_all_capabilities=(
+                tool_discovery_mode.force_enable_all_capabilities
+                if tool_discovery_mode is not None
+                else None
+            ),
         )
     except Exception:  # noqa: BLE001 — fail-open, per the docstring above
         logger.warning(
@@ -976,7 +983,9 @@ async def handle_agent_message(
     team_id: str | None = None,
     integration_enabled: bool = True,
     require_mention_in_threads: bool = True,
-    force_enable_all_capabilities: bool = True,
+    tool_discovery_mode: SlackToolDiscoveryMode = (
+        SlackToolDiscoveryMode.all_capabilities
+    ),
 ) -> None:
     """Route an allowed channel mention or DM to one agent-specific Slack bot."""
     if not event.channel or not event.user or not event.ts:
@@ -1112,9 +1121,7 @@ async def handle_agent_message(
 
         if attachments is not None:
             attachment_model_checked = True
-            preflight_content = _message_content_with_slack_files(
-                question, attachments
-            )
+            preflight_content = _message_content_with_slack_files(question, attachments)
             if await _reject_files_for_text_model(
                 client,
                 event,
@@ -1130,7 +1137,7 @@ async def handle_agent_message(
             str(user.id),
             workspace_id,
             db,
-            force_enable_all_capabilities=force_enable_all_capabilities,
+            tool_discovery_mode=tool_discovery_mode,
         ):
             await _post_connect_prompt(
                 client, event.channel, external_thread_ts, agent_id
@@ -1184,7 +1191,7 @@ async def handle_agent_message(
             team_id=team_id,
             workspace_id=workspace_id,
             slack_bot_id=slack_bot_id,
-            force_enable_all_capabilities=force_enable_all_capabilities,
+            tool_discovery_mode=tool_discovery_mode,
             input={"messages": [{"type": "human", "content": content}]},
         )
         if enqueued and context_loaded:
@@ -1303,7 +1310,9 @@ async def handle_agent_message_shortcut_submission(
     *,
     agent_id: UUID,
     slack_bot_id: UUID,
-    force_enable_all_capabilities: bool = True,
+    tool_discovery_mode: SlackToolDiscoveryMode = (
+        SlackToolDiscoveryMode.all_capabilities
+    ),
 ) -> None:
     """Run an agent from a private-message shortcut in a bot-owned DM."""
     if (
@@ -1358,7 +1367,7 @@ async def handle_agent_message_shortcut_submission(
             str(actor.id),
             workspace_id,
             db,
-            force_enable_all_capabilities=force_enable_all_capabilities,
+            tool_discovery_mode=tool_discovery_mode,
         ):
             connect_url = f"{auth_settings.FRONTEND_URL}/agents/{agent_id}/chat"
             app_name = await _instance_app_name()
@@ -1408,7 +1417,7 @@ async def handle_agent_message_shortcut_submission(
             team_id=team_id if isinstance(team_id, str) else None,
             workspace_id=workspace_id,
             slack_bot_id=slack_bot_id,
-            force_enable_all_capabilities=force_enable_all_capabilities,
+            tool_discovery_mode=tool_discovery_mode,
             input={"messages": [{"type": "human", "content": prompt}]},
         )
         if not enqueued:
@@ -1437,7 +1446,7 @@ async def handle_interaction(
     *,
     slack_bot_id: UUID | None = None,
     agent_id: UUID | None = None,
-    force_enable_all_capabilities: bool | None = None,
+    tool_discovery_mode: SlackToolDiscoveryMode | None = None,
 ) -> None:
     """Handle a Slack block_actions interaction (Approve/Reject buttons).
 
@@ -1553,7 +1562,7 @@ async def handle_interaction(
         command,
         internal_thread_id=internal_thread_id,
         slack_bot_id=slack_bot_id,
-        force_enable_all_capabilities=force_enable_all_capabilities,
+        tool_discovery_mode=tool_discovery_mode,
     )
 
 
@@ -1603,7 +1612,7 @@ async def _resume_agent(
     *,
     internal_thread_id: str | None = None,
     slack_bot_id: UUID | None = None,
-    force_enable_all_capabilities: bool | None = None,
+    tool_discovery_mode: SlackToolDiscoveryMode | None = None,
 ) -> None:
     """Look up the thread and enqueue a HITL-resume run with *command*."""
     user = await _resolve_slack_user(payload.user.id, workspace_id, slack_bot_id)
@@ -1625,7 +1634,7 @@ async def _resume_agent(
             str(user.id),
             workspace_id,
             db,
-            force_enable_all_capabilities=force_enable_all_capabilities,
+            tool_discovery_mode=tool_discovery_mode,
         ):
             await _post_connect_prompt(client, channel_id, thread_ts, thread.agent_id)
             return
@@ -1647,7 +1656,7 @@ async def _resume_agent(
             team_id=(payload.team or {}).get("id"),
             workspace_id=workspace_id,
             slack_bot_id=slack_bot_id,
-            force_enable_all_capabilities=force_enable_all_capabilities,
+            tool_discovery_mode=tool_discovery_mode,
             command=command,
         )
     except StaleApprovalError:

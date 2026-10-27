@@ -21,13 +21,46 @@ import {
 	DialogTitle,
 } from "@/components/ui/dialog";
 import { SlackLogo } from "@/components/slack-logo";
+import { DropdownMenu } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { useAppearanceStore } from "@/stores/appearance-store";
 import type {
 	AgentSlackBotSettings,
 	AgentSlackBotSettingsUpdate,
+	SlackToolDiscoveryMode,
 } from "@/types/agents";
+
+const SLACK_TOOL_DISCOVERY_OPTIONS: ReadonlyArray<{
+	value: SlackToolDiscoveryMode;
+	label: string;
+	description: string;
+}> = [
+	{
+		value: "disabled",
+		label: "Eager",
+		description: "Load every MCP schema",
+	},
+	{
+		value: "lazy",
+		label: "Lazy",
+		description: "Choose servers per prompt",
+	},
+	{
+		value: "local",
+		label: "Precision",
+		description: "Retrieve tools adaptively",
+	},
+	{
+		value: "all_capabilities",
+		label: "Enable all capabilities",
+		description: "Force all",
+	},
+];
+
+const slackToolDiscoveryLabel = (mode: SlackToolDiscoveryMode): string =>
+	SLACK_TOOL_DISCOVERY_OPTIONS.find((option) => option.value === mode)
+		?.label ?? mode;
 
 interface Props {
 	open: boolean;
@@ -470,9 +503,8 @@ export default function AgentSlackBotDialog({
 	const [showToolCallouts, setShowToolCallouts] = useState(
 		settings.showToolCallouts,
 	);
-	const [forceEnableAllCapabilities, setForceEnableAllCapabilities] = useState(
-		settings.forceEnableAllCapabilities,
-	);
+	const [toolDiscoveryMode, setToolDiscoveryMode] =
+		useState<SlackToolDiscoveryMode>(settings.toolDiscoveryMode);
 	const [botToken, setBotToken] = useState("");
 	const [signingSecret, setSigningSecret] = useState("");
 	const manifest = useMemo(
@@ -493,7 +525,7 @@ export default function AgentSlackBotDialog({
 			enabled,
 			requireMentionInThreads,
 			showToolCallouts,
-			forceEnableAllCapabilities,
+			toolDiscoveryMode,
 			...(credentialsComplete
 				? {
 						botToken: botToken.trim(),
@@ -609,19 +641,34 @@ export default function AgentSlackBotDialog({
 									/>
 								</div>
 								<div className="flex items-center justify-between gap-4 border-t border-hairline px-3.5 py-3">
-									<div>
+									<div className="min-w-0">
 										<p className="text-[12.5px] font-semibold text-foreground">
-											Enable all capabilities in Slack
+											Tool discovery in Slack
 										</p>
 										<p className="mt-0.5 text-[10.5px] text-meta">
-											Ignore “off by default” choices for MCP servers,
-											skills, sandboxes, and subagents.
+											How MCP tools reach the model for this connection,
+											overriding the agent’s own setting.
 										</p>
 									</div>
-									<Switch
-										checked={forceEnableAllCapabilities}
-										onCheckedChange={setForceEnableAllCapabilities}
-										className="cursor-pointer data-[state=checked]:bg-petrol"
+									<DropdownMenu
+										align="end"
+										itemClassName="py-[9px]"
+										items={SLACK_TOOL_DISCOVERY_OPTIONS.map((option) => ({
+											label: option.label,
+											description: option.description,
+											active: toolDiscoveryMode === option.value,
+											onClick: () => {
+												setToolDiscoveryMode(option.value);
+											},
+										}))}
+										trigger={
+											<button
+												type="button"
+												className="inline-flex h-8 shrink-0 cursor-pointer items-center rounded-full bg-hover px-3 text-[12px] font-medium text-foreground transition-colors hover:bg-petrol-tint dark:bg-white/5 dark:hover:bg-white/10"
+											>
+												{slackToolDiscoveryLabel(toolDiscoveryMode)}
+											</button>
+										}
 									/>
 								</div>
 							</div>

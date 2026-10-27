@@ -33,6 +33,9 @@ export interface ManagedModel {
 	isEnabled: boolean;
 	// The explicit admin choice only (no fallback) — unset shows as unset.
 	isDefault: boolean;
+	// The workspace quick model (explicit choice): used for the runtime's
+	// short intermediate calls such as lazy tool-discovery routing.
+	isQuick: boolean;
 	deprecated: boolean;
 }
 

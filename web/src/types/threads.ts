@@ -1,6 +1,12 @@
 import { RunTerminalStatus } from "@/types/runs";
 
 export type ThreadSource = "web" | "slack" | "api" | "trigger";
+export type ThreadToolMode =
+	| "no_tools"
+	| "eager"
+	| "lazy"
+	| "precision"
+	| "force_all";
 
 export interface Thread {
 	id: string;
@@ -23,6 +29,8 @@ export interface Thread {
 	 * client-side (a trigger firing) omit model settings. */
 	modelId?: string | null;
 	reasoningEffort?: string | null;
+	/** Null inherits the agent's configured discovery mode. */
+	toolMode?: ThreadToolMode | null;
 	/** False once the thread's current model is no longer available. */
 	modelAvailable?: boolean;
 	disabledMcpServerIds?: string[];
@@ -51,6 +59,8 @@ export interface ThreadCreate {
 	 * the selected value is explicit in the newly created conversation. */
 	modelId: string;
 	reasoningEffort: string | null;
+	/** Omitted/null inherits the agent's configured discovery mode. */
+	toolMode?: ThreadToolMode | null;
 	firstMessageContent?: string;
 	disabledMcpServerIds?: string[];
 	disabledSkillIds?: string[];
@@ -59,6 +69,7 @@ export interface ThreadCreate {
 }
 
 export interface ThreadResourceSettings {
+	toolMode: ThreadToolMode | null;
 	disabledMcpServerIds: string[];
 	disabledSkillIds: string[];
 	disabledSandboxIds: string[];

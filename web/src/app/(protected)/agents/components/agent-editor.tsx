@@ -79,8 +79,8 @@ const effortLabel = (effort: string) => EFFORT_LABELS.get(effort) ?? effort;
 
 const TOOL_DISCOVERY_LABELS: Record<ToolDiscoveryMode, string> = {
 	disabled: "Eager",
-	automatic: "Automatic",
-	local: "Auxilia Search",
+	lazy: "Lazy",
+	local: "Precision",
 };
 
 interface AgentEditorProps {
@@ -1283,23 +1283,27 @@ export default function AgentEditor({
 							<DropdownMenu
 								align="end"
 								side="top"
+								itemClassName="py-[9px]"
 								items={[
 									{
-										label: "Eager: Load every schema",
+										label: "Eager",
+										description: "load every MCP schema",
 										active: form.toolDiscoveryMode === "disabled",
 										onClick: () => {
 											setField("toolDiscoveryMode", "disabled");
 										},
 									},
 									{
-										label: "Automatic: Provider-native when available",
-										active: form.toolDiscoveryMode === "automatic",
+										label: "Lazy",
+										description: "choose servers per prompt",
+										active: form.toolDiscoveryMode === "lazy",
 										onClick: () => {
-											setField("toolDiscoveryMode", "automatic");
+											setField("toolDiscoveryMode", "lazy");
 										},
 									},
 									{
-										label: "Auxilia Search: Adaptive retrieval",
+										label: "Precision",
+										description: "retrieve tools adaptively",
 										active: form.toolDiscoveryMode === "local",
 										onClick: () => {
 											setField("toolDiscoveryMode", "local");

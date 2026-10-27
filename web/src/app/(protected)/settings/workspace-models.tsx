@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Loader2, RefreshCw, Search, Star, Trash2 } from "lucide-react";
+import { Loader2, RefreshCw, Search, Star, Trash2, Zap } from "lucide-react";
 import { ModelSelectorLogo } from "@/components/ai-elements/model-selector";
 import { HeaderButton } from "@/components/layout/subpage-header";
 import { Input } from "@/components/ui/input";
@@ -90,6 +90,75 @@ function ModelBadge({
 	);
 }
 
+function ModelRoleCard({
+	icon,
+	title,
+	description,
+	model,
+	emptyText,
+}: {
+	icon: React.ReactNode;
+	title: string;
+	description: string;
+	model?: ManagedModel;
+	emptyText: string;
+}) {
+	return (
+		<div className="min-w-0 overflow-hidden rounded-[10px] border border-hairline bg-card dark:border-white/10">
+			<div className="flex items-center gap-2.5 border-b border-hairline bg-sidebar px-3.5 py-2.5 dark:border-white/10 dark:bg-white/[0.025]">
+				<span className="flex size-7 shrink-0 items-center justify-center rounded-[7px] bg-hover text-ink dark:bg-white/10 dark:text-white">
+					{icon}
+				</span>
+				<div className="min-w-0">
+					<p className="text-[11.5px] font-semibold text-foreground">{title}</p>
+					<p className="text-[10.5px] text-meta dark:text-panel-dim">
+						{description}
+					</p>
+				</div>
+			</div>
+			<div className="flex min-h-[82px] items-center px-3.5 py-3">
+				{model ? (
+					<div className="flex min-w-0 items-center gap-3">
+						<div className="flex size-10 shrink-0 items-center justify-center rounded-[9px] border border-hairline bg-canvas dark:border-white/10 dark:bg-white/[0.035]">
+							<ModelSelectorLogo
+								provider={model.chefSlug}
+								className="size-5"
+							/>
+						</div>
+						<div className="min-w-0">
+							<div className="flex min-w-0 items-center gap-2">
+								<p className="truncate text-[13px] font-semibold text-foreground">
+									{model.displayName}
+								</p>
+								<span className="shrink-0 rounded-[4px] bg-hover px-1.5 py-0.5 text-[8.5px] font-semibold uppercase tracking-[0.04em] text-meta dark:bg-white/10 dark:text-panel-dim">
+									{providerLabel(model.provider)}
+								</span>
+							</div>
+							<p className="mt-0.5 truncate font-mono text-[10px] text-meta dark:text-panel-dim">
+								{model.modelId}
+							</p>
+							<div className="mt-1.5 flex flex-wrap gap-1">
+								{model.multimodal && (
+									<ModelBadge tone="neutral">Multimodal</ModelBadge>
+								)}
+								{model.supportsStructuredOutput && (
+									<ModelBadge tone="neutral">Structured</ModelBadge>
+								)}
+								<ModelBadge tone="neutral">Tools</ModelBadge>
+							</div>
+						</div>
+					</div>
+				) : (
+					<div className="flex items-center gap-2 text-[11.5px] text-meta dark:text-panel-dim">
+						<span className="size-1.5 rounded-full bg-faint" />
+						{emptyText}
+					</div>
+				)}
+			</div>
+		</div>
+	);
+}
+
 interface WorkspaceModelsProps {
 	onForbidden: () => void;
 	/** Reports usable models: enabled and backed by configured credentials. */
@@ -128,6 +197,8 @@ export default function WorkspaceModels({
 	// Default changes rewrite every row's flag, so they are serialized: all
 	// stars lock while one request is in flight.
 	const [isDefaultUpdating, setIsDefaultUpdating] = useState(false);
+	// Same serialization for the quick-model flag.
+	const [isQuickUpdating, setIsQuickUpdating] = useState(false);
 	const [status, setStatus] = useState<{
 		kind: "info" | "error";
 		text: string;
@@ -471,7 +542,12 @@ export default function WorkspaceModels({
 		setModels((prev) =>
 			prev.map((m) =>
 				m.provider === model.provider && m.modelId === model.modelId
-					? { ...m, isEnabled, isDefault: isEnabled ? m.isDefault : false }
+					? {
+							...m,
+							isEnabled,
+							isDefault: isEnabled ? m.isDefault : false,
+							isQuick: isEnabled ? m.isQuick : false,
+						}
 					: m,
 			),
 		);
@@ -496,7 +572,12 @@ export default function WorkspaceModels({
 				setModels((prev) =>
 					prev.map((m) =>
 						m.provider === model.provider && m.modelId === model.modelId
-							? { ...m, isEnabled: !isEnabled, isDefault: model.isDefault }
+							? {
+									...m,
+									isEnabled: !isEnabled,
+									isDefault: model.isDefault,
+									isQuick: model.isQuick,
+								}
 							: m,
 					),
 				);
@@ -574,6 +655,51 @@ export default function WorkspaceModels({
 		}
 	};
 
+	const handleSetQuick = async (model: ManagedModel) => {
+		const key = `${model.provider}/${model.modelId}`;
+		// Clicking the current quick model's bolt unsets it.
+		const makeQuick = !model.isQuick;
+		setIsQuickUpdating(true);
+		setPendingKeys((prev) => new Set(prev).add(key));
+		setStatus(null);
+		// Optimistic: exactly one quick model at a time.
+		setModels((prev) =>
+			prev.map((m) => ({
+				...m,
+				isQuick:
+					makeQuick &&
+					m.provider === model.provider &&
+					m.modelId === model.modelId,
+			})),
+		);
+		try {
+			if (makeQuick) {
+				await modelsApi.setQuickModel(model.provider, model.modelId);
+			} else {
+				await modelsApi.clearQuickModel();
+			}
+		} catch (error: unknown) {
+			await loadManaged();
+			if (isApiError(error) && error.status === 403) {
+				onForbidden();
+			} else {
+				setStatus({
+					kind: "error",
+					text:
+						apiErrorDetail(error) ??
+						`Could not update the quick model. Please retry.`,
+				});
+			}
+		} finally {
+			setIsQuickUpdating(false);
+			setPendingKeys((prev) => {
+				const next = new Set(prev);
+				next.delete(key);
+				return next;
+			});
+		}
+	};
+
 	const handleSync = async () => {
 		setIsSyncing(true);
 		setStatus(null);
@@ -609,6 +735,9 @@ export default function WorkspaceModels({
 		await refreshModels().catch(() => {});
 	};
 
+	const defaultModel = models.find((model) => model.isDefault);
+	const quickModel = models.find((model) => model.isQuick);
+
 	return (
 		<div>
 			<div className="mb-1.5 flex items-baseline gap-2.5">
@@ -639,9 +768,7 @@ export default function WorkspaceModels({
 			</div>
 			<p className="mb-3.5 max-w-[640px] text-[13px] leading-[1.55] text-subtle text-pretty dark:text-panel-body">
 				Choose which models members can use in chats and triggers. New catalog
-				models start disabled. Star a model to make it the workspace default.
-				it preselects pickers and is used by Slack; without one, the first
-				available model is used.
+				models start disabled.
 			</p>
 			{status && (
 				<p
@@ -654,6 +781,32 @@ export default function WorkspaceModels({
 					{status.text}
 				</p>
 			)}
+			<div className="mb-3 grid gap-3 sm:grid-cols-2">
+				<ModelRoleCard
+					icon={
+						<Star
+							className="size-[14px] fill-current"
+							aria-hidden="true"
+						/>
+					}
+					title="Default model"
+					description="New chats and Slack"
+					model={defaultModel}
+					emptyText="Automatic — first available model"
+				/>
+				<ModelRoleCard
+					icon={
+						<Zap
+							className="size-[14px] fill-current"
+							aria-hidden="true"
+						/>
+					}
+					title="Quick model"
+					description="Fast intermediate actions"
+					model={quickModel}
+					emptyText="Conversation model at minimal effort"
+				/>
+			</div>
 			<div className="relative mb-3">
 				<Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-faint" />
 				<Input
@@ -979,6 +1132,9 @@ export default function WorkspaceModels({
 														{model.isDefault && (
 															<ModelBadge tone="accent">Default</ModelBadge>
 														)}
+														{model.isQuick && (
+															<ModelBadge tone="accent">Quick</ModelBadge>
+														)}
 														{model.deprecated && (
 															<ModelBadge tone="destructive">
 																{model.provider === "ollama"
@@ -1011,6 +1167,40 @@ export default function WorkspaceModels({
 														{model.modelId}
 													</span>
 												</div>
+												<button
+													type="button"
+													aria-label={
+														model.isQuick
+															? `Unset ${model.displayName} as the quick model`
+															: `Set ${model.displayName} as the quick model`
+													}
+													title={
+														model.isQuick
+															? "Unset as quick model"
+															: "Set as quick model (fast intermediate steps)"
+													}
+													disabled={
+														pendingKeys.has(key) ||
+														isSyncing ||
+														isQuickUpdating ||
+														!model.isEnabled ||
+														!selectedGroup.provider.isConfigured ||
+														!model.supportsTools ||
+														model.deprecated
+													}
+													onClick={() => {
+														void handleSetQuick(model);
+													}}
+													className="flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-[7px] transition-colors hover:bg-hover disabled:cursor-default disabled:opacity-50 disabled:hover:bg-transparent dark:hover:bg-white/10"
+												>
+													<Zap
+														className={
+															model.isQuick
+																? "size-[15px] fill-current text-ink dark:text-white"
+																: "size-[15px] text-faint"
+														}
+													/>
+												</button>
 												<button
 													type="button"
 													aria-label={

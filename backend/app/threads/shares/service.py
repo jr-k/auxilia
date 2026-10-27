@@ -22,7 +22,7 @@ from app.runtime.hitl import pending_interrupt
 from app.runtime.protocol.messages import serialize_public_message
 from app.runtime.runs.repository import RunRepository
 from app.runtime.toolset import sanitize_tool_name
-from app.threads.models import ThreadDB
+from app.threads.models import ThreadDB, ThreadToolMode
 from app.threads.repository import ThreadRepository
 from app.threads.shares.models import (
     ConversationShareArtifactDB,
@@ -162,8 +162,13 @@ class ConversationShareService:
         )
         if spec is None:
             return []
-        disabled_server_ids = set(thread.disabled_mcp_server_ids)
-        disabled_subagent_ids = set(thread.disabled_subagent_ids)
+        force_all = thread.tool_mode is ThreadToolMode.force_all
+        disabled_server_ids = (
+            set() if force_all else set(thread.disabled_mcp_server_ids)
+        )
+        disabled_subagent_ids = (
+            set() if force_all else set(thread.disabled_subagent_ids)
+        )
         active_agent_specs = [
             spec.agent,
             *(

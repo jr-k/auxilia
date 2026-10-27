@@ -112,6 +112,20 @@ export async function clearDefaultModel(): Promise<void> {
 	await api.delete("/model-providers/models/default");
 }
 
+/** Make one model the workspace quick model: the runtime's short
+ * intermediate calls (lazy tool-discovery routing) run on it. */
+export async function setQuickModel(
+	provider: string,
+	modelId: string,
+): Promise<void> {
+	await api.put("/model-providers/models/quick", { provider, modelId });
+}
+
+/** Unset the quick model: the thread's model at minimal effort is used. */
+export async function clearQuickModel(): Promise<void> {
+	await api.delete("/model-providers/models/quick");
+}
+
 /** Re-pull the CDN whitelist; reports what was added and removed. */
 export async function syncWhitelist(): Promise<WhitelistSyncResult> {
 	const response = await api.post<WhitelistSyncResult>(

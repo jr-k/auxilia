@@ -1,9 +1,36 @@
+from enum import Enum
 from uuid import UUID
 
-from sqlalchemy import Boolean, Column, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, Column, Enum as SAEnum, String, Text, UniqueConstraint
 from sqlmodel import Field
 
+from app.agents.models import ToolDiscoveryMode
 from app.models import BaseDBModel
+
+
+class SlackToolDiscoveryMode(str, Enum):
+    """How a Slack connection exposes MCP tools, chosen per connection.
+
+    The first three mirror ``ToolDiscoveryMode`` and apply it to every agent
+    of the graph. ``all_capabilities`` loads every schema eagerly *and*
+    re-enables the MCP servers, sandboxes, subagents and skills the agent
+    disables by default.
+    """
+
+    disabled = "disabled"
+    lazy = "lazy"
+    local = "local"
+    all_capabilities = "all_capabilities"
+
+    @property
+    def force_enable_all_capabilities(self) -> bool:
+        return self is SlackToolDiscoveryMode.all_capabilities
+
+    @property
+    def runtime_mode(self) -> ToolDiscoveryMode:
+        if self is SlackToolDiscoveryMode.all_capabilities:
+            return ToolDiscoveryMode.disabled
+        return ToolDiscoveryMode(self.value)
 
 
 class AgentSlackBotDB(BaseDBModel, table=True):
@@ -36,9 +63,18 @@ class AgentSlackBotDB(BaseDBModel, table=True):
         default=True,
         sa_column=Column(Boolean, nullable=False, server_default="true"),
     )
-    force_enable_all_capabilities: bool = Field(
-        default=True,
-        sa_column=Column(Boolean, nullable=False, server_default="true"),
+    tool_discovery_mode: SlackToolDiscoveryMode = Field(
+        default=SlackToolDiscoveryMode.all_capabilities,
+        sa_column=Column(
+            SAEnum(
+                SlackToolDiscoveryMode,
+                native_enum=False,
+                create_constraint=False,
+                length=16,
+            ),
+            nullable=False,
+            server_default=SlackToolDiscoveryMode.all_capabilities.value,
+        ),
     )
     bot_token_encrypted: str = Field(sa_column=Column(Text, nullable=False))
     signing_secret_encrypted: str = Field(sa_column=Column(Text, nullable=False))

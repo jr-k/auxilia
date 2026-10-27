@@ -30,6 +30,8 @@ export function useAgentConnectionStatus(
 	const requestIdRef = useRef(0);
 	const requestKey = [
 		agentId ?? "",
+		resources?.toolMode ?? "agent_default",
+		"|",
 		...(resources?.disabledMcpServerIds ?? []),
 		"|",
 		...(resources?.disabledSandboxIds ?? []),

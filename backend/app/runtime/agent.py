@@ -67,6 +67,7 @@ from app.runtime.middleware.tool_errors import (
     ToolErrorMiddleware,
 )
 from app.runtime.middleware.tool_selection import (
+    HIDDEN_SCHEMA_MODES,
     LOCAL_DISCOVERY_CANDIDATES_KEY,
     LOCAL_DISCOVERY_STATE_KEY,
     discovery_interrupt_on,
@@ -96,7 +97,7 @@ from app.skills.runtime import (
     upload_skills,
 )
 from app.skills.schemas import SkillBundle
-from app.threads.models import ThreadDB, ThreadSource
+from app.threads.models import ThreadDB, ThreadSource, ThreadToolMode
 from app.threads.repository import ThreadRepository
 
 
@@ -264,7 +265,8 @@ def build_runnable(
     output_schema: dict | None = None,
     format_mode: str = FORMAT_TOOL,
     tool_discovery_mode: ToolDiscoveryMode = ToolDiscoveryMode.disabled,
-    supports_tool_search: bool = False,
+    router_model=None,
+    server_descriptions: dict[str, str | None] | None = None,
     discoverable_tools=(),
     general_purpose_interrupt_on: dict[str, bool] | None = None,
     artifact_context: tuple[UUID, str, UUID] | None = None,
@@ -325,7 +327,7 @@ def build_runnable(
                 LOCAL_DISCOVERY_CANDIDATES_KEY,
             }
         )
-        if tool_discovery_mode is ToolDiscoveryMode.local
+        if tool_discovery_mode in HIDDEN_SCHEMA_MODES
         else None
     )
     catalog = (
@@ -336,17 +338,21 @@ def build_runnable(
     system_prompt = _append_system_prompt_context(system_prompt, mcp_context)
     harness: list = []
 
+    def discovery_for(agent_model):
+        return tool_discovery_middleware(
+            model=agent_model,
+            searchable_tools=searchable_tools,
+            mode=tool_discovery_mode,
+            catalog=catalog,
+            server_context=mcp_context,
+            server_descriptions=server_descriptions,
+            router_model=router_model,
+        )
+
     if sandbox_backend is not None:
         if artifact_context is not None:
             tools.append(present_files_tool(sandbox_backend, *artifact_context))
-        general_purpose_discovery = tool_discovery_middleware(
-            model=model,
-            searchable_tools=searchable_tools,
-            mode=tool_discovery_mode,
-            provider_native=supports_tool_search,
-            catalog=catalog,
-            server_context=mcp_context,
-        )
+        general_purpose_discovery = discovery_for(model)
         harness += harness_middleware(
             model=model,
             tools=tools,
@@ -373,17 +379,9 @@ def build_runnable(
     elif skills is not None:
         harness += skills_read_middleware(skills)
 
-    discovery = tool_discovery_middleware(
-        model=model,
-        searchable_tools=searchable_tools,
-        mode=tool_discovery_mode,
-        provider_native=supports_tool_search,
-        catalog=catalog,
-        server_context=mcp_context,
-    )
+    discovery = discovery_for(model)
     # Discovery wraps the harness so hidden schemas are removed before
-    # summarization counts the request. The same ordering also keeps provider
-    # deferral and fallback selection out of the summarizer's token estimate.
+    # summarization counts the request.
     middleware = [
         MCPContentCompatibilityMiddleware(),
         *([discovery] if discovery is not None else []),
@@ -449,9 +447,9 @@ def build_agent_middleware(
     inner pipeline (date stamp, deferred formatting); it retries transient model
     failures (rate limits, timeouts, connection drops — classified via
     ``ModelError.is_retryable``) and, when retries are exhausted, persists the
-    failure as an AIMessage so the turn ends visibly instead of crashing.
-    Non-retryable errors (e.g. provider 400s) re-raise immediately and surface
-    through the run record. RepairInvalidToolCallsMiddleware is placed *before*
+    failure as a durable run error. Non-retryable errors (e.g. provider 400s)
+    re-raise immediately and surface through the run record.
+    RepairInvalidToolCallsMiddleware is placed *before*
     HITL so it runs *after* it (after_model hooks execute last-to-first): HITL
     must see only the genuine tool_calls and gate those, while the malformed
     calls stay in invalid_tool_calls (invisible to HITL) until Repair promotes
@@ -480,7 +478,7 @@ def build_agent_middleware(
     resolved_interrupt_on = discovery_interrupt_on(interrupt_on, tool_discovery_mode)
     return [
         *([PatchToolCallsMiddleware()] if checkpointed else []),
-        ModelRetryMiddleware(retry_on=_retry_model_call),
+        ModelRetryMiddleware(retry_on=_retry_model_call, on_failure="error"),
         ToolCallLimitMiddleware(
             run_limit=(recursion_limit - 1) // 2, exit_behavior="end"
         ),
@@ -596,7 +594,7 @@ class ResolvedAgent:
         sandbox_backend=None,
         skills: SkillsBackend | None = None,
         web_search_tool: dict | None = None,
-        supports_tool_search: bool = False,
+        router_model=None,
         artifact_context: tuple[UUID, str, UUID] | None = None,
     ) -> CompiledSubAgent:
         """Compile into a CompiledSubAgent runnable (for subagent use).
@@ -639,7 +637,8 @@ class ResolvedAgent:
                 tool_discovery_mode=self.config.tool_discovery_mode,
             ),
             tool_discovery_mode=self.config.tool_discovery_mode,
-            supports_tool_search=supports_tool_search,
+            router_model=router_model,
+            server_descriptions=self.prepared.server_description_by_name,
             discoverable_tools=self.live.all,
             general_purpose_interrupt_on=self.prepared.interrupt_on,
             artifact_context=artifact_context,
@@ -661,7 +660,7 @@ class Agent:
         subagents: list[ResolvedAgent],
         provider: str | None = None,
         web_search_supported: bool = False,
-        tool_search_supported: bool = False,
+        router_model=None,
         skills: list[SkillBundle] = (),
         tracing: RunTracing | None = None,
     ):
@@ -673,7 +672,9 @@ class Agent:
         self.subagents = subagents
         self.provider = provider
         self.web_search_supported = web_search_supported
-        self.tool_search_supported = tool_search_supported
+        # Minimal-effort variant of `model` for the lazy MCP router; None when
+        # no agent of the graph runs lazy discovery.
+        self.router_model = router_model
         # One skill set for the whole graph, frozen for this run.
         self.skills = list(skills)
         # The run's live sandbox, opened by `_setup` for the length of one run.
@@ -709,11 +710,15 @@ class Agent:
         db: AsyncSession,
         *,
         force_enable_all_capabilities: bool | None = None,
+        tool_discovery_mode: ToolDiscoveryMode | None = None,
     ) -> "Agent":
         """Resolve everything a run needs from the database.
 
         A resume (a HITL approval) resolves exactly as a first run does —
         there is no per-thread copy of anything to reuse.
+
+        `tool_discovery_mode` overrides the mode saved on every agent of the
+        graph — a side channel (Slack) chooses it per connection.
         """
         user_id = str(thread.user_id)
 
@@ -726,6 +731,27 @@ class Agent:
         if spec is None:
             raise NotFoundError("Agent not found")
 
+        # Web conversations can override discovery without rewriting the
+        # agent. Side-channel overrides (Slack delivery) take precedence.
+        conversation_discovery = {
+            ThreadToolMode.eager: ToolDiscoveryMode.disabled,
+            ThreadToolMode.lazy: ToolDiscoveryMode.lazy,
+            ThreadToolMode.precision: ToolDiscoveryMode.local,
+            ThreadToolMode.force_all: ToolDiscoveryMode.disabled,
+        }.get(thread.tool_mode)
+        discovery_override = (
+            tool_discovery_mode
+            if tool_discovery_mode is not None
+            else conversation_discovery
+        )
+        force_no_tools = (
+            thread.tool_mode is ThreadToolMode.no_tools
+            and force_enable_all_capabilities is not True
+        )
+        force_all = (
+            force_enable_all_capabilities is True
+            or thread.tool_mode is ThreadToolMode.force_all
+        )
         exclusions = spec.resource_exclusions(
             disabled_mcp_server_ids={
                 UUID(server_id) for server_id in thread.disabled_mcp_server_ids
@@ -736,7 +762,10 @@ class Agent:
             disabled_subagent_ids={
                 UUID(subagent_id) for subagent_id in thread.disabled_subagent_ids
             },
-            force_enable_all_capabilities=force_enable_all_capabilities,
+            force_enable_all_capabilities=(
+                True if force_all else force_enable_all_capabilities
+            ),
+            force_disable_all_capabilities=force_no_tools,
         )
 
         def filter_resources(agent_spec: AgentSpec) -> AgentSpec:
@@ -772,6 +801,14 @@ class Agent:
                     and agent_spec.sandbox.row.id in exclusions.sandbox_ids
                     else agent_spec.sandbox
                 ),
+                tool_discovery_mode=(
+                    discovery_override
+                    if discovery_override is not None
+                    else agent_spec.tool_discovery_mode
+                ),
+                web_search_enabled=(
+                    False if force_no_tools else agent_spec.web_search_enabled
+                ),
             )
 
         spec = RunSpec(
@@ -802,8 +839,10 @@ class Agent:
         resolved = await ModelService(db, thread.workspace_id).ensure_available(
             thread.model_id, reasoning_effort=thread.reasoning_effort
         )
-        web_search_enabled = resolved.supports_web_search and any(
-            item.web_search_enabled for item in [spec.agent, *spec.subagents]
+        web_search_enabled = (
+            not force_no_tools
+            and resolved.supports_web_search
+            and any(item.web_search_enabled for item in [spec.agent, *spec.subagents])
         )
         reasoning_effort = compatible_reasoning_effort(
             resolved.provider,
@@ -825,6 +864,41 @@ class Agent:
             reasoning_effort=reasoning_effort,
             base_url=resolved.base_url,
         )
+        # The lazy MCP router is one tiny call per prompt. It runs on the
+        # workspace quick model when an admin flagged one; otherwise on the
+        # thread's model at its least declared effort, so it answers fast.
+        # Reuse `model` when that is where the run already sits.
+        router_model = None
+        if any(
+            item.tool_discovery_mode is ToolDiscoveryMode.lazy
+            for item in [spec.agent, *spec.subagents]
+        ):
+            quick = await ModelService(db, thread.workspace_id).resolve_quick()
+            if quick is not None:
+                router_model = ChatModelFactory().create(
+                    quick.provider,
+                    quick.runtime_model_id,
+                    quick.api_key,
+                    reasoning_effort=quick.minimal_reasoning_effort,
+                    base_url=quick.base_url,
+                )
+            else:
+                minimal_effort = compatible_reasoning_effort(
+                    resolved.provider,
+                    resolved.minimal_reasoning_effort,
+                    web_search_enabled=web_search_enabled,
+                )
+                router_model = (
+                    model
+                    if minimal_effort == reasoning_effort
+                    else ChatModelFactory().create(
+                        resolved.provider,
+                        resolved.runtime_model_id,
+                        resolved.api_key,
+                        reasoning_effort=minimal_effort,
+                        base_url=resolved.base_url,
+                    )
+                )
 
         middleware = build_parent_middleware(
             thread.created_at,
@@ -844,7 +918,7 @@ class Agent:
         # One skill set per graph: every agent lists, reads and runs the union
         # of what the supervisor and its subagents have enabled.
         disabled_skill_ids = {UUID(skill_id) for skill_id in thread.disabled_skill_ids}
-        if force_enable_all_capabilities is True:
+        if force_all:
             disabled_skill_ids.clear()
         elif force_enable_all_capabilities is False:
             disabled_skill_ids.update(
@@ -852,11 +926,15 @@ class Agent:
                     db, thread.workspace_id
                 ).list_disabled_by_default_ids_for_agents(spec.all_agent_ids)
             )
-        skills = await resolve_run_skills(
-            db,
-            spec.all_agent_ids,
-            thread.workspace_id,
-            excluded_skill_ids=disabled_skill_ids,
+        skills = (
+            []
+            if force_no_tools
+            else await resolve_run_skills(
+                db,
+                spec.all_agent_ids,
+                thread.workspace_id,
+                excluded_skill_ids=disabled_skill_ids,
+            )
         )
         try:
             observability = await WorkspaceObservabilityService(db).get_runtime_config(
@@ -878,7 +956,7 @@ class Agent:
             subagents=subagents,
             provider=resolved.provider,
             web_search_supported=resolved.supports_web_search,
-            tool_search_supported=resolved.supports_tool_search,
+            router_model=router_model,
             skills=skills,
         )
 
@@ -916,7 +994,7 @@ class Agent:
                     sandbox_backend=self._sandbox_for(s),
                     skills=skills,
                     web_search_tool=self._web_search_tool(s),
-                    supports_tool_search=self.tool_search_supported,
+                    router_model=self.router_model,
                     artifact_context=artifact_context,
                 )
                 for s in self.subagents
@@ -947,7 +1025,8 @@ class Agent:
             output_schema=output_schema,
             format_mode=PROVIDER_FORMAT_MODES.get(self.provider, FORMAT_TOOL),
             tool_discovery_mode=self.agent.config.tool_discovery_mode,
-            supports_tool_search=self.tool_search_supported,
+            router_model=self.router_model,
+            server_descriptions=self.agent.prepared.server_description_by_name,
             discoverable_tools=self.agent.live.all,
             general_purpose_interrupt_on=self.agent.prepared.interrupt_on,
             artifact_context=artifact_context,
@@ -1059,9 +1138,7 @@ class Agent:
                     raise result
             for ra, live in zip(resolved, results, strict=True):
                 ra.live = live
-            await self._open_sandbox(
-                checkpointer, input_attachment_ids(agent_input)
-            )
+            await self._open_sandbox(checkpointer, input_attachment_ids(agent_input))
             agent = self._build_agent(checkpointer, output_schema)
             resolved_input = self._resolve_input(agent_input, command)
             config, resolved_input = await self._resolve_config(

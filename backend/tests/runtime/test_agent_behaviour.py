@@ -319,20 +319,20 @@ async def test_hitl_interrupts_before_an_approval_gated_tool_runs(in_memory_runt
 async def test_model_failure_ends_the_turn_visibly_and_still_persists_the_sandbox(
     in_memory_runtime,
 ):
-    """A model that keeps failing must not crash the run: ModelRetryMiddleware
-    exhausts its retries and persists the failure as an AIMessage. `stream`'s
+    """A model that keeps failing ends the turn as a run error, not as a
+    persisted "Model call failed" AIMessage the next turn would build on:
+    ModelRetryMiddleware exhausts its retries and re-raises. `stream`'s
     `finally` is the only turn-end hook a sandbox gets, so the snapshot has to
     run on that path too."""
     agent, model = build_agent(script=[])  # exhausted script -> every call raises
 
     with patch.object(Agent, "_persist_sandbox") as persist:
-        await collect(agent, "boom")
+        with pytest.raises(AssertionError, match="exhausted"):
+            await collect(agent, "boom")
 
     persist.assert_called_once()
     assert len(model.calls) > 1, "the failure was not retried"
-    last = (await final_messages(in_memory_runtime))[-1]
-    assert last.type == "ai"
-    assert "Model call failed" in last.content
+    assert all(m.type != "ai" for m in await final_messages(in_memory_runtime))
 
 
 @pytest.mark.asyncio
@@ -356,9 +356,12 @@ async def test_stale_structured_response_is_cleared_before_a_new_run(in_memory_r
     graph = agent._build_agent(in_memory_runtime, output_schema=schema)
     await graph.aupdate_state(config, {"structured_response": {"answer": 1}})
 
+    # The graph keeps its one-turn script: the formatting step's model call
+    # exhausts it and the turn ends as a run error — i.e. it never formats.
     agent2, _ = build_agent(script=["fresh"])
     with patch.object(Agent, "_build_agent", return_value=graph):
-        await collect(agent2, "again", output_schema=schema)
+        with pytest.raises(AssertionError, match="exhausted"):
+            await collect(agent2, "again", output_schema=schema)
 
     state = await graph.aget_state(config)
     assert state.values.get("structured_response") is None

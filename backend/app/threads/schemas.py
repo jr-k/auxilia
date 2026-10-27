@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field as PydanticField
 from sqlmodel import Field, SQLModel
 
 from app.runtime.runs.state import RunStatus
-from app.threads.models import ThreadBase
+from app.threads.models import ThreadBase, ThreadToolMode
 
 
 class ThreadCreate(SQLModel):
@@ -17,6 +17,8 @@ class ThreadCreate(SQLModel):
     # (400 on an undeclared value). None = the model's default.
     reasoning_effort: str | None = None
     first_message_content: str | None = None
+    # None inherits the agent's discovery mode.
+    tool_mode: ThreadToolMode | None = None
     disabled_mcp_server_ids: list[UUID] = Field(default_factory=list)
     disabled_skill_ids: list[UUID] = Field(default_factory=list)
     disabled_sandbox_ids: list[UUID] = Field(default_factory=list)
@@ -41,9 +43,16 @@ class ThreadPatch(SQLModel):
 
 class ThreadModelUpdate(SQLModel):
     model_id: str = Field(max_length=255)
+    # Validated against the model's whitelist-declared levels (400 on an
+    # undeclared value). None = the model's default — so a bare model change
+    # drops any effort chosen for the previous model.
+    reasoning_effort: str | None = Field(default=None, max_length=32)
 
 
 class ThreadResourcesPatch(SQLModel):
+    # Conversation-level tool policy, updated with the other capability
+    # choices so the composer has one persistence path.
+    tool_mode: ThreadToolMode | None = None
     disabled_mcp_server_ids: list[UUID] = Field(default_factory=list)
     disabled_skill_ids: list[UUID] = Field(default_factory=list)
     disabled_sandbox_ids: list[UUID] = Field(default_factory=list)

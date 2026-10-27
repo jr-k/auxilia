@@ -9,7 +9,7 @@ from app.agents.models import AgentDB
 from app.pagination import PageParams
 from app.repository import BaseRepository
 from app.runtime.runs.state import RunStatus
-from app.threads.models import FIRST_PARTY_SOURCES, ThreadDB
+from app.threads.models import FIRST_PARTY_SOURCES, ThreadDB, ThreadToolMode
 from app.users.models import UserDB
 
 
@@ -145,6 +145,7 @@ class ThreadRepository(BaseRepository[ThreadDB]):
         disabled_skill_ids: list[str],
         disabled_sandbox_ids: list[str],
         disabled_subagent_ids: list[str],
+        tool_mode: ThreadToolMode | None,
     ) -> None:
         stmt = (
             update(ThreadDB)
@@ -154,17 +155,20 @@ class ThreadRepository(BaseRepository[ThreadDB]):
                 disabled_skill_ids=disabled_skill_ids,
                 disabled_sandbox_ids=disabled_sandbox_ids,
                 disabled_subagent_ids=disabled_subagent_ids,
+                tool_mode=tool_mode,
             )
         )
         if self.workspace_id is not None:
             stmt = stmt.where(ThreadDB.workspace_id == self.workspace_id)
         await self.db.execute(stmt)
 
-    async def set_model(self, thread_id: str, model_id: str) -> None:
+    async def set_model(
+        self, thread_id: str, model_id: str, reasoning_effort: str | None
+    ) -> None:
         stmt = (
             update(ThreadDB)
             .where(ThreadDB.id == thread_id)
-            .values(model_id=model_id, reasoning_effort=None)
+            .values(model_id=model_id, reasoning_effort=reasoning_effort)
         )
         if self.workspace_id is not None:
             stmt = stmt.where(ThreadDB.workspace_id == self.workspace_id)

@@ -73,14 +73,14 @@ export function useDescribeTool(
       const server = mcpServers.find((candidate) => candidate.name === serverName);
       if (!server && /^search_mcp_tools(?:_\d+)?$/.test(name)) {
         return {
-          serverName: "Auxilia Search",
+          serverName: "Precision",
           toolName: "find_tools",
           icon: "/pwa-icon.svg",
         };
       }
       if (!server && /^load_mcp_tools(?:_\d+)?$/.test(name)) {
         return {
-          serverName: "Auxilia Search",
+          serverName: "Precision",
           toolName: "load_tools",
           icon: "/pwa-icon.svg",
         };

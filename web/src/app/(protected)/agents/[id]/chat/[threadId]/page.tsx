@@ -39,6 +39,7 @@ import type { QueuedPrompt } from "@/types/runs";
 import { ArtifactWorkspace } from "@/components/artifacts/workspace";
 
 const EMPTY_RESOURCE_SETTINGS: ThreadResourceSettings = {
+  toolMode: null,
   disabledMcpServerIds: [],
   disabledSkillIds: [],
   disabledSandboxIds: [],
@@ -215,6 +216,7 @@ const ChatPage = () => {
         ? resourceSettingsOverride.settings
         : thread
           ? {
+              toolMode: thread.toolMode ?? null,
               disabledMcpServerIds: thread.disabledMcpServerIds ?? [],
               disabledSkillIds: thread.disabledSkillIds ?? [],
               disabledSandboxIds: thread.disabledSandboxIds ?? [],
@@ -234,6 +236,7 @@ const ChatPage = () => {
       setResourceSettingsOverride({
         threadId,
         settings: {
+          toolMode: updated.toolMode ?? null,
           disabledMcpServerIds: updated.disabledMcpServerIds ?? [],
           disabledSkillIds: updated.disabledSkillIds ?? [],
           disabledSandboxIds: updated.disabledSandboxIds ?? [],
@@ -541,8 +544,8 @@ const ChatPage = () => {
             modelChangeDisabled={
               run.status !== "idle" || promptQueue.runStarting
             }
-            readOnlyEffort={true}
             selectedEffort={thread?.reasoningEffort ?? null}
+            onEffortChange={actions.changeReasoningEffort}
             agentReady={agentReady}
             acceptsFiles={acceptsFiles}
             disconnectedServers={disconnectedMcpServers}

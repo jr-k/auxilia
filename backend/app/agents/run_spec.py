@@ -110,13 +110,21 @@ class RunSpec:
         disabled_sandbox_ids: set[UUID],
         disabled_subagent_ids: set[UUID],
         force_enable_all_capabilities: bool | None = None,
+        force_disable_all_capabilities: bool = False,
     ) -> ResourceExclusions:
         """Resolve thread choices against an optional side-channel policy.
 
-        ``None`` uses the thread as-is, ``True`` force-enables every attached
-        capability, and ``False`` also applies the agent graph's current
-        ``enabled_by_default`` choices.
+        ``force_disable_all_capabilities`` wins and omits every attached
+        capability. Otherwise ``None`` uses the thread as-is, ``True``
+        force-enables every attached capability, and ``False`` also applies
+        the agent graph's current ``enabled_by_default`` choices.
         """
+        if force_disable_all_capabilities:
+            return ResourceExclusions(
+                {binding.mcp_server_id for binding in self.all_mcp_bindings},
+                {sandbox.id for sandbox in self.all_sandbox_rows},
+                {subagent.id for subagent in self.subagents},
+            )
         if force_enable_all_capabilities is True:
             return ResourceExclusions(set(), set(), set())
 

@@ -4,7 +4,11 @@ import { AgentSkill } from "./skills";
 import type { ResourceVisibility } from "./visibility";
 
 export type ToolStatus = "always_allow" | "needs_approval" | "disabled";
-export type ToolDiscoveryMode = "disabled" | "automatic" | "local";
+export type ToolDiscoveryMode = "disabled" | "lazy" | "local";
+/** A Slack connection's discovery policy: an agent mode applied to the whole
+ * graph, or `all_capabilities` — eager schemas plus every resource the agent
+ * disables by default. */
+export type SlackToolDiscoveryMode = ToolDiscoveryMode | "all_capabilities";
 
 interface AgentMCPServer extends MCPServer {
 	mcpServerId: string;
@@ -51,7 +55,7 @@ export interface AgentSlackBotSettings {
 	enabled: boolean;
 	requireMentionInThreads: boolean;
 	showToolCallouts: boolean;
-	forceEnableAllCapabilities: boolean;
+	toolDiscoveryMode: SlackToolDiscoveryMode;
 	isConfigured: boolean;
 	botTokenLast4: string | null;
 	hasSigningSecret: boolean;
@@ -68,7 +72,7 @@ export interface AgentSlackBotSettingsUpdate {
 	enabled: boolean;
 	requireMentionInThreads: boolean;
 	showToolCallouts: boolean;
-	forceEnableAllCapabilities: boolean;
+	toolDiscoveryMode: SlackToolDiscoveryMode;
 	botToken?: string;
 	signingSecret?: string;
 }

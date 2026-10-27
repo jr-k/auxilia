@@ -1557,6 +1557,7 @@ class AgentService(BaseService[AgentDB, AgentRepository]):
         disabled_sandbox_ids: set[UUID] | None = None,
         disabled_subagent_ids: set[UUID] | None = None,
         force_enable_all_capabilities: bool | None = None,
+        force_disable_all_capabilities: bool = False,
     ) -> dict:
         spec = await self.repository.get_run_spec(agent_id)
         exclusions = (
@@ -1565,6 +1566,7 @@ class AgentService(BaseService[AgentDB, AgentRepository]):
                 disabled_sandbox_ids=disabled_sandbox_ids or set(),
                 disabled_subagent_ids=disabled_subagent_ids or set(),
                 force_enable_all_capabilities=force_enable_all_capabilities,
+                force_disable_all_capabilities=force_disable_all_capabilities,
             )
             if spec
             else None

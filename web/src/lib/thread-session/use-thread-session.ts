@@ -86,6 +86,7 @@ export type ThreadSessionTransport = {
   updateThreadModel?: (
     threadId: string,
     modelId: string,
+    reasoningEffort?: string | null,
   ) => Promise<ThreadRead["thread"]>;
 };
 
@@ -169,6 +170,9 @@ export type ThreadSession = {
     ) => Promise<void>;
     loadLatestMessages: () => Promise<BaseMessage[]>;
     changeModel: (modelId: string) => Promise<void>;
+    /** Pin a reasoning effort on the thread's current model for its next
+     * runs; `null` = the model's default. */
+    changeReasoningEffort: (effort: string | null) => Promise<void>;
     recheckModel: () => Promise<void>;
     /** Clear the mid-session sandbox gate so the composer comes back; the
      * page re-polls readiness alongside it. */
@@ -265,6 +269,21 @@ export function useThreadSession({
     [],
   );
 
+  const readRunActivity = useCallback(async () => {
+    if (transport.getActiveRun) {
+      const active = await transport.getActiveRun(threadId);
+      if (active != null) {
+        return { active: true, retryable: false };
+      }
+    }
+    const runs = await transport.listThreadRuns(threadId);
+    const latest = runs[0];
+    return {
+      active: latest?.status === "pending" || latest?.status === "running",
+      retryable: latest?.status === "error" || latest?.status === "timeout",
+    };
+  }, [threadId, transport]);
+
   const protocolFetch = useProtocolFetch(threadId, {
     baseFetch: transport.fetch,
     onModelUnavailable: (forThread) => {
@@ -304,15 +323,23 @@ export function useThreadSession({
       settleRunStart(threadId, true);
     },
     onCompleted: (info) => {
-      runActivityGeneration.current += 1;
-      setDurableRunActivity({
-        threadId,
-        active: false,
-        retryable: info.reason === "error",
-      });
-      setPendingSubmission((current) =>
-        current?.threadId === threadId ? null : current,
-      );
+      const generation = ++runActivityGeneration.current;
+      // A terminal replay can race a newly accepted run. The SDK associates
+      // that terminal with the new run id, so never declare the thread idle
+      // until the durable run table agrees.
+      void readRunActivity()
+        .then((activity) => {
+          if (
+            currentThreadId.current === threadId &&
+            generation === runActivityGeneration.current
+          ) {
+            setDurableRunActivity({ threadId, ...activity });
+          }
+        })
+        .catch(() => {
+          // Keep the active state and its polling loop until reconciliation
+          // succeeds; clearing it here would reintroduce the missing spinner.
+        });
       useActiveRunsStore.getState().requestPoll();
       void transport
         .listThreadRuns(threadId)
@@ -386,21 +413,6 @@ export function useThreadSession({
   const durableRunRetryable =
     durableRunActivity?.threadId === threadId && durableRunActivity.retryable;
   const durableRunChecking = durableRunActivity?.threadId !== threadId;
-
-  const readRunActivity = useCallback(async () => {
-    if (transport.getActiveRun) {
-      const active = await transport.getActiveRun(threadId);
-      if (active != null) {
-        return { active: true, retryable: false };
-      }
-    }
-    const runs = await transport.listThreadRuns(threadId);
-    const latest = runs[0];
-    return {
-      active: latest?.status === "pending" || latest?.status === "running",
-      retryable: latest?.status === "error" || latest?.status === "timeout",
-    };
-  }, [threadId, transport]);
 
   useEffect(() => {
     if (!durableRunActive) return;
@@ -842,6 +854,18 @@ export function useThreadSession({
     [threadId, transport],
   );
 
+  const currentModelId = state.meta.thread?.modelId;
+  const changeReasoningEffort = useCallback(
+    async (effort: string | null) => {
+      if (!currentModelId) return;
+      const thread = await (
+        transport.updateThreadModel ?? threadsApi.updateThreadModel
+      )(threadId, currentModelId, effort);
+      dispatch({ type: "thread-updated", threadId, thread });
+    },
+    [currentModelId, threadId, transport],
+  );
+
   const recheckModel = useCallback(async () => {
     const forThread = threadId;
     try {
@@ -1023,6 +1047,7 @@ export function useThreadSession({
       respond,
       loadLatestMessages,
       changeModel,
+      changeReasoningEffort,
       recheckModel,
       recheckSandbox,
       rehydrate,

@@ -33,6 +33,7 @@ from app.auth.dependencies import (
 )
 from app.database import get_db
 from app.pagination import Page, PageParams
+from app.threads.models import ThreadToolMode
 from app.threads.schemas import AgentThreadResponse
 from app.threads.service import ThreadService, get_thread_service
 from app.users.models import UserDB
@@ -485,6 +486,7 @@ async def is_ready(
     disabled_sandbox_ids: list[UUID] | None = Query(default=None),
     disabled_subagent_ids: list[UUID] | None = Query(default=None),
     force_enable_all_capabilities: bool | None = Query(default=None),
+    tool_mode: ThreadToolMode | None = Query(default=None),
     current_user: UserDB = Depends(get_current_user),
     service: AgentService = Depends(get_agent_service),
 ):
@@ -494,7 +496,12 @@ async def is_ready(
         disabled_mcp_server_ids=set(disabled_mcp_server_ids or []),
         disabled_sandbox_ids=set(disabled_sandbox_ids or []),
         disabled_subagent_ids=set(disabled_subagent_ids or []),
-        force_enable_all_capabilities=force_enable_all_capabilities,
+        force_enable_all_capabilities=(
+            True
+            if tool_mode is ThreadToolMode.force_all
+            else force_enable_all_capabilities
+        ),
+        force_disable_all_capabilities=tool_mode is ThreadToolMode.no_tools,
     )
 
 

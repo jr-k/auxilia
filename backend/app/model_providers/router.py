@@ -147,6 +147,27 @@ async def clear_default_model(
     await service.clear_default()
 
 
+@router.put("/models/quick", response_model=ManagedModelResponse)
+async def set_quick_model(
+    update: ModelDefaultUpdate,
+    _: UserDB = Depends(require_admin),  # side-effect auth check
+    service: ModelService = Depends(get_model_service),
+) -> ManagedModelResponse:
+    """Flag one model as the workspace quick model (must be available): the
+    runtime's short intermediate calls — lazy tool-discovery routing — run
+    on it instead of the thread's model."""
+    return await service.set_quick(update.provider, update.model_id)
+
+
+@router.delete("/models/quick", status_code=204)
+async def clear_quick_model(
+    _: UserDB = Depends(require_admin),  # side-effect auth check
+    service: ModelService = Depends(get_model_service),
+) -> None:
+    """Unset the quick model — the thread's model at minimal effort is used."""
+    await service.clear_quick()
+
+
 @router.put("/models/{provider}/{model_id:path}", response_model=ManagedModelResponse)
 async def set_model_enabled(
     provider: str,

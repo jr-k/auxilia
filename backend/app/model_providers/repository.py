@@ -49,6 +49,15 @@ class ModelRepository(BaseRepository[ModelDB]):
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
+    async def get_quick(self, *, for_update: bool = False) -> ModelDB | None:
+        stmt = select(ModelDB).where(ModelDB.is_quick)
+        if self.workspace_id is not None:
+            stmt = stmt.where(ModelDB.workspace_id == self.workspace_id)
+        if for_update:
+            stmt = stmt.with_for_update()
+        result = await self.db.execute(stmt)
+        return result.scalar_one_or_none()
+
     async def delete_by_provider(self, provider: str) -> None:
         if self.workspace_id is None:
             raise RuntimeError("workspace_id is required to delete provider models")

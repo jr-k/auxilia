@@ -9,6 +9,8 @@ create/update, the picker endpoint, and the thread response's
 """
 
 import logging
+from collections.abc import Callable
+from typing import Literal
 from uuid import UUID
 
 from fastapi import Depends
@@ -70,6 +72,9 @@ class ResolvedModel(BaseModel):
     # entry's declared levels, else the entry's applied default. None = the
     # model declares no default — send nothing, provider default applies.
     reasoning_effort: str | None = None
+    # The cheapest declared level (the ladder's first entry), for internal
+    # routing calls that need speed over depth. None = no effort knob.
+    minimal_reasoning_effort: str | None = None
     supports_web_search: bool = False
     supports_tool_search: bool = False
 
@@ -92,6 +97,7 @@ def _managed(entry: SupportedModel | None, row: ModelDB) -> ManagedModelResponse
         is_available=entry.is_available if entry else False,
         is_enabled=row.is_enabled,
         is_default=row.is_default,
+        is_quick=row.is_quick,
         deprecated=entry is None or not entry.is_available,
     )
 
@@ -176,7 +182,8 @@ class ModelService(BaseService[ModelDB, ModelRepository]):
         if model_id is None:
             return False
         return any(
-            model.model_id == model_id and model.multimodal
+            model.model_id == model_id
+            and model.multimodal
             and (
                 not documents
                 or model.provider
@@ -255,6 +262,11 @@ class ModelService(BaseService[ModelDB, ModelRepository]):
             api_key=api_key,
             base_url=base_url,
             reasoning_effort=reasoning_effort,
+            minimal_reasoning_effort=(
+                entry.reasoning_effort_levels[0]
+                if entry.reasoning_effort_levels
+                else None
+            ),
             supports_web_search=bool(entry.supports_web_search),
             supports_tool_search=entry.supports_tool_search,
         )
@@ -334,6 +346,7 @@ class ModelService(BaseService[ModelDB, ModelRepository]):
                 is_enabled=(row := rows.get((m.provider, m.model_id))) is not None
                 and row.is_enabled,
                 is_default=row is not None and row.is_default,
+                is_quick=row is not None and row.is_quick,
                 deprecated=not m.is_available,
             )
             for m in catalog
@@ -413,6 +426,9 @@ class ModelService(BaseService[ModelDB, ModelRepository]):
             if not is_enabled and row.is_default:
                 row.is_default = False
                 changed = True
+            if not is_enabled and row.is_quick:
+                row.is_quick = False
+                changed = True
             if changed:
                 self.db.add(row)
                 await self.db.flush()
@@ -424,14 +440,25 @@ class ModelService(BaseService[ModelDB, ModelRepository]):
         """Flag one model as the workspace default. It must be available right
         now (whitelist ∧ provider key ∧ enabled) — ensure_available raises the
         precise reason otherwise."""
+        return await self._set_role(provider, model_id, "is_default")
+
+    async def set_quick(self, provider: str, model_id: str) -> ManagedModelResponse:
+        """Flag one model as the workspace quick model — the one the runtime
+        uses for its short intermediate calls (lazy tool-discovery routing).
+        Same availability contract as `set_default`."""
+        return await self._set_role(provider, model_id, "is_quick")
+
+    async def _set_role(
+        self, provider: str, model_id: str, flag: Literal["is_default", "is_quick"]
+    ) -> ManagedModelResponse:
         resolved = await self.ensure_available(model_id)
         if resolved.provider != provider:
             raise NotFoundError("Model not found in the supported catalog")
 
         # Lock the target row and revalidate under the lock: concurrent admin
-        # mutations could otherwise persist a disabled model as the default
-        # (racing set_enabled) or trip the single-default unique index with a
-        # raw 500 (racing another set_default).
+        # mutations could otherwise persist a disabled model in the role
+        # (racing set_enabled) or trip the single-row unique index with a
+        # raw 500 (racing another set).
         row = await self.repository.get_by_provider_and_model_id(
             provider, model_id, for_update=True
         )
@@ -440,16 +467,16 @@ class ModelService(BaseService[ModelDB, ModelRepository]):
                 model_id, "it has been disabled by a workspace admin"
             )
 
-        current = await self.repository.get_default(for_update=True)
+        current = await self._role_row(flag, for_update=True)
         if current and (current.provider, current.model_id) != (provider, model_id):
-            current.is_default = False
+            setattr(current, flag, False)
             self.db.add(current)
             # Flush the unset before the set so the partial unique index never
-            # sees two default rows.
+            # sees two flagged rows.
             await self.db.flush()
 
-        if not row.is_default:
-            row.is_default = True
+        if not getattr(row, flag):
+            setattr(row, flag, True)
             self.db.add(row)
             await self.db.flush()
             await self.db.refresh(row)
@@ -461,13 +488,60 @@ class ModelService(BaseService[ModelDB, ModelRepository]):
         )
         return _managed(entry, row)
 
+    async def _role_row(
+        self, flag: Literal["is_default", "is_quick"], *, for_update: bool = False
+    ) -> ModelDB | None:
+        if flag == "is_default":
+            return await self.repository.get_default(for_update=for_update)
+        return await self.repository.get_quick(for_update=for_update)
+
     async def clear_default(self) -> None:
         """Back to automatic: consumers fall back to the first available model."""
-        row = await self.repository.get_default(for_update=True)
+        await self._clear_role("is_default")
+
+    async def clear_quick(self) -> None:
+        """Unset the quick model: the runtime falls back to the thread's model
+        at its lowest reasoning effort."""
+        await self._clear_role("is_quick")
+
+    async def _clear_role(self, flag: Literal["is_default", "is_quick"]) -> None:
+        row = await self._role_row(flag, for_update=True)
         if row is not None:
-            row.is_default = False
+            setattr(row, flag, False)
             self.db.add(row)
             await self.db.flush()
+
+    async def _unset_roles_where(self, predicate: Callable[[ModelDB], bool]) -> None:
+        """Drop the default/quick flags from rows `predicate` rejects — the
+        admin mutations that can make a flagged model unservable (provider
+        key removed, Ollama model gone) call this so a role never points at
+        a model the runtime cannot build."""
+        flags: tuple[Literal["is_default", "is_quick"], ...] = (
+            "is_default",
+            "is_quick",
+        )
+        for flag in flags:
+            row = await self._role_row(flag, for_update=True)
+            if row is not None and predicate(row):
+                setattr(row, flag, False)
+                self.db.add(row)
+                await self.db.flush()
+
+    async def resolve_quick(self) -> ResolvedModel | None:
+        """The quick model, resolved for `ChatModelFactory`, or None when
+        unset or no longer available — callers fall back, never fail, since
+        the quick model is an optimisation and not a dependency."""
+        row = await self.repository.get_quick()
+        if row is None:
+            return None
+        try:
+            return await self.ensure_available(row.model_id)
+        except ModelUnavailableError:
+            logger.warning(
+                "Quick model %s is flagged but unavailable; falling back",
+                row.model_id,
+            )
+            return None
 
     async def get_default_model_id(
         self, available: list[SupportedModel] | None = None
@@ -575,11 +649,9 @@ class ModelService(BaseService[ModelDB, ModelRepository]):
         configs = await self.list_provider_configs()
         config = next(config for config in configs if config.name == provider_type)
         if not config.is_configured:
-            default = await self.repository.get_default(for_update=True)
-            if default is not None and default.provider == provider_type.value:
-                default.is_default = False
-                self.db.add(default)
-                await self.db.flush()
+            await self._unset_roles_where(
+                lambda row: row.provider == provider_type.value
+            )
         return config
 
     async def connect_ollama(self, base_url: str) -> OllamaDiscoveryResponse:
@@ -614,15 +686,11 @@ class ModelService(BaseService[ModelDB, ModelRepository]):
         usable_model_ids = {
             model.model_id for model in discovered if model.supports_tools
         }
-        default = await self.repository.get_default(for_update=True)
-        if (
-            default is not None
-            and default.provider == provider
-            and default.model_id not in usable_model_ids
-        ):
-            default.is_default = False
-            self.db.add(default)
-            await self.db.flush()
+        await self._unset_roles_where(
+            lambda row: (
+                row.provider == provider and row.model_id not in usable_model_ids
+            )
+        )
         config = ModelProviderConfigResponse(
             name=ModelProviderType.ollama,
             is_configured=True,

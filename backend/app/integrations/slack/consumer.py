@@ -29,6 +29,7 @@ from app.integrations.slack.blocks import (
     escape_mrkdwn,
     format_tool_streamer_label,
 )
+from app.integrations.slack.db_models import SlackToolDiscoveryMode
 from app.integrations.slack.service import AgentSlackBotService
 from app.integrations.slack.utils import get_slack_client
 from app.runtime.checkpoints import checkpoint_thread_id
@@ -63,7 +64,11 @@ class SlackDelivery(TypedDict):
     team_id: str | None
     workspace_id: str
     slack_bot_id: NotRequired[str | None]
+    # Both derived from the connection's SlackToolDiscoveryMode at enqueue
+    # time: the capability policy and the ToolDiscoveryMode value the worker
+    # applies to every agent of the graph.
     force_enable_all_capabilities: NotRequired[bool]
+    tool_discovery_mode: NotRequired[str]
 
 
 def build_slack_run_consumer(record: RunDB) -> "SlackRunConsumer | None":
@@ -85,7 +90,7 @@ def build_slack_delivery(
     team_id: str | None,
     workspace_id: UUID,
     slack_bot_id: UUID | None = None,
-    force_enable_all_capabilities: bool | None = None,
+    tool_discovery_mode: SlackToolDiscoveryMode | None = None,
 ) -> SlackDelivery:
     """The delivery descriptor stored on a Slack-bound run."""
     delivery: SlackDelivery = {
@@ -98,8 +103,11 @@ def build_slack_delivery(
     }
     if slack_bot_id is not None:
         delivery["slack_bot_id"] = str(slack_bot_id)
-    if force_enable_all_capabilities is not None:
-        delivery["force_enable_all_capabilities"] = force_enable_all_capabilities
+    if tool_discovery_mode is not None:
+        delivery["force_enable_all_capabilities"] = (
+            tool_discovery_mode.force_enable_all_capabilities
+        )
+        delivery["tool_discovery_mode"] = tool_discovery_mode.runtime_mode.value
     return delivery
 
 
@@ -160,9 +168,7 @@ class SlackProtocolAdapter:
         output = data.get("output")
         artifact = output.get("artifact") if isinstance(output, dict) else None
         items = (
-            artifact.get("auxilia_artifacts")
-            if isinstance(artifact, dict)
-            else None
+            artifact.get("auxilia_artifacts") if isinstance(artifact, dict) else None
         )
         if not isinstance(items, list):
             return
@@ -313,12 +319,10 @@ class SlackRunConsumer(DeliveryConsumer):
                     await self._post_approvals(channel_id, thread_ts)
                 elif record.status is RunStatus.cancelled:
                     pass
-                elif (
-                    record.status not in (RunStatus.error, RunStatus.timeout)
-                    or not await self._post_reauth_prompt_if_gated(
-                        channel_id, thread_ts
-                    )
-                ):
+                elif record.status not in (
+                    RunStatus.error,
+                    RunStatus.timeout,
+                ) or not await self._post_reauth_prompt_if_gated(channel_id, thread_ts):
                     await self._post_failure_notice(channel_id, thread_ts)
                 return
 

@@ -44,6 +44,14 @@ class ModelDB(BaseDBModel, table=True):
             postgresql_where=text("is_default"),
             sqlite_where=text("is_default"),
         ),
+        # Likewise at most one quick model per workspace.
+        Index(
+            "uq_models_single_quick",
+            "workspace_id",
+            unique=True,
+            postgresql_where=text("is_quick"),
+            sqlite_where=text("is_quick"),
+        ),
     )
 
     workspace_id: UUID = Field(foreign_key="workspaces.id", index=True)
@@ -54,6 +62,11 @@ class ModelDB(BaseDBModel, table=True):
     # first available model). Only meaningful on an enabled row: disabling a
     # model clears its flag.
     is_default: bool = Field(default=False, nullable=False)
+    # The workspace quick model: a fast, cheap model for short intermediate
+    # calls the runtime makes on its own (the lazy tool-discovery router).
+    # Unset allowed — the runtime falls back to the thread's model at its
+    # lowest reasoning effort. Same enabled-only rule as `is_default`.
+    is_quick: bool = Field(default=False, nullable=False)
 
 
 class ModelProviderCredentialDB(BaseDBModel, table=True):

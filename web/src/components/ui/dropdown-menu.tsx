@@ -26,6 +26,7 @@ interface DropdownMenuProps {
 	side?: "bottom" | "right" | "left" | "top";
 	sideOffset?: number;
 	className?: string;
+	itemClassName?: string;
 }
 
 export function DropdownMenu({
@@ -36,6 +37,7 @@ export function DropdownMenu({
 	side = "bottom",
 	sideOffset = 6,
 	className,
+	itemClassName,
 }: DropdownMenuProps) {
 	return (
 		<DropdownMenuPrimitive.Root modal={modal}>
@@ -94,6 +96,7 @@ export function DropdownMenu({
 									item.active &&
 										!item.destructive &&
 										"bg-petrol-tint dark:bg-white/10",
+									itemClassName,
 								)}
 							>
 								{item.icon && (

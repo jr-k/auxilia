@@ -284,7 +284,7 @@ function PublicTranscript({
 			}
 			if (/^(?:search_mcp_tools|load_mcp_tools)(?:_\d+)?$/.test(name)) {
 				return {
-					serverName: "Auxilia Search",
+					serverName: "Precision",
 					toolName: name.startsWith("search_") ? "find_tools" : "load_tools",
 					icon: "/pwa-icon.svg",
 				};

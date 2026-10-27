@@ -99,6 +99,10 @@ class ManagedModelResponse(BaseModel):
     # The explicit admin choice only — no fallback here, so the Settings UI
     # shows an unset default as unset.
     is_default: bool = False
+    # The workspace quick model (explicit admin choice, unset shown as unset):
+    # used for the runtime's short intermediate calls such as the lazy
+    # tool-discovery router.
+    is_quick: bool = False
     deprecated: bool = False
 
 
@@ -107,7 +111,8 @@ class ModelEnabledUpdate(BaseModel):
 
 
 class ModelDefaultUpdate(BaseModel):
-    """Body of PUT /models/default — which model becomes the workspace default."""
+    """Body of PUT /models/default and PUT /models/quick — which model takes
+    the role."""
 
     provider: str
     model_id: str

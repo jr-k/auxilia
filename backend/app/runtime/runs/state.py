@@ -26,6 +26,18 @@ def delivery_force_enable_all_capabilities(
     return value if isinstance(value, bool) else None
 
 
+def delivery_tool_discovery_mode(delivery: dict | None) -> str | None:
+    """Return a Slack side-channel tool discovery override, if one was recorded.
+
+    The raw string is returned — `Agent.build` parses it into the enum — so
+    this module stays free of `app.agents` imports.
+    """
+    if not delivery or delivery.get("channel") != "slack":
+        return None
+    value = delivery.get("tool_discovery_mode")
+    return value if isinstance(value, str) and value else None
+
+
 class RunStatus(str, Enum):
     """Run lifecycle. Names match the LangGraph Server v1 wire shape; `cancelled`
     is auxilia's explicit Stop."""

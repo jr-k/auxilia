@@ -53,7 +53,7 @@ from app.runtime.runs.state import (
     is_terminal,
 )
 from app.sandbox.provider import ensure_sandboxes_available
-from app.threads.models import ThreadDB
+from app.threads.models import ThreadDB, ThreadToolMode
 from app.threads.repository import ThreadRepository
 
 
@@ -336,7 +336,15 @@ class RunService:
             disabled_subagent_ids={
                 UUID(subagent_id) for subagent_id in thread.disabled_subagent_ids
             },
-            force_enable_all_capabilities=force_enable_all_capabilities,
+            force_enable_all_capabilities=(
+                True
+                if thread.tool_mode is ThreadToolMode.force_all
+                else force_enable_all_capabilities
+            ),
+            force_disable_all_capabilities=(
+                thread.tool_mode is ThreadToolMode.no_tools
+                and force_enable_all_capabilities is not True
+            ),
         )
         enabled_specs = [
             spec.agent,
