@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.56](https://github.com/jr-k/auxilia/compare/web-v0.12.55...web-v0.12.56) (2026-10-27)
+
+
+### Features
+
+* **agents:** add workspace default agent ([fd988de](https://github.com/jr-k/auxilia/commit/fd988de3b910f9ff654fed714b54efa8193c18e0))
+
 ## [0.12.55](https://github.com/jr-k/auxilia/compare/web-v0.12.54...web-v0.12.55) (2026-10-26)
 
 
