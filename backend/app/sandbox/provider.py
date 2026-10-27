@@ -10,6 +10,9 @@ Providers are instance-configured: each one is built from a workspace
 ``sandboxes`` row (see ``build_provider``), never from process-wide settings —
 two agents in the same deployment can target different vendors, or two
 differently-configured instances of the same vendor.
+
+The runtime exposes a ``DeferredSandbox`` to the agent graph so provider
+creation/reconnection happens only when a sandbox operation is invoked.
 """
 
 from __future__ import annotations
@@ -17,11 +20,16 @@ from __future__ import annotations
 import asyncio
 import logging
 from abc import ABC, abstractmethod
-from collections.abc import Iterable
+from collections.abc import Awaitable, Callable, Iterable
 from dataclasses import dataclass
 from typing import Protocol, runtime_checkable
 
-from deepagents.backends.sandbox import BaseSandbox
+from deepagents.backends.sandbox import (
+    BaseSandbox,
+    ExecuteResponse,
+    FileDownloadResponse,
+    FileUploadResponse,
+)
 
 from app.exceptions import SandboxUnavailableError
 from app.sandbox.models import SandboxDB, SandboxProviderType
@@ -65,6 +73,90 @@ class SandboxSession:
     def persist(self) -> None:
         if isinstance(self.backend, SupportsPersist):
             self.backend.persist()
+
+
+class DeferredSandbox(BaseSandbox):
+    """A sandbox-shaped backend that opens the provider on first real use."""
+
+    def __init__(
+        self,
+        opener: Callable[[], Awaitable[BaseSandbox]],
+        *,
+        existing_id: str | None = None,
+    ) -> None:
+        self._opener = opener
+        self._existing_id = existing_id
+        self._backend: BaseSandbox | None = None
+        self._lock = asyncio.Lock()
+        self._loop = asyncio.get_running_loop()
+
+    @property
+    def opened(self) -> bool:
+        return self._backend is not None
+
+    async def _get_backend(self) -> BaseSandbox:
+        if self._backend is not None:
+            return self._backend
+        async with self._lock:
+            if self._backend is None:
+                self._backend = await self._opener()
+                self.enable_capture_offload = self._backend.enable_capture_offload
+        return self._backend
+
+    def _get_backend_sync(self) -> BaseSandbox:
+        if self._backend is not None:
+            return self._backend
+        try:
+            current_loop = asyncio.get_running_loop()
+        except RuntimeError:
+            current_loop = None
+        if current_loop is self._loop:
+            raise RuntimeError(
+                "A deferred sandbox cannot be opened by a synchronous operation "
+                "on the runtime event loop"
+            )
+        return asyncio.run_coroutine_threadsafe(
+            self._get_backend(), self._loop
+        ).result()
+
+    @property
+    def id(self) -> str:
+        if self._backend is not None:
+            return self._backend.id
+        return self._existing_id or "deferred"
+
+    def execute(
+        self,
+        command: str,
+        *,
+        timeout: int | None = None,
+    ) -> ExecuteResponse:
+        return self._get_backend_sync().execute(command, timeout=timeout)
+
+    async def aexecute(
+        self,
+        command: str,
+        *,
+        timeout: int | None = None,  # noqa: ASYNC109 — forwarded to the backend
+    ) -> ExecuteResponse:
+        backend = await self._get_backend()
+        return await backend.aexecute(command, timeout=timeout)
+
+    def upload_files(
+        self, files: list[tuple[str, bytes]]
+    ) -> list[FileUploadResponse]:
+        return self._get_backend_sync().upload_files(files)
+
+    async def aupload_files(
+        self, files: list[tuple[str, bytes]]
+    ) -> list[FileUploadResponse]:
+        return await (await self._get_backend()).aupload_files(files)
+
+    def download_files(self, paths: list[str]) -> list[FileDownloadResponse]:
+        return self._get_backend_sync().download_files(paths)
+
+    async def adownload_files(self, paths: list[str]) -> list[FileDownloadResponse]:
+        return await (await self._get_backend()).adownload_files(paths)
 
 
 def open_sandbox(

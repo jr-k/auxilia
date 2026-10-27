@@ -49,11 +49,9 @@ from app.runtime.runs.settings import run_settings
 from app.runtime.runs.state import (
     MultitaskStrategy,
     RunStatus,
-    delivery_force_enable_all_capabilities,
     is_terminal,
 )
-from app.sandbox.provider import ensure_sandboxes_available
-from app.threads.models import ThreadDB, ThreadToolMode
+from app.threads.models import ThreadDB
 from app.threads.repository import ThreadRepository
 
 
@@ -194,13 +192,7 @@ class RunService:
             raise DomainValidationError("Provide either input or command, not both.")
         if input is not None and (validation_error := run_input_content_error(input)):
             raise DomainValidationError(validation_error)
-        thread = await self._ensure_runnable_thread(
-            db,
-            thread_id,
-            force_enable_all_capabilities=delivery_force_enable_all_capabilities(
-                delivery
-            ),
-        )
+        thread = await self._ensure_runnable_thread(db, thread_id)
         if thread.user_id != UUID(user_id):
             raise NotFoundError("Thread not found")
         if command is not None and not _command_prepared:
@@ -309,14 +301,12 @@ class RunService:
     async def _ensure_runnable_thread(
         db: AsyncSession,
         thread_id: str,
-        *,
-        force_enable_all_capabilities: bool | None = None,
     ) -> ThreadDB:
         """The availability gates behind `create`: the thread must exist, its
         current model must resolve (whitelist ∧ provider key ∧ admin-enabled),
-        else ModelUnavailableError; and every sandbox its agent graph binds
-        must answer a probe, else SandboxUnavailableError — a provider outage
-        is a 409 here, not a failed run the model gets to reason about."""
+        else ModelUnavailableError. Sandbox availability is deliberately not
+        a launch gate: the provider is opened only if the graph invokes a
+        sandbox operation."""
         thread = await db.get(ThreadDB, thread_id)
         if thread is None:
             raise NotFoundError("Thread not found")
@@ -326,42 +316,6 @@ class RunService:
         )
         if spec is None:
             raise NotFoundError("Agent not found")
-        exclusions = spec.resource_exclusions(
-            disabled_mcp_server_ids={
-                UUID(server_id) for server_id in thread.disabled_mcp_server_ids
-            },
-            disabled_sandbox_ids={
-                UUID(sandbox_id) for sandbox_id in thread.disabled_sandbox_ids
-            },
-            disabled_subagent_ids={
-                UUID(subagent_id) for subagent_id in thread.disabled_subagent_ids
-            },
-            force_enable_all_capabilities=(
-                True
-                if thread.tool_mode is ThreadToolMode.force_all
-                else force_enable_all_capabilities
-            ),
-            force_disable_all_capabilities=(
-                thread.tool_mode is ThreadToolMode.no_tools
-                and force_enable_all_capabilities is not True
-            ),
-        )
-        enabled_specs = [
-            spec.agent,
-            *(
-                subagent
-                for subagent in spec.subagents
-                if subagent.id not in exclusions.subagent_ids
-            ),
-        ]
-        await ensure_sandboxes_available(
-            [
-                agent_spec.sandbox.row
-                for agent_spec in enabled_specs
-                if agent_spec.sandbox is not None
-                and agent_spec.sandbox.row.id not in exclusions.sandbox_ids
-            ]
-        )
         return thread
 
     async def get(self, run_id: str, workspace_id: UUID | None = None) -> RunDB:

@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import re
 import warnings
@@ -33,6 +34,8 @@ with warnings.catch_warnings():
 
 
 logger = logging.getLogger(__name__)
+
+MCP_OPEN_TIMEOUT_SECONDS = 15
 
 
 _VALID_TOOL_NAME_CHARS = re.compile(r"[^a-zA-Z0-9_-]")
@@ -456,15 +459,18 @@ class Toolset:
             return
 
         async with AsyncExitStack() as stack:
-            tools_by_server: list[tuple[str, list[BaseTool]]] = []
             unavailable_servers: set[str] = set()
-            for server_name, spec in prepared.connections.items():
+
+            async def open_server(
+                server_name: str, spec: ConnectionSpec
+            ) -> tuple[str, list[BaseTool]] | None:
                 adapter = MCPAdapter(build_client(spec))
                 entered = False
                 try:
-                    await adapter.__aenter__()
-                    entered = True
-                    lc_tools = await adapter.list_tools()
+                    async with asyncio.timeout(MCP_OPEN_TIMEOUT_SECONDS):
+                        await adapter.__aenter__()
+                        entered = True
+                        lc_tools = await adapter.list_tools()
                 except BaseException as exc:
                     if entered:
                         try:
@@ -491,7 +497,7 @@ class Toolset:
                             exc_info=(type(exc), exc, exc.__traceback__),
                         )
                     unavailable_servers.add(server_name)
-                    continue
+                    return None
 
                 stack.push_async_exit(adapter)
                 for tool in lc_tools:
@@ -520,7 +526,15 @@ class Toolset:
                     if original_description:
                         tool.description += f"\n\n{original_description}"
                     tool.name = f"{server_name}_{tool.name}"
-                tools_by_server.append((server_name, lc_tools))
+                return server_name, lc_tools
+
+            opened = await asyncio.gather(
+                *(
+                    open_server(server_name, spec)
+                    for server_name, spec in prepared.connections.items()
+                )
+            )
+            tools_by_server = [result for result in opened if result is not None]
 
             for server_name in unavailable_servers:
                 prepared.connections.pop(server_name, None)

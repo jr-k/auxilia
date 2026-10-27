@@ -111,6 +111,7 @@ export async function startThread(
 				agent_id: payload.agentId,
 				model_id: payload.modelId,
 				reasoning_effort: payload.reasoningEffort,
+				tool_mode: payload.toolMode,
 				disabled_mcp_server_ids: payload.disabledMcpServerIds,
 				disabled_skill_ids: payload.disabledSkillIds,
 				disabled_sandbox_ids: payload.disabledSandboxIds,

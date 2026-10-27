@@ -7,6 +7,7 @@ from typing import Any
 from uuid import UUID, uuid4
 
 from deepagents.backends import StateBackend
+from deepagents.backends.sandbox import BaseSandbox
 from deepagents.graph import DeepAgentState
 from deepagents.middleware._prompt_caching import append_prompt_caching_middleware
 from deepagents.middleware.patch_tool_calls import PatchToolCallsMiddleware
@@ -84,6 +85,7 @@ from app.runtime.toolset import (
 )
 from app.sandbox.provider import (
     BaseSandboxProvider,
+    DeferredSandbox,
     SandboxSession,
     build_provider,
     open_sandbox,
@@ -281,13 +283,13 @@ def build_runnable(
     assembles that bundle and ``tests/runtime/test_harness_parity.py`` pins it
     to what ``create_deep_agent`` builds. Nothing else forks on the sandbox.
 
-    ``sandbox_backend`` is a *live* sandbox — the runtime connects it before
-    the graph is built (``Agent._setup``); the model never creates or
-    reconnects one. ``skills`` is the run's read-only ``SkillsBackend`` (None
-    when the graph has no skills, which means no middleware and no prompt
-    fragment, as in ``create_deep_agent``): the skill index is always read
-    from it, and an agent without a sandbox also gets ``ls`` / ``read_file``
-    over it — its only filesystem, and no process anywhere.
+    ``sandbox_backend`` has the sandbox interface but opens its provider only
+    on the first filesystem or execution call. ``skills`` is the run's
+    read-only ``SkillsBackend`` (None when the graph has no skills, which means
+    no middleware and no prompt fragment, as in ``create_deep_agent``): the
+    skill index is always read from it, and an agent without a sandbox also
+    gets ``ls`` / ``read_file`` over it — its only filesystem, and no process
+    anywhere.
 
     ``base_middleware`` is the caller's own stack — the parent passes
     ``build_parent_middleware``'s list; subagents pass their own retry/limit/
@@ -677,8 +679,10 @@ class Agent:
         self.router_model = router_model
         # One skill set for the whole graph, frozen for this run.
         self.skills = list(skills)
-        # The run's live sandbox, opened by `_setup` for the length of one run.
+        # The provider session exists only after the model first uses a sandbox
+        # tool (or immediately when this turn attaches files).
         self._sandbox: SandboxSession | None = None
+        self._sandbox_backend: DeferredSandbox | None = None
         # Files restored or attached to this turn and announced to the model.
         self._announced_files: list[ArtifactDB] = []
 
@@ -980,10 +984,17 @@ class Agent:
         # Read-only and shared by every agent of the graph; None means no
         # skills middleware and no prompt fragment at all.
         skills = SkillsBackend(self.skills) if self.skills else None
-        source_id = self.thread.sandbox_source_id
+        source = self._sandbox_binding()
+        source_id = (
+            self.thread.sandbox_source_id
+            if self.thread.sandbox_source_id is not None
+            else source.row_id
+            if source is not None
+            else None
+        )
         artifact_context = (
             (self.thread.workspace_id, self.thread.id, source_id)
-            if self._sandbox is not None and source_id is not None
+            if self._sandbox_backend is not None and source_id is not None
             else None
         )
         compiled = (
@@ -1109,11 +1120,11 @@ class Agent:
     ):
         """Open a checkpointer scope and yield (agent, resolved_input, config).
 
-        Scaffolding for `stream`: opens one persistent MCP
-        session per server (parent + subagents) on an AsyncExitStack that lives for
-        the whole astream/ainvoke loop, opens the AsyncPostgresSaver, connects the
-        run's sandbox and puts its skills there, builds the LangGraph agent against
-        the live tools, and resolves the request input and run config in one place.
+        Scaffolding for `stream`: opens one persistent MCP session per server
+        (parent + subagents) on an AsyncExitStack that lives for the whole
+        astream/ainvoke loop, opens the AsyncPostgresSaver, installs a deferred
+        sandbox backend, builds the LangGraph agent against the live tools, and
+        resolves the request input and run config in one place.
         """
         async with AsyncExitStack() as stack, get_checkpointer() as checkpointer:
             stack.enter_context(
@@ -1138,7 +1149,17 @@ class Agent:
                     raise result
             for ra, live in zip(resolved, results, strict=True):
                 ra.live = live
-            await self._open_sandbox(checkpointer, input_attachment_ids(agent_input))
+            attachment_ids = input_attachment_ids(agent_input)
+            source = self._sandbox_binding()
+            if source is not None:
+                self._sandbox_backend = DeferredSandbox(
+                    lambda: self._open_sandbox(checkpointer, attachment_ids),
+                    existing_id=self.thread.sandbox_id,
+                )
+                # Attachments must exist before the first model call because the
+                # input includes a host notice naming their sandbox paths.
+                if attachment_ids:
+                    await self._open_sandbox(checkpointer, attachment_ids)
             agent = self._build_agent(checkpointer, output_schema)
             resolved_input = self._resolve_input(agent_input, command)
             config, resolved_input = await self._resolve_config(
@@ -1172,17 +1193,28 @@ class Agent:
             logger.exception("Failed to persist sandbox state")
 
     def _sandbox_for(self, resolved: ResolvedAgent):
-        """The run's live sandbox, for an agent bound to one."""
-        if self._sandbox is None or resolved.sandbox is None:
+        """The run's deferred sandbox backend, for an agent bound to one."""
+        if resolved.sandbox is None:
             return None
-        return self._sandbox.backend
+        if self._sandbox_backend is not None:
+            return self._sandbox_backend
+        return self._sandbox.backend if self._sandbox is not None else None
+
+    def _sandbox_binding(self) -> ResolvedSandbox | None:
+        return next(
+            (
+                resolved.sandbox
+                for resolved in [self.agent, *self.subagents]
+                if resolved.sandbox is not None
+            ),
+            None,
+        )
 
     async def _open_sandbox(
         self, checkpointer, current_attachment_ids: set[str] | None = None
-    ) -> None:
+    ) -> BaseSandbox:
         """Connect (or create) the thread's sandbox and put the run's skill
-        files on it — before the graph runs, so the model only ever sees a
-        live filesystem.
+        files on it when the graph first touches its filesystem.
 
         One sandbox per run, shared by the parent and every sandbox-bound
         subagent (the first bound member's provider); the thread remembers its
@@ -1191,10 +1223,11 @@ class Agent:
         other failure fails the run as `SandboxUnavailableError`. Provider
         calls are blocking SDK calls, run off the loop.
         """
-        bound = [ra for ra in [self.agent, *self.subagents] if ra.sandbox is not None]
-        if not bound:
-            return
-        source = bound[0].sandbox
+        if self._sandbox is not None:
+            return self._sandbox.backend
+        source = self._sandbox_binding()
+        if source is None:
+            raise RuntimeError("Cannot open a sandbox for an unbound agent")
         # Only reconnect to an id this sandbox row issued. After a rebinding
         # the stored id belongs to the previous provider, which cannot know
         # it — reconnect failed the run instead of starting a fresh sandbox.
@@ -1236,6 +1269,7 @@ class Agent:
             )
             await db.commit()
         self._sandbox = session
+        return session.backend
 
     async def _remember_sandbox(self, sandbox_id: str, source_id) -> None:
         """Stamp the sandbox on the thread so the next run reconnects to it.
