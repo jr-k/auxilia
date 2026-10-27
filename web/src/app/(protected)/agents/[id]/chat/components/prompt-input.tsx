@@ -1098,95 +1098,6 @@ const ChatPromptInput = ({
 								</DialogContent>
 							</Dialog>
 						)}
-						{effectiveThreadToolMode && (
-							<DropdownMenu
-								align="start"
-								side="top"
-								className={composerMenuClass}
-								itemClassName="py-[9px]"
-								items={[
-									{ sectionLabel: "Tool mode" },
-									{
-										label: "Agent default",
-										description: "use agent configuration",
-										active: resourceSettings.toolMode === null,
-										onClick: () => {
-											handleToolModeChange(null);
-										},
-									},
-									{ separator: true },
-									{
-										label: "No Tools",
-										description: "answer without tools",
-										active: resourceSettings.toolMode === "no_tools",
-										onClick: () => {
-											handleToolModeChange("no_tools");
-										},
-									},
-									{
-										label: "Eager",
-										description: "load every MCP schema",
-										active: resourceSettings.toolMode === "eager",
-										onClick: () => {
-											handleToolModeChange("eager");
-										},
-									},
-									{
-										label: "Lazy",
-										description: "choose servers per prompt",
-										active: resourceSettings.toolMode === "lazy",
-										onClick: () => {
-											handleToolModeChange("lazy");
-										},
-									},
-									{
-										label: "Precision",
-										description: "retrieve tools adaptively",
-										active: resourceSettings.toolMode === "precision",
-										onClick: () => {
-											handleToolModeChange("precision");
-										},
-									},
-									{
-										label: "Force all",
-										description: "force every capability",
-										active: resourceSettings.toolMode === "force_all",
-										onClick: () => {
-											handleToolModeChange("force_all");
-										},
-									},
-								]}
-								trigger={
-									<PromptInputButton
-										disabled={
-											resourceSettingsSaving || !canChangeToolMode
-										}
-										aria-label={`Tool mode: ${THREAD_TOOL_MODE_LABELS[effectiveThreadToolMode]}`}
-										title={
-											canChangeToolMode
-												? `Tool mode: ${THREAD_TOOL_MODE_LABELS[effectiveThreadToolMode]}${
-														resourceSettings.toolMode === null
-															? " (agent default)"
-															: ""
-													}`
-												: readOnlyModel
-													? "This conversation is read-only"
-													: "Wait for the current run to finish"
-										}
-										className={cn(
-											composerPillClass,
-											"w-[34px] cursor-pointer px-0 text-subtle dark:text-panel-body",
-										)}
-									>
-										{resourceSettingsSaving ? (
-											<Loader2 className="size-3.5 animate-spin" />
-										) : (
-											<CpuIcon className="size-3.5" />
-										)}
-									</PromptInputButton>
-								}
-							/>
-						)}
 						<ConnectButton
 							needsConnection={
 								agentReady === false &&
@@ -1366,6 +1277,95 @@ const ChatPromptInput = ({
 										}
 									/>
 								)}
+						{effectiveThreadToolMode && (
+							<DropdownMenu
+								align="start"
+								side="top"
+								className={composerMenuClass}
+								itemClassName="py-[9px]"
+								items={[
+									{ sectionLabel: "Tool mode" },
+									{
+										label: "Agent default",
+										description: "use agent configuration",
+										active: resourceSettings.toolMode === null,
+										onClick: () => {
+											handleToolModeChange(null);
+										},
+									},
+									{ separator: true },
+									{
+										label: "No Tools",
+										description: "answer without tools",
+										active: resourceSettings.toolMode === "no_tools",
+										onClick: () => {
+											handleToolModeChange("no_tools");
+										},
+									},
+									{
+										label: "Eager",
+										description: "load every MCP schema",
+										active: resourceSettings.toolMode === "eager",
+										onClick: () => {
+											handleToolModeChange("eager");
+										},
+									},
+									{
+										label: "Lazy",
+										description: "choose servers per prompt",
+										active: resourceSettings.toolMode === "lazy",
+										onClick: () => {
+											handleToolModeChange("lazy");
+										},
+									},
+									{
+										label: "Precision",
+										description: "retrieve tools adaptively",
+										active: resourceSettings.toolMode === "precision",
+										onClick: () => {
+											handleToolModeChange("precision");
+										},
+									},
+									{
+										label: "Force all",
+										description: "force every capability",
+										active: resourceSettings.toolMode === "force_all",
+										onClick: () => {
+											handleToolModeChange("force_all");
+										},
+									},
+								]}
+								trigger={
+									<PromptInputButton
+										disabled={
+											resourceSettingsSaving || !canChangeToolMode
+										}
+										aria-label={`Tool mode: ${THREAD_TOOL_MODE_LABELS[effectiveThreadToolMode]}`}
+										title={
+											canChangeToolMode
+												? `Tool mode: ${THREAD_TOOL_MODE_LABELS[effectiveThreadToolMode]}${
+														resourceSettings.toolMode === null
+															? " (agent default)"
+															: ""
+													}`
+												: readOnlyModel
+													? "This conversation is read-only"
+													: "Wait for the current run to finish"
+										}
+										className={cn(composerPillClass, "cursor-pointer")}
+									>
+										{resourceSettingsSaving ? (
+											<Loader2 className="size-3.5 animate-spin" />
+										) : (
+											<CpuIcon className="size-3.5" />
+										)}
+										<span className="truncate text-left">
+											{THREAD_TOOL_MODE_LABELS[effectiveThreadToolMode]}
+										</span>
+									</PromptInputButton>
+								}
+							/>
+						)}
 					</PromptInputTools>
 					<div className="flex shrink-0 items-center gap-1.5">
 						{status === "streaming" && stop && (

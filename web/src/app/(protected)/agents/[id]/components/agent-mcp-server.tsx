@@ -58,15 +58,11 @@ interface AgentMCPServerProps {
 const TOOL_RENDER_BATCH_SIZE = 8;
 
 interface ProgressiveToolListProps {
-	serverName: string;
 	tools: MCPServerTool[];
-	binding: AgentMCPServerForm;
 	readOnly?: boolean;
-	canToggleDefault?: boolean;
 	mode: "agent" | "trigger";
 	triggerDisabledTools: string[];
 	triggerToolsReadOnly: boolean;
-	onDefaultEnabledChange?: (enabled: boolean) => void;
 	onTriggerToolEnabledChange?: (toolName: string, enabled: boolean) => void;
 	statusFor: (toolName: string) => ToolStatus;
 	onStatusChange: (toolName: string, status: ToolStatus) => void;
@@ -74,15 +70,11 @@ interface ProgressiveToolListProps {
 }
 
 function ProgressiveToolList({
-	serverName,
 	tools,
-	binding,
 	readOnly,
-	canToggleDefault,
 	mode,
 	triggerDisabledTools,
 	triggerToolsReadOnly,
-	onDefaultEnabledChange,
 	onTriggerToolEnabledChange,
 	statusFor,
 	onStatusChange,
@@ -93,7 +85,6 @@ function ProgressiveToolList({
 	);
 	const visibleTools = tools.slice(0, visibleToolCount);
 	const remainingToolCount = tools.length - visibleTools.length;
-	const showTools = mode !== "trigger" || binding.enabledByDefault !== false;
 	const firstStatus = tools[0] ? statusFor(tools[0].name) : null;
 	const allStatus =
 		firstStatus !== null &&
@@ -118,74 +109,86 @@ function ProgressiveToolList({
 			className="max-h-80 overflow-y-auto [scrollbar-width:thin]"
 			onScroll={handleScroll}
 		>
-			<div className="flex items-center gap-3 border-b border-hover bg-petrol-tint/55 px-4 py-3 dark:border-white/5 dark:bg-white/5">
-				<div className="min-w-0 flex-1">
-					<p className="text-[12.5px] font-semibold text-foreground">
-						{mode === "trigger" ? "This trigger" : "New conversations"}
-					</p>
-					<p className="mt-0.5 text-[11.5px] text-muted-foreground">
-						{mode === "trigger"
-							? "Allow this MCP server during automated runs"
-							: "Enable this MCP server by default"}
-					</p>
+			{mode === "agent" && !readOnly && (
+				<div className="flex items-center gap-3 border-b border-hover bg-hover/35 px-4 py-2.5 dark:border-white/5 dark:bg-white/[0.025]">
+					<div className="min-w-0 flex-1">
+						<p className="text-[10.5px] font-semibold tracking-[0.08em] text-label dark:text-muted-foreground">
+							ALL TOOLS
+						</p>
+						<p className="mt-0.5 text-[11.5px] text-muted-foreground">
+							Apply one approval policy to every tool
+						</p>
+					</div>
+					<ThreeStateToggle value={allStatus} onChange={onAllStatusChange} />
 				</div>
-				<Switch
-					checked={binding.enabledByDefault ?? true}
-					disabled={canToggleDefault === false || (readOnly && !canToggleDefault)}
-					onCheckedChange={(checked) => {
-						onDefaultEnabledChange?.(checked);
-					}}
-					aria-label={
-						mode === "trigger"
-							? `Allow ${serverName} for this trigger`
-							: `Enable ${serverName} by default in new conversations`
-					}
-				/>
-			</div>
-			{showTools && (
-				<>
-					{mode === "agent" && !readOnly && (
-						<div className="flex items-center gap-3 border-b border-hover bg-hover/35 px-4 py-2.5 dark:border-white/5 dark:bg-white/[0.025]">
-							<div className="min-w-0 flex-1">
-								<p className="text-[10.5px] font-semibold tracking-[0.08em] text-label dark:text-muted-foreground">
-									ALL TOOLS
-								</p>
-								<p className="mt-0.5 text-[11.5px] text-muted-foreground">
-									Apply one approval policy to every tool
-								</p>
-							</div>
-							<ThreeStateToggle
-								value={allStatus}
-								onChange={onAllStatusChange}
-							/>
-						</div>
-					)}
-					{visibleTools.map((tool) => (
-						<AgentMCPTool
-							key={tool.name}
-							toolName={tool.name}
-							toolDescription={tool.description ?? undefined}
-							status={statusFor(tool.name)}
-							readOnly={readOnly}
-							mode={mode}
-							triggerEnabled={!triggerDisabledTools.includes(tool.name)}
-							triggerReadOnly={triggerToolsReadOnly}
-							onStatusChange={(status) => {
-								onStatusChange(tool.name, status);
-							}}
-							onTriggerEnabledChange={(enabled) => {
-								onTriggerToolEnabledChange?.(tool.name, enabled);
-							}}
-						/>
-					))}
-					{remainingToolCount > 0 && (
-						<div className="border-t border-hover px-4 py-2 text-center text-[11px] text-meta dark:border-white/5 dark:text-panel-dim">
-							{remainingToolCount} more tool
-							{remainingToolCount === 1 ? "" : "s"} · scroll to load
-						</div>
-					)}
-				</>
 			)}
+			{visibleTools.map((tool) => (
+				<AgentMCPTool
+					key={tool.name}
+					toolName={tool.name}
+					toolDescription={tool.description ?? undefined}
+					status={statusFor(tool.name)}
+					readOnly={readOnly}
+					mode={mode}
+					triggerEnabled={!triggerDisabledTools.includes(tool.name)}
+					triggerReadOnly={triggerToolsReadOnly}
+					onStatusChange={(status) => {
+						onStatusChange(tool.name, status);
+					}}
+					onTriggerEnabledChange={(enabled) => {
+						onTriggerToolEnabledChange?.(tool.name, enabled);
+					}}
+				/>
+			))}
+			{remainingToolCount > 0 && (
+				<div className="border-t border-hover px-4 py-2 text-center text-[11px] text-meta dark:border-white/5 dark:text-panel-dim">
+					{remainingToolCount} more tool
+					{remainingToolCount === 1 ? "" : "s"} · scroll to load
+				</div>
+			)}
+		</div>
+	);
+}
+
+function DefaultEnabledRow({
+	serverName,
+	binding,
+	readOnly,
+	canToggleDefault,
+	mode,
+	onDefaultEnabledChange,
+}: {
+	serverName: string;
+	binding: AgentMCPServerForm;
+	readOnly?: boolean;
+	canToggleDefault?: boolean;
+	mode: "agent" | "trigger";
+	onDefaultEnabledChange?: (enabled: boolean) => void;
+}) {
+	return (
+		<div className="flex items-center gap-3 border-b border-hover bg-petrol-tint/55 px-4 py-3 dark:border-white/5 dark:bg-white/5">
+			<div className="min-w-0 flex-1">
+				<p className="text-[12.5px] font-semibold text-foreground">
+					{mode === "trigger" ? "This trigger" : "New conversations"}
+				</p>
+				<p className="mt-0.5 text-[11.5px] text-muted-foreground">
+					{mode === "trigger"
+						? "Allow this MCP server during automated runs"
+						: "Enable this MCP server by default"}
+				</p>
+			</div>
+			<Switch
+				checked={binding.enabledByDefault ?? true}
+				disabled={canToggleDefault === false || (readOnly && !canToggleDefault)}
+				onCheckedChange={(checked) => {
+					onDefaultEnabledChange?.(checked);
+				}}
+				aria-label={
+					mode === "trigger"
+						? `Allow ${serverName} for this trigger`
+						: `Enable ${serverName} by default in new conversations`
+				}
+			/>
 		</div>
 	);
 }
@@ -514,7 +517,16 @@ export default function AgentMCPServer({
 
 			{isExpanded && (
 				<div className="border-t border-hover dark:border-white/5">
-					{!isConnected && !isCheckingConnection ? (
+					<DefaultEnabledRow
+						serverName={server.name}
+						binding={binding}
+						readOnly={readOnly}
+						canToggleDefault={canToggleDefault}
+						mode={mode}
+						onDefaultEnabledChange={onDefaultEnabledChange}
+					/>
+					{mode === "trigger" && binding.enabledByDefault === false ? null : !isConnected &&
+					  !isCheckingConnection ? (
 						<div className="p-6 text-center">
 							<p className="mb-1 text-[13.5px] font-semibold text-foreground">
 								Connect your account
@@ -555,15 +567,11 @@ export default function AgentMCPServer({
 						</div>
 					) : configurableTools.length > 0 ? (
 						<ProgressiveToolList
-							serverName={server.name}
 							tools={configurableTools}
-							binding={binding}
 							readOnly={readOnly}
-							canToggleDefault={canToggleDefault}
 							mode={mode}
 							triggerDisabledTools={triggerDisabledTools}
 							triggerToolsReadOnly={triggerToolsReadOnly}
-							onDefaultEnabledChange={onDefaultEnabledChange}
 							onTriggerToolEnabledChange={onTriggerToolEnabledChange}
 							statusFor={statusFor}
 							onStatusChange={handleStatusChange}
