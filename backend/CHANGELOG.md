@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.41](https://github.com/jr-k/auxilia/compare/backend-v0.11.40...backend-v0.11.41) (2026-10-27)
+
+
+### Bug Fixes
+
+* **runtime:** recover stalled chat submissions ([636bef6](https://github.com/jr-k/auxilia/commit/636bef6b35e984da5af2e4afa3e307dfce2aefb6))
+
 ## [0.11.40](https://github.com/jr-k/auxilia/compare/backend-v0.11.39...backend-v0.11.40) (2026-10-27)
 
 
