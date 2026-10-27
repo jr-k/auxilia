@@ -80,8 +80,14 @@ export interface AgentPermissionRow {
 }
 
 /** The workspace's agents visible to the caller (slim rows). */
-export async function listAgents(): Promise<Agent[]> {
-	const response = await api.get<Agent[]>("/agents");
+export async function listAgents(
+	options: { cookie?: string } = {},
+): Promise<Agent[]> {
+	const response = options.cookie
+		? await api.get<Agent[]>("/agents/", {
+				headers: { Cookie: options.cookie },
+			})
+		: await api.get<Agent[]>("/agents");
 	return response.data;
 }
 
@@ -141,6 +147,12 @@ export async function deleteAgentImage(agentId: string): Promise<void> {
 
 export async function patchAgent(agentId: string, patch: AgentPatch): Promise<Agent> {
 	const response = await api.patch<Agent>(`/agents/${agentId}`, patch);
+	return response.data;
+}
+
+/** Make this agent the single workspace default. */
+export async function setDefaultAgent(agentId: string): Promise<Agent> {
+	const response = await api.put<Agent>(`/agents/${agentId}/default`);
 	return response.data;
 }
 

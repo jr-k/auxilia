@@ -103,6 +103,7 @@ export interface Agent {
 	imageRevision?: string | null;
 	description?: string | null;
 	isArchived: boolean;
+	isDefault: boolean;
 	mcpServers: AgentMCPServer[];
 	/** Absent on list responses, like `instructions`; present on detail responses. */
 	sandboxes?: AgentSandbox[];

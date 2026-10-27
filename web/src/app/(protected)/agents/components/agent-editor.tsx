@@ -10,6 +10,7 @@ import {
 	History,
 	Pencil,
 	Play,
+	Star,
 } from "lucide-react";
 import { toast } from "sonner";
 import { AGENT_COLORS } from "@/lib/colors";
@@ -111,6 +112,7 @@ export default function AgentEditor({
 	const updateAgent = useAgentsStore((state) => state.updateAgent);
 	const createAgent = useAgentsStore((state) => state.createAgent);
 	const saveAgentConfig = useAgentsStore((state) => state.saveAgentConfig);
+	const setDefaultAgent = useAgentsStore((state) => state.setDefaultAgent);
 	const refreshAgent = useAgentsStore((state) => state.refreshAgent);
 	const archiveAgent = useAgentsStore((state) => state.archiveAgent);
 	const workspaceAgents = useAgentsStore((state) => state.agents);
@@ -128,6 +130,9 @@ export default function AgentEditor({
 		!agent ||
 		canManageAgent ||
 		agent.currentUserPermission === "editor";
+	const canSetDefaultAgent =
+		Boolean(agent) && user?.role !== "member" && canEditAgent;
+	const [isSettingDefault, setIsSettingDefault] = useState(false);
 
 	// Snapshot taken on mount — the dirty baseline. Re-derives when the agent
 	// is saved (the store hands back a fresh object), never from form edits.
@@ -400,6 +405,21 @@ export default function AgentEditor({
 		} catch (err) {
 			console.error("Error archiving agent:", err);
 			setError(getApiErrorMessage(err, "Failed to archive the agent."));
+		}
+	};
+
+	const handleSetDefault = async () => {
+		if (!agent || agent.isDefault) return;
+		setIsSettingDefault(true);
+		try {
+			await setDefaultAgent(agent.id);
+			toast.success(`${agent.name} is now the default agent.`);
+		} catch (error: unknown) {
+			toast.error(
+				getApiErrorMessage(error, "Could not set the default agent."),
+			);
+		} finally {
+			setIsSettingDefault(false);
 		}
 	};
 
@@ -678,6 +698,38 @@ export default function AgentEditor({
 										: "Create agent"}
 							</button>
 						</>
+					)}
+					{agent && canSetDefaultAgent && (
+						<button
+							type="button"
+							disabled={agent.isDefault || isSettingDefault}
+							title={
+								agent.isDefault
+									? "Workspace default agent"
+									: "Set as workspace default"
+							}
+							onClick={() => {
+								void handleSetDefault();
+							}}
+							className={cn(
+								"inline-flex cursor-pointer items-center gap-1.5 rounded-[7px] border px-3 py-2 text-[13px] font-semibold transition-colors disabled:cursor-default",
+								agent.isDefault
+									? "border-amber-300/70 bg-amber-50 text-amber-700 dark:border-amber-400/25 dark:bg-amber-400/10 dark:text-amber-300"
+									: "border-input bg-card text-foreground hover:border-amber-300 hover:text-amber-700 dark:hover:border-amber-400/30 dark:hover:text-amber-300",
+							)}
+						>
+							<Star
+								className="size-3.5"
+								fill={agent.isDefault ? "currentColor" : "none"}
+							/>
+							<span className="hidden lg:inline">
+								{isSettingDefault
+									? "Setting…"
+									: agent.isDefault
+										? "Default"
+										: "Set default"}
+							</span>
+						</button>
 					)}
 					{agent && canManageAgent && (
 						<DropdownMenu

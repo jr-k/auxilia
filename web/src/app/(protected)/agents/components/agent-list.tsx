@@ -288,8 +288,36 @@ export default function AgentList({
 		[filterTeamIds, matches, view],
 	);
 
-	const groupTree = useMemo(() => buildGroupTree(visible), [visible]);
-	const orderedAgents = useMemo(() => flattenGroupTree(groupTree), [groupTree]);
+	const defaultAgent = useMemo(
+		() => (!archived ? visible.find((agent) => agent.isDefault) : undefined),
+		[archived, visible],
+	);
+	const remainingVisible = useMemo(
+		() =>
+			defaultAgent
+				? visible.filter((agent) => agent.id !== defaultAgent.id)
+				: visible,
+		[defaultAgent, visible],
+	);
+	const pinnedVisible = useMemo(
+		() =>
+			defaultAgent ? [defaultAgent, ...remainingVisible] : remainingVisible,
+		[defaultAgent, remainingVisible],
+	);
+	const groupTree = useMemo(
+		() => buildGroupTree(remainingVisible),
+		[remainingVisible],
+	);
+	const orderedAgents = useMemo(
+		() =>
+			mode === "table"
+				? pinnedVisible
+				: [
+						...(defaultAgent ? [defaultAgent] : []),
+						...flattenGroupTree(groupTree),
+					],
+		[defaultAgent, groupTree, mode, pinnedVisible],
+	);
 	const manageableAgentIds = useMemo(
 		() =>
 			orderedAgents
@@ -458,7 +486,7 @@ export default function AgentList({
 			<div className="flex min-h-0 w-full flex-1 flex-col animate-in fade-in duration-300">
 				{bulkControls}
 				<AgentTable
-					agents={visible}
+					agents={orderedAgents}
 					archived={archived}
 					onRemoved={handleRemoved}
 					selectedIds={selection.selectedIds}
@@ -473,6 +501,18 @@ export default function AgentList({
 	return (
 		<div className="w-full animate-in fade-in duration-300">
 			{bulkControls}
+			{defaultAgent && (
+				<div className={remainingVisible.length > 0 ? "mb-6" : undefined}>
+					<AgentCardGrid
+						agents={[defaultAgent]}
+						archived={archived}
+						onRemoved={handleRemoved}
+						selectedIds={selection.selectedIds}
+						selectionMode={selection.selectionMode}
+						onToggleSelection={selection.toggle}
+					/>
+				</div>
+			)}
 			{groupTree.groups.map((group) => (
 				<AgentSection
 					key={`${view}:${group.path}`}

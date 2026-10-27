@@ -1,7 +1,7 @@
 from enum import Enum
 from uuid import UUID
 
-from sqlalchemy import Enum as SAEnum, LargeBinary, UniqueConstraint
+from sqlalchemy import Enum as SAEnum, Index, LargeBinary, UniqueConstraint, text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Boolean, Column, Field, SQLModel, String, Text
 
@@ -134,8 +134,21 @@ class AgentBase(SQLModel):
 
 class AgentDB(AgentBase, BaseDBModel, table=True):
     __tablename__ = "agents"
+    __table_args__ = (
+        Index(
+            "uq_agents_workspace_default",
+            "workspace_id",
+            unique=True,
+            postgresql_where=text("is_default"),
+            sqlite_where=text("is_default"),
+        ),
+    )
 
     is_archived: bool = Field(
+        default=False,
+        sa_column=Column(Boolean, nullable=False, server_default="false"),
+    )
+    is_default: bool = Field(
         default=False,
         sa_column=Column(Boolean, nullable=False, server_default="false"),
     )

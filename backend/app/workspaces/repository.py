@@ -36,6 +36,16 @@ class WorkspaceRepository(BaseRepository[WorkspaceDB]):
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
+    async def lock_for_update(self, workspace_id: UUID) -> bool:
+        """Serialize mutations of workspace-wide singleton settings."""
+        stmt = (
+            select(WorkspaceDB.id)
+            .where(WorkspaceDB.id == workspace_id)
+            .with_for_update()
+        )
+        result = await self.db.execute(stmt)
+        return result.scalar_one_or_none() is not None
+
     async def get_membership(
         self, workspace_id: UUID, user_id: UUID
     ) -> WorkspaceMembershipDB | None:

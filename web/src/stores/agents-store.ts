@@ -21,6 +21,7 @@ interface AgentsState {
 	// --- mutations: each owns its HTTP call *and* its cache update ---------
 	createAgent: (payload: AgentWrite) => Promise<Agent>;
 	saveAgentConfig: (agentId: string, payload: AgentWrite) => Promise<Agent>;
+	setDefaultAgent: (agentId: string) => Promise<Agent>;
 	/** Soft delete: the agent leaves the live list. */
 	archiveAgent: (agentId: string) => Promise<void>;
 	/** Un-archive: the live list is reloaded so the agent reappears in place. */
@@ -83,6 +84,19 @@ export const useAgentsStore = create<AgentsState>((set, get) => {
 			const saved = await agentsApi.saveAgentConfig(agentId, payload);
 			get().updateAgent(agentId, saved);
 			useSkillsStore.getState().syncAgentUsage(boundAgent(saved), payload.skillIds);
+			return saved;
+		},
+		setDefaultAgent: async (agentId) => {
+			const saved = await agentsApi.setDefaultAgent(agentId);
+			set((state) => ({
+				agents: state.agents
+					.map((agent) =>
+						agent.id === agentId
+							? { ...agent, ...saved, isDefault: true }
+							: { ...agent, isDefault: false },
+					)
+					.sort((a, b) => Number(b.isDefault) - Number(a.isDefault)),
+			}));
 			return saved;
 		},
 		archiveAgent: async (agentId) => {

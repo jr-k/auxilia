@@ -174,6 +174,20 @@ async def update_agent(
     )
 
 
+@router.put("/{agent_id}/default", response_model=AgentResponse)
+async def set_default_agent(
+    agent_id: UUID,
+    current_user: UserDB = Depends(require_editor),
+    service: AgentService = Depends(get_agent_service),
+) -> AgentResponse:
+    return await service.set_default(
+        agent_id,
+        user_id=current_user.id,
+        user_role=current_user.role,
+        user_team_id=current_user.team_id,
+    )
+
+
 @router.put("/{agent_id}/config", response_model=AgentResponse)
 async def set_agent_config(
     agent_id: UUID,

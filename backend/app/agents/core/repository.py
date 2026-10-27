@@ -70,6 +70,7 @@ class AgentRepository(BaseRepository[AgentDB]):
         AgentDB.visibility,
         AgentDB.web_search_enabled,
         AgentDB.is_archived,
+        AgentDB.is_default,
         AgentDB.created_at,
         AgentDB.updated_at,
     )
@@ -154,10 +155,38 @@ class AgentRepository(BaseRepository[AgentDB]):
             stmt = stmt.where(AgentDB.is_archived == True)  # noqa: E712
         elif not include_archived:
             stmt = stmt.where(AgentDB.is_archived == False)  # noqa: E712
-        stmt = stmt.order_by(AgentDB.created_at.asc())
+        stmt = stmt.order_by(AgentDB.is_default.desc(), AgentDB.created_at.asc())
 
         result = await self.db.execute(stmt)
         return result.all()
+
+    async def set_default(self, agent_id: UUID) -> None:
+        if self.workspace_id is None:
+            raise RuntimeError("workspace_id is required to set a default agent")
+
+        clear_stmt = (
+            update(AgentDB)
+            .where(
+                AgentDB.workspace_id == self.workspace_id,
+                AgentDB.is_default == True,  # noqa: E712
+                AgentDB.id != agent_id,
+            )
+            .values(is_default=False)
+        )
+        await self.db.execute(clear_stmt)
+        await self.db.flush()
+
+        set_stmt = (
+            update(AgentDB)
+            .where(
+                AgentDB.id == agent_id,
+                AgentDB.workspace_id == self.workspace_id,
+                AgentDB.is_archived == False,  # noqa: E712
+            )
+            .values(is_default=True)
+        )
+        await self.db.execute(set_stmt)
+        await self.db.flush()
 
     async def get_access(
         self,
@@ -426,10 +455,13 @@ class AgentRepository(BaseRepository[AgentDB]):
         change removed would come back, and a PATCH naming a field is an
         explicit instruction to write it.
         """
+        values = {"is_archived": archived}
+        if archived:
+            values["is_default"] = False
         stmt = (
             update(AgentDB)
             .where(AgentDB.id == agent_id, AgentDB.is_archived != archived)
-            .values(is_archived=archived)
+            .values(**values)
         )
         await self.db.execute(stmt)
 

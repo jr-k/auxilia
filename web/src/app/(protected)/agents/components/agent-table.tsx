@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { Star } from "lucide-react";
 import { Agent, AgentPermission } from "@/types/agents";
 import { agentColorBackground } from "@/lib/colors";
 import { useMcpServersStore } from "@/stores/mcp-servers-store";
@@ -148,8 +149,14 @@ export default function AgentTable({
 							/>
 						</SelectableLeading>
 						<span className="min-w-0">
-							<span className="block truncate text-[12.5px] font-semibold tracking-[-0.01em] text-petrol">
-								{agent.name}
+							<span className="flex min-w-0 items-center gap-1.5 text-[12.5px] font-semibold tracking-[-0.01em] text-petrol">
+								<span className="truncate">{agent.name}</span>
+								{agent.isDefault && (
+									<Star
+										aria-label="Default agent"
+										className="size-3.5 shrink-0 fill-amber-400 text-amber-500 dark:fill-amber-300 dark:text-amber-300"
+									/>
+								)}
 							</span>
 							<span className="mt-0.5 block truncate text-xs text-muted-foreground">
 								{agent.description || "No description provided."}

@@ -672,6 +672,48 @@ class AgentService(BaseService[AgentDB, AgentRepository]):
         await self._stage_agents_changed()
         return response
 
+    async def set_default(
+        self,
+        agent_id: UUID,
+        *,
+        user_id: UUID,
+        user_role: WorkspaceRole,
+        user_team_id: UUID | None = None,
+    ) -> AgentResponse:
+        """Make one active agent the workspace-wide default."""
+        await self.require_permission(
+            agent_id,
+            at_least=EffectivePermission.editor,
+            action="set this agent as the workspace default",
+            user_id=user_id,
+            user_role=user_role,
+            user_team_id=user_team_id,
+        )
+        if self.workspace_id is None:
+            raise RuntimeError("workspace_id is required to set a default agent")
+
+        # The workspace row is the shared lock even when no default exists yet.
+        # That keeps two concurrent requests from racing the partial unique index.
+        if not await self.workspaces.lock_for_update(self.workspace_id):
+            raise NotFoundError("Workspace not found")
+        agent = await self.repository.get_scoped_for_update(agent_id)
+        if agent is None:
+            raise NotFoundError(self.not_found_message)
+        if agent.is_archived:
+            raise DomainValidationError(
+                "An archived agent cannot be the workspace default"
+            )
+
+        await self.repository.set_default(agent_id)
+        response = await self.get(
+            agent_id,
+            user_id=user_id,
+            user_role=user_role,
+            user_team_id=user_team_id,
+        )
+        await self._stage_agents_changed()
+        return response
+
     async def set_config(
         self,
         agent_id: UUID,

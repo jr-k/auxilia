@@ -279,6 +279,7 @@ class AgentListResponse(SQLModel):
     image_revision: UUID | None = None
     description: str | None
     is_archived: bool = False
+    is_default: bool = False
     created_at: datetime
     updated_at: datetime
     mcp_servers: list[AgentMCPServerListResponse] | None = None

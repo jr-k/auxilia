@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
+import { Star } from "lucide-react";
 import { Agent, AgentPermission } from "@/types/agents";
 import { agentColorBackground } from "@/lib/colors";
 import { useMcpServersStore } from "@/stores/mcp-servers-store";
@@ -143,8 +144,14 @@ export default function AgentCard({
 						/>
 					</SelectableLeading>
 					<div className="min-w-[90px] flex-1">
-						<div className="truncate font-[family-name:var(--font-jakarta-sans)] text-[14.5px] font-bold tracking-[-0.01em] text-[#1e2d28] dark:text-foreground">
-							{agent.name}
+						<div className="flex min-w-0 items-center gap-1.5 font-[family-name:var(--font-jakarta-sans)] text-[14.5px] font-bold tracking-[-0.01em] text-[#1e2d28] dark:text-foreground">
+							<span className="truncate">{agent.name}</span>
+							{agent.isDefault && (
+								<Star
+									aria-label="Default agent"
+									className="size-3.5 shrink-0 fill-amber-400 text-amber-500 dark:fill-amber-300 dark:text-amber-300"
+								/>
+							)}
 						</div>
 						{ownerName && (
 							<div className="mt-px truncate text-[11px] text-[#94a59d] dark:text-muted-foreground">
