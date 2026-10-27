@@ -25,12 +25,23 @@ export default function AgentDetail({ agent }: AgentDetailProps) {
 	// editor snapshots its form from the first agent it renders with — so a
 	// slim copy must never reach it (a save would wipe the missing fields).
 	// Use the store copy only once it's full (merged below or written back by
-	// a save); otherwise fall back to the server-rendered full prop.
+	// a save). After a realtime list refresh it becomes slim again: overlay its
+	// fresh list fields (notably `isDefault`) onto the server-rendered detail,
+	// while retaining fields the list deliberately omits.
 	const liveAgent = useMemo(() => {
-		if (!storeAgent || storeAgent.instructions === undefined) {
-			return agent;
-		}
-		return storeAgent;
+		if (!storeAgent) return agent;
+		if (storeAgent.instructions !== undefined) return storeAgent;
+		return {
+			...agent,
+			...storeAgent,
+			instructions: agent.instructions,
+			mcpServers: agent.mcpServers,
+			sandboxes: agent.sandboxes,
+			skills: agent.skills,
+			toolDiscoveryMode: agent.toolDiscoveryMode,
+			defaultModelId: agent.defaultModelId,
+			defaultReasoningEffort: agent.defaultReasoningEffort,
+		};
 	}, [storeAgent, agent]);
 
 	const [mode, setMode] = useState<"read" | "edit">("read");
