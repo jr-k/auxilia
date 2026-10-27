@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.40](https://github.com/jr-k/auxilia/compare/backend-v0.11.39...backend-v0.11.40) (2026-10-27)
+
+
+### Bug Fixes
+
+* **agents:** allow clearing workspace default ([329d827](https://github.com/jr-k/auxilia/commit/329d8270a70c792cfdfef65241cacf29327cb510))
+
 ## [0.11.39](https://github.com/jr-k/auxilia/compare/backend-v0.11.38...backend-v0.11.39) (2026-10-27)
 
 
