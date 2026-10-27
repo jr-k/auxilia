@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.58](https://github.com/jr-k/auxilia/compare/web-v0.12.57...web-v0.12.58) (2026-10-27)
+
+
+### Bug Fixes
+
+* **agents:** place default action before chat test ([ecc0869](https://github.com/jr-k/auxilia/commit/ecc0869567dc553f48f412f39b694f9767dcb261))
+
 ## [0.12.57](https://github.com/jr-k/auxilia/compare/web-v0.12.56...web-v0.12.57) (2026-10-27)
 
 
