@@ -61,7 +61,7 @@ function AuthPageContent() {
 	const searchParams = useSearchParams();
 	const returnTo = oauthReturnTo(searchParams.get("returnTo"));
 	const next = safeNext(searchParams.get("next"));
-	const destination = returnTo ?? next ?? "/agents";
+	const destination = returnTo ?? next ?? "/";
 	const [isLoading, setIsLoading] = useState(false);
 	const [error, setError] = useState<string | null>(() =>
 		searchParams.get("error") === "no_invite"

@@ -114,7 +114,7 @@ export async function proxy(request: NextRequest) {
 					if (next) {
 						return NextResponse.redirect(new URL(next, request.url));
 					}
-					return NextResponse.redirect(new URL("/agents", request.url));
+					return NextResponse.redirect(new URL("/", request.url));
 				}
 				return NextResponse.next();
 			}
