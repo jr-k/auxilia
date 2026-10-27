@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.39](https://github.com/jr-k/auxilia/compare/backend-v0.11.38...backend-v0.11.39) (2026-10-27)
+
+
+### Features
+
+* **agents:** add workspace default agent ([fd988de](https://github.com/jr-k/auxilia/commit/fd988de3b910f9ff654fed714b54efa8193c18e0))
+
 ## [0.11.38](https://github.com/jr-k/auxilia/compare/backend-v0.11.37...backend-v0.11.38) (2026-10-26)
 
 
