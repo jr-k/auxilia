@@ -319,7 +319,7 @@ export function AppSidebar() {
 						<SidebarGroupLabel className="h-auto overflow-hidden whitespace-nowrap pl-2 pr-[5px] pt-2 pb-1.5 font-sans text-[10px] font-semibold text-sidebar-muted-highlight group-data-[collapsible=icon]:mt-0">
 							<span>Recent threads</span>
 							<Link
-								href="https://auxilia.jierka.com/settings?tab=profile&provider=openai&section=threads"
+								href="/settings?tab=profile&section=threads"
 								title="View all threads"
 								aria-label="View all threads"
 								onClick={() => {
