@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.53](https://github.com/jr-k/auxilia/compare/backend-v0.11.52...backend-v0.11.53) (2026-10-28)
+
+
+### Bug Fixes
+
+* **runtime:** preserve first turn during checkpoint pressure ([2f0ef0c](https://github.com/jr-k/auxilia/commit/2f0ef0cbd7b0ac3c39c87e0cebb047270c831641))
+
 ## [0.11.52](https://github.com/jr-k/auxilia/compare/backend-v0.11.51...backend-v0.11.52) (2026-10-28)
 
 
