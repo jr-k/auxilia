@@ -517,7 +517,7 @@ function FileList({
                   onOpen(entry);
                 }
               }}
-              className="flex cursor-pointer items-center gap-3.5 rounded-[10px] px-3 py-2.5 hover:bg-hover"
+              className="flex cursor-pointer items-center gap-3.5 rounded-[10px] px-3 py-2.5 hover:bg-hover dark:hover:bg-white/5"
             >
               <ArtifactIcon entry={entry} large />
               <span className="flex min-w-0 flex-1 flex-col gap-0.5">
