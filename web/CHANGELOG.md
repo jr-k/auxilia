@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.72](https://github.com/jr-k/auxilia/compare/web-v0.12.71...web-v0.12.72) (2026-10-28)
+
+
+### Bug Fixes
+
+* **ui:** improve artifact dark mode and typography ([a0f95bd](https://github.com/jr-k/auxilia/commit/a0f95bddaf3eca5b20beb9901c2db80ccc9578ae))
+
 ## [0.12.71](https://github.com/jr-k/auxilia/compare/web-v0.12.70...web-v0.12.71) (2026-10-28)
 
 
