@@ -498,7 +498,7 @@ export default function AgentMCPServer({
 								Unavailable
 							</span>
 						) : isConnected ? (
-							<span className="rounded-[4px] bg-success-bg px-2 py-0.5 text-[9.5px] font-semibold text-success">
+							<span className="rounded-[4px] bg-success-bg px-2 py-0.5 text-[9.5px] font-semibold text-success dark:bg-emerald-950 dark:text-emerald-300">
 								Connected
 							</span>
 						) : (

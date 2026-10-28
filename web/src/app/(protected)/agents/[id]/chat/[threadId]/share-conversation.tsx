@@ -105,7 +105,7 @@ export function ShareConversation({
 					onClick={() => {
 						setOpen(true);
 					}}
-					className="flex h-[30px] cursor-pointer items-center gap-1.5 rounded-full bg-petrol-chip px-3 text-[12.5px] font-semibold text-petrol transition-colors hover:bg-petrol-tint disabled:cursor-not-allowed disabled:opacity-50"
+					className="flex h-[30px] cursor-pointer items-center gap-1.5 rounded-full bg-petrol-chip px-3 text-[12.5px] font-semibold text-petrol transition-colors hover:bg-petrol-tint disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white/10 dark:text-panel-terminal dark:hover:bg-white/15"
 				>
 					<Share2 className="size-3.5" />
 					Share

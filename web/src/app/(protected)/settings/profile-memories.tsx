@@ -5,6 +5,7 @@ import {
 	ArrowUp,
 	Brain,
 	ChevronDown,
+	ChevronsDown,
 	Clock3,
 	Database,
 	FolderOpen,
@@ -257,6 +258,9 @@ export default function ProfileMemories() {
 			})
 			.filter((category) => category.memories.length > 0);
 	}, [library.categories, query]);
+	const allCategoriesOpen =
+		library.categories.length > 0 &&
+		library.categories.every((category) => openCategories.has(category.id));
 
 	const saveCategory = async () => {
 		if (saving || !categoryDraft?.name.trim()) return;
@@ -474,6 +478,27 @@ export default function ProfileMemories() {
 					</label>
 					<button
 						type="button"
+						disabled={loading || library.categories.length === 0}
+						onClick={() => {
+							setOpenCategories(
+								allCategoriesOpen
+									? new Set()
+									: new Set(
+											library.categories.map((category) => category.id),
+										),
+							);
+						}}
+						className="inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-[7px] border border-input px-3.5 py-2.5 text-[12.5px] font-semibold text-foreground transition-colors hover:border-border-hover disabled:cursor-default disabled:opacity-40"
+					>
+						<ChevronsDown
+							className={`size-3.5 transition-transform ${
+								allCategoriesOpen ? "rotate-180" : ""
+							}`}
+						/>
+						{allCategoriesOpen ? "Collapse all" : "Expand all"}
+					</button>
+					<button
+						type="button"
 						onClick={() => {
 							setCategoryDraft({ id: null, name: "" });
 						}}
@@ -521,8 +546,8 @@ export default function ProfileMemories() {
 				<div className="mt-4 flex flex-col gap-3">
 					{loading ? (
 						<>
-							<div className="h-24 animate-pulse rounded-[10px] bg-hover" />
-							<div className="h-24 animate-pulse rounded-[10px] bg-hover" />
+							<div className="h-24 animate-pulse rounded-[10px] bg-hover dark:bg-white/5" />
+							<div className="h-24 animate-pulse rounded-[10px] bg-hover dark:bg-white/5" />
 						</>
 					) : filteredCategories.length === 0 ? (
 						<div className="flex flex-col items-center rounded-[10px] border border-dashed border-input px-6 py-12 text-center">
@@ -634,7 +659,7 @@ export default function ProfileMemories() {
 														content: "",
 													});
 												}}
-												className="flex w-full cursor-pointer items-center justify-center gap-1.5 px-4 py-7 text-[12px] font-medium text-meta transition-colors hover:bg-hover/40 hover:text-foreground"
+												className="flex w-full cursor-pointer items-center justify-center gap-1.5 px-4 py-7 text-[12px] font-medium text-meta transition-colors hover:bg-hover/40 hover:text-foreground dark:hover:bg-white/5"
 											>
 												<Plus className="size-3.5" />
 												Add the first memory
