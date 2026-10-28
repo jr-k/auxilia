@@ -412,6 +412,50 @@ class MemoryService:
             source_thread_id=thread_id,
         )
 
+    async def delete_from_assistant(
+        self,
+        *,
+        user_id: UUID,
+        category_name: str,
+        key: str,
+    ) -> UUID:
+        _, normalized_name = normalize_category_name(category_name)
+        category = await self.categories.get_by_normalized_name(
+            user_id, normalized_name
+        )
+        if category is None:
+            raise NotFoundError("Memory category not found")
+        memory = await self.memories.get_by_category_key(
+            user_id,
+            category.id,
+            normalize_memory_key(key),
+        )
+        if memory is None:
+            raise NotFoundError("Memory not found")
+        memory_id = memory.id
+        await self.memories.delete(memory)
+        return memory_id
+
+    async def delete_category_from_assistant(
+        self,
+        *,
+        user_id: UUID,
+        category_name: str,
+    ) -> list[UUID]:
+        _, normalized_name = normalize_category_name(category_name)
+        category = await self.categories.get_by_normalized_name(
+            user_id, normalized_name
+        )
+        if category is None:
+            raise NotFoundError("Memory category not found")
+        rows = await self.memories.list_for_user(
+            user_id,
+            category_id=category.id,
+        )
+        memory_ids = [memory.id for memory, _ in rows]
+        await self.categories.delete(category)
+        return memory_ids
+
 
 def get_memory_service(
     # Category creation is commonly followed immediately by memory creation.

@@ -17,9 +17,12 @@ from langchain.tools import ToolRuntime
 from langchain_core.messages import AIMessage, SystemMessage, ToolMessage
 from langchain_core.tools import StructuredTool
 from langgraph.types import Command, Overwrite
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import AsyncSessionLocal
 from app.memories.constants import (
+    DELETE_MEMORY_CATEGORY_TOOL,
+    DELETE_MEMORY_TOOL,
     GET_MEMORIES_TOOL,
     LIST_MEMORY_CATEGORIES_TOOL,
     MEMORY_STATE_KEY,
@@ -167,6 +170,30 @@ class MemoryMiddleware(AgentMiddleware[MemoryState]):
                         ),
                     )
                 )
+            self.tools.extend(
+                [
+                    StructuredTool.from_function(
+                        coroutine=self._delete_memory,
+                        name=DELETE_MEMORY_TOOL,
+                        description=(
+                            "Permanently delete one personal-memory record by its exact "
+                            "category and stable key. Use only when the user explicitly "
+                            "asks to forget or remove that specific fact or duplicate. "
+                            "List categories first when the exact key is uncertain."
+                        ),
+                    ),
+                    StructuredTool.from_function(
+                        coroutine=self._delete_category,
+                        name=DELETE_MEMORY_CATEGORY_TOOL,
+                        description=(
+                            "Permanently delete one personal-memory category and every "
+                            "record inside it. This is destructive. Use only when the "
+                            "user explicitly asks to remove the whole category, after "
+                            "listing it and checking its record count."
+                        ),
+                    ),
+                ]
+            )
 
     @staticmethod
     def _build_index(rows: list[tuple[MemoryDB, str]]) -> str:
@@ -244,6 +271,16 @@ class MemoryMiddleware(AgentMiddleware[MemoryState]):
             if self.auto_capture_enabled and self.tools_enabled
             else "Do not create or update personal memories in this run."
         )
+        deletion = (
+            "When the user explicitly asks to forget a specific record or duplicate, "
+            f"call {DELETE_MEMORY_TOOL} with the exact category/key. Only when the user "
+            "explicitly asks to remove an entire category, call "
+            f"{DELETE_MEMORY_CATEGORY_TOOL}; category deletion also deletes every "
+            "record it contains. Never delete memories merely because they seem "
+            "obsolete or redundant without the user's request."
+            if self.tools_enabled
+            else "Do not delete personal memories in this run."
+        )
         tools = (
             f"Use {GET_MEMORIES_TOOL} when the compact index suggests a relevant "
             "fact whose value is not loaded."
@@ -261,7 +298,7 @@ class MemoryMiddleware(AgentMiddleware[MemoryState]):
             "Each line is a JSON object describing one available memory.\n"
             f"{index}\n"
             "</personal_memory_index>\n\n"
-            f"{tools} {capture} Never save passwords, authentication tokens, "
+            f"{tools} {capture} {deletion} Never save passwords, authentication tokens, "
             "API keys, private keys, payment-card numbers or one-time secrets."
         )
 
@@ -306,6 +343,47 @@ class MemoryMiddleware(AgentMiddleware[MemoryState]):
             tool_call_id=runtime.tool_call_id or "",
             name=name,
             status=status,
+        )
+
+    async def _mutations_allowed(
+        self,
+        db: AsyncSession,
+        *,
+        require_auto_capture: bool,
+    ) -> bool:
+        preference = (
+            await MemoryPreferenceRepository(db).lock_for_user(self.user_id)
+            if require_auto_capture
+            else None
+        )
+        thread = await ThreadRepository(db, self.workspace_id).lock(self.thread_id)
+        return bool(
+            (
+                not require_auto_capture
+                or (preference is not None and preference.auto_capture_enabled)
+            )
+            and thread is not None
+            and thread.user_id == self.user_id
+            and thread.memories_enabled
+        )
+
+    def _mutation_disabled(
+        self,
+        runtime: ToolRuntime,
+        *,
+        tool_name: str,
+    ) -> Command:
+        return Command(
+            update={
+                "messages": [
+                    self._tool_message(
+                        runtime,
+                        "Personal-memory changes are disabled.",
+                        status="error",
+                        name=tool_name,
+                    )
+                ]
+            }
         )
 
     async def _get_memories(
@@ -380,30 +458,8 @@ class MemoryMiddleware(AgentMiddleware[MemoryState]):
         ],
     ) -> Command:
         async with AsyncSessionLocal() as db:
-            preference = await MemoryPreferenceRepository(db).lock_for_user(
-                self.user_id
-            )
-            thread = await ThreadRepository(db, self.workspace_id).lock(self.thread_id)
-            allowed = (
-                preference is not None
-                and preference.auto_capture_enabled
-                and thread is not None
-                and thread.user_id == self.user_id
-                and thread.memories_enabled
-            )
-            if not allowed:
-                return Command(
-                    update={
-                        "messages": [
-                            self._tool_message(
-                                runtime,
-                                "Automatic personal-memory capture is disabled.",
-                                status="error",
-                                name=SET_MEMORY_TOOL,
-                            )
-                        ]
-                    }
-                )
+            if not await self._mutations_allowed(db, require_auto_capture=True):
+                return self._mutation_disabled(runtime, tool_name=SET_MEMORY_TOOL)
             memory = await MemoryService(db).upsert_from_assistant(
                 user_id=self.user_id,
                 thread_id=self.thread_id,
@@ -421,6 +477,95 @@ class MemoryMiddleware(AgentMiddleware[MemoryState]):
                         runtime,
                         f"Saved personal memory {category}/{memory.key}.",
                         name=SET_MEMORY_TOOL,
+                    )
+                ],
+            }
+        )
+
+    async def _delete_memory(
+        self,
+        runtime: ToolRuntime,
+        category: Annotated[str, "Exact category name from the memory index."],
+        key: Annotated[str, "Exact stable key of the record to delete."],
+    ) -> Command:
+        async with AsyncSessionLocal() as db:
+            if not await self._mutations_allowed(db, require_auto_capture=False):
+                return self._mutation_disabled(runtime, tool_name=DELETE_MEMORY_TOOL)
+            memory_id = await MemoryService(db).delete_from_assistant(
+                user_id=self.user_id,
+                category_name=category,
+                key=key,
+            )
+            await db.commit()
+        remaining = [
+            str(loaded_id)
+            for loaded_id in _loaded_ids(runtime.state)
+            if loaded_id != memory_id
+        ]
+        return Command(
+            update={
+                MEMORY_STATE_KEY: Overwrite(remaining),
+                "messages": [
+                    self._tool_message(
+                        runtime,
+                        f"Deleted personal memory {category}/{key}.",
+                        name=DELETE_MEMORY_TOOL,
+                    )
+                ],
+            }
+        )
+
+    async def _delete_category(
+        self,
+        runtime: ToolRuntime,
+        category: Annotated[str, "Exact category name to delete."],
+        confirm: Annotated[
+            bool,
+            "True only when the user explicitly asked to delete this whole category and all its records.",
+        ],
+    ) -> Command:
+        if not confirm:
+            return Command(
+                update={
+                    "messages": [
+                        self._tool_message(
+                            runtime,
+                            "Category deletion requires explicit user confirmation.",
+                            status="error",
+                            name=DELETE_MEMORY_CATEGORY_TOOL,
+                        )
+                    ]
+                }
+            )
+        async with AsyncSessionLocal() as db:
+            if not await self._mutations_allowed(db, require_auto_capture=False):
+                return self._mutation_disabled(
+                    runtime,
+                    tool_name=DELETE_MEMORY_CATEGORY_TOOL,
+                )
+            memory_ids = await MemoryService(db).delete_category_from_assistant(
+                user_id=self.user_id,
+                category_name=category,
+            )
+            await db.commit()
+        deleted = set(memory_ids)
+        remaining = [
+            str(loaded_id)
+            for loaded_id in _loaded_ids(runtime.state)
+            if loaded_id not in deleted
+        ]
+        count = len(memory_ids)
+        return Command(
+            update={
+                MEMORY_STATE_KEY: Overwrite(remaining),
+                "messages": [
+                    self._tool_message(
+                        runtime,
+                        (
+                            f"Deleted personal-memory category {category} and "
+                            f"{count} {'record' if count == 1 else 'records'}."
+                        ),
+                        name=DELETE_MEMORY_CATEGORY_TOOL,
                     )
                 ],
             }
