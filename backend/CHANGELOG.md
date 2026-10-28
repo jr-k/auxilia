@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.52](https://github.com/jr-k/auxilia/compare/backend-v0.11.51...backend-v0.11.52) (2026-10-28)
+
+
+### Bug Fixes
+
+* **ui:** improve artifact dark mode and typography ([a0f95bd](https://github.com/jr-k/auxilia/commit/a0f95bddaf3eca5b20beb9901c2db80ccc9578ae))
+
 ## [0.11.51](https://github.com/jr-k/auxilia/compare/backend-v0.11.50...backend-v0.11.51) (2026-10-28)
 
 
