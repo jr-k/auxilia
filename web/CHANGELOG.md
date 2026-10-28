@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.12.69](https://github.com/jr-k/auxilia/compare/web-v0.12.68...web-v0.12.69) (2026-10-28)
+
+
+### Bug Fixes
+
+* **chat:** refine attachment and host notice handling ([a1ec0ce](https://github.com/jr-k/auxilia/commit/a1ec0ce7477b46e66f79531a0d4b3f04137407dc))
+* **discovery:** honor lazy resource overrides ([74086ce](https://github.com/jr-k/auxilia/commit/74086ced389945b58c9d3f2dea2ea7ea83d8fa31))
+
 ## [0.12.68](https://github.com/jr-k/auxilia/compare/web-v0.12.67...web-v0.12.68) (2026-10-28)
 
 
