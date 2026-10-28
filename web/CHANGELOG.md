@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.75](https://github.com/jr-k/auxilia/compare/web-v0.12.74...web-v0.12.75) (2026-10-28)
+
+
+### Bug Fixes
+
+* **runtime:** preserve first turn during checkpoint pressure ([2f0ef0c](https://github.com/jr-k/auxilia/commit/2f0ef0cbd7b0ac3c39c87e0cebb047270c831641))
+
 ## [0.12.74](https://github.com/jr-k/auxilia/compare/web-v0.12.73...web-v0.12.74) (2026-10-28)
 
 
