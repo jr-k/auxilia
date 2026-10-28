@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.67](https://github.com/jr-k/auxilia/compare/web-v0.12.66...web-v0.12.67) (2026-10-28)
+
+
+### Bug Fixes
+
+* **sidebar:** preserve thread hover while menu is open ([16e36ed](https://github.com/jr-k/auxilia/commit/16e36edcbb0ff0d27e42df0aa287179b07684625))
+
 ## [0.12.66](https://github.com/jr-k/auxilia/compare/web-v0.12.65...web-v0.12.66) (2026-10-28)
 
 
