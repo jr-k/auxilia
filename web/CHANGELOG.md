@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.70](https://github.com/jr-k/auxilia/compare/web-v0.12.69...web-v0.12.70) (2026-10-28)
+
+
+### Bug Fixes
+
+* **share:** enrich public conversation snapshots ([f9320d2](https://github.com/jr-k/auxilia/commit/f9320d2764e5174d6411dd75463d8c4fe528df17))
+
 ## [0.12.69](https://github.com/jr-k/auxilia/compare/web-v0.12.68...web-v0.12.69) (2026-10-28)
 
 

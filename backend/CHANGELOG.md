@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.47](https://github.com/jr-k/auxilia/compare/backend-v0.11.46...backend-v0.11.47) (2026-10-28)
+
+
+### Bug Fixes
+
+* **share:** enrich public conversation snapshots ([f9320d2](https://github.com/jr-k/auxilia/commit/f9320d2764e5174d6411dd75463d8c4fe528df17))
+
 ## [0.11.46](https://github.com/jr-k/auxilia/compare/backend-v0.11.45...backend-v0.11.46) (2026-10-28)
 
 
