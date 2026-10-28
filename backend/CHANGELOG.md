@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.50](https://github.com/jr-k/auxilia/compare/backend-v0.11.49...backend-v0.11.50) (2026-10-28)
+
+
+### Features
+
+* **memories:** allow agents to delete memories ([f2803be](https://github.com/jr-k/auxilia/commit/f2803be3a9d3cc5e306d92382f8093e634ccd388))
+
 ## [0.11.49](https://github.com/jr-k/auxilia/compare/backend-v0.11.48...backend-v0.11.49) (2026-10-28)
 
 
