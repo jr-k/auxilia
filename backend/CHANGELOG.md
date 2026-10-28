@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.48](https://github.com/jr-k/auxilia/compare/backend-v0.11.47...backend-v0.11.48) (2026-10-28)
+
+
+### Bug Fixes
+
+* **memories:** consolidate facts by subject ([c58ffe0](https://github.com/jr-k/auxilia/commit/c58ffe06581513d1d59a050dcedba5abd36a5267))
+
 ## [0.11.47](https://github.com/jr-k/auxilia/compare/backend-v0.11.46...backend-v0.11.47) (2026-10-28)
 
 
