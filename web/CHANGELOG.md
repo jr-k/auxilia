@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.71](https://github.com/jr-k/auxilia/compare/web-v0.12.70...web-v0.12.71) (2026-10-28)
+
+
+### Bug Fixes
+
+* **slack:** expose side-channel bots as agents ([06ad8e8](https://github.com/jr-k/auxilia/commit/06ad8e873b41be3b2fcd9f03b155c780fd29c921))
+
 ## [0.12.70](https://github.com/jr-k/auxilia/compare/web-v0.12.69...web-v0.12.70) (2026-10-28)
 
 

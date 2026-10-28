@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.49](https://github.com/jr-k/auxilia/compare/backend-v0.11.48...backend-v0.11.49) (2026-10-28)
+
+
+### Bug Fixes
+
+* **slack:** expose side-channel bots as agents ([06ad8e8](https://github.com/jr-k/auxilia/commit/06ad8e873b41be3b2fcd9f03b155c780fd29c921))
+
 ## [0.11.48](https://github.com/jr-k/auxilia/compare/backend-v0.11.47...backend-v0.11.48) (2026-10-28)
 
 
