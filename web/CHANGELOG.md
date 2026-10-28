@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.68](https://github.com/jr-k/auxilia/compare/web-v0.12.67...web-v0.12.68) (2026-10-28)
+
+
+### Features
+
+* **ui:** improve memories controls and dark mode contrast ([9456a72](https://github.com/jr-k/auxilia/commit/9456a724db8e7b71c2a7ffc64fb087a6dd076ed5))
+
 ## [0.12.67](https://github.com/jr-k/auxilia/compare/web-v0.12.66...web-v0.12.67) (2026-10-28)
 
 
