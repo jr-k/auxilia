@@ -57,7 +57,7 @@ class AgentSlackBotService:
             "_metadata": {"major_version": 1},
             "display_information": {
                 "name": display_name,
-                "description": f"{display_name} Slack bot.",
+                "description": f"Chat with {display_name}, a dedicated AI agent.",
                 "background_color": "#16606E",
             },
             "features": {
@@ -65,6 +65,9 @@ class AgentSlackBotService:
                     "home_tab_enabled": False,
                     "messages_tab_enabled": True,
                     "messages_tab_read_only_enabled": False,
+                },
+                "agent_view": {
+                    "agent_description": f"Chat with {display_name}, your AI agent.",
                 },
                 "bot_user": {
                     "display_name": display_name,
@@ -83,6 +86,7 @@ class AgentSlackBotService:
                 "scopes": {
                     "bot": [
                         "app_mentions:read",
+                        "assistant:write",
                         "channels:history",
                         "chat:write",
                         "commands",

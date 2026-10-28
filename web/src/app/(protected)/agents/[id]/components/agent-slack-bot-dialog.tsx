@@ -74,6 +74,7 @@ interface Props {
 
 const scopes = [
 	"app_mentions:read",
+	"assistant:write",
 	"channels:history",
 	"chat:write",
 	"commands",
@@ -150,7 +151,7 @@ function AgentSlackSetupGuide({
 
 	const manifestSteps = [
 		{
-			title: "Apply the manifest",
+			title: "Apply the Agent manifest",
 			body: (
 				<div>
 					<p>
@@ -167,7 +168,9 @@ function AgentSlackSetupGuide({
 						, choose <strong>Create New App → From a manifest</strong>, then
 						select your workspace. For an existing app, open{" "}
 						<strong>Settings → App Manifest</strong>. Paste this JSON and apply
-						the changes.
+						the changes. It enables Slack&apos;s current{" "}
+						<strong>Agent view</strong>, which makes this bot available from
+						the Agents menu instead of behaving like a regular app only.
 					</p>
 					<div className="mt-3">
 						<CopyValue
@@ -227,14 +230,20 @@ function AgentSlackSetupGuide({
 			),
 		},
 		{
-			title: "Invite and mention",
+			title: "Open or pin the agent",
 			body: (
-				<p>
-					Invite the bot to a public channel, then mention it with your request.
-					By default, every request in that thread must mention the bot. Replies
-					remain visible to the channel, while {appName} checks that the sender
-					can use this agent.
-				</p>
+				<div className="space-y-3">
+					<p>
+						Open the <strong>Agents</strong> menu near the top-right of Slack,
+						select this bot, then keep or pin it when Slack offers the option.
+						It now opens as a dedicated agent in the Messages tab.
+					</p>
+					<p>
+						You can also invite it to a public channel and mention it with a
+						request. Replies remain visible to the channel while {appName}{" "}
+						checks that the sender can use this agent.
+					</p>
+				</div>
 			),
 		},
 	];
@@ -270,13 +279,22 @@ function AgentSlackSetupGuide({
 			),
 		},
 		{
-			title: "Enable direct messages",
+			title: "Enable the Agent experience",
 			body: (
-				<p>
-					Open <strong>Features → App Home</strong>. Under{" "}
-					<strong>Show Tabs</strong>, enable <strong>Messages Tab</strong> and
-					allow users to send messages from it. Leave the Home tab disabled.
-				</p>
+				<div className="space-y-3">
+					<p>
+						Open <strong>Features → Agents</strong> and enable the Agent
+						feature. Add a short agent description. Choose the current{" "}
+						<strong>Agent messaging experience</strong>, not the legacy
+						Assistant experience. This is what makes the bot appear in
+						Slack&apos;s Agents menu.
+					</p>
+					<p>
+						Then open <strong>Features → App Home</strong>. Enable the{" "}
+						<strong>Messages Tab</strong>, allow users to send messages from
+						it, and leave the Home tab disabled.
+					</p>
+				</div>
 			),
 		},
 		{
@@ -373,13 +391,20 @@ function AgentSlackSetupGuide({
 			),
 		},
 		{
-			title: "Save and test",
+			title: "Reinstall and test",
 			body: (
-				<p>
-					Return to the configuration form, save the{" "}
-					<code className={badgeClass}>xoxb-</code> token and Signing Secret,
-					then invite the bot to a public channel and mention it.
-				</p>
+				<div className="space-y-3">
+					<p>
+						Reinstall the app so Slack grants the new Agent scope. Return here
+						and save the <code className={badgeClass}>xoxb-</code> token and
+						Signing Secret.
+					</p>
+					<p>
+						Open Slack&apos;s <strong>Agents</strong> menu near the top-right,
+						select this bot, and pin or keep it there. You can also invite it
+						to a channel and mention it.
+					</p>
+				</div>
 			),
 		},
 	];
@@ -573,7 +598,7 @@ export default function AgentSlackBotDialog({
 							</DialogTitle>
 							<DialogDescription className="mt-0.5">
 								{view === "guide"
-									? "One Slack app represents this agent."
+									? "One Slack app exposes this agent in Slack’s Agents menu."
 									: settings.isConfigured
 										? `Connected to ${settings.slackTeamName ?? "a Slack workspace"}.`
 										: "Give this agent its own identity in a Slack workspace."}
