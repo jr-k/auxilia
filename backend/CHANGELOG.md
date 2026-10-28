@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.51](https://github.com/jr-k/auxilia/compare/backend-v0.11.50...backend-v0.11.51) (2026-10-28)
+
+
+### Bug Fixes
+
+* **memories:** support parallel deletions ([fbeed7f](https://github.com/jr-k/auxilia/commit/fbeed7f878d424443208937cf186a0bc6b89aeaf))
+
 ## [0.11.50](https://github.com/jr-k/auxilia/compare/backend-v0.11.49...backend-v0.11.50) (2026-10-28)
 
 
