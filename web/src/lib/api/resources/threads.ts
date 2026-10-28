@@ -37,6 +37,16 @@ export interface PublicConversationArtifact {
 	size: number;
 }
 
+export interface PublicConversationRun {
+	id: string;
+	status: string;
+	created_at: string;
+	updated_at: string;
+	started_at: string | null;
+	kind: "prompt" | "resume" | "regenerate" | "other";
+	input_message_id: string | null;
+}
+
 export interface PublicConversation {
 	id: string;
 	title: string | null;
@@ -46,6 +56,17 @@ export interface PublicConversation {
 		emoji: string | null;
 		color: string | null;
 	};
+	model_id: string | null;
+	model_name: string | null;
+	memories_enabled: boolean | null;
+	cost: {
+		known_cost: string;
+		complete: boolean;
+		call_count: number;
+		unpriced_call_count: number;
+		total_tokens: number;
+	} | null;
+	runs: PublicConversationRun[];
 	tool_servers?: Array<{
 		name: string;
 		icon_url: string | null;

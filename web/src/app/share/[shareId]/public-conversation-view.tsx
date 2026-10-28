@@ -9,11 +9,15 @@ import {
 	type BaseMessageLike,
 } from "@langchain/core/messages";
 import {
+	Brain,
+	Clock3,
+	Cpu,
 	Download,
 	FileText,
 	Globe2,
 	ImageIcon,
 	LockKeyhole,
+	MessageSquare,
 } from "lucide-react";
 import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
@@ -47,6 +51,7 @@ import {
 	getPublicConversation,
 	type PublicConversation,
 	type PublicConversationArtifact,
+	type PublicConversationRun,
 } from "@/lib/api/resources/threads";
 
 function formatBytes(size: number): string {
@@ -68,6 +73,102 @@ function printable(value: unknown): string {
 	} catch {
 		return String(value);
 	}
+}
+
+function formatDuration(durationMs: number): string {
+	const seconds = durationMs / 1000;
+	if (seconds < 1) return `${Math.max(0.1, seconds).toFixed(1)} s`;
+	if (seconds < 10) return `${seconds.toFixed(1)} s`;
+	if (seconds < 60) return `${Math.round(seconds)} s`;
+	const minutes = Math.floor(seconds / 60);
+	const remainingSeconds = Math.round(seconds % 60);
+	if (minutes < 60) return `${minutes} min ${remainingSeconds} s`;
+	const hours = Math.floor(minutes / 60);
+	return `${hours} h ${minutes % 60} min`;
+}
+
+function userTurnKey(message: BaseMessage, index: number): string {
+	return message.id != null ? String(message.id) : `user:${index}`;
+}
+
+function runDurationMs(run: PublicConversationRun): number | null {
+	const startedAt = Date.parse(run.started_at ?? "");
+	const updatedAt = Date.parse(run.updated_at);
+	if (!Number.isFinite(startedAt) || !Number.isFinite(updatedAt)) return null;
+	return Math.max(0, updatedAt - startedAt);
+}
+
+function mapRunDurationsToUserTurns(
+	messages: readonly BaseMessage[],
+	runs: readonly PublicConversationRun[],
+): Map<string, number> {
+	const userTurns = messages.flatMap((message, index) =>
+		isHumanMessage(message)
+			? [{ message, key: userTurnKey(message, index) }]
+			: [],
+	);
+	const byMessageId = new Map(
+		userTurns.flatMap(({ message, key }) =>
+			message.id != null ? [[String(message.id), key] as const] : [],
+		),
+	);
+	const durations = new Map<string, number>();
+	const accumulated = new Map<string, number>();
+	const assignedTurns = new Set<string>();
+	let fallbackIndex = 0;
+	let currentTurn: string | null = null;
+
+	const chronological = [...runs].sort((left, right) => {
+		const leftAt = Date.parse(left.started_at ?? left.created_at);
+		const rightAt = Date.parse(right.started_at ?? right.created_at);
+		return leftAt - rightAt;
+	});
+	for (const run of chronological) {
+		if (run.kind === "prompt") {
+			const exact =
+				run.input_message_id != null
+					? byMessageId.get(run.input_message_id)
+					: undefined;
+			while (
+				exact == null &&
+				userTurns[fallbackIndex] != null &&
+				assignedTurns.has(userTurns[fallbackIndex].key)
+			) {
+				fallbackIndex += 1;
+			}
+			currentTurn = exact ?? userTurns[fallbackIndex]?.key ?? null;
+			if (currentTurn != null) {
+				assignedTurns.add(currentTurn);
+				accumulated.set(currentTurn, 0);
+				if (exact == null) fallbackIndex += 1;
+			}
+		} else if (run.kind === "regenerate" && currentTurn != null) {
+			accumulated.set(currentTurn, 0);
+		} else if (run.kind !== "resume") {
+			continue;
+		}
+		if (currentTurn == null) continue;
+		const duration = runDurationMs(run);
+		if (duration != null) {
+			accumulated.set(
+				currentTurn,
+				(accumulated.get(currentTurn) ?? 0) + duration,
+			);
+		}
+		if (run.status === "pending" || run.status === "running") {
+			durations.delete(currentTurn);
+		} else if (run.status === "interrupted") {
+			durations.delete(currentTurn);
+		} else {
+			durations.set(currentTurn, accumulated.get(currentTurn) ?? 0);
+		}
+	}
+	return durations;
+}
+
+function formatCost(amount: string): string {
+	const value = Number(amount);
+	return value > 0 && value < 0.01 ? "<\u20090.01$" : `${value.toFixed(2)}$`;
 }
 
 function SharedFile({
@@ -187,8 +288,8 @@ function ToolCall({
 	const result = call.error ?? call.output;
 	const { serverName, toolName, icon, iconKind } = describe(call.name);
 	return (
-		<details className="my-2 rounded-[9px] border border-border bg-hover/30">
-			<summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2 text-[12px] font-semibold text-subtle">
+		<details className="my-2 rounded-[9px] border border-border bg-hover/30 dark:border-white/8 dark:bg-white/[0.035]">
+			<summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2 text-[12px] font-semibold text-subtle dark:text-panel-button">
 				<ChainStepIcon
 					icon={icon}
 					name={serverName}
@@ -199,7 +300,7 @@ function ToolCall({
 					}
 				/>
 				{toolLabel(toolName)}
-				<span className="ml-auto font-normal text-meta">
+				<span className="ml-auto font-normal text-meta dark:text-panel-dim">
 					{call.status === "error"
 						? "Failed"
 						: call.status === "running"
@@ -207,14 +308,14 @@ function ToolCall({
 							: "Completed"}
 				</span>
 			</summary>
-			<div className="space-y-2 border-t border-border p-3">
+			<div className="space-y-2 border-t border-border p-3 dark:border-white/8">
 				{call.args && Object.keys(call.args).length > 0 && (
-					<pre className="max-h-64 overflow-auto whitespace-pre-wrap break-words rounded-[7px] bg-background p-2 font-mono text-[11px] text-subtle">
+					<pre className="max-h-64 overflow-auto whitespace-pre-wrap break-words rounded-[7px] bg-background p-2 font-mono text-[11px] text-subtle dark:bg-black/20 dark:text-panel-body">
 						{printable(call.args)}
 					</pre>
 				)}
 				{result != null && (
-					<pre className="max-h-80 overflow-auto whitespace-pre-wrap break-words rounded-[7px] bg-background p-2 font-mono text-[11px] text-subtle">
+					<pre className="max-h-80 overflow-auto whitespace-pre-wrap break-words rounded-[7px] bg-background p-2 font-mono text-[11px] text-subtle dark:bg-black/20 dark:text-panel-body">
 						{printable(result)}
 					</pre>
 				)}
@@ -241,6 +342,10 @@ function PublicTranscript({
 	token: string;
 }) {
 	const toolCalls = useMemo(() => pairToolCalls(messages), [messages]);
+	const durationsByUserTurn = useMemo(
+		() => mapRunDurationsToUserTurns(messages, conversation.runs ?? []),
+		[conversation.runs, messages],
+	);
 	const toolsByMessage = useMemo(() => {
 		const grouped = new Map<string, ToolCallView[]>();
 		for (const call of toolCalls) {
@@ -322,6 +427,7 @@ function PublicTranscript({
 	return messages.map((message: BaseMessage, index) => {
 		if (isToolMessage(message)) return null;
 		if (isHumanMessage(message)) {
+			const durationMs = durationsByUserTurn.get(userTurnKey(message, index));
 			const inline = getFileAttachments(message);
 			const displayText = message.additional_kwargs?.display_text;
 			const text =
@@ -347,7 +453,7 @@ function PublicTranscript({
 					key={message.id ?? index}
 					id={threadMapAnchor(index)}
 					from="user"
-					className="py-3"
+					className="py-2"
 				>
 					<MessageContent>
 						{text && <MessageResponse>{text}</MessageResponse>}
@@ -372,14 +478,25 @@ function PublicTranscript({
 							/>
 						))}
 					</MessageContent>
+					{durationMs != null && (
+						<div
+							className="ml-auto flex items-center gap-1 pr-0.5 font-mono text-[10px] leading-none tabular-nums text-meta dark:text-panel-dim"
+							title={`Response time: ${formatDuration(durationMs)}`}
+							aria-label={`Response time: ${formatDuration(durationMs)}`}
+						>
+							<Clock3 aria-hidden="true" className="size-2.5" />
+							<span>{formatDuration(durationMs)}</span>
+						</div>
+					)}
 				</Message>
 			);
 		}
 		if (!isAIMessage(message)) return null;
 		const reasoning = getReasoning(message);
 		const calls = message.id ? (toolsByMessage.get(message.id) ?? []) : [];
+		if (!reasoning && calls.length === 0 && !message.text) return null;
 		return (
-			<div key={message.id ?? index} className="py-3">
+			<div key={message.id ?? index} className="py-2">
 				{reasoning && (
 					<details className="mb-3 text-[12px] text-subtle">
 						<summary className="cursor-pointer font-medium">Reasoning</summary>
@@ -472,9 +589,27 @@ export function PublicConversationView({ shareId }: { shareId: string }) {
 	const messages = conversation.messages.map((message) =>
 		coerceMessageLikeToMessage(message as BaseMessageLike),
 	);
+	const messageCount = messages.filter(
+		(message) => isHumanMessage(message) || isAIMessage(message),
+	).length;
+	const toolCount = pairToolCalls(messages).length;
+	const modelLabel = conversation.model_name ?? conversation.model_id;
+	const cost = conversation.cost;
+	const costLabel =
+		cost && cost.call_count > 0
+			? cost.unpriced_call_count === cost.call_count
+				? "Cost unavailable"
+				: `${cost.complete ? "" : "≥"}${formatCost(cost.known_cost)}`
+			: null;
+	const publishedLabel = conversation.published_at
+		? new Intl.DateTimeFormat(undefined, {
+				dateStyle: "medium",
+				timeStyle: "short",
+			}).format(new Date(conversation.published_at))
+		: null;
 	return (
 		<main className="flex h-dvh flex-col bg-background">
-			<header className="flex h-14 shrink-0 items-center justify-between border-b border-border px-4 md:px-6">
+			<header className="flex min-h-14 shrink-0 items-center justify-between gap-4 border-b border-border px-4 py-2 md:px-6 dark:border-white/8">
 				<div className="flex min-w-0 items-center gap-2.5">
 					<span
 						className="flex size-8 shrink-0 items-center justify-center rounded-full text-sm"
@@ -486,15 +621,47 @@ export function PublicConversationView({ shareId }: { shareId: string }) {
 						<p className="truncate text-[13px] font-semibold text-foreground">
 							{conversation.agent.name}
 						</p>
-						<p className="truncate text-[11px] text-meta">
-							{conversation.title ?? "Shared conversation"}
-						</p>
+						{publishedLabel && (
+							<p className="truncate text-[11px] text-meta dark:text-panel-dim">
+								Published {publishedLabel}
+							</p>
+						)}
 					</div>
 				</div>
-				<span className="ml-3 flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-border px-3 py-1 text-[11.5px] font-medium text-subtle">
-					<Globe2 className="size-3.5" />
-					Read-only snapshot
-				</span>
+				<div className="flex min-w-0 items-center justify-start gap-1.5 overflow-x-auto pl-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+					{modelLabel && (
+						<span className="flex h-[30px] shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-border bg-card px-2.5 text-[11.5px] font-medium text-subtle dark:border-white/8 dark:bg-white/5 dark:text-panel-body">
+							<Cpu className="size-3.5" />
+							<span className="max-w-40 truncate">{modelLabel}</span>
+							{costLabel && (
+								<span className="border-l border-border pl-1.5 tabular-nums dark:border-white/10">
+									{costLabel}
+								</span>
+							)}
+						</span>
+					)}
+					{conversation.memories_enabled != null && (
+						<span
+							className={`flex h-[30px] shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 text-[11.5px] font-medium ${
+								conversation.memories_enabled
+									? "border-petrol/25 bg-petrol/8 text-petrol dark:border-panel-terminal/25 dark:bg-panel-terminal/10 dark:text-panel-terminal"
+									: "border-border bg-card text-meta dark:border-white/8 dark:bg-white/5 dark:text-panel-dim"
+							}`}
+						>
+							<Brain className="size-3.5" />
+							Memories {conversation.memories_enabled ? "on" : "off"}
+						</span>
+					)}
+					<span className="flex h-[30px] shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-border px-2.5 text-[11.5px] font-medium text-subtle dark:border-white/8 dark:text-panel-body">
+						<MessageSquare className="size-3.5" />
+						{messageCount}
+						{toolCount > 0 && <span>· {toolCount} tools</span>}
+					</span>
+					<span className="flex h-[30px] shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-border px-2.5 text-[11.5px] font-medium text-subtle dark:border-white/8 dark:text-panel-body">
+						<Globe2 className="size-3.5" />
+						Read-only
+					</span>
+				</div>
 			</header>
 			<div className="relative flex min-h-0 flex-1">
 				<Conversation
@@ -502,7 +669,7 @@ export function PublicConversationView({ shareId }: { shareId: string }) {
 					showScrollbar
 					className="min-h-0 flex-1"
 				>
-					<ConversationContent className="mx-auto w-full max-w-4xl px-3 pb-16 sm:px-6 lg:px-10">
+					<ConversationContent className="mx-auto w-full max-w-4xl gap-2 px-3 pb-16 sm:px-6 lg:px-10">
 						<PublicTranscript
 							conversation={conversation}
 							messages={messages}

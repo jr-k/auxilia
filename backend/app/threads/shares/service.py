@@ -1,6 +1,7 @@
 import base64
 import hashlib
 import hmac
+import logging
 from typing import Any
 from uuid import UUID
 
@@ -17,10 +18,13 @@ from app.database import get_checkpointer, get_db
 from app.exceptions import DomainValidationError, NotFoundError, PermissionDeniedError
 from app.mcp.servers.models import MCPServerDB, MCPServerImageDB
 from app.mcp.servers.repository import MCPServerRepository
+from app.model_providers.whitelist import get_whitelist
+from app.runtime.api.costs import CostService
 from app.runtime.checkpoints import checkpoint_thread_id, get_checkpoint_state
 from app.runtime.hitl import pending_interrupt
 from app.runtime.protocol.messages import serialize_public_message
 from app.runtime.runs.repository import RunRepository
+from app.runtime.runs.schemas import RunResponse
 from app.runtime.toolset import sanitize_tool_name
 from app.threads.models import ThreadDB
 from app.threads.repository import ThreadRepository
@@ -37,6 +41,9 @@ from app.threads.shares.schemas import (
     PublicConversationResponse,
     PublicToolServer,
 )
+
+
+logger = logging.getLogger(__name__)
 
 
 def _share_token(share_id: UUID) -> str:
@@ -279,6 +286,33 @@ class ConversationShareService:
         agent = await AgentRepository(self.db, workspace_id).get_scoped(thread.agent_id)
         if agent is None:
             raise NotFoundError("Agent not found")
+        catalog = {model.model_id: model for model in await get_whitelist()}
+        catalog_model = catalog.get(thread.model_id) if thread.model_id else None
+        try:
+            conversation_cost = await CostService(self.db).conversation(
+                workspace_id,
+                thread_id,
+                thread.model_id,
+                catalog=catalog,
+            )
+            cost = {
+                "known_cost": str(conversation_cost.known_cost),
+                "complete": conversation_cost.complete,
+                "call_count": conversation_cost.call_count,
+                "unpriced_call_count": conversation_cost.unpriced_call_count,
+                "total_tokens": conversation_cost.usage_details.total,
+            }
+        except Exception:  # noqa: BLE001 — optional metadata must not block sharing
+            logger.warning(
+                "Could not snapshot cost for shared thread %s",
+                thread_id,
+                exc_info=True,
+            )
+            cost = None
+        run_snapshots = [
+            RunResponse.from_record(run).model_dump(mode="json")
+            for run in await runs.list_for_thread(thread_id)
+        ]
         share = await self.repository.create(
             ConversationShareCreateDB(
                 workspace_id=workspace_id,
@@ -289,6 +323,15 @@ class ConversationShareService:
                 agent_name=agent.name,
                 agent_emoji=agent.emoji,
                 agent_color=agent.color,
+                model_id=thread.model_id,
+                model_name=(
+                    catalog_model.display_name
+                    if catalog_model is not None
+                    else thread.model_id
+                ),
+                memories_enabled=thread.memories_enabled,
+                cost=cost,
+                runs=run_snapshots,
                 tool_servers=await self._snapshot_tool_servers(
                     workspace_id, thread, public_messages
                 ),
@@ -357,6 +400,11 @@ class ConversationShareService:
                 emoji=share.agent_emoji,
                 color=share.agent_color,
             ),
+            model_id=share.model_id,
+            model_name=share.model_name,
+            memories_enabled=share.memories_enabled,
+            cost=share.cost,
+            runs=share.runs,
             messages=messages,
             artifacts=[
                 PublicArtifact(

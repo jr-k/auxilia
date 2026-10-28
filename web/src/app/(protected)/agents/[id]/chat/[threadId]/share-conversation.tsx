@@ -123,7 +123,7 @@ export function ShareConversation({
 					</DialogHeader>
 
 					{share === undefined ? (
-						<div className="h-20 animate-pulse rounded-[10px] bg-hover" />
+						<div className="h-20 animate-pulse rounded-[10px] bg-hover dark:bg-white/5" />
 					) : share === null ? (
 						<div className="rounded-[10px] border border-input p-4">
 							<div className="flex items-start gap-3">
@@ -143,12 +143,12 @@ export function ShareConversation({
 						</div>
 					) : (
 						<div className="space-y-3">
-							<div className="flex items-center gap-2 rounded-[9px] border border-input bg-hover/40 p-2">
+							<div className="flex items-center gap-2 rounded-[9px] border border-input bg-hover/40 p-2 dark:border-white/10 dark:bg-white/[0.04]">
 								<input
 									readOnly
 									value={publicUrl(share)}
 									aria-label="Public conversation link"
-									className="min-w-0 flex-1 bg-transparent px-1 font-mono text-[11.5px] text-foreground outline-none"
+									className="min-w-0 flex-1 bg-transparent px-1 font-mono text-[11.5px] text-foreground outline-none dark:text-panel-button"
 								/>
 								<button
 									type="button"

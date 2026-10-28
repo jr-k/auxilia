@@ -32,6 +32,17 @@ class ConversationShareDB(BaseDBModel, table=True):
     agent_name: str
     agent_emoji: str | None = None
     agent_color: str | None = None
+    model_id: str | None = None
+    model_name: str | None = None
+    memories_enabled: bool | None = None
+    cost: dict[str, Any] | None = Field(
+        default=None,
+        sa_column=Column(JSONB, nullable=True),
+    )
+    runs: list[dict[str, Any]] = Field(
+        default_factory=list,
+        sa_column=Column(JSONB, nullable=False),
+    )
     tool_servers: list[dict[str, Any]] = Field(
         default_factory=list,
         sa_column=Column(JSONB, nullable=False),
