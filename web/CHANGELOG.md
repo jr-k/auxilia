@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.74](https://github.com/jr-k/auxilia/compare/web-v0.12.73...web-v0.12.74) (2026-10-28)
+
+
+### Bug Fixes
+
+* **artifacts:** correct list hover in dark mode ([f5a1c68](https://github.com/jr-k/auxilia/commit/f5a1c68249a327c027633bd10a6214702b6ca934))
+
 ## [0.12.73](https://github.com/jr-k/auxilia/compare/web-v0.12.72...web-v0.12.73) (2026-10-28)
 
 
