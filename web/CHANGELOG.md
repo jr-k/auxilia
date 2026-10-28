@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.66](https://github.com/jr-k/auxilia/compare/web-v0.12.65...web-v0.12.66) (2026-10-28)
+
+
+### Bug Fixes
+
+* **navigation:** use relative threads settings link ([a41fae3](https://github.com/jr-k/auxilia/commit/a41fae37c5b164f5716f69962f961a0f3b9b7b6d))
+
 ## [0.12.65](https://github.com/jr-k/auxilia/compare/web-v0.12.64...web-v0.12.65) (2026-10-27)
 
 
