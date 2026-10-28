@@ -792,7 +792,7 @@ export default function WorkspaceModels({
 					title="Default model"
 					description="New chats and Slack"
 					model={defaultModel}
-					emptyText="Automatic — first available model"
+					emptyText="Automatic (first available model)"
 				/>
 				<ModelRoleCard
 					icon={

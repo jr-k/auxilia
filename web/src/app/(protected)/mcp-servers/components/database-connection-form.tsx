@@ -967,7 +967,7 @@ export function DatabaseConnectionForm({
 														</p>
 														<p className="mt-0.5 text-[11.5px] leading-5 text-meta dark:text-panel-dim">
 															{sqliteFileName
-																? `${sqliteFileSize ? formatFileSize(sqliteFileSize) : "SQLite database"} · Click to replace`
+																? `${sqliteFileSize ? formatFileSize(sqliteFileSize) : "SQLite database"}. Click to replace`
 																: ".db, .sqlite, or .sqlite3"}
 														</p>
 													</div>

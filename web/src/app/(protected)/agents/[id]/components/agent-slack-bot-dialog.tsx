@@ -765,7 +765,7 @@ export default function AgentSlackBotDialog({
 										<p className="truncate text-[11.5px] font-semibold text-foreground">
 											{settings.botName || "Slack bot"}
 											{settings.slackTeamName
-												? ` · ${settings.slackTeamName}`
+												? ` / ${settings.slackTeamName}`
 												: ""}
 										</p>
 										<p className="mt-0.5 text-[10px] text-meta">

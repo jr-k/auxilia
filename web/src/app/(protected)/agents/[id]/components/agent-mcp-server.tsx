@@ -143,7 +143,7 @@ function ProgressiveToolList({
 			{remainingToolCount > 0 && (
 				<div className="border-t border-hover px-4 py-2 text-center text-[11px] text-meta dark:border-white/5 dark:text-panel-dim">
 					{remainingToolCount} more tool
-					{remainingToolCount === 1 ? "" : "s"} · scroll to load
+					{remainingToolCount === 1 ? "" : "s"}. Scroll to load
 				</div>
 			)}
 		</div>

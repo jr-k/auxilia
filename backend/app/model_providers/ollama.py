@@ -134,7 +134,7 @@ def _brand(model_name: str, details: dict) -> tuple[str, str]:
 def _display_name(model_name: str) -> str:
     base, separator, tag = model_name.partition(":")
     label = base.replace("-", " ").replace("_", " ").strip().title()
-    return f"{label} · {tag}" if separator else label
+    return f"{label} ({tag})" if separator else label
 
 
 async def discover_ollama_models(base_url: str) -> list[DiscoveredOllamaModel]:

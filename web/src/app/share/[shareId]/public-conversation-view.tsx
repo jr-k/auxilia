@@ -252,7 +252,7 @@ function SharedFile({
 					</p>
 					<p className="text-[11px] text-meta">
 						{formatBytes(artifact.size)}
-						{error ? " · Unavailable" : ""}
+						{error ? " / Unavailable" : ""}
 					</p>
 				</div>
 				<button
@@ -655,7 +655,7 @@ export function PublicConversationView({ shareId }: { shareId: string }) {
 					<span className="flex h-[30px] shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-border px-2.5 text-[11.5px] font-medium text-subtle dark:border-white/8 dark:text-panel-body">
 						<MessageSquare className="size-3.5" />
 						{messageCount}
-						{toolCount > 0 && <span>· {toolCount} tools</span>}
+						{toolCount > 0 && <span>/ {toolCount} tools</span>}
 					</span>
 					<span className="flex h-[30px] shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-border px-2.5 text-[11.5px] font-medium text-subtle dark:border-white/8 dark:text-panel-body">
 						<Globe2 className="size-3.5" />

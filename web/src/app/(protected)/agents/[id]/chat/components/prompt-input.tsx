@@ -1513,7 +1513,7 @@ const ConversationTokenCallRow = ({
 					{formatStat(call.inputTokens)} in
 				</div>
 				<div className="mt-0.5 font-mono text-[10.5px] text-meta dark:text-panel-dim">
-					{formatStat(call.outputTokens)} out · {formatStat(call.totalTokens)} total
+					{formatStat(call.outputTokens)} out / {formatStat(call.totalTokens)} total
 				</div>
 			</div>
 		</div>

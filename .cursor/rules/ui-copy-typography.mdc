@@ -1,7 +1,6 @@
 ---
 description: Keep user-visible UI text naturally cased and normally spaced
-globs: web/src/**/*.tsx
-alwaysApply: false
+alwaysApply: true
 ---
 
 # UI copy typography
@@ -10,6 +9,9 @@ alwaysApply: false
 - Do not use Tailwind `uppercase` or `tracking-*` classes on user-visible text.
 - Do not hard-code labels in all caps to imitate an eyebrow or technical badge.
 - Preserve the canonical capitalization of acronyms such as MCP, API, CPU, and OAuth.
+- Never use em dashes or middle dots in user-visible copy.
+- Replace an em-dash aside with a period, colon, comma, or parentheses.
+- Separate compact metadata with a slash when a separator is necessary.
 - Decorative single-letter avatar fallbacks and logos are exempt.
 
 ```tsx

@@ -409,8 +409,8 @@ export default function NewSkillSourcePage() {
 						<div className="min-w-0">
 							<h1 className="font-display text-[26px] font-bold tracking-[-0.035em] text-foreground">Connect a repository</h1>
 							<p className="mt-1.5 text-[14px] leading-[1.55] text-body dark:text-panel-body">
-								Every skill in the repository — a folder with a <span className="font-mono text-[12.5px]">SKILL.md</span> — becomes
-								available in the library, pinned to its content. Each sync brings in changes upstream; nothing
+								Every skill folder containing a <span className="font-mono text-[12.5px]">SKILL.md</span> becomes
+								available in the library, pinned to its content. Each sync brings in upstream changes; nothing
 								here is edited from the app.
 							</p>
 						</div>

@@ -84,7 +84,7 @@ function sameApp(a: SlotApp, b: SlotApp): boolean {
 function meta(item: Artifact, withTime = false): string {
   const parts = [extension(item.filename), formatBytes(item.size)];
   if (withTime && item.created_at) parts.push(relativeTime(item.created_at));
-  return parts.join(" · ");
+  return parts.join(" / ");
 }
 
 function ArtifactIcon({ entry, large }: { entry: Entry; large?: boolean }) {
@@ -221,7 +221,9 @@ function Card({
       onClick={onOpen}
       className={cn(
         "my-2 flex w-full max-w-md items-center gap-3 rounded-xl border p-2.5 text-left transition-colors",
-        selected ? "border-petrol bg-petrol-tint" : "border-border hover:bg-hover",
+        selected
+          ? "border-petrol bg-petrol-tint"
+          : "border-border hover:bg-hover dark:hover:bg-white/5",
       )}
     >
       <ArtifactIcon entry={entry} />
@@ -449,7 +451,7 @@ function FileList({
       {entries.some((entry) => entry.kind === "file" && entry.item.temporary) && (
         <p className="flex items-center gap-1.5 border-t border-hairline px-5 py-2.5 text-[11.5px] text-label">
           <span className="size-1.5 rounded-full bg-warning" />
-          Files are temporary — download the ones you want to keep.
+          Files are temporary. Download the ones you want to keep.
         </p>
       )}
     </>
@@ -712,7 +714,7 @@ export function ArtifactWorkspace({
                     setOpenAppId(undefined);
                     setListOpen(!showing);
                   }}
-                  className="flex h-[30px] cursor-pointer items-center gap-1.5 rounded-full bg-petrol-chip px-3 text-[12.5px] font-semibold text-petrol hover:bg-petrol-tint aria-pressed:ring-1 aria-pressed:ring-petrol/40"
+                  className="flex h-[30px] cursor-pointer items-center gap-1.5 rounded-full border border-transparent bg-petrol-chip px-3 text-[12.5px] font-semibold text-petrol hover:bg-petrol-tint aria-pressed:ring-1 aria-pressed:ring-petrol/40 dark:border-panel-terminal/25 dark:bg-panel-terminal/10 dark:text-panel-terminal dark:hover:bg-panel-terminal/15"
                 >
                   <FileText className="size-3.5" />
                   Artifacts
@@ -762,12 +764,12 @@ export function ArtifactWorkspace({
                       {selected ? meta(selected) : app?.serverName}
                       {listOpen &&
                         position >= 0 &&
-                        ` · ${position + 1} of ${newestFirst.length} artifacts`}
+                        ` / ${position + 1} of ${newestFirst.length} artifacts`}
                       {selected?.temporary && (
                         <>
-                          {" · "}
+                          {" / "}
                           <span className="text-warning">
-                            temporary — download to keep
+                            temporary: download to keep
                           </span>
                         </>
                       )}

@@ -47,7 +47,7 @@ function VersionMeta({ version }: { version: PromptVersion }) {
 			{version.labels.map((label) => (
 				<LabelPill key={label} label={label} />
 			))}
-			{details.join(" · ")}
+			{details.join(" / ")}
 		</span>
 	);
 }
