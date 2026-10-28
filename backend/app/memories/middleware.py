@@ -491,20 +491,14 @@ class MemoryMiddleware(AgentMiddleware[MemoryState]):
         async with AsyncSessionLocal() as db:
             if not await self._mutations_allowed(db, require_auto_capture=False):
                 return self._mutation_disabled(runtime, tool_name=DELETE_MEMORY_TOOL)
-            memory_id = await MemoryService(db).delete_from_assistant(
+            await MemoryService(db).delete_from_assistant(
                 user_id=self.user_id,
                 category_name=category,
                 key=key,
             )
             await db.commit()
-        remaining = [
-            str(loaded_id)
-            for loaded_id in _loaded_ids(runtime.state)
-            if loaded_id != memory_id
-        ]
         return Command(
             update={
-                MEMORY_STATE_KEY: Overwrite(remaining),
                 "messages": [
                     self._tool_message(
                         runtime,
@@ -548,16 +542,9 @@ class MemoryMiddleware(AgentMiddleware[MemoryState]):
                 category_name=category,
             )
             await db.commit()
-        deleted = set(memory_ids)
-        remaining = [
-            str(loaded_id)
-            for loaded_id in _loaded_ids(runtime.state)
-            if loaded_id not in deleted
-        ]
         count = len(memory_ids)
         return Command(
             update={
-                MEMORY_STATE_KEY: Overwrite(remaining),
                 "messages": [
                     self._tool_message(
                         runtime,
