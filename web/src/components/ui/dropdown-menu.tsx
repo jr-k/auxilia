@@ -27,6 +27,7 @@ interface DropdownMenuProps {
 	sideOffset?: number;
 	className?: string;
 	itemClassName?: string;
+	onOpenChange?: (open: boolean) => void;
 }
 
 export function DropdownMenu({
@@ -38,9 +39,10 @@ export function DropdownMenu({
 	sideOffset = 6,
 	className,
 	itemClassName,
+	onOpenChange,
 }: DropdownMenuProps) {
 	return (
-		<DropdownMenuPrimitive.Root modal={modal}>
+		<DropdownMenuPrimitive.Root modal={modal} onOpenChange={onOpenChange}>
 			<DropdownMenuPrimitive.Trigger asChild>
 				{trigger || (
 					<button

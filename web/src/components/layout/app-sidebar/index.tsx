@@ -152,6 +152,7 @@ export function AppSidebar() {
 	const { resolvedTheme, setTheme } = useTheme();
 	const { isMobile, setOpenMobile, state, toggleSidebar } = useSidebar();
 	const [renamingThread, setRenamingThread] = useState<Thread | null>(null);
+	const [openThreadMenuId, setOpenThreadMenuId] = useState<string | null>(null);
 	const [aboutOpen, setAboutOpen] = useState(false);
 	const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
 	const activeRunThreadIds = useActiveRunThreadIds(threads);
@@ -350,8 +351,11 @@ export function AppSidebar() {
 										: isTriggerThread
 											? thread.firstMessageContent
 											: thread.agentName;
+									const isMenuOpen = openThreadMenuId === thread.id;
 									const trailingMetadataClass = !selection.selectionMode
-										? "opacity-0 transition-opacity md:opacity-100 md:group-hover/menu-item:opacity-0 md:group-focus-within/menu-item:opacity-0"
+										? isMenuOpen
+											? "opacity-0 transition-opacity"
+											: "opacity-0 transition-opacity md:opacity-100 md:group-hover/menu-item:opacity-0 md:group-focus-within/menu-item:opacity-0"
 										: "";
 									return (
 										<SidebarMenuItem
@@ -369,7 +373,9 @@ export function AppSidebar() {
 												data-selected={
 													selection.isSelected(thread.id) || undefined
 												}
-												className="h-12 rounded-[7px] pr-[5px]! focus-visible:ring-inset hover:bg-sidebar-hover data-[active=true]:bg-sidebar-accent data-[selected=true]:bg-sidebar-accent group-data-[collapsible=icon]:h-12! group-data-[collapsible=icon]:w-[38px]! group-data-[collapsible=icon]:p-[5px]! group-data-[collapsible=icon]:data-[active=true]:bg-transparent group-data-[collapsible=icon]:data-[selected=true]:bg-sidebar-accent"
+												className={`h-12 rounded-[7px] pr-[5px]! focus-visible:ring-inset hover:bg-sidebar-hover data-[active=true]:bg-sidebar-accent data-[selected=true]:bg-sidebar-accent group-data-[collapsible=icon]:h-12! group-data-[collapsible=icon]:w-[38px]! group-data-[collapsible=icon]:p-[5px]! group-data-[collapsible=icon]:data-[active=true]:bg-transparent group-data-[collapsible=icon]:data-[selected=true]:bg-sidebar-accent ${
+													isMenuOpen ? "bg-sidebar-hover" : ""
+												}`}
 											>
 												<Link
 													href={`/agents/${thread.agentId}/chat/${thread.id}`}
@@ -474,10 +480,19 @@ export function AppSidebar() {
 											</SelectableLeading>
 											{!selection.selectionMode && (
 												<DropdownMenu
+													onOpenChange={(open) => {
+														setOpenThreadMenuId((current) =>
+															open
+																? thread.id
+																: current === thread.id
+																	? null
+																	: current,
+														);
+													}}
 													trigger={
 														<SidebarMenuAction
 															showOnHover
-															className="cursor-pointer"
+															className="z-20 cursor-pointer data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
 														>
 															<MoreVertical className="size-4" />
 															<span className="sr-only">More options</span>
