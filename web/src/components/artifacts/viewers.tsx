@@ -68,7 +68,8 @@ const decoder = (bytes: ArrayBuffer, fatal = false) => {
         : "utf-8";
   return new TextDecoder(encoding, { fatal });
 };
-const decode = (bytes: ArrayBuffer) => decoder(bytes).decode(bytes);
+export const decodeArtifactText = (bytes: ArrayBuffer) =>
+  decoder(bytes).decode(bytes);
 
 /**
  * Runs inside the frame, before the page's own scripts. A srcdoc page resolves
@@ -138,7 +139,7 @@ function WebPageViewer({ bytes }: ViewerProps) {
           className="h-full w-full border-0 bg-white"
           sandbox="allow-scripts"
           referrerPolicy="no-referrer"
-          srcDoc={isolatedHtml(decode(preview), sources)}
+          srcDoc={isolatedHtml(decodeArtifactText(preview), sources)}
         />
         <div className="absolute right-3 top-3 flex gap-2">
           <button
@@ -191,7 +192,7 @@ function MarkdownViewer({ bytes }: ViewerProps) {
           allowedTags={{}}
           components={{ img: () => <span>[Image omitted]</span> }}
         >
-          {decode(preview)}
+          {decodeArtifactText(preview)}
         </Streamdown>
       </div>
     </>
@@ -204,7 +205,7 @@ function TextViewer({ bytes }: ViewerProps) {
     <>
       {preview !== bytes && <PreviewLimitNote />}
       <pre className="whitespace-pre-wrap break-words p-4 text-sm">
-        {decode(preview)}
+        {decodeArtifactText(preview)}
       </pre>
     </>
   );
@@ -380,7 +381,7 @@ function isTextArtifact(artifact: Artifact, bytes: ArrayBuffer): boolean {
 function CodeViewer({ artifact, bytes }: ViewerProps) {
   const byteLimit = SHIKI_MAX_CHARS * 4;
   const source = bytes.byteLength > byteLimit ? bytes.slice(0, byteLimit) : bytes;
-  const decoded = decode(source);
+  const decoded = decodeArtifactText(source);
   const code = decoded.slice(0, SHIKI_MAX_CHARS);
   const truncated = source !== bytes || decoded.length > SHIKI_MAX_CHARS;
   return (
@@ -409,7 +410,7 @@ function CsvViewer({ bytes }: ViewerProps) {
   );
   const result = useMemo(
     () =>
-      Papa.parse<string[]>(decode(preview), {
+      Papa.parse<string[]>(decodeArtifactText(preview), {
         preview: 501,
         skipEmptyLines: true,
       }),

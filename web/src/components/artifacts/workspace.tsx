@@ -10,7 +10,17 @@ import {
 } from "react";
 import type { CSSProperties, ReactNode, RefObject } from "react";
 import Image from "next/image";
-import { ChevronLeft, Download, ExternalLink, FileText, X } from "lucide-react";
+import {
+  Check,
+  ChevronLeft,
+  Copy,
+  Download,
+  ExternalLink,
+  FileText,
+  Loader2,
+  X,
+} from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { formatBytes } from "@/app/(protected)/skills/lib/skill-form";
@@ -19,7 +29,7 @@ import { ChatHeaderActions } from "@/components/layout/chat-header";
 import { humanizeToolName } from "@/components/ai-elements/chain-of-thought";
 import { McpAppWidget } from "@/app/(protected)/agents/[id]/chat/components/mcp-app-widget";
 import type { DisplayedApp } from "@/app/(protected)/agents/[id]/chat/components/mcp-app-widget";
-import { ArtifactViewer, Loading } from "./viewers";
+import { ArtifactViewer, decodeArtifactText, Loading } from "./viewers";
 import { FileTypeIcon, extension, tone } from "./file-type-icon";
 import {
   ArtifactConflictError,
@@ -159,6 +169,81 @@ function DownloadLink({ item, icon }: { item: Artifact; icon?: boolean }) {
       <Download className="size-3.5" />
       Download
     </a>
+  );
+}
+
+const COPYABLE_APPLICATION_MIMES = new Set([
+  "application/graphql",
+  "application/javascript",
+  "application/json",
+  "application/ld+json",
+  "application/sql",
+  "application/toml",
+  "application/xml",
+  "application/x-httpd-php",
+  "application/x-javascript",
+  "application/x-ndjson",
+  "application/x-sh",
+  "application/x-toml",
+  "application/x-yaml",
+  "application/yaml",
+]);
+
+function canCopyContent(item: Artifact): boolean {
+  const mime = item.mime_type.toLowerCase().split(";", 1)[0];
+  return mime.startsWith("text/") || COPYABLE_APPLICATION_MIMES.has(mime);
+}
+
+function CopyArtifactButton({ item }: { item: Artifact }) {
+  const [status, setStatus] = useState<"idle" | "copying" | "copied">("idle");
+  const resetTimer = useRef<number | undefined>(undefined);
+
+  useEffect(
+    () => () => {
+      window.clearTimeout(resetTimer.current);
+    },
+    [],
+  );
+
+  const copy = async () => {
+    if (status === "copying") return;
+    setStatus("copying");
+    try {
+      const bytes = await readArtifact(item, new AbortController().signal);
+      const clipboard = navigator.clipboard as Clipboard | undefined;
+      if (!clipboard) throw new Error("Clipboard unavailable");
+      await clipboard.writeText(decodeArtifactText(bytes));
+      setStatus("copied");
+      window.clearTimeout(resetTimer.current);
+      resetTimer.current = window.setTimeout(() => {
+        setStatus("idle");
+      }, 1600);
+    } catch {
+      setStatus("idle");
+      toast.error("Could not copy the artifact content");
+    }
+  };
+
+  const copied = status === "copied";
+  return (
+    <button
+      type="button"
+      aria-label={copied ? "Artifact content copied" : "Copy artifact content"}
+      title={copied ? "Copied" : "Copy content"}
+      disabled={status === "copying"}
+      onClick={() => {
+        void copy();
+      }}
+      className="flex size-8 flex-none cursor-pointer items-center justify-center rounded-lg border border-hairline text-subtle transition-colors hover:bg-hover hover:text-ink disabled:cursor-wait"
+    >
+      {status === "copying" ? (
+        <Loader2 className="size-3.5 animate-spin" />
+      ) : copied ? (
+        <Check className="size-3.5 text-petrol" />
+      ) : (
+        <Copy className="size-3.5" />
+      )}
+    </button>
   );
 }
 
@@ -775,6 +860,12 @@ export function ArtifactWorkspace({
                       )}
                     </p>
                   </div>
+                  {selected && canCopyContent(selected) && (
+                    <CopyArtifactButton
+                      key={`${selected.id}:${selected.sha256}`}
+                      item={selected}
+                    />
+                  )}
                   {selected?.mime_type === PPTX_MIME && (
                     <SlidesExportLink item={selected} />
                   )}
