@@ -73,7 +73,7 @@ async def _get_checkpointer_pool() -> AsyncConnectionPool:
                 pool = AsyncConnectionPool(
                     get_psycopg_conn_string(),
                     min_size=1,
-                    max_size=10,
+                    max_size=app_settings.checkpointer_pool_max_size,
                     open=False,
                     check=AsyncConnectionPool.check_connection,
                     kwargs={

@@ -3,6 +3,7 @@
 from pathlib import Path
 from typing import Literal
 
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy import URL
 from typing_extensions import Unpack
@@ -35,6 +36,9 @@ class AppSettings(BaseSettings):
     db_user: str = "auxilia"
     db_password: str = "auxilia"
     db_name: str = "auxilia"
+    # Runs use the checkpoint pool concurrently with state hydration, HITL
+    # reads and history reconstruction. Keep headroom above worker concurrency.
+    checkpointer_pool_max_size: int = Field(default=20, ge=2)
     redis_host: str = "localhost"
     redis_port: int = 6379
     redis_db: int = 0

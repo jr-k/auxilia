@@ -46,6 +46,7 @@ services:
       DB_USER: ${DB_USER:-auxilia}
       DB_PASSWORD: ${DB_PASSWORD:-auxilia}
       DB_NAME: ${DB_NAME:-auxilia}
+      CHECKPOINTER_POOL_MAX_SIZE: ${CHECKPOINTER_POOL_MAX_SIZE:-20}
       # Redis
       REDIS_HOST: redis
       REDIS_PORT: 6379

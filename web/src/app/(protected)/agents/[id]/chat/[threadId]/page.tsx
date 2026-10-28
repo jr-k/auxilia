@@ -165,10 +165,19 @@ const ChatPage = () => {
   useEffect(() => {
     if (userMessageCount > 0) clearOptimisticMessage(threadId);
   }, [clearOptimisticMessage, threadId, userMessageCount]);
+  const initialPromptRunActive = transcript.runs.some(
+    (item) =>
+      item.kind === "prompt" &&
+      (item.status === "pending" || item.status === "running"),
+  );
   const initialOptimisticPrompt = useMemo<QueuedPrompt | null>(() => {
-    if (initialOptimisticMessage == null || userMessageCount > 0) return null;
-    const text = initialOptimisticMessage.text?.trim() ?? "";
-    const attachments = (initialOptimisticMessage.files ?? []).map((file) => ({
+    if (userMessageCount > 0) return null;
+    const text =
+      initialOptimisticMessage?.text?.trim() ||
+      (initialPromptRunActive
+        ? (meta.thread?.firstMessageContent?.trim() ?? "")
+        : "");
+    const attachments = (initialOptimisticMessage?.files ?? []).map((file) => ({
       filename: file.filename ?? "file",
       mediaType: file.mediaType ?? "application/octet-stream",
     }));
@@ -181,7 +190,13 @@ const ChatPage = () => {
       createdAt: "",
       updatedAt: "",
     };
-  }, [initialOptimisticMessage, threadId, userMessageCount]);
+  }, [
+    initialOptimisticMessage,
+    initialPromptRunActive,
+    meta.thread?.firstMessageContent,
+    threadId,
+    userMessageCount,
+  ]);
   const promptQueue = usePromptQueue(
     threadId,
     run.status !== "idle",
