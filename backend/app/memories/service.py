@@ -52,6 +52,20 @@ def normalize_memory_key(value: str) -> str:
     return key[:100]
 
 
+_POSSESSIVE_MEMORY_TITLE = re.compile(r"^(.+?)(?:['’]s)\s+.+$", re.IGNORECASE)
+
+
+def _memory_subject(title: str) -> str | None:
+    """Return the stable subject represented by an English memory title."""
+    compact = " ".join(title.split())
+    if match := _POSSESSIVE_MEMORY_TITLE.fullmatch(compact):
+        compact = match.group(1)
+    try:
+        return normalize_memory_key(compact)
+    except DomainValidationError:
+        return None
+
+
 def _clean_memory_text(value: str, *, field: str, limit: int) -> str:
     cleaned = value.strip()
     if not cleaned:
@@ -370,6 +384,25 @@ class MemoryService:
         clean_title = _clean_memory_text(title, field="title", limit=200)
         clean_content = _clean_memory_text(content, field="content", limit=10_000)
         _reject_sensitive_memory(clean_title, clean_content)
+        if (
+            await self.memories.get_by_category_key(user_id, category.id, memory_key)
+            is None
+        ):
+            subject = _memory_subject(clean_title)
+            same_subject = (
+                [
+                    memory
+                    for memory, _ in await self.memories.list_for_user(
+                        user_id,
+                        category_id=category.id,
+                    )
+                    if _memory_subject(memory.title) == subject
+                ]
+                if subject is not None
+                else []
+            )
+            if len(same_subject) == 1:
+                memory_key = same_subject[0].key
         return await self.memories.upsert_assistant(
             user_id=user_id,
             category_id=category.id,
