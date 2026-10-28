@@ -1,5 +1,5 @@
 Upstream: https://github.com/keurcien/auxilia
-Synchronization date: 2026-10-25
+Synchronization date: 2026-10-27
 Mode: compatible forward-port (not verbatim cherry-picks)
 
 0cd8f036864febcbf20543d5570a77b8e65edf64	feat(agents): let agent editors manage subagents (#392)
@@ -32,3 +32,5 @@ a36eb78b457995216369912768c25f1af67eb2fd	fix(attachments): tolerate a failed fol
 db65e7705f22b15f56c1cf558c485c2e474eccf1	fix(artifacts): find guarded links through open shadow roots; test auxclick [compatible forward-port without tests]
 f40f1e0a3a2f203caca0aeb37c80d992de74676b	build(web): upgrade Node.js from 22 to 24 [upstream/codex/bump-node-24]
 cd5c223be3b105ed0a5ce3b75a427e4b787d09fa	feat(skills): sync applies upstream skill updates directly (#424) [compatible forward-port for multi-workspace and current UI]
+4e53e6007151c7df2c0357f1ff933b2d1ea95d65	fix(attachments): keep host notices out of the chat and in regenerations (#438) [compatible forward-port without tests]
+afe2c40ddd944147812f12484e64d4c9735d155f	fix(artifacts): restore the presented file when it shares a timestamp with its attachment (#440) [compatible forward-port in repository ordering]

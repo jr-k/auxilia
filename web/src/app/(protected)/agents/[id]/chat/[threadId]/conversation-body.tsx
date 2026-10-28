@@ -23,11 +23,11 @@ import {
   CopyIcon,
   DownloadIcon,
   ExternalLinkIcon,
-  InfoIcon,
   MessagesSquareIcon,
   PaperclipIcon,
   RefreshCcwIcon,
 } from "lucide-react";
+import { FileIcon } from "@/components/artifacts/file-type-icon";
 import { SlackLogo } from "@/components/slack-logo";
 import {
   Message,
@@ -305,9 +305,8 @@ export const ConversationBody = memo(function ConversationBody({
       {messages.map((message, index) => {
         const key = message.id ?? index;
         if (isHumanMessage(message)) {
-          return isHostNotice(message) ? (
-            <HostNotice key={key} message={message} />
-          ) : (
+          // Host notices are context for the model; the chat already shows the files.
+          return isHostNotice(message) ? null : (
             <UserTurn
               key={key}
               message={message}
@@ -443,29 +442,14 @@ export const ConversationBody = memo(function ConversationBody({
 /**
  * A user-role message the runtime authored, not the user: it carries
  * `name: "host"` and `additional_kwargs.host_notice` (e.g. the sandbox of
- * the thread was replaced). Rendered as a muted event line, never as a
- * user bubble, so the transcript keeps who said what.
+ * the thread was replaced). Context for the model, not shown in the chat.
  */
-const HOST_NOTICE_PREFIX = /^\s*\[Host notice\]\s*/;
-
 export function isHostNotice(message: BaseMessage): boolean {
   return (
-    (message.name === "host" &&
-      typeof message.additional_kwargs?.host_notice === "string") ||
-    HOST_NOTICE_PREFIX.test(message.text)
+    message.name === "host" &&
+    typeof message.additional_kwargs?.host_notice === "string"
   );
 }
-
-const HostNotice = ({ message }: { message: BaseMessage }) => (
-  <div className="my-2 flex w-full justify-start">
-    <div className="flex max-w-[80%] items-start gap-2 border-l-2 border-border px-3 py-1 text-left text-[11.5px] leading-[1.5] text-muted-foreground">
-      <InfoIcon aria-hidden="true" className="mt-0.5 size-3.5 shrink-0" />
-      <p className="whitespace-pre-line">
-        {message.text.replace(HOST_NOTICE_PREFIX, "")}
-      </p>
-    </div>
-  </div>
-);
 
 type WebSearchSource = {
   url: string;
@@ -785,8 +769,15 @@ const UserTurn = ({
                   <AttachmentHoverCardTrigger asChild>
                     <Attachment data={attachment}>
                       <div className="relative size-5 shrink-0">
-                        <div className="absolute inset-0 transition-opacity group-hover:opacity-0">
-                          <AttachmentPreview />
+                        <div className="absolute inset-0 flex items-center justify-center transition-opacity group-hover:opacity-0">
+                          <AttachmentPreview
+                            fallbackIcon={
+                              <FileIcon
+                                mimeType={attachment.mediaType}
+                                className="h-5 w-4"
+                              />
+                            }
+                          />
                         </div>
                       </div>
                       <AttachmentInfo />

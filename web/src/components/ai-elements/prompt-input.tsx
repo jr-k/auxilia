@@ -16,6 +16,7 @@ import {
 import { cn } from "@/lib/utils";
 import type { FileUIPart } from "./attachments";
 import { PaperclipIcon, XIcon } from "lucide-react";
+import { FileIcon } from "@/components/artifacts/file-type-icon";
 import { nanoid } from "nanoid";
 import {
 	type ChangeEvent,
@@ -445,9 +446,10 @@ export function PromptInputAttachment({
 									width={20}
 								/>
 							) : (
-								<div className="flex size-5 items-center justify-center text-muted-foreground">
-									<PaperclipIcon className="size-3" />
-								</div>
+								<FileIcon
+									mimeType={data.mediaType ?? ""}
+									className="h-5 w-4"
+								/>
 							)}
 						</div>
 						<Button

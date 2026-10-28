@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from sqlalchemy import tuple_
+from sqlalchemy import case, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import col, select
 
@@ -88,6 +88,9 @@ class ArtifactRepository(BaseRepository[ArtifactDB]):
             .order_by(
                 col(ArtifactDB.source_path),
                 col(ArtifactDB.created_at).desc(),
+                # Rows written in one transaction share `created_at`; a presented
+                # artifact still follows and must win over the original attachment.
+                case((col(ArtifactDB.origin) == "artifact", 1), else_=0).desc(),
                 col(ArtifactDB.id).desc(),
             )
         )
