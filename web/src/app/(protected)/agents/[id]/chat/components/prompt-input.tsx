@@ -80,7 +80,7 @@ const composerMenuClass =
 
 const STATS_LOADER_MIN_MS = 400;
 const THREAD_TOOL_MODE_LABELS: Record<ThreadToolMode, string> = {
-	no_tools: "No Tools",
+	no_tools: "No tools",
 	eager: "Eager",
 	lazy: "Lazy",
 	precision: "Precision",
@@ -248,11 +248,11 @@ const ChatPromptInput = ({
 		toolDiscoveryConfig?.agentId === agentId
 			? toolDiscoveryConfig.mode
 			: null;
+	const agentDefaultThreadToolMode = agentToolDiscoveryMode
+		? AGENT_DISCOVERY_TO_THREAD_MODE[agentToolDiscoveryMode]
+		: null;
 	const effectiveThreadToolMode =
-		resourceSettings.toolMode ??
-		(agentToolDiscoveryMode
-			? AGENT_DISCOVERY_TO_THREAD_MODE[agentToolDiscoveryMode]
-			: null);
+		resourceSettings.toolMode ?? agentDefaultThreadToolMode;
 	// A resume rebuilds the graph from the thread. Changing its tool surface
 	// while a run/HITL is active could remove the very tool being resumed.
 	const canChangeToolMode = !readOnlyModel && !configurationLocked;
@@ -294,9 +294,20 @@ const ChatPromptInput = ({
 		}
 	}, [acceptsFiles, controller.attachments, vision]);
 	const enabledDisconnectedServers = useMemo(() => {
+		if (effectiveThreadToolMode === "no_tools") return [];
+		if (
+			effectiveThreadToolMode === "lazy" ||
+			effectiveThreadToolMode === "force_all"
+		) {
+			return disconnectedServers;
+		}
 		const disabledIds = new Set(resourceSettings.disabledMcpServerIds);
 		return disconnectedServers.filter((server) => !disabledIds.has(server.id));
-	}, [disconnectedServers, resourceSettings.disabledMcpServerIds]);
+	}, [
+		disconnectedServers,
+		effectiveThreadToolMode,
+		resourceSettings.disabledMcpServerIds,
+	]);
 	const conversationStats = useMemo(() => {
 		const messages = statsMessages ?? conversationMessages;
 		if (!messages) return null;
@@ -1281,54 +1292,59 @@ const ChatPromptInput = ({
 							<DropdownMenu
 								align="start"
 								side="top"
-								className={composerMenuClass}
+								className={cn(composerMenuClass, "w-[430px]")}
 								itemClassName="py-[9px]"
 								items={[
 									{ sectionLabel: "Tool mode" },
 									{
-										label: "Agent default",
-										description: "use agent configuration",
+										label: agentDefaultThreadToolMode
+											? `Agent default (${THREAD_TOOL_MODE_LABELS[agentDefaultThreadToolMode]})`
+											: "Agent default",
+										description: "follow agent configuration",
 										active: resourceSettings.toolMode === null,
 										onClick: () => {
 											handleToolModeChange(null);
 										},
 									},
 									{ separator: true },
-									{
-										label: "No Tools",
-										description: "answer without tools",
-										active: resourceSettings.toolMode === "no_tools",
-										onClick: () => {
-											handleToolModeChange("no_tools");
-										},
-									},
+									{ sectionLabel: "Uses resource selections" },
 									{
 										label: "Eager",
-										description: "load every MCP schema",
+										description: "load every tool from enabled MCP servers",
 										active: resourceSettings.toolMode === "eager",
 										onClick: () => {
 											handleToolModeChange("eager");
 										},
 									},
 									{
+										label: "Precision",
+										description: "find relevant tools from enabled MCP servers",
+										active: resourceSettings.toolMode === "precision",
+										onClick: () => {
+											handleToolModeChange("precision");
+										},
+									},
+									{ separator: true },
+									{ sectionLabel: "Overrides resource selections" },
+									{
+										label: "No tools",
+										description: "disable every conversation resource",
+										active: resourceSettings.toolMode === "no_tools",
+										onClick: () => {
+											handleToolModeChange("no_tools");
+										},
+									},
+									{
 										label: "Lazy",
-										description: "choose servers per prompt",
+										description: "enable all resources; choose MCPs per prompt",
 										active: resourceSettings.toolMode === "lazy",
 										onClick: () => {
 											handleToolModeChange("lazy");
 										},
 									},
 									{
-										label: "Precision",
-										description: "retrieve tools adaptively",
-										active: resourceSettings.toolMode === "precision",
-										onClick: () => {
-											handleToolModeChange("precision");
-										},
-									},
-									{
 										label: "Force all",
-										description: "force every capability",
+										description: "enable all resources; load every MCP tool",
 										active: resourceSettings.toolMode === "force_all",
 										onClick: () => {
 											handleToolModeChange("force_all");
@@ -1389,6 +1405,7 @@ const ChatPromptInput = ({
 				agentId={agentId}
 				disconnectedServers={disconnectedServers}
 				onConnectionChange={() => onAllConnected?.()}
+				toolMode={effectiveThreadToolMode}
 				resourceSettings={resourceSettings}
 				onResourceSettingsChange={onResourceSettingsChange}
 				resourceSettingsSaving={

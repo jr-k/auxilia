@@ -8,7 +8,7 @@ from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.core.repository import AgentRepository
-from app.agents.models import AgentMCPServerDB, ToolStatus
+from app.agents.models import AgentMCPServerDB, ToolDiscoveryMode, ToolStatus
 from app.artifacts.models import ArtifactDB
 from app.artifacts.repository import ArtifactRepository
 from app.artifacts.service import ArtifactGoneError, ArtifactService
@@ -22,7 +22,7 @@ from app.runtime.hitl import pending_interrupt
 from app.runtime.protocol.messages import serialize_public_message
 from app.runtime.runs.repository import RunRepository
 from app.runtime.toolset import sanitize_tool_name
-from app.threads.models import ThreadDB, ThreadToolMode
+from app.threads.models import ThreadDB
 from app.threads.repository import ThreadRepository
 from app.threads.shares.models import (
     ConversationShareArtifactDB,
@@ -162,12 +162,16 @@ class ConversationShareService:
         )
         if spec is None:
             return []
-        force_all = thread.tool_mode is ThreadToolMode.force_all
+        force_enable_resources = (
+            thread.tool_mode.force_enable_all_capabilities
+            if thread.tool_mode is not None
+            else spec.agent.tool_discovery_mode is ToolDiscoveryMode.lazy
+        )
         disabled_server_ids = (
-            set() if force_all else set(thread.disabled_mcp_server_ids)
+            set() if force_enable_resources else set(thread.disabled_mcp_server_ids)
         )
         disabled_subagent_ids = (
-            set() if force_all else set(thread.disabled_subagent_ids)
+            set() if force_enable_resources else set(thread.disabled_subagent_ids)
         )
         active_agent_specs = [
             spec.agent,

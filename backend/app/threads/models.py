@@ -24,8 +24,9 @@ class ThreadToolMode(str, Enum):
     """Conversation-level tool policy.
 
     NULL on the thread means "inherit the agent's discovery mode". The named
-    discovery modes override it for this conversation; the two boundary modes
-    remove every capability or force-enable every attached capability.
+    discovery modes override it for this conversation. Eager and Precision
+    respect the thread's resource selections; Lazy and Force all force-enable
+    every attached capability, while No tools removes them all.
     """
 
     no_tools = "no_tools"
@@ -33,6 +34,11 @@ class ThreadToolMode(str, Enum):
     lazy = "lazy"
     precision = "precision"
     force_all = "force_all"
+
+    @property
+    def force_enable_all_capabilities(self) -> bool:
+        """Whether this mode ignores resource exclusions and agent defaults."""
+        return self in {ThreadToolMode.lazy, ThreadToolMode.force_all}
 
 
 # Sources considered first-party — surfaced in the user's personal thread list.

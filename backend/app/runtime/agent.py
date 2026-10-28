@@ -767,9 +767,20 @@ class Agent:
             thread.tool_mode is ThreadToolMode.no_tools
             and force_enable_all_capabilities is not True
         )
-        force_all = (
+        lazy_overrides_resource_selections = (
+            discovery_override is ToolDiscoveryMode.lazy
+            or (
+                discovery_override is None
+                and spec.agent.tool_discovery_mode is ToolDiscoveryMode.lazy
+            )
+        )
+        force_enable_resources = (
             force_enable_all_capabilities is True
-            or thread.tool_mode is ThreadToolMode.force_all
+            or (
+                thread.tool_mode is not None
+                and thread.tool_mode.force_enable_all_capabilities
+            )
+            or lazy_overrides_resource_selections
         )
         exclusions = spec.resource_exclusions(
             disabled_mcp_server_ids={
@@ -782,7 +793,7 @@ class Agent:
                 UUID(subagent_id) for subagent_id in thread.disabled_subagent_ids
             },
             force_enable_all_capabilities=(
-                True if force_all else force_enable_all_capabilities
+                True if force_enable_resources else force_enable_all_capabilities
             ),
             force_disable_all_capabilities=force_no_tools,
         )
@@ -958,7 +969,7 @@ class Agent:
         # One skill set per graph: every agent lists, reads and runs the union
         # of what the supervisor and its subagents have enabled.
         disabled_skill_ids = {UUID(skill_id) for skill_id in thread.disabled_skill_ids}
-        if force_all:
+        if force_enable_resources:
             disabled_skill_ids.clear()
         elif force_enable_all_capabilities is False:
             disabled_skill_ids.update(

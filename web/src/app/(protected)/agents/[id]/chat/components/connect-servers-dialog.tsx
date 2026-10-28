@@ -20,14 +20,20 @@ import * as agentsApi from "@/lib/api/resources/agents";
 import * as mcpServersApi from "@/lib/api/resources/mcp-servers";
 import type { MCPServer } from "@/types/mcp-servers";
 import type { AgentResourceMCPServer, AgentResources } from "@/types/agents";
-import type { ThreadResourceSettings } from "@/types/threads";
+import type {
+	ThreadResourceSettings,
+	ThreadToolMode,
+} from "@/types/threads";
 import {
 	BoxIcon,
 	ExternalLinkIcon,
 	GitForkIcon,
+	InfoIcon,
 	LoaderIcon,
 	PlugIcon,
+	SearchIcon,
 	SparklesIcon,
+	XIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 import { ServerIconTile } from "@/app/(protected)/mcp-servers/components/server-icon-tile";
@@ -45,6 +51,7 @@ interface ConnectServersDialogProps {
 	agentId: string;
 	disconnectedServers: MCPServer[];
 	onConnectionChange: () => void;
+	toolMode: ThreadToolMode | null;
 	resourceSettings: ThreadResourceSettings;
 	onResourceSettingsChange: (settings: ThreadResourceSettings) => void;
 	resourceSettingsSaving?: boolean;
@@ -58,6 +65,7 @@ export function ConnectServersDialog({
 	agentId,
 	disconnectedServers,
 	onConnectionChange,
+	toolMode,
 	resourceSettings,
 	onResourceSettingsChange,
 	resourceSettingsSaving = false,
@@ -68,6 +76,7 @@ export function ConnectServersDialog({
 	const [loadFailedFor, setLoadFailedFor] = useState<string | null>(null);
 	const [connectedIds, setConnectedIds] = useState<Set<string>>(new Set());
 	const [connectingId, setConnectingId] = useState<string | null>(null);
+	const [searchQuery, setSearchQuery] = useState("");
 	const isMobile = useIsMobile();
 	const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 	const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -98,6 +107,48 @@ export function ConnectServersDialog({
 			}),
 		[connectedIds, disconnectedIds, resources?.mcpServers],
 	);
+	const normalizedSearchQuery = searchQuery.trim().toLocaleLowerCase();
+	const matchesSearch = (...values: Array<string | null | undefined>) =>
+		normalizedSearchQuery.length === 0 ||
+		values.some((value) =>
+			value?.toLocaleLowerCase().includes(normalizedSearchQuery),
+		);
+	const filteredServers = orderedServers.filter((server) =>
+		matchesSearch(server.name),
+	);
+	const filteredSkills = skills.filter((skill) =>
+		matchesSearch(skill.name, skill.description),
+	);
+	const filteredSandboxes = sandboxes.filter((sandbox) =>
+		matchesSearch(sandbox.name, SANDBOX_PROVIDER_LABELS[sandbox.provider]),
+	);
+	const filteredSubagents = subagents.filter((subagent) =>
+		matchesSearch(subagent.name, subagent.description),
+	);
+	const activeResourceCount =
+		activeTab === "servers"
+			? servers.length
+			: activeTab === "skills"
+				? skills.length
+				: activeTab === "sandboxes"
+					? sandboxes.length
+					: subagents.length;
+	const visibleResourceCount =
+		activeTab === "servers"
+			? filteredServers.length
+			: activeTab === "skills"
+				? filteredSkills.length
+				: activeTab === "sandboxes"
+					? filteredSandboxes.length
+					: filteredSubagents.length;
+	const searchPlaceholder =
+		activeTab === "servers"
+			? "Search MCP servers…"
+			: activeTab === "skills"
+				? "Search skills…"
+				: activeTab === "sandboxes"
+					? "Search sandboxes…"
+					: "Search subagents…";
 	const disabledServerIds = useMemo(
 		() => new Set(resourceSettings.disabledMcpServerIds),
 		[resourceSettings.disabledMcpServerIds],
@@ -152,6 +203,26 @@ export function ConnectServersDialog({
 	);
 	const isLoadingResources =
 		open && resourcesAgentId !== agentId && loadFailedFor !== agentId;
+	const modeNotice =
+		toolMode === "lazy"
+			? {
+					label: "Lazy overrides these selections.",
+					detail:
+						"All attached resources are available, and MCP servers are chosen automatically for each prompt. Changes below are saved for Eager or Precision.",
+				}
+			: toolMode === "no_tools"
+				? {
+						label: "No tools overrides these selections.",
+						detail:
+							"No MCP server, skill, sandbox, or subagent is available. Changes below are saved for another mode.",
+					}
+				: toolMode === "force_all"
+					? {
+							label: "Force all overrides these selections.",
+							detail:
+								"Every attached resource and allowed MCP tool is available. Changes below are saved for Eager or Precision.",
+						}
+					: null;
 
 	const clearPolling = useCallback(() => {
 		if (pollRef.current) clearInterval(pollRef.current);
@@ -164,6 +235,7 @@ export function ConnectServersDialog({
 		if (!nextOpen) {
 			clearPolling();
 			setConnectingId(null);
+			setSearchQuery("");
 			rangeAnchorRef.current = {
 				servers: null,
 				skills: null,
@@ -351,6 +423,17 @@ export function ConnectServersDialog({
 						Choose which MCP servers, skills, sandboxes and subagents are
 						available in this conversation.
 					</DialogDescription>
+					{modeNotice && (
+						<div className="mt-2 flex items-start gap-2.5 rounded-[9px] border border-petrol/20 bg-petrol/5 px-3 py-2.5 text-left dark:border-panel-terminal/20 dark:bg-panel-terminal/8">
+							<InfoIcon className="mt-0.5 size-3.5 shrink-0 text-petrol dark:text-panel-terminal" />
+							<p className="text-[11.5px] leading-[1.5] text-subtle dark:text-panel-body">
+								<span className="font-semibold text-foreground">
+									{modeNotice.label}
+								</span>{" "}
+								{modeNotice.detail}
+							</p>
+						</div>
+					)}
 				</DialogHeader>
 
 				<div className="flex h-full min-h-0 flex-col overflow-hidden rounded-[14px] border border-hairline bg-card shadow-[0_1px_2px_rgba(20,35,38,0.03)] sm:h-[500px] sm:flex-row dark:border-white/8 dark:bg-white/[0.025]">
@@ -438,8 +521,51 @@ export function ConnectServersDialog({
 					<div
 						id="conversation-resource-panel"
 						role="tabpanel"
-						className="order-1 min-h-0 min-w-0 flex-1 overflow-y-auto p-2.5 [scrollbar-width:thin] sm:order-none sm:p-3"
+						className="order-1 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden p-2.5 sm:order-none sm:p-3"
 					>
+						{!isLoadingResources && activeResourceCount > 0 && (
+							<div className="relative mb-2.5 shrink-0">
+								<SearchIcon className="pointer-events-none absolute top-1/2 left-3 size-3.5 -translate-y-1/2 text-meta dark:text-panel-dim" />
+								<input
+									type="text"
+									value={searchQuery}
+									onChange={(event) => {
+										setSearchQuery(event.target.value);
+									}}
+									onKeyDown={(event) => {
+										if (event.key === "Escape" && searchQuery) {
+											event.preventDefault();
+											event.stopPropagation();
+											setSearchQuery("");
+										}
+									}}
+									placeholder={searchPlaceholder}
+									aria-label={searchPlaceholder}
+									autoComplete="off"
+									className="h-9 w-full rounded-[9px] border border-hairline bg-sidebar pr-20 pl-9 text-[12.5px] text-foreground outline-none transition-[border-color,box-shadow,background-color] placeholder:text-meta focus:border-petrol/45 focus:bg-card focus:ring-2 focus:ring-petrol/10 dark:border-white/8 dark:bg-white/5 dark:text-panel-button dark:placeholder:text-panel-dim dark:focus:border-panel-terminal/35 dark:focus:bg-white/[0.07] dark:focus:ring-panel-terminal/10"
+								/>
+								<div className="absolute top-1/2 right-2 flex -translate-y-1/2 items-center gap-1">
+									{normalizedSearchQuery && (
+										<span className="font-mono text-[9.5px] font-semibold text-meta tabular-nums dark:text-panel-dim">
+											{visibleResourceCount}/{activeResourceCount}
+										</span>
+									)}
+									{searchQuery && (
+										<button
+											type="button"
+											onClick={() => {
+												setSearchQuery("");
+											}}
+											aria-label="Clear resource search"
+											className="flex size-6 cursor-pointer items-center justify-center rounded-md text-meta transition-colors hover:bg-hover hover:text-foreground dark:text-panel-dim dark:hover:bg-white/8 dark:hover:text-panel-button"
+										>
+											<XIcon className="size-3.5" />
+										</button>
+									)}
+								</div>
+							</div>
+						)}
+						<div className="min-h-0 flex-1 overflow-y-auto [scrollbar-width:thin]">
 					{isLoadingResources ? (
 						<div className="flex min-h-[180px] items-center justify-center gap-2 text-[13px] text-meta dark:text-panel-dim">
 							<LoaderIcon className="size-4 animate-spin" />
@@ -447,6 +573,7 @@ export function ConnectServersDialog({
 						</div>
 					) : activeTab === "servers" ? (
 						servers.length > 0 ? (
+							filteredServers.length > 0 ? (
 							<div className="flex flex-col gap-2">
 								<ResourceAllToggle
 									checked={
@@ -462,13 +589,13 @@ export function ConnectServersDialog({
 										setAllResourcesEnabled("servers", checked);
 									}}
 								/>
-								{orderedServers.map((server, index) => {
+								{filteredServers.map((server, index) => {
 									const isEnabled = !disabledServerIds.has(server.id);
 									const isDisconnected =
 										disconnectedIds.has(server.id) &&
 										!connectedIds.has(server.id);
 									const isConnecting = connectingId === server.id;
-									const previous = orderedServers.at(index - 1);
+									const previous = filteredServers.at(index - 1);
 									const previousIsDisconnected =
 										previous !== undefined &&
 										disconnectedIds.has(previous.id) &&
@@ -536,6 +663,9 @@ export function ConnectServersDialog({
 									);
 								})}
 							</div>
+							) : (
+								<SearchEmptyState query={searchQuery} />
+							)
 						) : (
 							<EmptyState
 								icon={PlugIcon}
@@ -545,6 +675,7 @@ export function ConnectServersDialog({
 						)
 					) : activeTab === "skills" ? (
 						skills.length > 0 ? (
+							filteredSkills.length > 0 ? (
 							<div className="flex flex-col gap-2">
 								<ResourceAllToggle
 									checked={
@@ -560,7 +691,7 @@ export function ConnectServersDialog({
 										setAllResourcesEnabled("skills", checked);
 									}}
 								/>
-								{skills.map((skill) => {
+								{filteredSkills.map((skill) => {
 									const isEnabled = !disabledSkillIds.has(skill.id);
 									return (
 										<div
@@ -610,6 +741,9 @@ export function ConnectServersDialog({
 									);
 								})}
 							</div>
+							) : (
+								<SearchEmptyState query={searchQuery} />
+							)
 						) : (
 							<EmptyState
 								icon={SparklesIcon}
@@ -619,6 +753,7 @@ export function ConnectServersDialog({
 						)
 					) : activeTab === "sandboxes" ? (
 						sandboxes.length > 0 ? (
+							filteredSandboxes.length > 0 ? (
 							<div className="flex flex-col gap-2">
 								<ResourceAllToggle
 									checked={
@@ -634,7 +769,7 @@ export function ConnectServersDialog({
 										setAllResourcesEnabled("sandboxes", checked);
 									}}
 								/>
-								{sandboxes.map((sandbox) => {
+								{filteredSandboxes.map((sandbox) => {
 									const isEnabled = !disabledSandboxIds.has(sandbox.id);
 									return (
 										<div
@@ -677,6 +812,9 @@ export function ConnectServersDialog({
 									);
 								})}
 							</div>
+							) : (
+								<SearchEmptyState query={searchQuery} />
+							)
 						) : (
 							<EmptyState
 								icon={BoxIcon}
@@ -685,6 +823,7 @@ export function ConnectServersDialog({
 							/>
 						)
 					) : subagents.length > 0 ? (
+						filteredSubagents.length > 0 ? (
 						<div className="flex flex-col gap-2">
 							<ResourceAllToggle
 								checked={
@@ -700,7 +839,7 @@ export function ConnectServersDialog({
 									setAllResourcesEnabled("subagents", checked);
 								}}
 							/>
-							{subagents.map((subagent) => {
+							{filteredSubagents.map((subagent) => {
 								const isEnabled = !disabledSubagentIds.has(subagent.id);
 								return (
 									<div
@@ -745,6 +884,9 @@ export function ConnectServersDialog({
 								);
 							})}
 						</div>
+						) : (
+							<SearchEmptyState query={searchQuery} />
+						)
 					) : (
 						<EmptyState
 							icon={GitForkIcon}
@@ -752,6 +894,7 @@ export function ConnectServersDialog({
 							description="This agent has no subagent enabled."
 						/>
 					)}
+					</div>
 					</div>
 				</div>
 			</DialogContent>
@@ -791,6 +934,20 @@ function ConnectionStatusBadge() {
 			<span className="size-[5px] rounded-full bg-success" />
 			Connected
 		</span>
+	);
+}
+
+function SearchEmptyState({ query }: { query: string }) {
+	return (
+		<div className="flex min-h-[180px] flex-col items-center justify-center px-6 text-center">
+			<div className="mb-3 flex size-10 items-center justify-center rounded-full bg-hover text-meta dark:bg-white/5 dark:text-panel-dim">
+				<SearchIcon className="size-4" />
+			</div>
+			<p className="text-[13px] font-semibold text-foreground">No matches</p>
+			<p className="mt-1 max-w-[280px] truncate text-[11.5px] text-meta dark:text-panel-dim">
+				No resources match “{query.trim()}”.
+			</p>
+		</div>
 	);
 }
 

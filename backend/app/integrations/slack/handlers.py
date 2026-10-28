@@ -55,7 +55,7 @@ from app.runtime.hitl import (
     pending_approval_requests,
 )
 from app.runtime.runs.service import RunService
-from app.threads.models import ThreadDB
+from app.threads.models import ThreadDB, ThreadToolMode
 from app.threads.repository import ThreadRepository
 from app.threads.service import ThreadService
 from app.users.models import UserDB
@@ -788,7 +788,18 @@ async def _is_agent_ready(
             force_enable_all_capabilities=(
                 tool_discovery_mode.force_enable_all_capabilities
                 if tool_discovery_mode is not None
-                else None
+                else (
+                    thread.tool_mode.force_enable_all_capabilities
+                    if thread.tool_mode is not None
+                    else None
+                )
+            ),
+            force_disable_all_capabilities=(
+                tool_discovery_mode is None
+                and thread.tool_mode is ThreadToolMode.no_tools
+            ),
+            inherit_agent_tool_mode=(
+                tool_discovery_mode is None and thread.tool_mode is None
             ),
         )
     except Exception:  # noqa: BLE001 — fail-open, per the docstring above

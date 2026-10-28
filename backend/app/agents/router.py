@@ -498,10 +498,11 @@ async def is_ready(
         disabled_subagent_ids=set(disabled_subagent_ids or []),
         force_enable_all_capabilities=(
             True
-            if tool_mode is ThreadToolMode.force_all
+            if tool_mode is not None and tool_mode.force_enable_all_capabilities
             else force_enable_all_capabilities
         ),
         force_disable_all_capabilities=tool_mode is ThreadToolMode.no_tools,
+        inherit_agent_tool_mode=tool_mode is None,
     )
 
 

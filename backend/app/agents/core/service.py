@@ -19,6 +19,7 @@ from app.agents.models import (
     AgentUserPermissionDB,
     EffectivePermission,
     PermissionLevel,
+    ToolDiscoveryMode,
     ToolStatus,
 )
 from app.agents.schemas import (
@@ -1558,8 +1559,19 @@ class AgentService(BaseService[AgentDB, AgentRepository]):
         disabled_subagent_ids: set[UUID] | None = None,
         force_enable_all_capabilities: bool | None = None,
         force_disable_all_capabilities: bool = False,
+        inherit_agent_tool_mode: bool = False,
     ) -> dict:
         spec = await self.repository.get_run_spec(agent_id)
+        if (
+            spec is not None
+            and inherit_agent_tool_mode
+            and force_enable_all_capabilities is None
+            and not force_disable_all_capabilities
+            and spec.agent.tool_discovery_mode is ToolDiscoveryMode.lazy
+        ):
+            # An inherited Lazy policy has the same resource precedence as an
+            # explicit Lazy thread mode: all attached resources are candidates.
+            force_enable_all_capabilities = True
         exclusions = (
             spec.resource_exclusions(
                 disabled_mcp_server_ids=disabled_mcp_server_ids or set(),
