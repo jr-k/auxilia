@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.73](https://github.com/jr-k/auxilia/compare/web-v0.12.72...web-v0.12.73) (2026-10-28)
+
+
+### Features
+
+* **artifacts:** copy text artifact content ([1bdff1e](https://github.com/jr-k/auxilia/commit/1bdff1ed5c5b1b343f96a29c75cba01665795fdb))
+
 ## [0.12.72](https://github.com/jr-k/auxilia/compare/web-v0.12.71...web-v0.12.72) (2026-10-28)
 
 
