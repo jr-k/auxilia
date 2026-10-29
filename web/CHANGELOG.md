@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.76](https://github.com/jr-k/auxilia/compare/web-v0.12.75...web-v0.12.76) (2026-10-29)
+
+
+### Features
+
+* **web:** improve agent configuration navigation ([028b83e](https://github.com/jr-k/auxilia/commit/028b83e9d5dcb50dc8e5e560734b651cefa97896))
+
 ## [0.12.75](https://github.com/jr-k/auxilia/compare/web-v0.12.74...web-v0.12.75) (2026-10-28)
 
 
