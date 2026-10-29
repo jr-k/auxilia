@@ -36,6 +36,30 @@ function GoogleIcon() {
 	);
 }
 
+function RememberMeField({
+	checked,
+	onCheckedChange,
+}: {
+	checked: boolean;
+	onCheckedChange: (checked: boolean) => void;
+}) {
+	return (
+		<label className="flex cursor-pointer items-start gap-2.5">
+			<input
+				type="checkbox"
+				checked={checked}
+				onChange={(event) => {
+					onCheckedChange(event.target.checked);
+				}}
+				className="mt-0.5 size-4 shrink-0 cursor-pointer accent-petrol"
+			/>
+			<span className="text-[12.5px] leading-5 text-meta">
+				Remember me for 10 years on this device
+			</span>
+		</label>
+	);
+}
+
 function oauthReturnTo(value: string | null): string | null {
 	if (!value || !value.startsWith("/") || value.startsWith("//")) return null;
 	try {
@@ -72,6 +96,7 @@ function AuthPageContent() {
 
 	const [email, setEmail] = useState("");
 	const [password, setPassword] = useState("");
+	const [rememberMe, setRememberMe] = useState(false);
 	const [twoFactorRequired, setTwoFactorRequired] = useState(
 		() => searchParams.get("two_factor") === "required",
 	);
@@ -98,7 +123,7 @@ function AuthPageContent() {
 		setIsLoading(true);
 
 		try {
-			const result = await authApi.signIn(email, password);
+			const result = await authApi.signIn(email, password, rememberMe);
 			if (result.twoFactorRequired) {
 				setTwoFactorRequired(true);
 				return;
@@ -130,6 +155,7 @@ function AuthPageContent() {
 		const target = new URL("/api/backend/auth/google", window.location.origin);
 		if (returnTo) target.searchParams.set("return_to", returnTo);
 		else if (next) target.searchParams.set("next", next);
+		if (rememberMe) target.searchParams.set("remember_me", "true");
 		window.location.href = `${target.pathname}${target.search}`;
 	};
 
@@ -231,6 +257,11 @@ function AuthPageContent() {
 						required
 					/>
 
+					<RememberMeField
+						checked={rememberMe}
+						onCheckedChange={setRememberMe}
+					/>
+
 					<AuthSubmitButton disabled={isLoading}>
 						{isLoading ? "Signing in…" : "Sign in →"}
 					</AuthSubmitButton>
@@ -243,6 +274,13 @@ function AuthPageContent() {
 					<span className="text-[10.5px] text-meta">or</span>
 					<span className="h-px flex-1 bg-rail" />
 				</div>
+			)}
+
+			{!twoFactorRequired && !providers?.password && providers?.google && (
+				<RememberMeField
+					checked={rememberMe}
+					onCheckedChange={setRememberMe}
+				/>
 			)}
 
 			{!twoFactorRequired && providers?.google && (

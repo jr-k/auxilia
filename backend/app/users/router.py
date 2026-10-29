@@ -5,7 +5,11 @@ from fastapi import APIRouter, Depends, File, Header, UploadFile
 from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth.dependencies import get_current_user, require_admin
+from app.auth.dependencies import (
+    get_current_user,
+    require_admin,
+    require_instance_owner,
+)
 from app.database import get_db
 from app.mcp.client.storage import TokenStorageFactory
 from app.pagination import Page, PageParams
@@ -13,6 +17,7 @@ from app.users.models import UserDB, WorkspaceRole
 from app.users.schemas import (
     BackupCodesResponse,
     CurrentUserResponse,
+    InstanceUserResponse,
     PasswordChange,
     ProfilePatch,
     TwoFactorConfirmRequest,
@@ -61,6 +66,23 @@ async def get_users(
 ) -> Page[UserResponse]:
     return await service.list(
         workspace_id, page, role=role, search=search, team_id=team_id
+    )
+
+
+@router.get("/instance", response_model=Page[InstanceUserResponse])
+async def get_instance_users(
+    role: WorkspaceRole | None = None,
+    search: str | None = None,
+    team_id: UUID | None = None,
+    page: PageParams = Depends(),
+    _: UserDB = Depends(require_instance_owner),
+    service: UserService = Depends(get_user_service),
+) -> Page[InstanceUserResponse]:
+    return await service.list_instance_users(
+        page,
+        role=role,
+        search=search,
+        team_id=team_id,
     )
 
 
@@ -164,11 +186,15 @@ async def delete_profile_image(
 async def get_profile_image(
     user_id: UUID,
     if_none_match: str | None = Header(default=None),
-    _: UserDB = Depends(get_current_user),
+    current_user: UserDB = Depends(get_current_user),
     workspace_id: UUID = Depends(get_active_workspace_id),
     service: UserService = Depends(get_user_service),
 ) -> Response:
-    image = await service.get_image(user_id, workspace_id)
+    image = await service.get_image(
+        user_id,
+        workspace_id,
+        instance_owner=current_user.is_instance_owner,
+    )
     return image_response(
         data=image.data,
         media_type=image.media_type,

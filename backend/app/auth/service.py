@@ -71,8 +71,10 @@ class AuthService:
         ):
             raise PermissionDeniedError("Password authentication is disabled")
 
-    def build_jwt_for_user(self, user: UserDB) -> tuple[UserDB, str]:
-        return user, create_access_token(user.id)
+    def build_jwt_for_user(
+        self, user: UserDB, *, remember_me: bool = False
+    ) -> tuple[UserDB, str]:
+        return user, create_access_token(user.id, remember_me=remember_me)
 
     async def hydrate_default_workspace(self, user: UserDB) -> UUID | None:
         membership = await self.workspaces.get_first_membership(user.id)
@@ -141,8 +143,12 @@ class AuthService:
         workspace_id = await self.hydrate_signin_workspace(user, workspace_value)
         await self._ensure_password_auth(workspace_id)
         if user.two_factor_enabled:
-            return user, create_scoped_token(user.id, "two_factor_signin")
-        return self.build_jwt_for_user(user)
+            return user, create_scoped_token(
+                user.id,
+                "two_factor_signin",
+                remember_me=data.remember_me,
+            )
+        return self.build_jwt_for_user(user, remember_me=data.remember_me)
 
     async def verify_two_factor_signin(
         self,
@@ -161,7 +167,7 @@ class AuthService:
         await self._ensure_password_auth(workspace_id)
         await UserService(self.db).verify_second_factor(user.id, data.code)
         await consume_challenge(decoded.jti)
-        return self.build_jwt_for_user(user)
+        return self.build_jwt_for_user(user, remember_me=decoded.remember_me)
 
     async def setup(self, data: SignupRequest) -> tuple[UserDB, str]:
         if await self.count_users() > 0:
@@ -254,6 +260,7 @@ class AuthService:
         picture_url: str | None,
         invite_token: str | None,
         workspace_id: UUID,
+        remember_me: bool = False,
     ) -> tuple[UserDB, str]:
         """Resolve an OAuth/OIDC identity to a user.
 
@@ -299,7 +306,7 @@ class AuthService:
             else:
                 await self.hydrate_workspace(user, workspace_id)
             await self.db.flush()
-            return self.build_jwt_for_user(user)
+            return self.build_jwt_for_user(user, remember_me=remember_me)
 
         result = await self.db.execute(select(UserDB).where(UserDB.email == email))
         user = result.scalar_one_or_none()
@@ -332,7 +339,7 @@ class AuthService:
             else:
                 await self.hydrate_workspace(user, workspace_id)
             await self.db.flush()
-            return self.build_jwt_for_user(user)
+            return self.build_jwt_for_user(user, remember_me=remember_me)
 
         invite = None
         if invite_token:
@@ -367,7 +374,7 @@ class AuthService:
         self.db.add(invite)
         await self.db.flush()
         await self.db.refresh(user)
-        return self.build_jwt_for_user(user)
+        return self.build_jwt_for_user(user, remember_me=remember_me)
 
 
 def get_auth_service(db: AsyncSession = Depends(get_db)) -> AuthService:

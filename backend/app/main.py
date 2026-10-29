@@ -17,6 +17,7 @@ from app.artifacts.router import (
 from app.auth.middleware import SlidingSessionMiddleware
 from app.auth.router import router as auth_router
 from app.auth.settings import auth_settings
+from app.auth.supervision.router import router as supervision_router
 from app.auth.tokens.router import router as tokens_router
 from app.background import registry as background_loops
 from app.database import close_checkpointer_pool
@@ -278,6 +279,7 @@ app.include_router(protocol_router)
 app.include_router(runs_router)
 app.include_router(user_runs_router)
 app.include_router(auth_router)
+app.include_router(supervision_router)
 app.include_router(tokens_router)
 app.include_router(artifacts_router)
 app.include_router(artifacts_slides_router)

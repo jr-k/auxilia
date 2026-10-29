@@ -43,10 +43,18 @@ export async function deleteWorkspaceAuthentication(): Promise<WorkspaceAuthenti
 }
 
 /** Sets the session cookie on success. */
-export async function signIn(email: string, password: string): Promise<SignInResult> {
+export async function signIn(
+	email: string,
+	password: string,
+	rememberMe = false,
+): Promise<SignInResult> {
 	const response = await api.post<{
 		twoFactorRequired?: boolean;
-	}>("/auth/signin", { email, password });
+	}>("/auth/signin", {
+		email,
+		password,
+		...(rememberMe ? { rememberMe: true } : {}),
+	});
 	return {
 		twoFactorRequired: response.data.twoFactorRequired === true,
 	};
@@ -62,6 +70,22 @@ export async function signOut(): Promise<void> {
 
 export async function getCurrentUser(): Promise<CurrentUser> {
 	const response = await api.get<CurrentUser>("/auth/me");
+	return response.data;
+}
+
+export async function startSupervision(
+	userId: string,
+	workspaceId: string,
+): Promise<CurrentUser> {
+	const response = await api.post<CurrentUser>("/auth/supervision", {
+		userId,
+		workspaceId,
+	});
+	return response.data;
+}
+
+export async function stopSupervision(): Promise<CurrentUser> {
+	const response = await api.delete<CurrentUser>("/auth/supervision");
 	return response.data;
 }
 

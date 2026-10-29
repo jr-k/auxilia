@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from uuid import UUID
 
 from sqlalchemy import delete, func, or_, update
@@ -7,7 +9,7 @@ from sqlmodel import select
 from app.pagination import PageParams
 from app.repository import BaseRepository
 from app.users.models import UserDB, UserImageDB, UserTwoFactorDB, WorkspaceRole
-from app.workspaces.models import WorkspaceMembershipDB
+from app.workspaces.models import WorkspaceDB, WorkspaceMembershipDB
 
 
 def _escape_like(value: str) -> str:
@@ -177,6 +179,61 @@ class UserRepository(BaseRepository[UserDB]):
             )
         result, total = await self.paginate(stmt, page)
         return list(result.all()), total
+
+    async def list_instance_users(
+        self,
+        page: PageParams,
+        *,
+        role: WorkspaceRole | None = None,
+        search: str | None = None,
+        team_id: UUID | None = None,
+    ) -> tuple[list[UserDB], int]:
+        stmt = select(UserDB).order_by(UserDB.created_at.desc(), UserDB.id)
+        if role is not None or team_id is not None:
+            membership_filter = select(WorkspaceMembershipDB.user_id).where(
+                WorkspaceMembershipDB.user_id == UserDB.id
+            )
+            if role is not None:
+                membership_filter = membership_filter.where(
+                    WorkspaceMembershipDB.role == role
+                )
+            if team_id is not None:
+                membership_filter = membership_filter.where(
+                    WorkspaceMembershipDB.team_id == team_id
+                )
+            stmt = stmt.where(membership_filter.exists())
+        if search:
+            pattern = f"%{_escape_like(search)}%"
+            stmt = stmt.where(
+                or_(
+                    UserDB.name.ilike(pattern, escape="\\"),
+                    UserDB.email.ilike(pattern, escape="\\"),
+                )
+            )
+        result, total = await self.paginate(stmt, page)
+        return list(result.scalars().all()), total
+
+    async def list_workspace_memberships_for_users(
+        self,
+        user_ids: list[UUID],
+    ) -> list[tuple[WorkspaceMembershipDB, WorkspaceDB]]:
+        if not user_ids:
+            return []
+        stmt = (
+            select(WorkspaceMembershipDB, WorkspaceDB)
+            .join(
+                WorkspaceDB,
+                WorkspaceDB.id == WorkspaceMembershipDB.workspace_id,
+            )
+            .where(WorkspaceMembershipDB.user_id.in_(user_ids))
+            .order_by(
+                WorkspaceDB.name,
+                WorkspaceDB.id,
+                WorkspaceMembershipDB.user_id,
+            )
+        )
+        result = await self.db.execute(stmt)
+        return list(result.all())
 
     async def count_by_role(self, workspace_id: UUID) -> dict[WorkspaceRole, int]:
         stmt = (

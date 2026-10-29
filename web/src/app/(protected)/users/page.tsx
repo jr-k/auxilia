@@ -12,6 +12,7 @@ import {
 	Pencil,
 	Trash2,
 	Users,
+	Eye,
 } from "lucide-react";
 import ForbiddenErrorDialog from "@/components/forbidden-error-dialog";
 import { useConfirmDialog } from "@/components/providers/dialog-provider";
@@ -30,16 +31,34 @@ import {
 import { DropdownMenu } from "@/components/ui/dropdown-menu";
 import { Switch } from "@/components/ui/switch";
 import { ViewToggle } from "@/components/ui/view-toggle";
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogHeader,
+	DialogTitle,
+} from "@/components/ui/dialog";
 import * as invitesApi from "@/lib/api/resources/invites";
 import * as teamsApi from "@/lib/api/resources/teams";
 import * as usersApi from "@/lib/api/resources/users";
+import * as authApi from "@/lib/api/resources/auth";
 import { useUserStore } from "@/stores/user-store";
 import { useWorkspacesStore } from "@/stores/workspaces-store";
 import { useQueryParamState } from "@/hooks/use-query-param-state";
 import { usePersistedViewMode } from "@/hooks/use-persisted-view-mode";
-import type { Invite, RoleCounts, User, WorkspaceRole } from "@/types/users";
+import type {
+	InstanceUserMembership,
+	Invite,
+	RoleCounts,
+	User,
+	WorkspaceRole,
+} from "@/types/users";
+import { workspaceRoleLabel } from "@/lib/user-role";
 
 type Role = WorkspaceRole;
+type ListedUser = User & {
+	memberships?: InstanceUserMembership[];
+};
 
 const PAGE_SIZE = 20;
 
@@ -89,9 +108,10 @@ export default function UsersPage() {
 	const currentUser = useUserStore((state) => state.user);
 	const activeWorkspaceId = useWorkspacesStore((state) => state.activeWorkspaceId);
 	const isAdmin = currentUser?.role === "admin";
+	const isOwner = currentUser?.isInstanceOwner === true;
 	const fetchUsersTicket = useRef(0);
 	const membersTableRef = useRef<HTMLDivElement>(null);
-	const [users, setUsers] = useState<User[]>([]);
+	const [users, setUsers] = useState<ListedUser[]>([]);
 	const [total, setTotal] = useState(0);
 	const [offset, setOffset] = useState(0);
 	const [roleCounts, setRoleCounts] = useState<RoleCounts | null>(null);
@@ -117,6 +137,8 @@ export default function UsersPage() {
 	const [pendingTeamUserId, setPendingTeamUserId] = useState<string | null>(null);
 	const [editingTeam, setEditingTeam] = useState<Team | null>(null);
 	const [copiedInviteId, setCopiedInviteId] = useState<string | null>(null);
+	const [workspaceListUser, setWorkspaceListUser] =
+		useState<ListedUser | null>(null);
 
 	useEffect(() => {
 		const timeout = setTimeout(() => {
@@ -132,15 +154,32 @@ export default function UsersPage() {
 		const ticket = ++fetchUsersTicket.current;
 		setIsLoading(true);
 		try {
-			const page = await usersApi.listUsers({
+			const params = {
 				limit: PAGE_SIZE,
 				offset,
 				...(roleFilter !== "all" && { role: roleFilter }),
 				...(debouncedSearch && { search: debouncedSearch }),
 				...(teamFilterId && { teamId: teamFilterId }),
-			});
+			};
+			const page = isOwner
+				? await usersApi.listInstanceUsers(params)
+				: await usersApi.listUsers(params);
 			if (ticket !== fetchUsersTicket.current) return;
-			setUsers(page.items);
+			setUsers(
+				page.items.map((user) => {
+					if (!("memberships" in user)) return user;
+					const activeMembership =
+						user.memberships.find(
+							(membership) =>
+								membership.workspaceId === activeWorkspaceId,
+						) ?? user.memberships[0];
+					return {
+						...user,
+						role: activeMembership?.role ?? "member",
+						teamId: activeMembership?.teamId ?? null,
+					};
+				}),
+			);
 			setTotal(page.total);
 		} catch (error) {
 			if (ticket !== fetchUsersTicket.current) return;
@@ -148,15 +187,26 @@ export default function UsersPage() {
 		} finally {
 			if (ticket === fetchUsersTicket.current) setIsLoading(false);
 		}
-	}, [offset, roleFilter, debouncedSearch, teamFilterId]);
+	}, [
+		offset,
+		roleFilter,
+		debouncedSearch,
+		teamFilterId,
+		isOwner,
+		activeWorkspaceId,
+	]);
 
 	const fetchRoleCounts = useCallback(async () => {
+		if (isOwner) {
+			setRoleCounts(null);
+			return;
+		}
 		try {
 			setRoleCounts(await usersApi.getRoleCounts());
 		} catch (error) {
 			console.error("Error fetching role counts:", error);
 		}
-	}, []);
+	}, [isOwner]);
 
 	const fetchTeams = useCallback(async () => {
 		try {
@@ -393,7 +443,63 @@ export default function UsersPage() {
 		}
 	};
 
-	const renderRoleControl = (user: User) => {
+	const handleSupervise = async (
+		user: ListedUser,
+		membership: InstanceUserMembership,
+	) => {
+		const displayName = user.name || user.email || "this user";
+		const confirmed = await confirmDialog({
+			title: `Supervise as ${displayName}?`,
+			description: `You will act with this user’s permissions in ${membership.workspaceName}. An orange banner will remain visible until you exit supervision.`,
+			confirmLabel: "Start supervision",
+		});
+		if (!confirmed) return;
+		try {
+			await authApi.startSupervision(user.id, membership.workspaceId);
+			window.location.assign("/agents");
+		} catch (error) {
+			console.error("Error starting supervision:", error);
+			setErrorDialogOpen(true);
+		}
+	};
+
+	const supervisionItems = (user: ListedUser) =>
+		(user.memberships ?? []).map((membership) => ({
+			label:
+				(user.memberships?.length ?? 0) > 1
+					? `Supervise in ${membership.workspaceName}`
+					: "Supervise as user",
+			icon: <Eye />,
+			onClick: () => {
+				void handleSupervise(user, membership);
+			},
+		}));
+
+	const renderRoleControl = (user: ListedUser) => {
+		if (isOwner) {
+			return (
+				<div className="flex flex-col items-start gap-1.5">
+					{user.isInstanceOwner && (
+						<span className="inline-flex rounded-full bg-amber-500/12 px-2.5 py-1 text-[11.5px] font-semibold text-amber-800 dark:bg-amber-400/15 dark:text-amber-200">
+							Owner
+						</span>
+					)}
+					{!user.isInstanceOwner &&
+						(user.memberships ?? []).map((membership) => (
+							<span
+								key={membership.workspaceId}
+								className="inline-flex items-center gap-[7px] text-[12px] font-medium text-subtle dark:text-muted-foreground"
+							>
+								<span
+									className="size-1.5 rounded-full"
+									style={{ background: ROLE_DOT[membership.role] }}
+								/>
+								{workspaceRoleLabel(membership.role)}
+							</span>
+						))}
+				</div>
+			);
+		}
 		const isCurrentUser = user.id === currentUser?.id;
 		return isCurrentUser || !isAdmin ? (
 			<span className="inline-flex items-center gap-[7px] px-2.5 py-[5px] text-[12.5px] font-medium text-subtle dark:text-muted-foreground">
@@ -442,11 +548,19 @@ export default function UsersPage() {
 		);
 	};
 
-	const renderWorkspaceCreationControl = (user: User) => (
+	const renderWorkspaceCreationControl = (user: ListedUser) => (
 		<div className="flex items-center gap-2">
 			<Switch
 				checked={user.isInstanceOwner || user.canCreateWorkspace}
-				disabled={user.isInstanceOwner || currentUser?.role !== "admin"}
+				disabled={
+					user.isInstanceOwner ||
+					currentUser?.role !== "admin" ||
+					(Boolean(user.memberships) &&
+						!user.memberships?.some(
+							(membership) =>
+								membership.workspaceId === activeWorkspaceId,
+						))
+				}
 				onCheckedChange={(checked) => {
 					void handleWorkspaceCreationChange(user.id, checked);
 				}}
@@ -529,7 +643,7 @@ export default function UsersPage() {
 		);
 	};
 
-	const columns: DataTableColumn<User>[] = [
+	const columns: DataTableColumn<ListedUser>[] = [
 		{
 			key: "name",
 			header: "Name",
@@ -571,6 +685,28 @@ export default function UsersPage() {
 				</span>
 			),
 		},
+		...(isOwner
+			? [
+					{
+						key: "workspaces",
+						header: "Workspaces",
+						width: "110px",
+						align: "center" as const,
+						cell: (user: ListedUser) => (
+							<button
+								type="button"
+								aria-label={`View workspaces for ${user.name || user.email || "user"}`}
+								onClick={() => {
+									setWorkspaceListUser(user);
+								}}
+								className="mx-auto flex size-8 cursor-pointer items-center justify-center rounded-full bg-hover font-mono text-[11px] font-semibold text-label transition-colors hover:bg-petrol-tint hover:text-petrol dark:bg-white/5 dark:text-panel-body dark:hover:bg-white/10 dark:hover:text-panel-terminal"
+							>
+								{user.memberships?.length ?? 0}
+							</button>
+						),
+					},
+				]
+			: []),
 		{
 			key: "role",
 			header: "Role",
@@ -585,12 +721,16 @@ export default function UsersPage() {
 			mobileWidth: "auto",
 			cell: renderWorkspaceCreationControl,
 		},
-		{
-			key: "team",
-			header: "Team",
-			width: "160px",
-			cell: renderTeamControl,
-		},
+		...(!isOwner
+			? [
+					{
+						key: "team",
+						header: "Team",
+						width: "160px",
+						cell: renderTeamControl,
+					},
+				]
+			: []),
 		{
 			key: "actions",
 			header: "",
@@ -599,8 +739,25 @@ export default function UsersPage() {
 				const isCurrentUser = user.id === currentUser?.id;
 				return (
 					<div className="flex justify-center">
-						{isAdmin && !isCurrentUser && (
+						{isOwner &&
+							!isCurrentUser &&
+							(user.memberships?.length ?? 0) > 0 && (
+							<DropdownMenu
+								trigger={
+									<button
+										type="button"
+										aria-label={`Actions for ${user.name || user.email || "user"}`}
+										className="flex size-7 cursor-pointer items-center justify-center rounded-[7px] text-meta transition-colors hover:bg-hover dark:hover:bg-white/10"
+									>
+										<MoreVertical className="size-[16px]" />
+									</button>
+								}
+								items={supervisionItems(user)}
+							/>
+						)}
+						{!isOwner && isAdmin && !isCurrentUser && (
 							<button
+								type="button"
 								aria-label={`Remove ${user.name || user.email || "user"}`}
 								className="flex size-7 cursor-pointer items-center justify-center rounded-[7px] text-ghost opacity-100 transition-all hover:bg-[#FBEFED] hover:text-[#B04A3A] md:opacity-0 md:group-hover:opacity-100 dark:hover:bg-rose-950"
 								onClick={() => { void handleRemoveUser(user.id, user.name); }}
@@ -618,7 +775,11 @@ export default function UsersPage() {
 		<WorkspacePage
 			slug="users"
 			title="Users"
-			intro="Manage who's in your workspace and what they can do."
+			intro={
+				isOwner
+					? "Supervise users across the instance and review their workspace access."
+					: "Manage who's in your workspace and what they can do."
+			}
 			search={{
 				placeholder: "Search users…",
 				value: search,
@@ -638,6 +799,42 @@ export default function UsersPage() {
 				</WorkspaceTopBarButton>
 			) : undefined}
 		>
+			<Dialog
+				open={workspaceListUser !== null}
+				onOpenChange={(open) => {
+					if (!open) setWorkspaceListUser(null);
+				}}
+			>
+				<DialogContent className="gap-4 sm:max-w-[440px]">
+					<DialogHeader>
+						<DialogTitle>
+							{workspaceListUser?.name ||
+								workspaceListUser?.email ||
+								"User"}{" "}
+							workspaces
+						</DialogTitle>
+						<DialogDescription>
+							{workspaceListUser?.memberships?.length ?? 0} workspace
+							{workspaceListUser?.memberships?.length === 1 ? "" : "s"}
+						</DialogDescription>
+					</DialogHeader>
+					<div className="overflow-hidden rounded-[10px] border border-border bg-card dark:border-white/10">
+						{workspaceListUser?.memberships?.map((membership) => (
+							<div
+								key={membership.workspaceId}
+								className="flex items-center justify-between gap-4 border-b border-hairline px-3.5 py-3 last:border-b-0 dark:border-white/5"
+							>
+								<span className="min-w-0 truncate text-[13px] font-semibold text-foreground">
+									{membership.workspaceName}
+								</span>
+								<span className="shrink-0 rounded-full bg-hover px-2.5 py-1 text-[11px] font-medium text-label dark:bg-white/5 dark:text-panel-body">
+									{workspaceRoleLabel(membership.role)}
+								</span>
+							</div>
+						))}
+					</div>
+				</DialogContent>
+			</Dialog>
 			<ForbiddenErrorDialog
 				open={errorDialogOpen}
 				onOpenChange={setErrorDialogOpen}
@@ -675,7 +872,11 @@ export default function UsersPage() {
 				{ROLE_FILTERS.map((filter) => {
 					const active = roleFilter === filter.key;
 					const count =
-						filter.key === "all" ? roleCounts?.total : roleCounts?.[filter.key];
+						filter.key === "all"
+							? isOwner
+								? total
+								: roleCounts?.total
+							: roleCounts?.[filter.key];
 					return (
 						<button
 							key={filter.key}
@@ -733,12 +934,14 @@ export default function UsersPage() {
 						rows={users}
 						rowKey={(user) => user.id}
 						isLoading={isLoading}
-						minTableWidth="1050px"
+						minTableWidth={isOwner ? "1120px" : "1050px"}
 						bleedOnNarrow
 						emptyMessage={
 							debouncedSearch || roleFilter !== "all" || teamFilterId
 								? "No users match your filters."
-								: "No members in this workspace."
+								: isOwner
+									? "No users in this instance."
+									: "No members in this workspace."
 						}
 						pagination={{
 							total,
@@ -761,7 +964,9 @@ export default function UsersPage() {
 					<div className="flex min-h-48 items-center justify-center rounded-[10px] border border-dashed border-border px-6 text-center text-[13px] text-subtle">
 						{debouncedSearch || roleFilter !== "all" || teamFilterId
 							? "No users match your filters."
-							: "No members in this workspace."}
+							: isOwner
+								? "No users in this instance."
+								: "No members in this workspace."}
 					</div>
 				) : (
 					<>
@@ -800,7 +1005,23 @@ export default function UsersPage() {
 													{user.email}
 												</p>
 											</div>
-											{isAdmin && !isCurrentUser && (
+											{isOwner &&
+												!isCurrentUser &&
+												(user.memberships?.length ?? 0) > 0 && (
+													<DropdownMenu
+														trigger={
+															<button
+																type="button"
+																aria-label={`Actions for ${user.name || user.email || "user"}`}
+																className="flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-[7px] text-meta transition-colors hover:bg-hover dark:hover:bg-white/10"
+															>
+																<MoreVertical className="size-[16px]" />
+															</button>
+														}
+														items={supervisionItems(user)}
+													/>
+												)}
+											{!isOwner && isAdmin && !isCurrentUser && (
 												<button
 													type="button"
 													aria-label={`Remove ${user.name || user.email || "user"}`}
@@ -814,20 +1035,50 @@ export default function UsersPage() {
 											)}
 										</div>
 										<div className="mt-5 grid grid-cols-2 gap-x-3 gap-y-4">
-											<div className="min-w-0">
-												<p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-meta">
-													Role
-												</p>
-												{renderRoleControl(user)}
-											</div>
-											<div className="min-w-0">
-												<p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-meta">
-													Team
-												</p>
-												{renderTeamControl(user)}
-											</div>
+											{isOwner ? (
+												<div className="col-span-2 min-w-0">
+													<p className="mb-1.5 text-[10px] font-semibold text-meta">
+														Workspace access
+													</p>
+													<div className="space-y-1.5">
+														{user.isInstanceOwner && (
+															<span className="inline-flex rounded-full bg-amber-500/12 px-2.5 py-1 text-[11.5px] font-semibold text-amber-800 dark:bg-amber-400/15 dark:text-amber-200">
+																Owner
+															</span>
+														)}
+														{(user.memberships ?? []).map((membership) => (
+															<div
+																key={membership.workspaceId}
+																className="flex items-center justify-between gap-3 text-[11.5px]"
+															>
+																<span className="truncate font-medium text-label">
+																	{membership.workspaceName}
+																</span>
+																<span className="shrink-0 text-meta">
+																	{workspaceRoleLabel(membership.role)}
+																</span>
+															</div>
+														))}
+													</div>
+												</div>
+											) : (
+												<>
+													<div className="min-w-0">
+														<p className="mb-1.5 text-[10px] font-semibold text-meta">
+															Role
+														</p>
+														{renderRoleControl(user)}
+													</div>
+													<div className="min-w-0">
+														<p className="mb-1.5 text-[10px] font-semibold text-meta">
+															Team
+														</p>
+														{renderTeamControl(user)}
+													</div>
+												</>
+											)}
 											<div className="col-span-2 mt-auto border-t border-hairline pt-3 dark:border-white/5">
-												<p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-meta">
+												<p className="mb-1.5 text-[10px] font-semibold text-meta">
 													Create workspaces
 												</p>
 												{renderWorkspaceCreationControl(user)}

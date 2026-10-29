@@ -191,7 +191,11 @@ function IdentityCard({ user }: { user: CurrentUser }) {
 				await usersApi.deleteProfileImage();
 				imageRevision = null;
 			}
-			const nextUser = { ...updated, imageRevision };
+			const nextUser = {
+				...updated,
+				supervision: user.supervision,
+				imageRevision,
+			};
 			setUser(nextUser);
 			useAgentsStore.getState().updateOwnerSnapshot(nextUser.id, {
 				id: nextUser.id,

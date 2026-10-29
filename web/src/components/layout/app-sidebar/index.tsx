@@ -72,6 +72,7 @@ import { useTheme } from "next-themes";
 import { WorkspaceSwitcher } from "@/components/layout/app-sidebar/workspace-switcher";
 import { useShowShortcutsInMenu } from "@/lib/user-preferences";
 import { getApiErrorMessage } from "@/lib/api/errors";
+import { userRoleLabel } from "@/lib/user-role";
 
 const navItems: {
 	title: string;
@@ -652,7 +653,7 @@ export function AppSidebar() {
 												{user?.name || "User"}
 											</span>
 											<span className="truncate text-[10px] text-sidebar-muted-highlight">
-												{user?.role || ""}
+												{user ? userRoleLabel(user) : ""}
 											</span>
 										</div>
 										<MoreVertical className="ml-auto size-4 shrink-0 text-sidebar-muted-highlight group-data-[collapsible=icon]:hidden" />

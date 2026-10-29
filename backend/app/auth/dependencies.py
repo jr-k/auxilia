@@ -1,4 +1,5 @@
 from collections.abc import Callable
+from dataclasses import dataclass
 from typing import Literal
 from uuid import UUID
 
@@ -9,7 +10,7 @@ from sqlmodel import select
 from app.auth.settings import auth_settings
 from app.auth.tokens.repository import PersonalAccessTokenRepository
 from app.auth.tokens.service import TOKEN_PREFIX
-from app.auth.utils import decode_access_token
+from app.auth.utils import SessionClaims, decode_access_token, decode_session_token
 from app.database import get_db
 from app.exceptions import DomainValidationError, PermissionDeniedError
 from app.users.models import UserDB, WorkspaceRole
@@ -24,6 +25,13 @@ ROLE_HIERARCHY: dict[WorkspaceRole, int] = {
     WorkspaceRole.editor: 1,
     WorkspaceRole.admin: 2,
 }
+
+
+@dataclass(frozen=True, slots=True)
+class SupervisionContext:
+    actor: UserDB
+    effective_user: UserDB
+    claims: SessionClaims
 
 
 async def _resolve_user_by_id(db: AsyncSession, user_id: UUID) -> UserDB | None:
@@ -47,11 +55,12 @@ async def _resolve_from_bearer(token: str, db: AsyncSession) -> UserDB | None:
             return None
         return await _resolve_user_by_id(db, pat.user_id)
 
-    # Fall back to JWT
-    user_id = decode_access_token(token)
-    if user_id is None:
+    # Fall back to a regular JWT. Supervised credentials are browser-cookie
+    # sessions only and must never be reusable as bearer credentials.
+    claims = decode_session_token(token)
+    if claims is None or claims.is_supervised:
         return None
-    return await _resolve_user_by_id(db, user_id)
+    return await _resolve_user_by_id(db, claims.user_id)
 
 
 async def _hydrate_workspace_context(
@@ -110,10 +119,20 @@ async def _resolve_request_user(request: Request, db: AsyncSession) -> UserDB | 
     """
     cookie_token = request.cookies.get(auth_settings.COOKIE_NAME)
     if cookie_token:
-        user_id = decode_access_token(cookie_token)
-        if user_id is not None:
-            user = await _resolve_user_by_id(db, user_id)
+        claims = decode_session_token(cookie_token)
+        if claims is not None:
+            user = await _resolve_user_by_id(db, claims.user_id)
             if user is not None:
+                actor = None
+                if claims.actor_id is not None:
+                    actor = await _resolve_user_by_id(db, claims.actor_id)
+                    if actor is None or not actor.is_instance_owner:
+                        user = None
+                if user is None:
+                    return None
+                request.state.session_claims = claims
+                request.state.supervision_actor = actor
+                request.state.auth_method = "cookie"
                 return await _hydrate_workspace_context(
                     request, db, user, auth_method="cookie"
                 )
@@ -125,6 +144,13 @@ async def _resolve_request_user(request: Request, db: AsyncSession) -> UserDB | 
             method: Literal["pat", "jwt_bearer"] = (
                 "pat" if bearer_token.startswith(TOKEN_PREFIX) else "jwt_bearer"
             )
+            request.state.session_claims = (
+                None
+                if method == "pat"
+                else decode_session_token(bearer_token)
+            )
+            request.state.supervision_actor = None
+            request.state.auth_method = method
             return await _hydrate_workspace_context(
                 request, db, user, auth_method=method
             )
@@ -175,6 +201,34 @@ def require_role(minimum_role: WorkspaceRole) -> Callable:
 
 require_admin = require_role(WorkspaceRole.admin)
 require_editor = require_role(WorkspaceRole.editor)
+
+
+async def require_instance_owner(
+    request: Request,
+    current_user: UserDB = Depends(get_current_user),
+) -> UserDB:
+    """Require the real, non-supervised instance Owner."""
+    if (
+        getattr(request.state, "supervision_actor", None) is not None
+        or not current_user.is_instance_owner
+    ):
+        raise PermissionDeniedError("Instance owner access required")
+    return current_user
+
+
+async def get_supervision_context(
+    request: Request,
+    current_user: UserDB = Depends(get_current_user),
+) -> SupervisionContext | None:
+    actor = getattr(request.state, "supervision_actor", None)
+    claims = getattr(request.state, "session_claims", None)
+    if not isinstance(actor, UserDB) or not isinstance(claims, SessionClaims):
+        return None
+    return SupervisionContext(
+        actor=actor,
+        effective_user=current_user,
+        claims=claims,
+    )
 
 
 def detect_auth_method(

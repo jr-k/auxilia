@@ -17,6 +17,28 @@ export interface User {
 	updatedAt: string;
 }
 
+export interface InstanceUserMembership {
+	workspaceId: string;
+	workspaceName: string;
+	role: WorkspaceRole;
+	teamId: string | null;
+}
+
+export interface InstanceUser {
+	id: string;
+	name: string | null;
+	firstName: string | null;
+	lastName: string | null;
+	email: string | null;
+	canCreateWorkspace: boolean;
+	isInstanceOwner: boolean;
+	pictureUrl: string | null;
+	imageRevision: string | null;
+	createdAt: string;
+	updatedAt: string;
+	memberships: InstanceUserMembership[];
+}
+
 /** `GET /users/role-counts`. */
 export interface RoleCounts {
 	total: number;

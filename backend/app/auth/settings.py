@@ -21,6 +21,7 @@ class AuthSettings(BaseSettings):
     JWT_ALGORITHM: str = "HS256"
     JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24  # 24 hours
     SESSION_MAX_DAYS: int = Field(default=30, ge=1)
+    REMEMBER_ME_DAYS: int = Field(default=3650, ge=1)
 
     # Cookie Configuration
     COOKIE_NAME: str = "access_token"

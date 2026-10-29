@@ -15,6 +15,12 @@ export interface CurrentUser {
 	pictureUrl: string | null;
 	imageRevision: string | null;
 	twoFactorEnabled: boolean;
+	supervision: {
+		actorId: string;
+		actorName: string | null;
+		actorEmail: string | null;
+		workspaceId: string;
+	} | null;
 	createdAt: string;
 	updatedAt: string;
 }

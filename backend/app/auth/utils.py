@@ -1,4 +1,5 @@
 import asyncio
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
@@ -11,6 +12,20 @@ from app.auth.token_types import TokenKind
 
 
 password_hash = PasswordHash.recommended()
+REMEMBER_ME_REFRESH_DAYS = 180
+
+
+@dataclass(frozen=True, slots=True)
+class SessionClaims:
+    user_id: UUID
+    auth_time: int
+    remember_me: bool = False
+    actor_id: UUID | None = None
+    actor_workspace_id: UUID | None = None
+
+    @property
+    def is_supervised(self) -> bool:
+        return self.actor_id is not None
 
 
 # Argon2id is deliberately slow and memory-hard: one verify costs tens of
@@ -41,11 +56,22 @@ def create_access_token(
     user_id: UUID,
     expires_delta: timedelta | None = None,
     auth_time: int | None = None,
+    *,
+    remember_me: bool = False,
+    actor_id: UUID | None = None,
+    actor_workspace_id: UUID | None = None,
 ) -> str:
     """Create a typed session token, retaining the original sign-in time."""
     now = datetime.now(UTC)
     if expires_delta:
         expire = now + expires_delta
+    elif remember_me:
+        session_started_at = (
+            datetime.fromtimestamp(auth_time, UTC) if auth_time is not None else now
+        )
+        expire = session_started_at + timedelta(
+            days=auth_settings.REMEMBER_ME_DAYS
+        )
     else:
         expire = now + timedelta(
             minutes=auth_settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES
@@ -58,6 +84,12 @@ def create_access_token(
         "iat": now,
         "auth_time": auth_time if auth_time is not None else int(now.timestamp()),
     }
+    if remember_me:
+        to_encode["remember_me"] = True
+    if actor_id is not None:
+        to_encode["act"] = {"sub": str(actor_id)}
+        if actor_workspace_id is not None:
+            to_encode["act_workspace"] = str(actor_workspace_id)
 
     encoded_jwt = jwt.encode(
         to_encode,
@@ -67,8 +99,8 @@ def create_access_token(
     return encoded_jwt
 
 
-def decode_access_token(token: str) -> UUID | None:
-    """Decode and validate a JWT access token. Returns user_id or None."""
+def decode_session_token(token: str) -> SessionClaims | None:
+    """Decode and validate a browser/API session token."""
     try:
         payload = jwt.decode(
             token,
@@ -85,15 +117,41 @@ def decode_access_token(token: str) -> UUID | None:
         user_id_str: str | None = payload.get("sub")
         if user_id_str is None:
             return None
-        return UUID(user_id_str)
-    except (JWTError, ValueError):
+        actor = payload.get("act")
+        if actor is not None and (
+            not isinstance(actor, dict) or not isinstance(actor.get("sub"), str)
+        ):
+            return None
+        actor_id = UUID(actor["sub"]) if actor is not None else None
+        actor_workspace = payload.get("act_workspace")
+        if actor_workspace is not None and (
+            actor_id is None or not isinstance(actor_workspace, str)
+        ):
+            return None
+        actor_workspace_id = (
+            UUID(actor_workspace) if isinstance(actor_workspace, str) else None
+        )
+        return SessionClaims(
+            user_id=UUID(user_id_str),
+            auth_time=int(payload.get("auth_time", payload["iat"])),
+            remember_me=payload.get("remember_me") is True,
+            actor_id=actor_id,
+            actor_workspace_id=actor_workspace_id,
+        )
+    except (JWTError, KeyError, TypeError, ValueError):
         # ValueError: a signed token whose `sub` isn't a UUID. Treat it as
         # "not authenticated" (401) rather than letting it escape as a 500.
         return None
 
 
+def decode_access_token(token: str) -> UUID | None:
+    """Decode and validate a JWT access token. Returns user_id or None."""
+    claims = decode_session_token(token)
+    return claims.user_id if claims is not None else None
+
+
 def renew_access_token(token: str) -> str | None:
-    """Renew a valid session past half its lifetime, up to the session cap."""
+    """Refresh active sessions without extending their absolute session cap."""
     try:
         payload = jwt.decode(
             token,
@@ -107,12 +165,33 @@ def renew_access_token(token: str) -> str | None:
             token_type is not None or payload.get("scope") is not None
         ):
             return None
-        user_id = UUID(payload["sub"])
+        claims = decode_session_token(token)
+        if claims is None:
+            return None
         now = datetime.now(UTC)
         remaining = datetime.fromtimestamp(payload["exp"], UTC) - now
-        auth_time = int(payload.get("auth_time", now.timestamp()))
+        if claims.remember_me:
+            issued_at = datetime.fromtimestamp(payload["iat"], UTC)
+            session_left = (
+                datetime.fromtimestamp(claims.auth_time, UTC)
+                + timedelta(days=auth_settings.REMEMBER_ME_DAYS)
+                - now
+            )
+            if (
+                now - issued_at < timedelta(days=REMEMBER_ME_REFRESH_DAYS)
+                or session_left <= timedelta()
+            ):
+                return None
+            return create_access_token(
+                claims.user_id,
+                expires_delta=session_left,
+                auth_time=claims.auth_time,
+                remember_me=True,
+                actor_id=claims.actor_id,
+                actor_workspace_id=claims.actor_workspace_id,
+            )
         session_left = (
-            datetime.fromtimestamp(auth_time, UTC)
+            datetime.fromtimestamp(claims.auth_time, UTC)
             + timedelta(days=auth_settings.SESSION_MAX_DAYS)
             - now
         )
@@ -123,13 +202,18 @@ def renew_access_token(token: str) -> str | None:
     if remaining >= lifetime / 2 or session_left <= remaining:
         return None
     return create_access_token(
-        user_id,
+        claims.user_id,
         expires_delta=min(lifetime, session_left),
-        auth_time=auth_time,
+        auth_time=claims.auth_time,
+        remember_me=claims.remember_me,
+        actor_id=claims.actor_id,
+        actor_workspace_id=claims.actor_workspace_id,
     )
 
 
 def attach_auth_cookie(response: Response, token: str) -> None:
+    claims = decode_session_token(token)
+    remember_me = claims is not None and claims.remember_me
     response.set_cookie(
         key=auth_settings.COOKIE_NAME,
         value=token,
@@ -137,5 +221,9 @@ def attach_auth_cookie(response: Response, token: str) -> None:
         secure=auth_settings.COOKIE_SECURE,
         samesite=auth_settings.COOKIE_SAMESITE,
         domain=auth_settings.COOKIE_DOMAIN,
-        max_age=auth_settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        max_age=(
+            auth_settings.REMEMBER_ME_DAYS * 24 * 60 * 60
+            if remember_me
+            else auth_settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES * 60
+        ),
     )

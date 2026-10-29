@@ -51,9 +51,39 @@ class UserResponse(SQLModel):
     updated_at: datetime
 
 
+class InstanceUserMembershipResponse(SQLModel):
+    workspace_id: UUID
+    workspace_name: str
+    role: WorkspaceRole
+    team_id: UUID | None = None
+
+
+class InstanceUserResponse(SQLModel):
+    id: UUID
+    name: str | None
+    first_name: str | None = None
+    last_name: str | None = None
+    email: str | None
+    is_instance_owner: bool = False
+    can_create_workspace: bool = False
+    picture_url: str | None = None
+    image_revision: UUID | None = None
+    created_at: datetime
+    updated_at: datetime
+    memberships: list[InstanceUserMembershipResponse]
+
+
+class SupervisionInfo(SQLModel):
+    actor_id: UUID
+    actor_name: str | None = None
+    actor_email: str | None = None
+    workspace_id: UUID
+
+
 class CurrentUserResponse(UserResponse):
     workspace_id: UUID | None = None
     two_factor_enabled: bool = False
+    supervision: SupervisionInfo | None = None
 
 
 class ProfilePatch(SQLModel):

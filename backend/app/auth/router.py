@@ -8,7 +8,12 @@ from app.auth.configuration import (
     WorkspaceAuthenticationService,
     get_workspace_authentication_service,
 )
-from app.auth.dependencies import get_current_user, require_admin
+from app.auth.dependencies import (
+    SupervisionContext,
+    get_current_user,
+    get_supervision_context,
+    require_admin,
+)
 from app.auth.schemas import (
     AuthMessageResponse,
     AuthProvidersResponse,
@@ -29,7 +34,7 @@ from app.auth.utils import attach_auth_cookie
 from app.exceptions import NoInviteError
 from app.invites.service import InviteService, get_invite_service
 from app.users.models import UserDB
-from app.users.schemas import CurrentUserResponse
+from app.users.schemas import CurrentUserResponse, SupervisionInfo
 from app.workspaces.constants import ACTIVE_WORKSPACE_COOKIE
 from app.workspaces.cookies import (
     clear_active_workspace_cookie,
@@ -298,6 +303,7 @@ async def google_login(
     invite_token: str | None = None,
     return_to: str | None = None,
     next_path: str | None = Query(default=None, alias="next"),
+    remember_me: bool = False,
     service: AuthService = Depends(get_auth_service),
     authentication: WorkspaceAuthenticationService = Depends(
         get_workspace_authentication_service
@@ -340,6 +346,7 @@ async def google_login(
         request.session["auth_next"] = safe_next
     else:
         request.session.pop("auth_next", None)
+    request.session["remember_me"] = remember_me
     request.session["oauth_workspace_id"] = str(workspace_id)
 
     client = oauth.create_client("google")
@@ -400,6 +407,7 @@ async def google_callback(
     invite_token = request.session.pop("invite_token", None)
     return_to = _oauth_return_to(request.session.pop("auth_return_to", None))
     next_path = _same_origin_path(request.session.pop("auth_next", None))
+    remember_me = request.session.pop("remember_me", False) is True
     request.session.pop("oauth_workspace_id", None)
 
     try:
@@ -411,6 +419,7 @@ async def google_callback(
             picture_url=userinfo.get("picture"),
             invite_token=invite_token,
             workspace_id=workspace_id,
+            remember_me=remember_me,
         )
     except NoInviteError:
         query = {"error": "no_invite"}
@@ -424,7 +433,11 @@ async def google_callback(
         )
 
     if user.two_factor_enabled:
-        challenge = create_scoped_token(user.id, "two_factor_signin")
+        challenge = create_scoped_token(
+            user.id,
+            "two_factor_signin",
+            remember_me=remember_me,
+        )
         query = {"two_factor": "required"}
         if return_to is not None:
             query["returnTo"] = return_to
@@ -452,7 +465,22 @@ async def google_callback(
 @router.get("/me", response_model=CurrentUserResponse)
 async def get_me(
     current_user: UserDB = Depends(get_current_user),
+    context: SupervisionContext | None = Depends(get_supervision_context),
 ) -> CurrentUserResponse:
+    supervision = (
+        SupervisionInfo(
+            actor_id=context.actor.id,
+            actor_name=context.actor.name,
+            actor_email=context.actor.email,
+            workspace_id=current_user.active_workspace_id,
+        )
+        if context is not None and current_user.active_workspace_id is not None
+        else None
+    )
     return CurrentUserResponse.model_validate(
-        current_user, update={"workspace_id": current_user.active_workspace_id}
+        current_user,
+        update={
+            "workspace_id": current_user.active_workspace_id,
+            "supervision": supervision,
+        },
     )

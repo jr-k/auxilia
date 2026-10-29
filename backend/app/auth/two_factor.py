@@ -106,6 +106,7 @@ def create_scoped_token(
     scope: str,
     *,
     secret: str | None = None,
+    remember_me: bool = False,
     expires_minutes: int = 10,
 ) -> str:
     payload: dict[str, object] = {
@@ -118,6 +119,8 @@ def create_scoped_token(
     }
     if secret is not None:
         payload["secret"] = secret
+    if remember_me:
+        payload["remember_me"] = True
     return jwt.encode(
         payload,
         auth_settings.JWT_SECRET_KEY,
@@ -130,6 +133,7 @@ class ScopedToken:
     user_id: UUID
     jti: str
     secret: str | None = None
+    remember_me: bool = False
 
 
 def decode_scoped_token(token: str, scope: str) -> ScopedToken | None:
@@ -152,6 +156,7 @@ def decode_scoped_token(token: str, scope: str) -> ScopedToken | None:
             user_id=UUID(payload["sub"]),
             jti=payload["jti"],
             secret=secret,
+            remember_me=payload.get("remember_me") is True,
         )
     except (JWTError, KeyError, TypeError, ValueError):
         return None

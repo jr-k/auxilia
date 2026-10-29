@@ -5,6 +5,7 @@ import { ArrowRight, Check, Loader2, ShieldCheck, X } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 
 import { AuthShell } from "@/components/auth/auth-shell";
+import { SupervisionPageFrame } from "@/components/layout/supervision-page-frame";
 import { WorkspaceAvatar } from "@/components/ui/workspace-avatar";
 import { getApiErrorMessage } from "@/lib/api/errors";
 import * as mcpOAuthApi from "@/lib/api/resources/mcp-oauth";
@@ -85,15 +86,16 @@ function AuthorizationContent() {
 	const clientName = authorization?.client.name ?? "MCP client";
 
 	return (
-		<AuthShell
-			title="Connect to Auxilia"
-			description={
-				authorization
-					? `${clientName} is requesting access to one of your workspaces.`
-					: "Review and approve this MCP connection."
-			}
-			footer="You can revoke this connection at any time from the MCP client."
-		>
+		<SupervisionPageFrame>
+			<AuthShell
+				title="Connect to Auxilia"
+				description={
+					authorization
+						? `${clientName} is requesting access to one of your workspaces.`
+						: "Review and approve this MCP connection."
+				}
+				footer="You can revoke this connection at any time from the MCP client."
+			>
 			{displayError ? (
 				<div
 					role="alert"
@@ -227,7 +229,8 @@ function AuthorizationContent() {
 					</div>
 				</>
 			)}
-		</AuthShell>
+			</AuthShell>
+		</SupervisionPageFrame>
 	);
 }
 

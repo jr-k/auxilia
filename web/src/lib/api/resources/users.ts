@@ -5,7 +5,12 @@
 import { api } from "@/lib/api/client";
 import type { Paginated } from "@/types/api";
 import type { CurrentUser } from "@/types/auth";
-import type { RoleCounts, User, WorkspaceRole } from "@/types/users";
+import type {
+	InstanceUser,
+	RoleCounts,
+	User,
+	WorkspaceRole,
+} from "@/types/users";
 
 export interface UserListParams {
 	limit: number;
@@ -20,6 +25,15 @@ export interface UserListParams {
 
 export async function listUsers(params: UserListParams): Promise<Paginated<User>> {
 	const response = await api.get<Paginated<User>>("/users", { params });
+	return response.data;
+}
+
+export async function listInstanceUsers(
+	params: UserListParams,
+): Promise<Paginated<InstanceUser>> {
+	const response = await api.get<Paginated<InstanceUser>>("/users/instance", {
+		params,
+	});
 	return response.data;
 }
 

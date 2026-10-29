@@ -3,7 +3,10 @@
 import { usePathname } from "next/navigation";
 
 import { ChatHeader } from "@/components/layout/chat-header";
+import { SupervisionBanner } from "@/components/layout/supervision-banner";
 import { SidebarTrigger } from "@/components/ui/sidebar";
+import { useUserStore } from "@/stores/user-store";
+import { cn } from "@/lib/utils";
 
 // Chat is the only surface that keeps the floating card; workspace list
 // pages own their full-height chrome (top bar + scroll) via WorkspacePage,
@@ -19,6 +22,9 @@ const SETTINGS_ROUTE = /^\/settings(\/|$)/;
 
 export function PageShell({ children }: { children: React.ReactNode }) {
 	const pathname = usePathname();
+	const isSupervising = useUserStore(
+		(state) => Boolean(state.user?.supervision),
+	);
 	const isChat = CHAT_ROUTE.test(pathname);
 	const isWorkspace =
 		WORKSPACE_ROUTE.test(pathname) ||
@@ -34,23 +40,35 @@ export function PageShell({ children }: { children: React.ReactNode }) {
 			    reopen it. This floating chip is hidden on desktop, so the desktop
 			    layout is unchanged. */}
 			{!isChat && (
-				<SidebarTrigger className="fixed left-3 top-[7px] z-50 size-9 cursor-pointer rounded-lg border border-sidebar-border bg-sidebar shadow-raised md:hidden" />
+				<SidebarTrigger
+					className={cn(
+						"fixed left-3 z-50 size-9 cursor-pointer rounded-lg border border-sidebar-border bg-sidebar shadow-raised md:hidden",
+						isSupervising ? "top-[51px]" : "top-[7px]",
+					)}
+				/>
 			)}
 
 			{isChat ? (
 				<main className="flex-1 min-w-0 flex h-svh flex-col bg-background overflow-hidden">
+					<SupervisionBanner />
 					<ChatHeader />
 					<div className="flex flex-1 flex-col min-h-0 overflow-hidden">
 						{children}
 					</div>
 				</main>
 			) : isWorkspace ? (
-				<main className="flex-1 min-w-0 h-svh overflow-hidden flex">
-					{children}
+				<main className="flex h-svh min-w-0 flex-1 flex-col overflow-hidden">
+					<SupervisionBanner />
+					<div className="flex min-h-0 flex-1 overflow-hidden [&>*]:!h-full">
+						{children}
+					</div>
 				</main>
 			) : (
-				<main className="flex-1 min-w-0 h-svh overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-					{children}
+				<main className="flex h-svh min-w-0 flex-1 flex-col overflow-hidden">
+					<SupervisionBanner />
+					<div className="min-h-0 flex-1 overflow-y-auto [scrollbar-width:none] [&>*]:!h-full [&::-webkit-scrollbar]:hidden">
+						{children}
+					</div>
 				</main>
 			)}
 		</>

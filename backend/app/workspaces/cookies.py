@@ -14,7 +14,7 @@ def set_active_workspace_cookie(response: Response, workspace_id: UUID) -> None:
         secure=auth_settings.COOKIE_SECURE,
         samesite=auth_settings.COOKIE_SAMESITE,
         domain=auth_settings.COOKIE_DOMAIN,
-        max_age=auth_settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        max_age=auth_settings.REMEMBER_ME_DAYS * 24 * 60 * 60,
     )
 
 

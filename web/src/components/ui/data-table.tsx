@@ -14,7 +14,7 @@ export interface DataTableColumn<T> {
 	mobileWidth?: string;
 	/** Render the column only on md+ screens. */
 	hideBelowMd?: boolean;
-	align?: "left" | "right";
+	align?: "left" | "center" | "right";
 	cell: (row: T) => ReactNode;
 }
 
@@ -147,6 +147,7 @@ function cellClass(column: Pick<DataTableColumn<never>, "hideBelowMd" | "align">
 	return [
 		"min-w-0",
 		column.hideBelowMd ? "hidden md:block" : "",
+		column.align === "center" ? "text-center" : "",
 		column.align === "right" ? "text-right" : "",
 	]
 		.filter(Boolean)

@@ -32,6 +32,8 @@ from app.users.models import UserDB, UserImageDB, UserTwoFactorDB, WorkspaceRole
 from app.users.repository import UserRepository
 from app.users.schemas import (
     BackupCodesResponse,
+    InstanceUserMembershipResponse,
+    InstanceUserResponse,
     PasswordChange,
     ProfilePatch,
     TwoFactorConfirmRequest,
@@ -120,8 +122,17 @@ class UserService(BaseService[UserDB, UserRepository]):
         self.db.add(user)
         await self.db.flush()
 
-    async def get_image(self, user_id: UUID, workspace_id: UUID) -> UserImageDB:
-        await self._get_in_workspace(user_id, workspace_id)
+    async def get_image(
+        self,
+        user_id: UUID,
+        workspace_id: UUID,
+        *,
+        instance_owner: bool = False,
+    ) -> UserImageDB:
+        if instance_owner:
+            await self.get_or_404(user_id)
+        else:
+            await self._get_in_workspace(user_id, workspace_id)
         image = await self.repository.get_image(user_id)
         if image is None:
             raise NotFoundError("User image not found")
@@ -261,6 +272,44 @@ class UserService(BaseService[UserDB, UserRepository]):
         for user, membership in rows:
             user.set_workspace_membership(membership)
             items.append(UserResponse.model_validate(user))
+        return Page.build(items, total, page)
+
+    async def list_instance_users(
+        self,
+        page: PageParams,
+        *,
+        role: WorkspaceRole | None = None,
+        search: str | None = None,
+        team_id: UUID | None = None,
+    ) -> Page[InstanceUserResponse]:
+        users, total = await self.repository.list_instance_users(
+            page,
+            role=role,
+            search=search,
+            team_id=team_id,
+        )
+        rows = await self.repository.list_workspace_memberships_for_users(
+            [user.id for user in users]
+        )
+        memberships: dict[UUID, list[InstanceUserMembershipResponse]] = {
+            user.id: [] for user in users
+        }
+        for membership, workspace in rows:
+            memberships[membership.user_id].append(
+                InstanceUserMembershipResponse(
+                    workspace_id=workspace.id,
+                    workspace_name=workspace.name,
+                    role=membership.role,
+                    team_id=membership.team_id,
+                )
+            )
+        items = [
+            InstanceUserResponse.model_validate(
+                user,
+                update={"memberships": memberships[user.id]},
+            )
+            for user in users
+        ]
         return Page.build(items, total, page)
 
     async def count_by_role(self, workspace_id: UUID) -> UserRoleCounts:
