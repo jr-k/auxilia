@@ -103,10 +103,15 @@ function runDurationMs(run: PublicConversationRun): number | null {
 	return Math.max(0, updatedAt - startedAt);
 }
 
-function mapRunDurationsToUserTurns(
+type TurnRunMetadata = {
+	promptedAt: string;
+	durationMs?: number;
+};
+
+function mapRunMetadataToUserTurns(
 	messages: readonly BaseMessage[],
 	runs: readonly PublicConversationRun[],
-): Map<string, number> {
+): Map<string, TurnRunMetadata> {
 	const userTurns = messages.flatMap((message, index) =>
 		isHumanMessage(message)
 			? [{ message, key: userTurnKey(message, index) }]
@@ -117,7 +122,7 @@ function mapRunDurationsToUserTurns(
 			message.id != null ? [[String(message.id), key] as const] : [],
 		),
 	);
-	const durations = new Map<string, number>();
+	const metadata = new Map<string, TurnRunMetadata>();
 	const accumulated = new Map<string, number>();
 	const assignedTurns = new Set<string>();
 	let fallbackIndex = 0;
@@ -145,6 +150,7 @@ function mapRunDurationsToUserTurns(
 			if (currentTurn != null) {
 				assignedTurns.add(currentTurn);
 				accumulated.set(currentTurn, 0);
+				metadata.set(currentTurn, { promptedAt: run.created_at });
 				if (exact == null) fallbackIndex += 1;
 			}
 		} else if (run.kind === "regenerate" && currentTurn != null) {
@@ -161,14 +167,34 @@ function mapRunDurationsToUserTurns(
 			);
 		}
 		if (run.status === "pending" || run.status === "running") {
-			durations.delete(currentTurn);
+			const current = metadata.get(currentTurn);
+			if (current) metadata.set(currentTurn, { promptedAt: current.promptedAt });
 		} else if (run.status === "interrupted") {
-			durations.delete(currentTurn);
+			const current = metadata.get(currentTurn);
+			if (current) metadata.set(currentTurn, { promptedAt: current.promptedAt });
 		} else {
-			durations.set(currentTurn, accumulated.get(currentTurn) ?? 0);
+			const current = metadata.get(currentTurn);
+			if (current) {
+				metadata.set(currentTurn, {
+					...current,
+					durationMs: accumulated.get(currentTurn) ?? 0,
+				});
+			}
 		}
 	}
-	return durations;
+	return metadata;
+}
+
+function formatPromptTimestamp(value: string): string | null {
+	const date = new Date(value);
+	if (!Number.isFinite(date.getTime())) return null;
+	return new Intl.DateTimeFormat(undefined, {
+		weekday: "short",
+		day: "numeric",
+		month: "short",
+		hour: "2-digit",
+		minute: "2-digit",
+	}).format(date);
 }
 
 function formatCost(amount: string): string {
@@ -493,8 +519,8 @@ function PublicTranscript({
 	token: string;
 }) {
 	const toolCalls = useMemo(() => pairToolCalls(messages), [messages]);
-	const durationsByUserTurn = useMemo(
-		() => mapRunDurationsToUserTurns(messages, conversation.runs ?? []),
+	const runMetadataByUserTurn = useMemo(
+		() => mapRunMetadataToUserTurns(messages, conversation.runs ?? []),
 		[conversation.runs, messages],
 	);
 	const toolsByMessage = useMemo(() => {
@@ -578,7 +604,22 @@ function PublicTranscript({
 	return messages.map((message: BaseMessage, index) => {
 		if (isToolMessage(message)) return null;
 		if (isHumanMessage(message)) {
-			const durationMs = durationsByUserTurn.get(userTurnKey(message, index));
+			const runMetadata = runMetadataByUserTurn.get(
+				userTurnKey(message, index),
+			);
+			const promptLabel = runMetadata
+				? formatPromptTimestamp(runMetadata.promptedAt)
+				: null;
+			const durationLabel =
+				runMetadata?.durationMs != null
+					? formatDuration(runMetadata.durationMs)
+					: null;
+			const metadataTitle = [
+				promptLabel ? `Prompt sent: ${promptLabel}` : null,
+				durationLabel ? `Response time: ${durationLabel}` : null,
+			]
+				.filter(Boolean)
+				.join(". ");
 			const inline = getFileAttachments(message);
 			const displayText = message.additional_kwargs?.display_text;
 			const text =
@@ -629,14 +670,29 @@ function PublicTranscript({
 							/>
 						))}
 					</MessageContent>
-					{durationMs != null && (
+					{(promptLabel || durationLabel) && (
 						<div
 							className="ml-auto flex items-center gap-1 pr-0.5 font-mono text-[10px] leading-none tabular-nums text-meta dark:text-panel-dim"
-							title={`Response time: ${formatDuration(durationMs)}`}
-							aria-label={`Response time: ${formatDuration(durationMs)}`}
+							title={metadataTitle}
+							aria-label={metadataTitle}
 						>
-							<Clock3 aria-hidden="true" className="size-2.5" />
-							<span>{formatDuration(durationMs)}</span>
+							{promptLabel && (
+								<time
+									dateTime={runMetadata?.promptedAt}
+									suppressHydrationWarning
+								>
+									{promptLabel}
+								</time>
+							)}
+							{promptLabel && durationLabel && (
+								<span aria-hidden="true">/</span>
+							)}
+							{durationLabel && (
+								<>
+									<Clock3 aria-hidden="true" className="size-2.5" />
+									<span>{durationLabel}</span>
+								</>
+							)}
 						</div>
 					)}
 				</Message>

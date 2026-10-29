@@ -54,7 +54,7 @@ function RememberMeField({
 				className="mt-0.5 size-4 shrink-0 cursor-pointer accent-petrol"
 			/>
 			<span className="text-[12.5px] leading-5 text-meta">
-				Remember me for 10 years on this device
+				Remember me on this device
 			</span>
 		</label>
 	);

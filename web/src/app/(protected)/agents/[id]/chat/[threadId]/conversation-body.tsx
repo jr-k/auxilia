@@ -243,8 +243,8 @@ export const ConversationBody = memo(function ConversationBody({
     () => mapTodosToUserTurns(messages, toolCalls, supervisorTodos),
     [messages, toolCalls, supervisorTodos],
   );
-  const durationsByUserTurn = useMemo(
-    () => mapRunDurationsToUserTurns(messages, runs),
+  const runMetadataByUserTurn = useMemo(
+    () => mapRunMetadataToUserTurns(messages, runs),
     [messages, runs],
   );
   const [errorsByUserTurn, setErrorsByUserTurn] = useState<
@@ -305,6 +305,9 @@ export const ConversationBody = memo(function ConversationBody({
       {messages.map((message, index) => {
         const key = message.id ?? index;
         if (isHumanMessage(message)) {
+          const runMetadata = runMetadataByUserTurn.get(
+            userTurnKey(message, index),
+          );
           // Host notices are context for the model; the chat already shows the files.
           return isHostNotice(message) ? null : (
             <UserTurn
@@ -313,9 +316,8 @@ export const ConversationBody = memo(function ConversationBody({
               anchorId={threadMapAnchor(index)}
               sending={index === pendingUserIndex}
               todos={todosByUserTurn.get(key)}
-              durationMs={durationsByUserTurn.get(
-                userTurnKey(message, index),
-              )}
+              durationMs={runMetadata?.durationMs}
+              promptedAt={runMetadata?.promptedAt}
               error={errorsByUserTurn[userTurnKey(message, index)]}
             />
           );
@@ -611,10 +613,15 @@ function runDurationMs(run: Run): number | null {
   return Math.max(0, updatedAt - startedAt);
 }
 
-function mapRunDurationsToUserTurns(
+type TurnRunMetadata = {
+  promptedAt: string;
+  durationMs?: number;
+};
+
+function mapRunMetadataToUserTurns(
   messages: readonly BaseMessage[],
   runs: readonly Run[],
-): Map<string, number> {
+): Map<string, TurnRunMetadata> {
   const userTurns = messages.flatMap((message, index) =>
     isHumanMessage(message) && !isHostNotice(message)
       ? [{ message, key: userTurnKey(message, index) }]
@@ -625,7 +632,7 @@ function mapRunDurationsToUserTurns(
       message.id != null ? [[String(message.id), key] as const] : [],
     ),
   );
-  const durations = new Map<string, number>();
+  const metadata = new Map<string, TurnRunMetadata>();
   const accumulated = new Map<string, number>();
   const assignedTurns = new Set<string>();
   let fallbackIndex = 0;
@@ -654,6 +661,7 @@ function mapRunDurationsToUserTurns(
       if (currentTurn != null) {
         assignedTurns.add(currentTurn);
         accumulated.set(currentTurn, 0);
+        metadata.set(currentTurn, { promptedAt: run.createdAt });
         if (exact == null) fallbackIndex += 1;
       }
     } else if (run.kind === "regenerate" && currentTurn != null) {
@@ -671,14 +679,22 @@ function mapRunDurationsToUserTurns(
       );
     }
     if (run.status === "pending" || run.status === "running") {
-      durations.delete(currentTurn);
+      const current = metadata.get(currentTurn);
+      if (current) metadata.set(currentTurn, { promptedAt: current.promptedAt });
     } else if (run.status === "interrupted") {
-      durations.delete(currentTurn);
+      const current = metadata.get(currentTurn);
+      if (current) metadata.set(currentTurn, { promptedAt: current.promptedAt });
     } else {
-      durations.set(currentTurn, accumulated.get(currentTurn) ?? 0);
+      const current = metadata.get(currentTurn);
+      if (current) {
+        metadata.set(currentTurn, {
+          ...current,
+          durationMs: accumulated.get(currentTurn) ?? 0,
+        });
+      }
     }
   }
-  return durations;
+  return metadata;
 }
 
 function formatDuration(durationMs: number): string {
@@ -693,16 +709,53 @@ function formatDuration(durationMs: number): string {
   return `${hours} h ${minutes % 60} min`;
 }
 
-const TurnDuration = ({ durationMs }: { durationMs: number }) => {
-  const label = formatDuration(durationMs);
+function formatPromptTimestamp(value: string): string | null {
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return null;
+  return new Intl.DateTimeFormat(undefined, {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+}
+
+const TurnMetadata = ({
+  promptedAt,
+  durationMs,
+}: {
+  promptedAt?: string;
+  durationMs?: number;
+}) => {
+  const promptLabel = promptedAt ? formatPromptTimestamp(promptedAt) : null;
+  const durationLabel =
+    durationMs != null ? formatDuration(durationMs) : null;
+  if (!promptLabel && !durationLabel) return null;
+  const title = [
+    promptLabel ? `Prompt sent: ${promptLabel}` : null,
+    durationLabel ? `Response time: ${durationLabel}` : null,
+  ]
+    .filter(Boolean)
+    .join(". ");
   return (
     <div
       className="ml-auto flex items-center gap-1 pr-0.5 font-mono text-[10px] leading-none tabular-nums text-meta dark:text-panel-dim"
-      title={`Response time: ${label}`}
-      aria-label={`Response time: ${label}`}
+      title={title}
+      aria-label={title}
     >
-      <Clock3Icon aria-hidden="true" className="size-2.5" />
-      <span>{label}</span>
+      {promptLabel && (
+        <time dateTime={promptedAt} suppressHydrationWarning>
+          {promptLabel}
+        </time>
+      )}
+      {promptLabel && durationLabel && <span aria-hidden="true">/</span>}
+      {durationLabel && (
+        <>
+          <Clock3Icon aria-hidden="true" className="size-2.5" />
+          <span>{durationLabel}</span>
+        </>
+      )}
     </div>
   );
 };
@@ -713,6 +766,7 @@ const UserTurn = ({
   sending,
   todos,
   durationMs,
+  promptedAt,
   error,
 }: {
   message: BaseMessage;
@@ -720,6 +774,7 @@ const UserTurn = ({
   sending: boolean;
   todos?: Todo[];
   durationMs?: number;
+  promptedAt?: string;
   error?: string;
 }) => {
   const displayText = message.additional_kwargs?.display_text;
@@ -852,7 +907,7 @@ const UserTurn = ({
           </div>
         </Message>
       )}
-      {durationMs != null && <TurnDuration durationMs={durationMs} />}
+      <TurnMetadata promptedAt={promptedAt} durationMs={durationMs} />
       {todos && todos.length > 0 && (
         <TodoList
           todos={todos}
