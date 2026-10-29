@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.12.77](https://github.com/jr-k/auxilia/compare/web-v0.12.76...web-v0.12.77) (2026-10-29)
+
+
+### Features
+
+* **admin:** add user supervision and persistent sessions ([47f88fa](https://github.com/jr-k/auxilia/commit/47f88fa5d2c58213bd0221616c23a05b82ba0ac7))
+* **shares:** show conversation cost and activity details ([ea70b62](https://github.com/jr-k/auxilia/commit/ea70b62802f7b370a259410472e00fbe13a5e739))
+
 ## [0.12.76](https://github.com/jr-k/auxilia/compare/web-v0.12.75...web-v0.12.76) (2026-10-29)
 
 
