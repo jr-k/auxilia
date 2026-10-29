@@ -23,6 +23,7 @@ import {
 	Users,
 	Moon,
 	Sun,
+	Monitor,
 	PanelLeftOpen,
 	List,
 	UserRound,
@@ -107,6 +108,20 @@ const navItems: {
 	},
 ];
 
+type ThemeMode = "system" | "dark" | "light";
+
+const NEXT_THEME: Record<ThemeMode, ThemeMode> = {
+	system: "dark",
+	dark: "light",
+	light: "system",
+};
+
+const THEME_LABELS: Record<ThemeMode, string> = {
+	system: "System mode",
+	dark: "Dark mode",
+	light: "Light mode",
+};
+
 /** Compact relative time for thread rows: now, 5m, 2h, 3d, 4w */
 function shortTimeAgo(dateStr: string): string {
 	const seconds = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
@@ -149,7 +164,11 @@ export function AppSidebar() {
 	const skillsReady = useSkillsStore((state) => state.isInitialized);
 	const hasMoreThreads = threads.length < total;
 	const { user, logout } = useUserStore();
-	const { resolvedTheme, setTheme } = useTheme();
+	const { theme, setTheme } = useTheme();
+	const themeMode: ThemeMode =
+		theme === "dark" || theme === "light" ? theme : "system";
+	const ThemeIcon =
+		themeMode === "system" ? Monitor : themeMode === "dark" ? Moon : Sun;
 	const { isMobile, setOpenMobile, state, toggleSidebar } = useSidebar();
 	const [renamingThread, setRenamingThread] = useState<Thread | null>(null);
 	const [openThreadMenuId, setOpenThreadMenuId] = useState<string | null>(null);
@@ -252,7 +271,7 @@ export function AppSidebar() {
 						<button
 							type="button"
 							onClick={navigateHome}
-							className="font-display text-[15.5px] font-bold tracking-[-0.02em] text-sidebar-foreground group-data-[collapsible=icon]:hidden animate-in fade-in duration-200"
+							className="cursor-pointer font-display text-[15.5px] font-bold tracking-[-0.02em] text-sidebar-foreground group-data-[collapsible=icon]:hidden animate-in fade-in duration-200"
 							style={{ animationDelay: "100ms", animationFillMode: "both" }}
 						>
 							{appearance.appName}
@@ -667,11 +686,10 @@ export function AppSidebar() {
 											window.open("https://auxilia-docs.vercel.app/", "_blank"),
 									},
 									{
-										label:
-											resolvedTheme === "dark" ? "Light mode" : "Dark mode",
-										icon: resolvedTheme === "dark" ? <Sun /> : <Moon />,
+										label: THEME_LABELS[themeMode],
+										icon: <ThemeIcon />,
 										onClick: () => {
-											setTheme(resolvedTheme === "dark" ? "light" : "dark");
+											setTheme(NEXT_THEME[themeMode]);
 										},
 									},
 									{

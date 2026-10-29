@@ -5,10 +5,9 @@ import {
 	ArrowLeft,
 	ArrowRight,
 	ArrowUpRight,
-	BookOpen,
 	Check,
 	Copy,
-	MessageSquareText,
+	PackageOpen,
 	Unplug,
 } from "lucide-react";
 import {
@@ -617,8 +616,118 @@ export default function AgentSlackBotDialog({
 								</div>
 							)}
 
+							<button
+								type="button"
+								onClick={() => {
+									setView("guide");
+								}}
+								className="group flex w-full cursor-pointer items-center gap-3 rounded-[10px] border border-petrol/30 bg-petrol/[0.07] p-4 text-left transition-all hover:border-petrol/45 hover:bg-petrol/[0.11] dark:border-petrol/60 dark:bg-petrol/25 dark:hover:bg-petrol/35"
+							>
+								<span className="min-w-0 flex-1">
+									<span className="flex items-center gap-2">
+										<span className="block text-[12.5px] font-semibold text-foreground">
+											{settings.isConfigured
+												? "Review the Slack installation"
+												: "Install in Slack"}
+										</span>
+										{!settings.isConfigured && (
+											<span className="rounded-full bg-petrol/10 px-1.5 py-0.5 text-[9px] font-bold text-petrol dark:bg-panel-terminal/15 dark:text-panel-terminal">
+												Required
+											</span>
+										)}
+									</span>
+									<span className="mt-0.5 block text-[10.5px] text-subtle dark:text-panel-body">
+										Create the Slack app, install it in your workspace, and
+										configure its callback URLs.
+									</span>
+								</span>
+								<PackageOpen className="size-4 shrink-0 text-petrol dark:text-panel-terminal" />
+							</button>
+
+							<div className="space-y-3">
+								<div>
+									<p className="text-[12px] font-semibold text-foreground">
+										Add the Slack credentials
+									</p>
+									<p className="text-[10.5px] text-meta">
+										Copy both values from the Slack app you just created.
+									</p>
+								</div>
+								<div className="grid gap-4 sm:grid-cols-2">
+									<label className="block">
+										<span className="mb-1.5 block text-[11px] font-semibold text-label">
+											Bot User OAuth Token
+										</span>
+										<Input
+											type="password"
+											autoComplete="new-password"
+											value={botToken}
+											onChange={(event) => {
+												setBotToken(event.target.value);
+											}}
+											placeholder={
+												settings.isConfigured
+													? settings.botTokenLast4
+														? `****${settings.botTokenLast4}`
+														: "Token configured"
+													: "xoxb-…"
+											}
+										/>
+									</label>
+									<label className="block">
+										<span className="mb-1.5 block text-[11px] font-semibold text-label">
+											Signing Secret
+										</span>
+										<Input
+											type="password"
+											autoComplete="new-password"
+											value={signingSecret}
+											onChange={(event) => {
+												setSigningSecret(event.target.value);
+											}}
+											placeholder={
+												settings.hasSigningSecret
+													? "Leave blank to keep current"
+													: "Signing secret"
+											}
+										/>
+									</label>
+								</div>
+							</div>
+
 							<div className="overflow-hidden rounded-[9px] border border-border bg-sidebar dark:border-white/10">
 								<div className="flex items-center justify-between gap-4 px-3.5 py-3">
+									<div className="min-w-0">
+										<p className="text-[12.5px] font-semibold text-foreground">
+											Tool discovery in Slack
+										</p>
+										<p className="mt-0.5 text-[10.5px] text-meta">
+											How MCP tools reach the model for this connection,
+											overriding the agent’s own setting.
+										</p>
+									</div>
+									<DropdownMenu
+										align="end"
+										itemClassName="py-[9px]"
+										items={SLACK_TOOL_DISCOVERY_OPTIONS.map((option) => ({
+											label: option.label,
+											description: option.description,
+											active: toolDiscoveryMode === option.value,
+											onClick: () => {
+												setToolDiscoveryMode(option.value);
+											},
+										}))}
+										trigger={
+											<button
+												type="button"
+												className="inline-flex h-8 shrink-0 cursor-pointer items-center whitespace-nowrap rounded-full bg-hover px-3 text-[12px] font-medium text-foreground transition-colors hover:bg-petrol-tint dark:bg-white/5 dark:hover:bg-white/10"
+											>
+												{slackToolDiscoveryLabel(toolDiscoveryMode)}
+											</button>
+										}
+									/>
+								</div>
+								<div className="flex items-center justify-between gap-4 border-t border-hairline px-3.5 py-3">
 									<div>
 										<p className="text-[12.5px] font-semibold text-foreground">
 											Accept Slack requests
@@ -665,115 +774,7 @@ export default function AgentSlackBotDialog({
 										className="cursor-pointer data-[state=checked]:bg-petrol"
 									/>
 								</div>
-								<div className="flex items-center justify-between gap-4 border-t border-hairline px-3.5 py-3">
-									<div className="min-w-0">
-										<p className="text-[12.5px] font-semibold text-foreground">
-											Tool discovery in Slack
-										</p>
-										<p className="mt-0.5 text-[10.5px] text-meta">
-											How MCP tools reach the model for this connection,
-											overriding the agent’s own setting.
-										</p>
-									</div>
-									<DropdownMenu
-										align="end"
-										itemClassName="py-[9px]"
-										items={SLACK_TOOL_DISCOVERY_OPTIONS.map((option) => ({
-											label: option.label,
-											description: option.description,
-											active: toolDiscoveryMode === option.value,
-											onClick: () => {
-												setToolDiscoveryMode(option.value);
-											},
-										}))}
-										trigger={
-											<button
-												type="button"
-												className="inline-flex h-8 shrink-0 cursor-pointer items-center rounded-full bg-hover px-3 text-[12px] font-medium text-foreground transition-colors hover:bg-petrol-tint dark:bg-white/5 dark:hover:bg-white/10"
-											>
-												{slackToolDiscoveryLabel(toolDiscoveryMode)}
-											</button>
-										}
-									/>
-								</div>
 							</div>
-
-							<button
-								type="button"
-								onClick={() => {
-									setView("guide");
-								}}
-								className="flex w-full cursor-pointer items-center gap-3 rounded-[9px] border border-petrol/20 bg-petrol/[0.055] p-3.5 text-left transition-colors hover:bg-petrol/[0.09] dark:border-petrol/55 dark:bg-petrol/25 dark:hover:bg-petrol/35"
-							>
-								<BookOpen className="size-4 shrink-0 text-petrol dark:text-panel-terminal" />
-								<span className="min-w-0 flex-1">
-									<span className="block text-[12px] font-semibold text-petrol dark:text-panel-terminal">
-										How to create and configure the Slack app
-									</span>
-									<span className="mt-0.5 block text-[10.5px] text-subtle dark:text-panel-body">
-										Use the ready-to-copy manifest and callback URLs.
-									</span>
-								</span>
-								<ArrowUpRight className="size-3.5 shrink-0 text-petrol dark:text-panel-terminal" />
-							</button>
-
-							<div className="grid gap-4 sm:grid-cols-2">
-								<label className="block">
-									<span className="mb-1.5 block text-[11px] font-semibold text-label">
-										Bot User OAuth Token
-									</span>
-									<Input
-										type="password"
-										autoComplete="new-password"
-										value={botToken}
-										onChange={(event) => {
-											setBotToken(event.target.value);
-										}}
-										placeholder={
-											settings.isConfigured
-												? settings.botTokenLast4
-													? `****${settings.botTokenLast4}`
-													: "Token configured"
-												: "xoxb-…"
-										}
-									/>
-								</label>
-								<label className="block">
-									<span className="mb-1.5 block text-[11px] font-semibold text-label">
-										Signing Secret
-									</span>
-									<Input
-										type="password"
-										autoComplete="new-password"
-										value={signingSecret}
-										onChange={(event) => {
-											setSigningSecret(event.target.value);
-										}}
-										placeholder={
-											settings.hasSigningSecret
-												? "Leave blank to keep current"
-												: "Signing secret"
-										}
-									/>
-								</label>
-							</div>
-
-							{settings.isConfigured && (
-								<div className="flex items-center gap-3 rounded-[8px] border border-border px-3.5 py-3 dark:border-white/10">
-									<MessageSquareText className="size-4 text-petrol" />
-									<div className="min-w-0">
-										<p className="truncate text-[11.5px] font-semibold text-foreground">
-											{settings.botName || "Slack bot"}
-											{settings.slackTeamName
-												? ` / ${settings.slackTeamName}`
-												: ""}
-										</p>
-										<p className="mt-0.5 text-[10px] text-meta">
-											Connected credentials are encrypted at rest.
-										</p>
-									</div>
-								</div>
-							)}
 
 							{error && (
 								<p className="rounded-[7px] bg-destructive/10 px-3 py-2 text-[11.5px] text-destructive">

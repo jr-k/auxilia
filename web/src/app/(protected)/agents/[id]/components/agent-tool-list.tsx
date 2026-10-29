@@ -61,6 +61,7 @@ interface AgentToolListProps {
 		serverId: string,
 		tools: Record<string, ToolStatus>,
 	) => void;
+	resourceKind?: "all" | "mcp" | "sandbox";
 }
 
 export default function AgentToolList({
@@ -80,6 +81,7 @@ export default function AgentToolList({
 	scriptSkillNames = [],
 	addDialogOpen,
 	onAddDialogOpenChange,
+	resourceKind = "all",
 }: AgentToolListProps) {
 	const [allMCPServers, setAllMCPServers] = useState<MCPServer[]>([]);
 	const [allSandboxes, setAllSandboxes] = useState<Sandbox[]>([]);
@@ -229,7 +231,7 @@ export default function AgentToolList({
 
 	return (
 		<div className="flex min-h-0 flex-col gap-8">
-			<section>
+			{resourceKind !== "sandbox" && <section>
 				<div className="mb-3 flex min-h-[24px] shrink-0 items-center justify-between">
 					<div className="flex items-center gap-2.5">
 						<span className="text-[10.5px] font-semibold text-label dark:text-muted-foreground">
@@ -319,9 +321,9 @@ export default function AgentToolList({
 						No MCP servers enabled
 					</div>
 				)}
-			</section>
+			</section>}
 
-			<section>
+			{resourceKind !== "mcp" && <section>
 				<div className="mb-3 flex min-h-[24px] shrink-0 items-center justify-between">
 					<span className="text-[10.5px] font-semibold text-label dark:text-muted-foreground">
 						Sandboxes{" "}
@@ -377,7 +379,7 @@ export default function AgentToolList({
 						No sandbox enabled
 					</div>
 				)}
-			</section>
+			</section>}
 
 			<ConfirmDialog
 				open={sandboxToRemove !== null}

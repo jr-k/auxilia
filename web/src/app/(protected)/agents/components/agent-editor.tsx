@@ -62,6 +62,8 @@ export type EditorTab =
 	| "permissions"
 	| "more";
 
+type CapabilityTab = "mcp" | "skills" | "sandbox" | "slack" | "subagents";
+
 const slugify = (name: string) =>
 	name.trim().toLowerCase().replace(/\s+/g, "-") || "…";
 
@@ -178,6 +180,7 @@ export default function AgentEditor({
 		[form.skillIds, librarySkills, agent?.skills],
 	);
 	const [tab, setTab] = useState<EditorTab>(initialTab);
+	const [capabilityTab, setCapabilityTab] = useState<CapabilityTab>("mcp");
 	const [isSaving, setIsSaving] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -512,128 +515,179 @@ export default function AgentEditor({
 	const fieldInputClass =
 		"w-full rounded-lg border border-input bg-card px-3 py-[7px] outline-none transition-[border-color,box-shadow] placeholder:text-meta dark:placeholder:text-panel-dim focus:border-petrol focus:shadow-[0_0_0_3px_rgba(22,96,110,0.10)] disabled:cursor-default";
 
+	const capabilityTabs: {
+		key: CapabilityTab;
+		label: string;
+		count?: number;
+	}[] = [
+		{ key: "mcp", label: "MCP servers", count: form.mcpServers.length },
+		{ key: "skills", label: "Skills", count: form.skillIds.length },
+		{ key: "sandbox", label: "Sandbox", count: form.sandboxes.length },
+		...(agent ? [{ key: "slack" as const, label: "Side channels" }] : []),
+		{
+			key: "subagents",
+			label: "Subagents",
+			count: form.subagentIds.length,
+		},
+	];
+	const activeCapabilityTab = capabilityTabs.some(
+		(candidate) => candidate.key === capabilityTab,
+	)
+		? capabilityTab
+		: "mcp";
+
+	const renderToolList = (resourceKind: "mcp" | "sandbox") => (
+		<AgentToolList
+			agentId={agent?.id}
+			readOnly={readOnly}
+			canEdit={canEditAgent}
+			mcpServers={form.mcpServers}
+			sandboxes={form.sandboxes}
+			resourceKind={resourceKind}
+			onMcpServersChange={(update) => {
+				setForm((prev) => ({
+					...prev,
+					mcpServers: update(prev.mcpServers),
+				}));
+			}}
+			onSandboxesChange={(sandboxes) => {
+				setField("sandboxes", sandboxes);
+			}}
+			scriptSkillNames={scriptSkillNames}
+			addDialogOpen={addToolOpen}
+			onAddDialogOpenChange={setAddToolOpen}
+			onBindingPersisted={(serverId, tools) => {
+				// A read-mode sync wrote the binding server-side;
+				// mirror it into the store so the next edit-mode
+				// snapshot (and dirty baseline) starts from what is
+				// actually saved. Read the store's latest copy, not
+				// the `agent` prop: several bindings can self-heal
+				// concurrently, and a render-closure snapshot would
+				// let the later callback revert a sibling's map.
+				if (!agent) return;
+				const current =
+					useAgentsStore
+						.getState()
+						.agents.find((a) => a.id === agent.id) ?? agent;
+				updateAgent(agent.id, {
+					mcpServers: (current.mcpServers ?? []).map((server) =>
+						server.mcpServerId === serverId ? { ...server, tools } : server,
+					),
+				});
+			}}
+		/>
+	);
+
 	const capabilitiesPanel = (
-		<>
-			<AgentToolList
-				agentId={agent?.id}
-				readOnly={readOnly}
-				canEdit={canEditAgent}
-				mcpServers={form.mcpServers}
-				sandboxes={form.sandboxes}
-				onMcpServersChange={(update) => {
-					setForm((prev) => ({
-						...prev,
-						mcpServers: update(prev.mcpServers),
-					}));
-				}}
-				onSandboxesChange={(sandboxes) => {
-					setField("sandboxes", sandboxes);
-				}}
-				scriptSkillNames={scriptSkillNames}
-				addDialogOpen={addToolOpen}
-				onAddDialogOpenChange={setAddToolOpen}
-				onBindingPersisted={(serverId, tools) => {
-					// A read-mode sync wrote the binding server-side;
-					// mirror it into the store so the next edit-mode
-					// snapshot (and dirty baseline) starts from what is
-					// actually saved. Read the store's latest copy, not
-					// the `agent` prop: several bindings can self-heal
-					// concurrently, and a render-closure snapshot would
-					// let the later callback revert a sibling's map.
-					if (!agent) return;
-					const current =
-						useAgentsStore
-							.getState()
-							.agents.find((a) => a.id === agent.id) ?? agent;
-					updateAgent(agent.id, {
-						mcpServers: (current.mcpServers ?? []).map((server) =>
-							server.mcpServerId === serverId ? { ...server, tools } : server,
-						),
-					});
-				}}
+		<div className="flex min-h-0 flex-col">
+			<UnderlineTabs
+				tabs={capabilityTabs}
+				value={activeCapabilityTab}
+				onChange={setCapabilityTab}
+				className="border-b border-border"
 			/>
-			<AgentSkillList
-				readOnly={readOnly}
-				skillIds={form.skillIds}
-				disabledByDefaultIds={form.disabledSkillIdsByDefault}
-				fallbackSkills={agent?.skills ?? []}
-				runsCode={form.sandboxes.length > 0}
-				onChange={(skillIds) => {
-					setForm((current) => ({
-						...current,
-						skillIds,
-						disabledSkillIdsByDefault:
-							current.disabledSkillIdsByDefault.filter((id) =>
-								skillIds.includes(id),
-							),
-					}));
-				}}
-				onDefaultEnabledChange={(skillId, enabled) => {
-					setForm((current) => ({
-						...current,
-						disabledSkillIdsByDefault: enabled
-							? current.disabledSkillIdsByDefault.filter(
-									(id) => id !== skillId,
-								)
-							: [...new Set([...current.disabledSkillIdsByDefault, skillId])],
-					}));
-				}}
-				onEnableCodeExecution={() => {
-					setAddToolOpen(true);
-				}}
-			/>
-			{agent && (
-				<AgentSlackBotCard
-					agentId={agent.id}
-					canManage={canManageAgent}
-					readOnly={readOnly}
-				/>
-			)}
-			<AgentSubagentList
-				readOnly={readOnly}
-				agentId={agent?.id ?? ""}
-				isSubagent={agent?.isSubagent ?? false}
-				subagentIds={form.subagentIds}
-				disabledByDefaultIds={form.disabledSubagentIdsByDefault}
-				fallbackSubagents={agent?.subagents ?? []}
-				onChange={(subagentIds) => {
-					setForm((current) => ({
-						...current,
-						subagentIds,
-						disabledSubagentIdsByDefault:
-							current.disabledSubagentIdsByDefault.filter((id) =>
-								subagentIds.includes(id),
-							),
-					}));
-				}}
-				onDefaultEnabledChange={(subagentId, enabled) => {
-					setForm((current) => ({
-						...current,
-						disabledSubagentIdsByDefault: enabled
-							? current.disabledSubagentIdsByDefault.filter(
-									(id) => id !== subagentId,
-								)
-							: [
-									...new Set([
-										...current.disabledSubagentIdsByDefault,
-										subagentId,
-									]),
-								],
-					}));
-				}}
-				confirmLeave={() =>
-					!isDirtyRef.current
-						? Promise.resolve(true)
-						: confirmDialog({
-								title: "Discard unsaved changes?",
-								description:
-									"Opening the subagent will leave this page and discard your edits.",
-								confirmLabel: "Discard and leave",
-								destructive: true,
-							})
-				}
-			/>
-		</>
+			<div className="min-h-0 pt-5">
+				{activeCapabilityTab === "mcp" && renderToolList("mcp")}
+				{activeCapabilityTab === "skills" && (
+					<div className="[&>div]:mt-0">
+						<AgentSkillList
+							readOnly={readOnly}
+							skillIds={form.skillIds}
+							disabledByDefaultIds={form.disabledSkillIdsByDefault}
+							fallbackSkills={agent?.skills ?? []}
+							runsCode={form.sandboxes.length > 0}
+							onChange={(skillIds) => {
+								setForm((current) => ({
+									...current,
+									skillIds,
+									disabledSkillIdsByDefault:
+										current.disabledSkillIdsByDefault.filter((id) =>
+											skillIds.includes(id),
+										),
+								}));
+							}}
+							onDefaultEnabledChange={(skillId, enabled) => {
+								setForm((current) => ({
+									...current,
+									disabledSkillIdsByDefault: enabled
+										? current.disabledSkillIdsByDefault.filter(
+												(id) => id !== skillId,
+											)
+										: [
+												...new Set([
+													...current.disabledSkillIdsByDefault,
+													skillId,
+												]),
+											],
+								}));
+							}}
+							onEnableCodeExecution={() => {
+								setCapabilityTab("sandbox");
+								setAddToolOpen(true);
+							}}
+						/>
+					</div>
+				)}
+				{activeCapabilityTab === "sandbox" && renderToolList("sandbox")}
+				{activeCapabilityTab === "slack" && agent && (
+					<div className="[&>section]:mt-0">
+						<AgentSlackBotCard
+							agentId={agent.id}
+							canManage={canManageAgent}
+							readOnly={readOnly}
+						/>
+					</div>
+				)}
+				{activeCapabilityTab === "subagents" && (
+					<div className="[&>div]:mt-0">
+						<AgentSubagentList
+							readOnly={readOnly}
+							agentId={agent?.id ?? ""}
+							isSubagent={agent?.isSubagent ?? false}
+							subagentIds={form.subagentIds}
+							disabledByDefaultIds={form.disabledSubagentIdsByDefault}
+							fallbackSubagents={agent?.subagents ?? []}
+							onChange={(subagentIds) => {
+								setForm((current) => ({
+									...current,
+									subagentIds,
+									disabledSubagentIdsByDefault:
+										current.disabledSubagentIdsByDefault.filter((id) =>
+											subagentIds.includes(id),
+										),
+								}));
+							}}
+							onDefaultEnabledChange={(subagentId, enabled) => {
+								setForm((current) => ({
+									...current,
+									disabledSubagentIdsByDefault: enabled
+										? current.disabledSubagentIdsByDefault.filter(
+												(id) => id !== subagentId,
+											)
+										: [
+												...new Set([
+													...current.disabledSubagentIdsByDefault,
+													subagentId,
+												]),
+											],
+								}));
+							}}
+							confirmLeave={() =>
+								!isDirtyRef.current
+									? Promise.resolve(true)
+									: confirmDialog({
+											title: "Discard unsaved changes?",
+											description:
+												"Opening the subagent will leave this page and discard your edits.",
+											confirmLabel: "Discard and leave",
+											destructive: true,
+										})
+							}
+						/>
+					</div>
+				)}
+			</div>
+		</div>
 	);
 
 	return (
