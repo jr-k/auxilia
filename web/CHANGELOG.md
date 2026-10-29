@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.78](https://github.com/jr-k/auxilia/compare/web-v0.12.77...web-v0.12.78) (2026-10-29)
+
+
+### Features
+
+* **chat:** show prompt timestamps ([fc44340](https://github.com/jr-k/auxilia/commit/fc44340bca696a8c2e8258bd125eda25aece1e47))
+
 ## [0.12.77](https://github.com/jr-k/auxilia/compare/web-v0.12.76...web-v0.12.77) (2026-10-29)
 
 
