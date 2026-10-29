@@ -37,6 +37,7 @@ with warnings.catch_warnings():
 logger = logging.getLogger(__name__)
 
 MCP_OPEN_TIMEOUT_SECONDS = 15
+MAX_SERVER_INSTRUCTIONS_CHARS = 4_000
 
 
 _VALID_TOOL_NAME_CHARS = re.compile(r"[^a-zA-Z0-9_-]")
@@ -158,6 +159,7 @@ class PreparedToolset:
     disabled_tools: dict[str, set[str]] = field(default_factory=dict)
     managed_allowed_tools: dict[str, set[str]] = field(default_factory=dict)
     server_description_by_name: dict[str, str | None] = field(default_factory=dict)
+    server_instructions_by_name: dict[str, str] = field(default_factory=dict)
 
     @property
     def server_names(self) -> list[str]:
@@ -172,8 +174,19 @@ class PreparedToolset:
         servers: list[str] = []
         for name in self.connections:
             description = self.server_description_by_name.get(name)
-            compact = " ".join(description.split()) if description else ""
-            servers.append(f"- {name}: {compact}" if compact else f"- {name}")
+            compact_description = " ".join(description.split()) if description else ""
+            instructions = self.server_instructions_by_name.get(name)
+            compact_instructions = (
+                " ".join(instructions.split())[:MAX_SERVER_INSTRUCTIONS_CHARS]
+                if instructions
+                else ""
+            )
+            details = []
+            if compact_description:
+                details.append(compact_description)
+            if compact_instructions:
+                details.append(f"Server instructions: {compact_instructions}")
+            servers.append(f"- {name}: {' '.join(details)}" if details else f"- {name}")
 
         return (
             "MCP servers available to this agent:\n"
@@ -474,12 +487,18 @@ class Toolset:
             async def open_server(
                 server_name: str, spec: ConnectionSpec
             ) -> tuple[str, list[BaseTool]] | None:
-                adapter = MCPAdapter(build_client(spec))
+                prepared.server_instructions_by_name.pop(server_name, None)
+                client = build_client(spec)
+                adapter = MCPAdapter(client)
                 entered = False
                 try:
                     async with asyncio.timeout(MCP_OPEN_TIMEOUT_SECONDS):
                         await adapter.__aenter__()
                         entered = True
+                        if client.instructions and client.instructions.strip():
+                            prepared.server_instructions_by_name[server_name] = (
+                                client.instructions.strip()
+                            )
                         lc_tools = await adapter.list_tools()
                 except BaseException as exc:
                     if entered:
@@ -549,6 +568,7 @@ class Toolset:
             for server_name in unavailable_servers:
                 prepared.connections.pop(server_name, None)
                 prepared.server_description_by_name.pop(server_name, None)
+                prepared.server_instructions_by_name.pop(server_name, None)
 
             agent_tools = _assemble_agent_tools(
                 tools_by_server,
