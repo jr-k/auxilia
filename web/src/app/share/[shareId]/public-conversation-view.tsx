@@ -53,6 +53,11 @@ import {
 	type PublicConversationArtifact,
 	type PublicConversationRun,
 } from "@/lib/api/resources/threads";
+import {
+	HoverCard,
+	HoverCardContent,
+	HoverCardTrigger,
+} from "@/components/ui/hover-card";
 
 function formatBytes(size: number): string {
 	if (size < 1024) return `${size} B`;
@@ -169,6 +174,152 @@ function mapRunDurationsToUserTurns(
 function formatCost(amount: string): string {
 	const value = Number(amount);
 	return value > 0 && value < 0.01 ? "<\u20090.01$" : `${value.toFixed(2)}$`;
+}
+
+function formatExactCost(amount: string): string {
+	return `${Number(amount).toLocaleString("en-US", {
+		maximumFractionDigits: 10,
+	})}$`;
+}
+
+type PublicConversationCost = NonNullable<PublicConversation["cost"]>;
+
+function PublicCostBreakdown({ cost }: { cost: PublicConversationCost }) {
+	const pricedCallCount = cost.call_count - cost.unpriced_call_count;
+	const usage = cost.usage_details;
+	const amounts = cost.cost_details;
+	if (usage && amounts) {
+		const rows = [
+			["Input", usage.input, amounts.input],
+			["Cached input", usage.input_cache_read, amounts.input_cache_read],
+			[
+				"Cache write",
+				usage.input_cache_creation,
+				amounts.input_cache_creation,
+			],
+			["Output", usage.output, amounts.output],
+		] as const;
+		return (
+			<div className="text-[12px]">
+				<table className="w-full tabular-nums">
+					<thead>
+						<tr className="text-meta">
+							<th className="pb-1 text-left font-medium" />
+							<th className="pb-1 text-right font-medium">Tokens</th>
+							<th className="pb-1 pl-4 text-right font-medium">Cost</th>
+						</tr>
+					</thead>
+					<tbody>
+						{rows.map(([label, tokens, amount]) => (
+							<tr key={label}>
+								<td className="py-0.5 text-subtle">{label}</td>
+								<td className="py-0.5 text-right">
+									{tokens.toLocaleString("en-US")}
+								</td>
+								<td className="py-0.5 pl-4 text-right font-mono">
+									{formatExactCost(amount)}
+								</td>
+							</tr>
+						))}
+						<tr className="border-t border-border font-semibold">
+							<td className="pt-1.5">Total</td>
+							<td className="pt-1.5 text-right">
+								{usage.total.toLocaleString("en-US")}
+							</td>
+							<td className="pt-1.5 pl-4 text-right font-mono">
+								{formatExactCost(amounts.total)}
+							</td>
+						</tr>
+					</tbody>
+				</table>
+				{!cost.complete && (
+					<p className="mt-2 text-meta">
+						{cost.unpriced_call_count} of {cost.call_count} model calls have
+						no price or usage. This subtotal covers priced calls only.
+					</p>
+				)}
+			</div>
+		);
+	}
+	return (
+		<div className="text-[12px]">
+			<p className="font-semibold text-foreground">
+				{pricedCallCount === 0 ? "Cost unavailable" : "Cost details"}
+			</p>
+			<dl className="mt-2 space-y-1.5 tabular-nums">
+				<div className="flex items-center justify-between gap-6">
+					<dt className="text-subtle">Model calls</dt>
+					<dd>{cost.call_count.toLocaleString("en-US")}</dd>
+				</div>
+				<div className="flex items-center justify-between gap-6">
+					<dt className="text-subtle">Tokens</dt>
+					<dd>{cost.total_tokens.toLocaleString("en-US")}</dd>
+				</div>
+				{pricedCallCount > 0 && (
+					<div className="flex items-center justify-between gap-6 border-t border-border pt-1.5 font-semibold">
+						<dt>{cost.complete ? "Total" : "Known subtotal"}</dt>
+						<dd className="font-mono">{formatExactCost(cost.known_cost)}</dd>
+					</div>
+				)}
+			</dl>
+			{!cost.complete && (
+				<p className="mt-2 leading-5 text-meta">
+					{cost.unpriced_call_count} of {cost.call_count} model calls have no
+					retained price or usage.
+				</p>
+			)}
+		</div>
+	);
+}
+
+function ActivityBreakdown({
+	humanCount,
+	assistantCount,
+	toolCalls,
+}: {
+	humanCount: number;
+	assistantCount: number;
+	toolCalls: ToolCallView[];
+}) {
+	const finishedCount = toolCalls.filter(
+		(call) => call.status === "finished",
+	).length;
+	const failedCount = toolCalls.filter((call) => call.status === "error").length;
+	const incompleteCount = toolCalls.length - finishedCount - failedCount;
+	return (
+		<div className="text-[12px]">
+			<p className="font-semibold text-foreground">Conversation activity</p>
+			<dl className="mt-2 space-y-1.5 tabular-nums">
+				<div className="flex items-center justify-between gap-8">
+					<dt className="text-subtle">Your messages</dt>
+					<dd>{humanCount}</dd>
+				</div>
+				<div className="flex items-center justify-between gap-8">
+					<dt className="text-subtle">Assistant messages</dt>
+					<dd>{assistantCount}</dd>
+				</div>
+				<div className="flex items-center justify-between gap-8 border-t border-border pt-1.5">
+					<dt className="text-subtle">Completed tool calls</dt>
+					<dd>{finishedCount}</dd>
+				</div>
+				{failedCount > 0 && (
+					<div className="flex items-center justify-between gap-8">
+						<dt className="text-subtle">Failed tool calls</dt>
+						<dd>{failedCount}</dd>
+					</div>
+				)}
+				{incompleteCount > 0 && (
+					<div className="flex items-center justify-between gap-8">
+						<dt className="text-subtle">Incomplete tool calls</dt>
+						<dd>{incompleteCount}</dd>
+					</div>
+				)}
+			</dl>
+			<p className="mt-2 leading-5 text-meta">
+				A tool call is one action requested from an MCP server or the sandbox.
+			</p>
+		</div>
+	);
 }
 
 function SharedFile({
@@ -589,10 +740,11 @@ export function PublicConversationView({ shareId }: { shareId: string }) {
 	const messages = conversation.messages.map((message) =>
 		coerceMessageLikeToMessage(message as BaseMessageLike),
 	);
-	const messageCount = messages.filter(
-		(message) => isHumanMessage(message) || isAIMessage(message),
-	).length;
-	const toolCount = pairToolCalls(messages).length;
+	const humanMessageCount = messages.filter(isHumanMessage).length;
+	const assistantMessageCount = messages.filter(isAIMessage).length;
+	const messageCount = humanMessageCount + assistantMessageCount;
+	const toolCalls = pairToolCalls(messages);
+	const toolCount = toolCalls.length;
 	const modelLabel = conversation.model_name ?? conversation.model_id;
 	const cost = conversation.cost;
 	const costLabel =
@@ -630,15 +782,27 @@ export function PublicConversationView({ shareId }: { shareId: string }) {
 				</div>
 				<div className="flex min-w-0 items-center justify-start gap-1.5 overflow-x-auto pl-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
 					{modelLabel && (
-						<span className="flex h-[30px] shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-border bg-card px-2.5 text-[11.5px] font-medium text-subtle dark:border-white/8 dark:bg-white/5 dark:text-panel-body">
-							<Cpu className="size-3.5" />
-							<span className="max-w-40 truncate">{modelLabel}</span>
-							{costLabel && (
-								<span className="border-l border-border pl-1.5 tabular-nums dark:border-white/10">
-									{costLabel}
+						<HoverCard openDelay={150} closeDelay={100}>
+							<HoverCardTrigger asChild>
+								<span
+									tabIndex={costLabel ? 0 : undefined}
+									className="flex h-[30px] shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-border bg-card px-2.5 text-[11.5px] font-medium text-subtle outline-none focus-visible:ring-2 focus-visible:ring-petrol/40 dark:border-white/8 dark:bg-white/5 dark:text-panel-body"
+								>
+									<Cpu className="size-3.5" />
+									<span className="max-w-40 truncate">{modelLabel}</span>
+									{costLabel && (
+										<span className="border-l border-border pl-1.5 tabular-nums dark:border-white/10">
+											{costLabel}
+										</span>
+									)}
 								</span>
+							</HoverCardTrigger>
+							{cost && cost.call_count > 0 && (
+								<HoverCardContent align="end" className="w-80">
+									<PublicCostBreakdown cost={cost} />
+								</HoverCardContent>
 							)}
-						</span>
+						</HoverCard>
 					)}
 					{conversation.memories_enabled != null && (
 						<span
@@ -652,11 +816,26 @@ export function PublicConversationView({ shareId }: { shareId: string }) {
 							Memories {conversation.memories_enabled ? "on" : "off"}
 						</span>
 					)}
-					<span className="flex h-[30px] shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-border px-2.5 text-[11.5px] font-medium text-subtle dark:border-white/8 dark:text-panel-body">
-						<MessageSquare className="size-3.5" />
-						{messageCount}
-						{toolCount > 0 && <span>/ {toolCount} tools</span>}
-					</span>
+					<HoverCard openDelay={150} closeDelay={100}>
+						<HoverCardTrigger asChild>
+							<span
+								tabIndex={0}
+								aria-label={`${messageCount} messages and ${toolCount} tool calls`}
+								className="flex h-[30px] shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-border px-2.5 text-[11.5px] font-medium text-subtle outline-none focus-visible:ring-2 focus-visible:ring-petrol/40 dark:border-white/8 dark:text-panel-body"
+							>
+								<MessageSquare className="size-3.5" />
+								{messageCount} messages
+								{toolCount > 0 && <span>/ {toolCount} calls</span>}
+							</span>
+						</HoverCardTrigger>
+						<HoverCardContent align="end" className="w-72">
+							<ActivityBreakdown
+								humanCount={humanMessageCount}
+								assistantCount={assistantMessageCount}
+								toolCalls={toolCalls}
+							/>
+						</HoverCardContent>
+					</HoverCard>
 					<span className="flex h-[30px] shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-border px-2.5 text-[11.5px] font-medium text-subtle dark:border-white/8 dark:text-panel-body">
 						<Globe2 className="size-3.5" />
 						Read-only

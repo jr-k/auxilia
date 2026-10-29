@@ -65,6 +65,20 @@ export interface PublicConversation {
 		call_count: number;
 		unpriced_call_count: number;
 		total_tokens: number;
+		usage_details?: {
+			input: number;
+			input_cache_read: number;
+			input_cache_creation: number;
+			output: number;
+			total: number;
+		} | null;
+		cost_details?: {
+			input: string;
+			input_cache_read: string;
+			input_cache_creation: string;
+			output: string;
+			total: string;
+		} | null;
 	} | null;
 	runs: PublicConversationRun[];
 	tool_servers?: Array<{

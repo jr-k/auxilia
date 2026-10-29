@@ -51,12 +51,30 @@ class PublicToolServer(BaseModel):
     tool_names: list[str] = Field(default_factory=list)
 
 
+class PublicUsageDetails(BaseModel):
+    input: int
+    input_cache_read: int
+    input_cache_creation: int
+    output: int
+    total: int
+
+
+class PublicCostDetails(BaseModel):
+    input: str
+    input_cache_read: str
+    input_cache_creation: str
+    output: str
+    total: str
+
+
 class PublicConversationCost(BaseModel):
     known_cost: str
     complete: bool
     call_count: int
     unpriced_call_count: int
     total_tokens: int
+    usage_details: PublicUsageDetails | None = None
+    cost_details: PublicCostDetails | None = None
 
 
 class PublicRun(BaseModel):

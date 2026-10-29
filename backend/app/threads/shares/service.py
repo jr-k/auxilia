@@ -301,6 +301,11 @@ class ConversationShareService:
                 "call_count": conversation_cost.call_count,
                 "unpriced_call_count": conversation_cost.unpriced_call_count,
                 "total_tokens": conversation_cost.usage_details.total,
+                "usage_details": conversation_cost.usage_details.model_dump(),
+                "cost_details": {
+                    name: str(value)
+                    for name, value in conversation_cost.cost_details.model_dump().items()
+                },
             }
         except Exception:  # noqa: BLE001 — optional metadata must not block sharing
             logger.warning(
