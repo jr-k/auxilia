@@ -30,6 +30,10 @@ from app.integrations.slack.consumer import build_slack_run_consumer
 from app.integrations.slack.router import router as slack_router
 from app.integrations.slack.settings_router import router as agent_slack_router
 from app.integrations.slack.tools import build_slack_run_tools
+from app.integrations.telegram.consumer import build_telegram_run_consumer
+from app.integrations.telegram.processor import TelegramUpdateProcessor
+from app.integrations.telegram.router import router as telegram_router
+from app.integrations.telegram.settings_router import router as telegram_settings_router
 from app.integrations.tracing import flush_tracing
 from app.invites.router import router as invites_router
 from app.logging_config import configure_logging
@@ -46,6 +50,7 @@ from app.realtime.router import router as realtime_router
 from app.redis_client import close_redis, get_redis
 from app.runtime.api.protocol_router import router as protocol_router
 from app.runtime.api.runs_router import router as runs_router, user_runs_router
+from app.runtime.runs.delivery import compose_delivery_factories
 from app.runtime.runs.reaper import RunReaper
 from app.runtime.runs.settings import run_settings
 from app.runtime.runs.worker import RunDispatcher
@@ -96,6 +101,7 @@ async def lifespan(app: FastAPI):
     scanner: TriggerScanner | None = None
     event_relay: WorkspaceEventRelay | None = None
     dbhub_reconciler: DBHubReconciler | None = None
+    telegram_processor: TelegramUpdateProcessor | None = None
     if dbhub_settings.enabled:
         dbhub_reconciler = DBHubReconciler()
         await dbhub_reconciler.ensure_config_file()
@@ -103,8 +109,12 @@ async def lifespan(app: FastAPI):
             asyncio.create_task(dbhub_reconciler.run(), name="dbhub-reconciler")
         )
     if run_settings.dispatcher_enabled:
+        telegram_processor = TelegramUpdateProcessor()
         dispatcher = RunDispatcher(
-            delivery_factory=build_slack_run_consumer,
+            delivery_factory=compose_delivery_factories(
+                build_slack_run_consumer,
+                build_telegram_run_consumer,
+            ),
             runtime_tool_factory=build_slack_run_tools,
         )
         reaper = RunReaper()
@@ -114,6 +124,9 @@ async def lifespan(app: FastAPI):
                 asyncio.create_task(dispatcher.run(), name="run-dispatcher"),
                 asyncio.create_task(reaper.run(), name="run-reaper"),
                 asyncio.create_task(event_relay.run(), name="workspace-event-relay"),
+                asyncio.create_task(
+                    telegram_processor.run(), name="telegram-update-processor"
+                ),
             ]
         )
         # The scanner enqueues onto the run queue, so it only runs where the
@@ -138,6 +151,8 @@ async def lifespan(app: FastAPI):
                 scanner.stop()
             if event_relay is not None:
                 event_relay.stop()
+            if telegram_processor is not None:
+                telegram_processor.stop()
             if dbhub_reconciler is not None:
                 dbhub_reconciler.stop()
             for task in background:
@@ -278,6 +293,7 @@ async def version() -> dict[str, str]:
 
 app.include_router(agents_router)
 app.include_router(agent_slack_router)
+app.include_router(telegram_settings_router)
 app.include_router(appearance_router)
 app.include_router(protocol_router)
 app.include_router(runs_router)
@@ -309,6 +325,7 @@ app.include_router(langfuse_router)
 app.include_router(realtime_router)
 app.include_router(sandboxes_router)
 app.include_router(slack_router)
+app.include_router(telegram_router)
 
 app.mount(
     "/",

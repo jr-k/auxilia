@@ -46,6 +46,7 @@ import {
 	useSidebar,
 } from "@/components/ui/sidebar";
 import { DropdownMenu } from "@/components/ui/dropdown-menu";
+import { TelegramLogo } from "@/components/telegram-logo";
 import { useThreadsStore } from "@/stores/threads-store";
 import { useUserStore } from "@/stores/user-store";
 import { useAgentsStore } from "@/stores/agents-store";
@@ -455,6 +456,11 @@ export function AppSidebar() {
 																	width={12}
 																	className={`size-3 shrink-0 ${activeRunThreadIds.has(thread.id) ? "" : "ml-auto"} ${trailingMetadataClass}`}
 																	title="Thread initiated in Slack"
+																/>
+															)}
+															{thread.source === "telegram" && (
+																<TelegramLogo
+																	className={`size-3 ${activeRunThreadIds.has(thread.id) ? "" : "ml-auto"} ${trailingMetadataClass}`}
 																/>
 															)}
 														</div>

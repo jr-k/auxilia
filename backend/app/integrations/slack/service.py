@@ -89,11 +89,16 @@ class AgentSlackBotService:
                         "assistant:write",
                         "channels:history",
                         "chat:write",
+                        "chat:write.public",
                         "commands",
                         "files:read",
                         "files:write",
+                        "groups:history",
                         "im:history",
                         "im:write",
+                        "mpim:history",
+                        "reactions:read",
+                        "reactions:write",
                         "users:read",
                         "users:read.email",
                     ]
@@ -105,7 +110,9 @@ class AgentSlackBotService:
                     "bot_events": [
                         "app_mention",
                         "message.channels",
+                        "message.groups",
                         "message.im",
+                        "message.mpim",
                     ],
                 },
                 "interactivity": {

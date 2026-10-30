@@ -14,6 +14,8 @@ import type {
 	AgentResources,
 	AgentSlackBotSettings,
 	AgentSlackBotSettingsUpdate,
+	AgentTelegramBotSettings,
+	AgentTelegramBotSettingsUpdate,
 	ToolDiscoveryMode,
 } from "@/types/agents";
 import type { ResourceVisibility } from "@/types/visibility";
@@ -240,6 +242,54 @@ export async function deleteAgentSlackBot(
 	botId: string,
 ): Promise<void> {
 	await api.delete(`/agents/${agentId}/integrations/slack/${botId}`);
+}
+
+export async function listAgentTelegramBots(
+	agentId: string,
+): Promise<AgentTelegramBotSettings[]> {
+	const response = await api.get<AgentTelegramBotSettings[]>(
+		`/agents/${agentId}/integrations/telegram`,
+	);
+	return response.data;
+}
+
+export async function getAgentTelegramBotSetup(
+	agentId: string,
+): Promise<AgentTelegramBotSettings> {
+	const response = await api.get<AgentTelegramBotSettings>(
+		`/agents/${agentId}/integrations/telegram/setup`,
+	);
+	return response.data;
+}
+
+export async function createAgentTelegramBot(
+	agentId: string,
+	update: AgentTelegramBotSettingsUpdate,
+): Promise<AgentTelegramBotSettings> {
+	const response = await api.post<AgentTelegramBotSettings>(
+		`/agents/${agentId}/integrations/telegram`,
+		update,
+	);
+	return response.data;
+}
+
+export async function updateAgentTelegramBot(
+	agentId: string,
+	botId: string,
+	update: AgentTelegramBotSettingsUpdate,
+): Promise<AgentTelegramBotSettings> {
+	const response = await api.put<AgentTelegramBotSettings>(
+		`/agents/${agentId}/integrations/telegram/${botId}`,
+		update,
+	);
+	return response.data;
+}
+
+export async function deleteAgentTelegramBot(
+	agentId: string,
+	botId: string,
+): Promise<void> {
+	await api.delete(`/agents/${agentId}/integrations/telegram/${botId}`);
 }
 
 export async function listAgentPermissions(agentId: string): Promise<AgentPermissionRow[]> {

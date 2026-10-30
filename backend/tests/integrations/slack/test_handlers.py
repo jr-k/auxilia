@@ -8,24 +8,33 @@ import pytest
 import app.integrations.slack.handlers as handlers_mod
 from app.exceptions import DomainValidationError
 from app.integrations.slack.blocks import build_tool_approval_blocks
+from app.integrations.slack.db_models import SlackToolDiscoveryMode
 from app.integrations.slack.handlers import _extract_decision
 from tests.conftest import TEST_WORKSPACE_ID
+
+
+SLACK_BOT_ID = uuid4()
+AGENT_ID = uuid4()
+TOOL_MODE = SlackToolDiscoveryMode.all_capabilities
 
 
 @pytest.fixture(autouse=True)
 def slack_client(monkeypatch):
     client = handlers_mod.AsyncWebClient(token="xoxb-test")
 
-    async def get_client(_workspace_id):
+    async def get_client(_workspace_id, _slack_bot_id):
         return client
 
-    async def resolve_actor(_slack_user_id, _workspace_id):
+    async def resolve_actor(_slack_user_id, _workspace_id, _slack_bot_id):
         return SimpleNamespace(
             id="u1", role=SimpleNamespace(value="member"), team_id=None
         )
 
     async def allow_agent(*_args):
         return True
+
+    async def get_binding(*_args):
+        return SimpleNamespace(thread_id="t1", slack_user_id="U1")
 
     class _Session:
         async def __aenter__(self):
@@ -35,12 +44,15 @@ def slack_client(monkeypatch):
             return False
 
         async def execute(self, stmt):
-            thread = SimpleNamespace(agent_id=uuid4(), user_id="u1")
+            thread = SimpleNamespace(agent_id=AGENT_ID, user_id="u1")
             return SimpleNamespace(scalar_one_or_none=lambda: thread)
 
     monkeypatch.setattr(handlers_mod, "get_slack_client", get_client)
     monkeypatch.setattr(handlers_mod, "resolve_user", resolve_actor)
     monkeypatch.setattr(handlers_mod, "_can_use_agent", allow_agent)
+    monkeypatch.setattr(
+        handlers_mod.SlackThreadBindingRepository, "get_external", get_binding
+    )
     monkeypatch.setattr(handlers_mod, "AsyncSessionLocal", lambda: _Session())
     return client
 
@@ -116,6 +128,8 @@ async def test_enqueue_builds_slack_delivery_and_passes_input(monkeypatch):
         slack_user_id="U1",
         team_id="T1",
         workspace_id=TEST_WORKSPACE_ID,
+        slack_bot_id=SLACK_BOT_ID,
+        tool_discovery_mode=TOOL_MODE,
         input={"messages": [{"type": "human", "content": "hi"}]},
     )
 
@@ -130,6 +144,9 @@ async def test_enqueue_builds_slack_delivery_and_passes_input(monkeypatch):
         "slack_user_id": "U1",
         "team_id": "T1",
         "workspace_id": str(TEST_WORKSPACE_ID),
+        "slack_bot_id": str(SLACK_BOT_ID),
+        "force_enable_all_capabilities": True,
+        "tool_discovery_mode": "disabled",
     }
 
 
@@ -143,6 +160,8 @@ async def test_enqueue_passes_resume_command(monkeypatch):
         slack_user_id="U1",
         team_id=None,
         workspace_id=TEST_WORKSPACE_ID,
+        slack_bot_id=SLACK_BOT_ID,
+        tool_discovery_mode=TOOL_MODE,
         command={"resume": {"decisions": [{"type": "approve"}]}},
     )
 
@@ -158,7 +177,7 @@ async def test_is_agent_ready_delegates_to_describe_readiness(monkeypatch):
     agent_id = uuid4()
     seen: list = []
 
-    async def _readiness(self, aid, user_id):
+    async def _readiness(self, aid, user_id, **_kwargs):
         seen.append((aid, user_id))
         return {"ready": False, "disconnected_servers": ["s"], "status": "disconnected"}
 
@@ -169,7 +188,18 @@ async def test_is_agent_ready_delegates_to_describe_readiness(monkeypatch):
     )
     monkeypatch.setattr(handlers_mod.AgentService, "describe_readiness", _readiness)
     assert (
-        await handlers_mod._is_agent_ready(str(agent_id), "u1", TEST_WORKSPACE_ID, None)
+        await handlers_mod._is_agent_ready(
+            SimpleNamespace(
+                agent_id=agent_id,
+                disabled_mcp_server_ids=[],
+                disabled_sandbox_ids=[],
+                disabled_subagent_ids=[],
+                tool_mode=None,
+            ),
+            "u1",
+            TEST_WORKSPACE_ID,
+            None,
+        )
         is False
     )
     # str agent_id converted to UUID; probed for the given user.
@@ -177,7 +207,7 @@ async def test_is_agent_ready_delegates_to_describe_readiness(monkeypatch):
 
 
 async def test_is_agent_ready_fails_open_on_infra_errors(monkeypatch):
-    async def _boom(self, aid, user_id):
+    async def _boom(self, aid, user_id, **_kwargs):
         raise ConnectionError("redis down")
 
     monkeypatch.setattr(handlers_mod.AgentService, "describe_readiness", _boom)
@@ -189,7 +219,18 @@ async def test_is_agent_ready_fails_open_on_infra_errors(monkeypatch):
     from uuid import uuid4
 
     assert (
-        await handlers_mod._is_agent_ready(str(uuid4()), "u1", TEST_WORKSPACE_ID, None)
+        await handlers_mod._is_agent_ready(
+            SimpleNamespace(
+                agent_id=uuid4(),
+                disabled_mcp_server_ids=[],
+                disabled_sandbox_ids=[],
+                disabled_subagent_ids=[],
+                tool_mode=None,
+            ),
+            "u1",
+            TEST_WORKSPACE_ID,
+            None,
+        )
         is True
     )
 
@@ -210,10 +251,10 @@ def _resume_fixture(monkeypatch, *, ready: bool):
     prompts: list = []
     enqueued: list = []
 
-    async def _user(_slack_user_id, _workspace_id):
+    async def _user(_slack_user_id, _workspace_id, _slack_bot_id):
         return SimpleNamespace(id="u1")
 
-    async def _ready(*_):
+    async def _ready(*_, **__):
         return ready
 
     async def _prompt(client, channel, thread_ts, agent_id):
@@ -247,6 +288,9 @@ async def test_resume_agent_prompts_reconnect_when_mcp_unauthorized(monkeypatch)
         "C1",
         "111.1",
         {"resume": {"decisions": [{"type": "approve"}]}},
+        internal_thread_id="t1",
+        slack_bot_id=SLACK_BOT_ID,
+        tool_discovery_mode=TOOL_MODE,
     )
 
     assert prompts == ["a1"]
@@ -264,7 +308,15 @@ async def test_resume_agent_enqueues_resume_when_ready(monkeypatch):
         }
     }
     await handlers_mod._resume_agent(
-        client, payload, TEST_WORKSPACE_ID, "C1", "111.1", command
+        client,
+        payload,
+        TEST_WORKSPACE_ID,
+        "C1",
+        "111.1",
+        command,
+        internal_thread_id="t1",
+        slack_bot_id=SLACK_BOT_ID,
+        tool_discovery_mode=TOOL_MODE,
     )
 
     assert prompts == []
@@ -285,6 +337,8 @@ async def test_enqueue_swallows_active_run_conflict(monkeypatch):
         slack_user_id="U1",
         team_id=None,
         workspace_id=TEST_WORKSPACE_ID,
+        slack_bot_id=SLACK_BOT_ID,
+        tool_discovery_mode=TOOL_MODE,
         input={"messages": []},
     )
 
@@ -493,7 +547,11 @@ async def test_legacy_click_on_identifiable_interrupt_points_to_the_web_ui(
 
     legacy_blocks = build_tool_approval_blocks("call_1", {})  # no interrupt_id
     await handlers_mod.handle_interaction(
-        _interaction_payload(legacy_blocks), TEST_WORKSPACE_ID
+        _interaction_payload(legacy_blocks),
+        TEST_WORKSPACE_ID,
+        slack_bot_id=SLACK_BOT_ID,
+        agent_id=AGENT_ID,
+        tool_discovery_mode=TOOL_MODE,
     )
 
     assert resumed == []
@@ -583,6 +641,9 @@ async def test_stale_click_marks_the_card_and_never_resumes(monkeypatch):
     await handlers_mod.handle_interaction(
         _interaction_payload(_card("call_1")["blocks"]),
         TEST_WORKSPACE_ID,
+        slack_bot_id=SLACK_BOT_ID,
+        agent_id=AGENT_ID,
+        tool_discovery_mode=TOOL_MODE,
     )
 
     assert updates == ["stale"]
@@ -616,6 +677,9 @@ async def test_click_on_an_older_batch_card_is_stale(monkeypatch):
     await handlers_mod.handle_interaction(
         _interaction_payload(_card("call_1")["blocks"]),
         TEST_WORKSPACE_ID,
+        slack_bot_id=SLACK_BOT_ID,
+        agent_id=AGENT_ID,
+        tool_discovery_mode=TOOL_MODE,
     )
 
     assert updates == ["stale"]
@@ -648,6 +712,9 @@ async def test_resume_agent_reports_a_lost_race_as_already_handled(monkeypatch):
         "C1",
         "111.1",
         {"resume": {"interrupt_id": IID, "decisions": []}},
+        internal_thread_id="t1",
+        slack_bot_id=SLACK_BOT_ID,
+        tool_discovery_mode=TOOL_MODE,
     )
 
     assert len(posts) == 1

@@ -634,10 +634,11 @@ class ThreadService(BaseService[ThreadDB, ThreadRepository]):
         agent_id: str,
         question: str | None,
         user_id: str,
+        source: ThreadSource = ThreadSource.slack,
     ) -> ThreadDB:
-        """Return the existing thread or create a new Slack-sourced thread.
+        """Return the existing thread or create a side-channel thread.
 
-        Caller (Slack handler) owns the session lifecycle and the final commit.
+        The side-channel caller owns the session lifecycle and final commit.
         """
         thread = await self.repository.get(ts)
         if thread is None:
@@ -646,8 +647,8 @@ class ThreadService(BaseService[ThreadDB, ThreadRepository]):
             )
             if agent is None:
                 raise NotFoundError("Agent not found")
-            # Slack has no model picker — new threads start on the workspace
-            # default unless the agent defines an available override.
+            # Side channels have no model picker, so new threads use the
+            # workspace default unless the agent defines an available override.
             model_id, reasoning_effort = await self._resolve_agent_defaults(
                 agent.default_model_id,
                 agent.default_reasoning_effort,
@@ -660,7 +661,7 @@ class ThreadService(BaseService[ThreadDB, ThreadRepository]):
                 reasoning_effort=reasoning_effort,
                 first_message_content=question,
                 user_id=user_id,
-                source=ThreadSource.slack,
+                source=source,
             )
             self.db.add(thread)
             await self.db.flush()

@@ -1,7 +1,6 @@
 # Pydantic models for Slack webhook payloads.
 #
-# Slack sends different event shapes depending on the type. The two
-# we care about for now:
+# Slack sends different event shapes depending on the type:
 #
 #   - url_verification: Slack sends this once when you first register
 #     your Request URL. We must respond with the challenge value.
@@ -12,19 +11,6 @@
 # As more event types are handled, add their inner-event models here.
 
 from pydantic import BaseModel, Field
-
-
-class SlackAssistantThread(BaseModel):
-    """Nested object present in both assistant_thread_started and message events.
-
-    In assistant_thread_started the full context is provided (user_id, channel_id,
-    thread_ts).  In regular message events only action_token is present, so all
-    fields are optional.
-    """
-
-    user_id: str | None = None
-    channel_id: str | None = None
-    thread_ts: str | None = None
 
 
 class SlackFile(BaseModel):
@@ -49,7 +35,6 @@ class SlackEvent(BaseModel):
     subtype: str | None = None
     thread_ts: str | None = None
     channel_type: str | None = None
-    assistant_thread: SlackAssistantThread | None = None
     files: list[SlackFile] = Field(default_factory=list)
 
 
@@ -65,18 +50,11 @@ class SlackEventPayload(BaseModel):
     event: SlackEvent | None = None
 
 
-class SlackSelectedOption(BaseModel):
-    """The option chosen from a static_select / overflow / radio interaction."""
-
-    value: str
-
-
 class SlackAction(BaseModel):
     """A single action from a block_actions interaction payload."""
 
     action_id: str
     value: str | None = None
-    selected_option: SlackSelectedOption | None = None
 
 
 class SlackInteractionChannel(BaseModel):

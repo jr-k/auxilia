@@ -77,6 +77,33 @@ export interface AgentSlackBotSettingsUpdate {
 	signingSecret?: string;
 }
 
+export type TelegramToolDiscoveryMode = ToolDiscoveryMode | "all_capabilities";
+
+export interface AgentTelegramBotSettings {
+	id: string | null;
+	agentId: string;
+	workspaceEnabled: boolean;
+	enabled: boolean;
+	requireMentionInGroups: boolean;
+	showToolCallouts: boolean;
+	toolDiscoveryMode: TelegramToolDiscoveryMode;
+	isConfigured: boolean;
+	botTokenLast4: string | null;
+	botId: string | null;
+	botUsername: string | null;
+	botName: string | null;
+	webhookUrl: string;
+	deepLinkUrl: string | null;
+}
+
+export interface AgentTelegramBotSettingsUpdate {
+	enabled: boolean;
+	requireMentionInGroups: boolean;
+	showToolCallouts: boolean;
+	toolDiscoveryMode: TelegramToolDiscoveryMode;
+	botToken?: string;
+}
+
 export interface SubagentInfo {
 	id: string;
 	name: string;

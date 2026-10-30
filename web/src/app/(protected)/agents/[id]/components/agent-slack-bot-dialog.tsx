@@ -78,11 +78,16 @@ const scopes = [
 	"assistant:write",
 	"channels:history",
 	"chat:write",
+	"chat:write.public",
 	"commands",
 	"files:read",
 	"files:write",
+	"groups:history",
 	"im:history",
 	"im:write",
+	"mpim:history",
+	"reactions:read",
+	"reactions:write",
 	"users:read",
 	"users:read.email",
 ];
@@ -318,6 +323,12 @@ function AgentSlackSetupGuide({
 							</code>
 						))}
 					</div>
+					<p className="mt-3">
+						The public write scope lets the agent publish in public channels.
+						Private channels still require an invitation. The reactions scopes
+						let it understand existing reactions, acknowledge mentions, and
+						add requested emoji reactions.
+					</p>
 				</div>
 			),
 		},
@@ -350,7 +361,9 @@ function AgentSlackSetupGuide({
 						click <strong>Add Bot User Event</strong> and add{" "}
 						<code className={badgeClass}>app_mention</code>,{" "}
 						<code className={badgeClass}>message.channels</code>, and{" "}
-						<code className={badgeClass}>message.im</code>. Do not use{" "}
+						<code className={badgeClass}>message.groups</code>,{" "}
+						<code className={badgeClass}>message.im</code>, and{" "}
+						<code className={badgeClass}>message.mpim</code>. Do not use{" "}
 						<strong>Subscribe to events on behalf of users</strong>.
 					</p>
 					<div className="mt-3">

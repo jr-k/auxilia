@@ -1094,7 +1094,7 @@ def register_management_tools(mcp: MCPServer) -> None:
 
     @mcp.tool()
     async def get_slack_notification_settings(ctx: Context) -> dict[str, Any]:
-        """Read the workspace's Slack notification configuration."""
+        """Read whether agent-specific Slack bots are enabled in the workspace."""
         async with tool_session(ctx, minimum_role=WorkspaceRole.admin) as (
             db,
             _user,
@@ -1108,7 +1108,7 @@ def register_management_tools(mcp: MCPServer) -> None:
     async def set_slack_notification_settings(
         data: SlackNotificationSettingsUpdate, ctx: Context
     ) -> dict[str, Any]:
-        """Configure workspace Slack notifications with write-only credentials."""
+        """Enable or disable all agent-specific Slack bots in the workspace."""
         async with tool_session(ctx, minimum_role=WorkspaceRole.admin) as (
             db,
             _user,
@@ -1116,18 +1116,6 @@ def register_management_tools(mcp: MCPServer) -> None:
         ):
             return to_json(
                 await SlackNotificationSettingsService(db).update(workspace_id, data)
-            )
-
-    @mcp.tool()
-    async def clear_slack_notification_settings(ctx: Context) -> dict[str, Any]:
-        """Remove the workspace's Slack notification configuration."""
-        async with tool_session(ctx, minimum_role=WorkspaceRole.admin) as (
-            db,
-            _user,
-            workspace_id,
-        ):
-            return to_json(
-                await SlackNotificationSettingsService(db).clear(workspace_id)
             )
 
     @mcp.tool()

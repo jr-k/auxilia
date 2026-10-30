@@ -39,14 +39,3 @@ async def update_slack_settings(
     ),
 ) -> SlackNotificationSettingsResponse:
     return await service.update(workspace_id, data)
-
-
-@router.delete("/slack", response_model=SlackNotificationSettingsResponse)
-async def delete_slack_settings(
-    _: UserDB = Depends(require_admin),
-    workspace_id: UUID = Depends(get_active_workspace_id),
-    service: SlackNotificationSettingsService = Depends(
-        get_slack_notification_settings_service
-    ),
-) -> SlackNotificationSettingsResponse:
-    return await service.clear(workspace_id)

@@ -6,9 +6,9 @@ Slack) has no client connection to ride, so its updates are delivered by a
 worker-side consumer that subscribes to the run's event log and relays each
 event to the channel.
 
-This module stays channel-agnostic: it defines the consumer shape and the factory
-type only. The composition root (`main.py`) injects a concrete factory (the Slack
-one), so `app/runtime/runs` never imports `app/integrations`.
+This module stays channel-agnostic: it defines the consumer shape, factory type,
+and composition helper. The composition root (`main.py`) injects concrete
+factories, so `app/runtime/runs` never imports `app/integrations`.
 """
 
 from collections.abc import Callable, Sequence
@@ -30,6 +30,23 @@ class DeliveryConsumer(Protocol):
 # Built once per run from its record; returns `None` when the record has no push
 # delivery (the common case — a pull subscriber handles it instead).
 DeliveryFactory = Callable[[RunDB], DeliveryConsumer | None]
+
+
+def compose_delivery_factories(
+    *factories: DeliveryFactory,
+) -> DeliveryFactory:
+    """Route each push-bound run to exactly one channel consumer."""
+
+    def build(record: RunDB) -> DeliveryConsumer | None:
+        matches = [consumer for factory in factories if (consumer := factory(record))]
+        if len(matches) > 1:
+            raise RuntimeError(
+                f"Multiple delivery consumers matched run {record.id}: "
+                f"{len(matches)} factories"
+            )
+        return matches[0] if matches else None
+
+    return build
 
 
 class RuntimeToolBundle(Protocol):

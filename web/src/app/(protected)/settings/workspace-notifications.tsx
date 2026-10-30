@@ -6,6 +6,7 @@ import { Switch } from "@/components/ui/switch";
 import { getApiErrorMessage, isApiError } from "@/lib/api/errors";
 import * as notificationsApi from "@/lib/api/resources/notifications";
 import type { SlackNotificationSettings } from "@/types/notifications";
+import WorkspaceTelegram from "./workspace-telegram";
 
 interface Props {
 	onForbidden: () => void;
@@ -97,13 +98,15 @@ export default function WorkspaceMessaging({ onForbidden }: Props) {
 				<span className="text-[10.5px] text-meta dark:text-panel-dim">admin</span>
 			</div>
 			<p className="mb-3.5 max-w-[620px] text-[13px] leading-[1.55] text-subtle dark:text-panel-body">
-				Enable or disable Slack bots for this workspace. Bot credentials and
-				setup are managed directly from each agent.
+				Enable or disable messaging side channels for this workspace. Configure
+				each bot directly from the agent it belongs to.
 			</p>
 
 			<div className="overflow-hidden rounded-[10px] border border-border bg-card dark:border-white/10">
 				<div className="flex items-center gap-3 px-4 py-4">
-					<SlackLogo />
+					<div className="flex size-9 shrink-0 items-center justify-center">
+						<SlackLogo />
+					</div>
 					<div className="min-w-0 flex-1">
 						<p className="text-[13px] font-semibold text-foreground">
 							Slack integration
@@ -124,6 +127,7 @@ export default function WorkspaceMessaging({ onForbidden }: Props) {
 						className="cursor-pointer data-[state=checked]:bg-petrol"
 					/>
 				</div>
+				<WorkspaceTelegram onForbidden={onForbidden} />
 				{status && (
 					<div className="border-t border-hairline px-4 py-3 text-[12px] text-subtle">
 						{status}

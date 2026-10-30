@@ -29,6 +29,7 @@ import {
 } from "lucide-react";
 import { FileIcon } from "@/components/artifacts/file-type-icon";
 import { SlackLogo } from "@/components/slack-logo";
+import { TelegramLogo } from "@/components/telegram-logo";
 import {
   Message,
   MessageAction,
@@ -985,11 +986,17 @@ const SideChannelContextDetails = ({
       <CollapsibleTrigger className="ml-auto flex cursor-pointer items-center gap-2 rounded-lg border border-border/70 bg-card px-2.5 py-1.5 text-left text-[11.5px] text-meta shadow-[0_1px_2px_rgba(0,0,0,0.03)] transition-colors hover:border-border-hover hover:text-foreground dark:bg-panel">
         {source === "slack" ? (
           <SlackLogo className="size-4 rounded-[4px] border-0 shadow-none" />
+        ) : source === "telegram" ? (
+          <TelegramLogo className="size-4" />
         ) : (
           <MessagesSquareIcon className="size-3.5 text-petrol dark:text-panel-terminal" />
         )}
         <span className="font-semibold text-body dark:text-panel-body">
-          {source === "slack" ? "Slack" : (source ?? "Side channel")}
+          {source === "slack"
+            ? "Slack"
+            : source === "telegram"
+              ? "Telegram"
+              : (source ?? "Side channel")}
         </span>
         <span className="font-mono text-[10px]">context</span>
         <span className="font-mono text-[10.5px]">

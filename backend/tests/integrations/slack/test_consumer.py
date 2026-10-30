@@ -16,11 +16,15 @@ from app.integrations.slack.consumer import (
     build_slack_delivery,
     build_slack_run_consumer,
 )
+from app.integrations.slack.db_models import SlackToolDiscoveryMode
 from app.runtime.protocol import events as ev
 from app.runtime.protocol.wire import encode_event, encode_terminal
 from app.runtime.runs.models import RunDB
 from app.runtime.runs.state import RunStatus
 from tests.conftest import TEST_WORKSPACE_ID
+
+
+SLACK_BOT_ID = uuid4()
 
 
 def _record(delivery=None) -> RunDB:
@@ -40,6 +44,8 @@ def _slack_delivery() -> dict:
         slack_user_id="U1",
         team_id="T1",
         workspace_id=TEST_WORKSPACE_ID,
+        slack_bot_id=SLACK_BOT_ID,
+        tool_discovery_mode=SlackToolDiscoveryMode.all_capabilities,
     )
 
 
@@ -62,13 +68,20 @@ class _FakeClient:
     def __init__(self):
         self.streamer = _FakeStreamer()
         self.posts: list[dict] = []
+        self.deleted: list[dict] = []
 
     async def chat_stream(self, **kwargs):
         self.streamer.kwargs = kwargs
         return self.streamer
 
     async def chat_postMessage(self, **kwargs):
+        if kwargs.get("text") == ":hourglass_flowing_sand: Working on it…":
+            return {"ts": "marker"}
         self.posts.append(kwargs)
+        return {}
+
+    async def chat_delete(self, **kwargs):
+        self.deleted.append(kwargs)
 
 
 def _log(*events, status: RunStatus | None = RunStatus.success, error=None):

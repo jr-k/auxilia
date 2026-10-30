@@ -2,6 +2,7 @@ import { api } from "@/lib/api/client";
 import type {
 	SlackNotificationSettings,
 	SlackNotificationSettingsUpdate,
+	TelegramWorkspaceSettings,
 } from "@/types/notifications";
 
 export async function getSlackSettings(): Promise<SlackNotificationSettings> {
@@ -20,8 +21,18 @@ export async function updateSlackSettings(
 	return response.data;
 }
 
-export async function deleteSlackSettings(): Promise<SlackNotificationSettings> {
+export async function getTelegramSettings(): Promise<TelegramWorkspaceSettings> {
 	const response =
-		await api.delete<SlackNotificationSettings>("/notifications/slack");
+		await api.get<TelegramWorkspaceSettings>("/notifications/telegram");
+	return response.data;
+}
+
+export async function updateTelegramSettings(
+	enabled: boolean,
+): Promise<TelegramWorkspaceSettings> {
+	const response = await api.put<TelegramWorkspaceSettings>(
+		"/notifications/telegram",
+		{ enabled },
+	);
 	return response.data;
 }

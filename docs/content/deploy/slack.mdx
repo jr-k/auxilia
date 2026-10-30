@@ -1,54 +1,29 @@
-# Slack Integration — Setup
+# Slack integration setup
 
-This page covers the one-time **workspace setup** — creating the Slack app and wiring it through Settings. For the day-to-day end-user flow (mentioning the bot, replying in threads, approving tool calls), see the tutorial: **[Trigger agents from Slack](/tutorials/slack)**.
+Each agent uses its own Slack app. This gives the agent a dedicated name, identity, conversations, and credentials in every Slack workspace where it is installed.
 
 ## How a Slack user is matched to an **auxilia** user
 
-When a Slack message comes in, **auxilia** looks up the Slack user's email via `users.info` and matches it against the workspace's user table. If there's no match, the bot replies with a message telling the user to sign in to **auxilia** first (which creates the account).
+When a Slack message comes in, **auxilia** looks up the Slack user's email via `users.info` and matches it against the workspace's user table. If there's no match, the bot replies with a message telling the user to sign in to **auxilia** first.
 
-Slack users therefore need an **auxilia** account with the **same email address** as their Slack profile.
+Slack users therefore need an **auxilia** account with the same email address as their Slack profile.
 
-## Configure the integration
+## Install an agent in Slack
 
-Open **Settings → Notifications** as a workspace admin. Enter the Bot User
-OAuth Token and Signing Secret, then enable Slack. Both secrets are encrypted
-before they are stored. The page also shows the exact Events and Interactions
-request URLs for your deployment.
+Open the agent in **auxilia**, find its Slack integration, and select **Connect Slack workspace**. The setup guide provides a Slack app manifest and the callback URLs for that agent.
 
-## Create the Slack app
+Create the app from the supplied manifest, install it in the target Slack workspace, then copy its Bot User OAuth Token and Signing Secret back into the agent's Slack connection. Both secrets are encrypted before they are stored.
 
-1. Go to [api.slack.com/apps](https://api.slack.com/apps) and click **Create New App → From scratch**
-2. Give it a name (e.g. `auxilia`) and pick your workspace
-3. Under **OAuth & Permissions**, add the **Bot Token Scopes**:
-   - `app_mentions:read`
-   - `assistant:write`
-   - `channels:history`, `groups:history`, `im:history`, `mpim:history`
-   - `chat:write`
-   - `users:read`
-   - `users:read.email`
-4. Install the app to your workspace and copy the **Bot User OAuth Token** (`xoxb-...`) into **Settings → Notifications**
-5. Copy the **Signing Secret** from **Basic Information** into the same form
+The generated manifest contains the required scopes, event subscriptions, interactivity configuration, and message shortcut. If the Slack app configuration changes later, use the setup guide again to copy the current manifest.
 
-## Event subscriptions
+## Workspace control
 
-Under **Event Subscriptions**, use the Events request URL shown under
-**Settings → Notifications**.
-
-Subscribe to bot events:
-
-- `app_mention`
-- `assistant_thread_started`
-- `message.channels`, `message.groups`, `message.im`, `message.mpim`
-
-Under **Interactivity & Shortcuts**, enable interactivity and use the
-Interactions request URL shown under **Settings → Notifications**.
-
-This is where **Approve / Reject** button clicks are delivered.
+Workspace admins can enable or disable all agent-specific Slack bots under **Settings → Messaging**. Credentials remain managed on each agent.
 
 ## Which model Slack threads use
 
-Slack has no model picker. New Slack threads start on the **workspace default model** — the one a workspace admin has starred under **Settings → Models** — or, if no default is set, the first available model. See [Workspace default model](/agents#workspace-default-model).
+Slack has no model picker. New Slack threads start on the workspace default model, or the first available model when no default is configured. See [Workspace default model](/agents#workspace-default-model).
 
 ## Next
 
-Your Slack app is now connected. For the end-user experience — how teammates mention the bot, pick an agent, send messages, and approve tool calls — see **[Trigger agents from Slack](/tutorials/slack)**.
+Your agent is now connected. For the end-user experience, see **[Trigger agents from Slack](/tutorials/slack)**.

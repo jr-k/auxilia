@@ -16,6 +16,7 @@ from app.runtime.runs.state import RunStatus
 class ThreadSource(str, Enum):
     web = "web"
     slack = "slack"
+    telegram = "telegram"
     api = "api"
     trigger = "trigger"
 
@@ -47,6 +48,7 @@ class ThreadToolMode(str, Enum):
 FIRST_PARTY_SOURCES: tuple[ThreadSource, ...] = (
     ThreadSource.web,
     ThreadSource.slack,
+    ThreadSource.telegram,
     ThreadSource.trigger,
 )
 

@@ -9,20 +9,16 @@ from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
 from redis.exceptions import RedisError
 
-from app.integrations.slack.commands.chat import handle_agent_selection
 from app.integrations.slack.handlers import (
     handle_agent_message,
     handle_agent_message_shortcut,
     handle_agent_message_shortcut_submission,
-    handle_assistant_thread_started,
     handle_interaction,
-    handle_message,
 )
 from app.integrations.slack.models import SlackEventPayload, SlackInteractionPayload
 from app.integrations.slack.utils import (
     VerifiedSlackRequest,
     verify_agent_slack_signature,
-    verify_slack_signature,
 )
 from app.redis_client import get_redis
 
@@ -81,46 +77,6 @@ async def _claim_delivery(key: str) -> bool:
         return True
 
 
-@router.post("/events")
-async def slack_events(
-    verified: VerifiedSlackRequest = Depends(verify_slack_signature),
-):
-    payload = SlackEventPayload.model_validate(json.loads(verified.body))
-
-    if payload.type == "url_verification":
-        return JSONResponse(content={"challenge": payload.challenge})
-
-    event = payload.event
-    if event is None:
-        # `event` is absent on payloads we don't handle (and on malformed ones).
-        # Ack instead of raising: a 500 here makes Slack retry the same broken
-        # callback for its whole retry window.
-        logger.info("Slack callback %r carried no event; ignoring", payload.type)
-        return JSONResponse(content={"ok": True})
-
-    if event.type == "assistant_thread_started":
-        _spawn(handle_assistant_thread_started(event, verified.workspace_id))
-
-    elif event.type == "message" and event.user:
-        if event.bot_id or event.subtype == "bot_message":
-            return JSONResponse(content={})
-
-        if event.ts and not await _claim_delivery(
-            f"slack:event:{payload.team_id}:{event.channel}:{event.ts}"
-        ):
-            return JSONResponse(content={"ok": True})
-
-        _spawn(
-            handle_message(
-                event,
-                workspace_id=verified.workspace_id,
-                team_id=payload.team_id,
-            )
-        )
-
-    return JSONResponse(content={"ok": True})
-
-
 @router.post("/agents/{agent_id}/events")
 async def agent_slack_events(
     verified: VerifiedSlackRequest = Depends(verify_agent_slack_signature),
@@ -130,13 +86,7 @@ async def agent_slack_events(
         return JSONResponse(content={"challenge": payload.challenge})
 
     event = payload.event
-    if (
-        event is None
-        or verified.agent_id is None
-        or verified.slack_bot_id is None
-        or event.type not in ("app_mention", "message")
-        or not event.user
-    ):
+    if event is None or event.type not in ("app_mention", "message") or not event.user:
         return JSONResponse(content={"ok": True})
     if event.bot_id or event.subtype == "bot_message":
         return JSONResponse(content={"ok": True})
@@ -168,29 +118,6 @@ async def agent_slack_events(
     return JSONResponse(content={"ok": True})
 
 
-@router.post("/interactions")
-async def slack_interactions(
-    verified: VerifiedSlackRequest = Depends(verify_slack_signature),
-):
-    """Handle Slack interactive component callbacks (buttons, shortcuts, etc.)."""
-    form_data = parse_qs(verified.body.decode())
-
-    raw_payload = form_data.get("payload", [None])[0]
-    if not raw_payload:
-        return JSONResponse(content={"ok": True})
-
-    payload = SlackInteractionPayload.model_validate(json.loads(raw_payload))
-
-    if payload.type == "block_actions":
-        action = payload.actions[0] if payload.actions else None
-        if action and action.action_id == "select_agent":
-            _spawn(handle_agent_selection(payload, verified.workspace_id))
-        elif action and action.action_id in ("tool_approve", "tool_reject"):
-            _spawn(handle_interaction(payload, verified.workspace_id))
-
-    return JSONResponse(content={"ok": True})
-
-
 @router.post("/agents/{agent_id}/interactions")
 async def agent_slack_interactions(
     verified: VerifiedSlackRequest = Depends(verify_agent_slack_signature),
@@ -199,7 +126,7 @@ async def agent_slack_interactions(
         return JSONResponse(content={"ok": True})
     form_data = parse_qs(verified.body.decode())
     raw_payload = form_data.get("payload", [None])[0]
-    if not raw_payload or verified.agent_id is None or verified.slack_bot_id is None:
+    if not raw_payload:
         return JSONResponse(content={"ok": True})
     payload = SlackInteractionPayload.model_validate(json.loads(raw_payload))
     if payload.type == "block_actions":

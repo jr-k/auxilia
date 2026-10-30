@@ -13,7 +13,7 @@ half of the durable runtime — the web tier only enqueues the run (see
 
 import asyncio
 import logging
-from typing import Any, Final, Literal, NotRequired, TypedDict, cast
+from typing import Any, Final, Literal, TypedDict, cast
 from uuid import UUID
 
 from redis.asyncio import Redis
@@ -31,7 +31,6 @@ from app.integrations.slack.blocks import (
 )
 from app.integrations.slack.db_models import SlackToolDiscoveryMode
 from app.integrations.slack.service import AgentSlackBotService
-from app.integrations.slack.utils import get_slack_client
 from app.runtime.checkpoints import checkpoint_thread_id
 from app.runtime.hitl import load_interrupt_scope, pending_approval_requests
 from app.runtime.protocol.wire import decode_event
@@ -63,12 +62,12 @@ class SlackDelivery(TypedDict):
     slack_user_id: str
     team_id: str | None
     workspace_id: str
-    slack_bot_id: NotRequired[str | None]
+    slack_bot_id: str
     # Both derived from the connection's SlackToolDiscoveryMode at enqueue
     # time: the capability policy and the ToolDiscoveryMode value the worker
     # applies to every agent of the graph.
-    force_enable_all_capabilities: NotRequired[bool]
-    tool_discovery_mode: NotRequired[str]
+    force_enable_all_capabilities: bool
+    tool_discovery_mode: str
 
 
 def build_slack_run_consumer(record: RunDB) -> "SlackRunConsumer | None":
@@ -78,6 +77,9 @@ def build_slack_run_consumer(record: RunDB) -> "SlackRunConsumer | None":
         return None
     if delivery.get("workspace_id") != str(record.workspace_id):
         logger.error("Slack delivery workspace mismatch for run %s", record.id)
+        return None
+    if not isinstance(delivery.get("slack_bot_id"), str):
+        logger.warning("Slack delivery skipped for run %s: missing bot id", record.id)
         return None
     return SlackRunConsumer(record)
 
@@ -89,8 +91,8 @@ def build_slack_delivery(
     slack_user_id: str,
     team_id: str | None,
     workspace_id: UUID,
-    slack_bot_id: UUID | None = None,
-    tool_discovery_mode: SlackToolDiscoveryMode | None = None,
+    slack_bot_id: UUID,
+    tool_discovery_mode: SlackToolDiscoveryMode,
 ) -> SlackDelivery:
     """The delivery descriptor stored on a Slack-bound run."""
     delivery: SlackDelivery = {
@@ -100,14 +102,12 @@ def build_slack_delivery(
         "slack_user_id": slack_user_id,
         "team_id": team_id,
         "workspace_id": str(workspace_id),
-    }
-    if slack_bot_id is not None:
-        delivery["slack_bot_id"] = str(slack_bot_id)
-    if tool_discovery_mode is not None:
-        delivery["force_enable_all_capabilities"] = (
+        "slack_bot_id": str(slack_bot_id),
+        "force_enable_all_capabilities": (
             tool_discovery_mode.force_enable_all_capabilities
-        )
-        delivery["tool_discovery_mode"] = tool_discovery_mode.runtime_mode.value
+        ),
+        "tool_discovery_mode": tool_discovery_mode.runtime_mode.value,
+    }
     return delivery
 
 
@@ -236,29 +236,24 @@ class SlackRunConsumer(DeliveryConsumer):
             return self.client
         for attempt in range(3):
             try:
-                slack_bot_id = self.delivery.get("slack_bot_id")
-                if slack_bot_id:
-                    async with AsyncSessionLocal() as db:
-                        config = await AgentSlackBotService(db).get_runtime(
-                            UUID(slack_bot_id)
-                        )
-                        thread = await ThreadRepository(
-                            db, self.record.workspace_id
-                        ).get(self.record.thread_id)
-                    if config is None:
-                        return None
-                    if (
-                        config.workspace_id != self.record.workspace_id
-                        or thread is None
-                        or thread.agent_id != config.agent_id
-                    ):
-                        logger.error(
-                            "Slack agent bot mismatch for run %s", self.record.id
-                        )
-                        return None
-                    self.show_tool_callouts = config.show_tool_callouts
-                    return AsyncWebClient(token=config.bot_token)
-                return await get_slack_client(UUID(self.delivery["workspace_id"]))
+                async with AsyncSessionLocal() as db:
+                    config = await AgentSlackBotService(db).get_runtime(
+                        UUID(self.delivery["slack_bot_id"])
+                    )
+                    thread = await ThreadRepository(db, self.record.workspace_id).get(
+                        self.record.thread_id
+                    )
+                if config is None:
+                    return None
+                if (
+                    config.workspace_id != self.record.workspace_id
+                    or thread is None
+                    or thread.agent_id != config.agent_id
+                ):
+                    logger.error("Slack agent bot mismatch for run %s", self.record.id)
+                    return None
+                self.show_tool_callouts = config.show_tool_callouts
+                return AsyncWebClient(token=config.bot_token)
             except Exception:
                 if attempt == 2:
                     logger.exception(
@@ -355,8 +350,6 @@ class SlackRunConsumer(DeliveryConsumer):
 
     async def _post_working_marker(self, channel_id: str, thread_ts: str) -> str | None:
         """Post a temporary progress marker with a link to the conversation."""
-        if not self.delivery.get("slack_bot_id"):
-            return None
         try:
             blocks: list[dict[str, Any]] = [
                 {

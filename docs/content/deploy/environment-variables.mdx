@@ -75,8 +75,10 @@ encrypted in PostgreSQL. Details: [Observability (Langfuse)](/deploy/langfuse).
 
 ## Slack (optional)
 
-Slack is configured under **Settings → Notifications**. The bot token and
-signing secret are stored encrypted in PostgreSQL. Details: [Slack Integration](/deploy/slack).
+Slack credentials are configured on each agent. Bot tokens and signing secrets
+are stored encrypted in PostgreSQL. Workspace admins can enable or disable all
+agent-specific Slack bots under **Settings → Messaging**. Details:
+[Slack integration](/deploy/slack).
 
 ## Tuning & debugging
 

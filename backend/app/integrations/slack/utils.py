@@ -14,11 +14,6 @@ from slack_sdk.web.async_client import AsyncWebClient
 from app.database import AsyncSessionLocal
 from app.integrations.slack.db_models import SlackToolDiscoveryMode
 from app.integrations.slack.models import SlackUserInfo
-from app.notifications.runtime import (
-    SlackRuntimeConfig,
-    get_cached_slack_runtime_configs,
-)
-from app.notifications.service import SlackNotificationSettingsService
 from app.users.models import UserDB
 from app.users.repository import UserRepository
 from app.workspaces.repository import WorkspaceRepository
@@ -29,28 +24,16 @@ logger = logging.getLogger(__name__)
 _MAX_AGE_SECONDS = 60 * 5
 
 
-async def _workspace_runtime_configs() -> tuple[SlackRuntimeConfig, ...]:
-    async def load() -> tuple[SlackRuntimeConfig, ...]:
-        async with AsyncSessionLocal() as db:
-            return tuple(
-                await SlackNotificationSettingsService(db).list_runtime_configs()
-            )
-
-    return await get_cached_slack_runtime_configs(load)
-
-
 @dataclass(frozen=True)
 class VerifiedSlackRequest:
     body: bytes
     workspace_id: UUID
     team_id: str
-    slack_bot_id: UUID | None = None
-    agent_id: UUID | None = None
-    integration_enabled: bool = True
-    require_mention_in_threads: bool = True
-    tool_discovery_mode: SlackToolDiscoveryMode = (
-        SlackToolDiscoveryMode.all_capabilities
-    )
+    slack_bot_id: UUID
+    agent_id: UUID
+    integration_enabled: bool
+    require_mention_in_threads: bool
+    tool_discovery_mode: SlackToolDiscoveryMode
 
 
 def _team_id(body: bytes) -> str | None:
@@ -81,55 +64,6 @@ def _signature_matches(
         ).hexdigest()
     )
     return hmac.compare_digest(expected, signature)
-
-
-async def verify_slack_signature(
-    request: Request,
-    x_slack_request_timestamp: str = Header(...),
-    x_slack_signature: str = Header(...),
-) -> VerifiedSlackRequest:
-    """FastAPI dependency that verifies the Slack request signature.
-
-    Returns the raw request body so downstream handlers don't need to
-    read it a second time.
-    """
-    timestamp = int(x_slack_request_timestamp)
-    age = abs(time.time() - timestamp)
-    if age > _MAX_AGE_SECONDS:
-        raise HTTPException(status_code=403, detail="Request too old")
-
-    body = await request.body()
-    team_id = _team_id(body)
-    configs = await _workspace_runtime_configs()
-    candidates = [
-        config
-        for config in configs
-        if team_id is None or config.slack_team_id == team_id
-    ]
-    if not candidates:
-        raise HTTPException(status_code=503, detail="Slack is not configured")
-
-    config = next(
-        (
-            candidate
-            for candidate in candidates
-            if _signature_matches(
-                candidate.signing_secret,
-                x_slack_request_timestamp,
-                body,
-                x_slack_signature,
-            )
-        ),
-        None,
-    )
-    if config is None:
-        raise HTTPException(status_code=403, detail="Invalid signature")
-
-    return VerifiedSlackRequest(
-        body=body,
-        workspace_id=config.workspace_id,
-        team_id=team_id or config.slack_team_id,
-    )
 
 
 async def verify_agent_slack_signature(
@@ -185,25 +119,19 @@ async def verify_agent_slack_signature(
 
 
 async def get_slack_client(
-    workspace_id: UUID, slack_bot_id: UUID | None = None
+    workspace_id: UUID, slack_bot_id: UUID
 ) -> AsyncWebClient | None:
-    if slack_bot_id is not None:
-        from app.integrations.slack.service import AgentSlackBotService
+    from app.integrations.slack.service import AgentSlackBotService
 
-        async with AsyncSessionLocal() as db:
-            agent_config = await AgentSlackBotService(db).get_runtime(slack_bot_id)
-        return AsyncWebClient(token=agent_config.bot_token) if agent_config else None
     async with AsyncSessionLocal() as db:
-        workspace_config = await SlackNotificationSettingsService(
-            db
-        ).get_runtime_config(workspace_id)
-    return (
-        AsyncWebClient(token=workspace_config.bot_token) if workspace_config else None
-    )
+        config = await AgentSlackBotService(db).get_runtime(slack_bot_id)
+    if config is None or config.workspace_id != workspace_id:
+        return None
+    return AsyncWebClient(token=config.bot_token)
 
 
 async def get_user_info(
-    user_id: str, workspace_id: UUID, slack_bot_id: UUID | None = None
+    user_id: str, workspace_id: UUID, slack_bot_id: UUID
 ) -> SlackUserInfo | None:
     """Get user information from Slack API."""
     url = "https://slack.com/api/users.info"
@@ -238,7 +166,7 @@ async def get_user_info(
 async def resolve_user(
     slack_user_id: str,
     workspace_id: UUID,
-    slack_bot_id: UUID | None = None,
+    slack_bot_id: UUID,
 ) -> UserDB | None:
     """Map a Slack user ID to an internal user via email lookup."""
     user_info = await get_user_info(slack_user_id, workspace_id, slack_bot_id)
