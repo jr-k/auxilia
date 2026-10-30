@@ -933,25 +933,6 @@ export default function MCPServerDetail({
 					) : (
 						<div className="mt-3.5 flex flex-col gap-[18px]">
 							<div className="flex flex-col gap-[7px]">
-								<label htmlFor="mcp-edit-name" className={LABEL_CLASS}>
-									Name
-								</label>
-								<input
-									id="mcp-edit-name"
-									value={form.name}
-									onChange={(e) => {
-										handleFormChange("name", e.target.value);
-									}}
-									aria-invalid={!!fieldErrors.name}
-									className={INPUT_CLASS}
-								/>
-								{fieldErrors.name && (
-									<span className="text-[12.5px] text-destructive">
-										{fieldErrors.name}
-									</span>
-								)}
-							</div>
-							<div className="flex flex-col gap-[7px]">
 								<label htmlFor="mcp-edit-url" className={LABEL_CLASS}>
 									Remote server address{" "}
 									<span className="text-destructive">*</span>
@@ -968,6 +949,25 @@ export default function MCPServerDetail({
 								{fieldErrors.url && (
 									<span className="text-[12.5px] text-destructive">
 										{fieldErrors.url}
+									</span>
+								)}
+							</div>
+							<div className="flex flex-col gap-[7px]">
+								<label htmlFor="mcp-edit-name" className={LABEL_CLASS}>
+									Name
+								</label>
+								<input
+									id="mcp-edit-name"
+									value={form.name}
+									onChange={(e) => {
+										handleFormChange("name", e.target.value);
+									}}
+									aria-invalid={!!fieldErrors.name}
+									className={INPUT_CLASS}
+								/>
+								{fieldErrors.name && (
+									<span className="text-[12.5px] text-destructive">
+										{fieldErrors.name}
 									</span>
 								)}
 							</div>
