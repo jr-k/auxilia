@@ -326,9 +326,11 @@ async def test_model_failure_ends_the_turn_visibly_and_still_persists_the_sandbo
     run on that path too."""
     agent, model = build_agent(script=[])  # exhausted script -> every call raises
 
-    with patch.object(Agent, "_persist_sandbox") as persist:
-        with pytest.raises(AssertionError, match="exhausted"):
-            await collect(agent, "boom")
+    with (
+        patch.object(Agent, "_persist_sandbox") as persist,
+        pytest.raises(AssertionError, match="exhausted"),
+    ):
+        await collect(agent, "boom")
 
     persist.assert_called_once()
     assert len(model.calls) > 1, "the failure was not retried"
@@ -359,9 +361,11 @@ async def test_stale_structured_response_is_cleared_before_a_new_run(in_memory_r
     # The graph keeps its one-turn script: the formatting step's model call
     # exhausts it and the turn ends as a run error — i.e. it never formats.
     agent2, _ = build_agent(script=["fresh"])
-    with patch.object(Agent, "_build_agent", return_value=graph):
-        with pytest.raises(AssertionError, match="exhausted"):
-            await collect(agent2, "again", output_schema=schema)
+    with (
+        patch.object(Agent, "_build_agent", return_value=graph),
+        pytest.raises(AssertionError, match="exhausted"),
+    ):
+        await collect(agent2, "again", output_schema=schema)
 
     state = await graph.aget_state(config)
     assert state.values.get("structured_response") is None
