@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.81](https://github.com/jr-k/auxilia/compare/web-v0.12.80...web-v0.12.81) (2026-10-30)
+
+
+### Bug Fixes
+
+* **onboarding:** show loading states during navigation ([24742de](https://github.com/jr-k/auxilia/commit/24742de2651aec3bb800b0484ce88405a71f32f1))
+
 ## [0.12.80](https://github.com/jr-k/auxilia/compare/web-v0.12.79...web-v0.12.80) (2026-10-30)
 
 
