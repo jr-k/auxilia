@@ -202,7 +202,7 @@ function AuthorizationContent() {
 							onClick={() => {
 								void finish("deny");
 							}}
-							className="flex h-10 flex-1 cursor-pointer items-center justify-center gap-2 rounded-md border border-input bg-canvas px-4 text-[13.5px] font-semibold text-foreground transition-colors hover:border-border-hover disabled:cursor-not-allowed disabled:opacity-50"
+							className="flex h-10 flex-1 cursor-pointer items-center justify-center gap-2 rounded-md bg-destructive px-4 text-[13.5px] font-semibold text-white transition-colors hover:bg-destructive/90 disabled:cursor-not-allowed disabled:opacity-50"
 						>
 							{action === "deny" ? (
 								<Loader2 className="size-4 animate-spin" />
