@@ -71,6 +71,29 @@ class MCPServerPatch(SQLModel):
     def normalize_group(cls, value: str | None) -> str | None:
         return _normalize_group(value)
 
+    @property
+    def clears_oauth_credentials(self) -> bool:
+        """Both OAuth fields explicitly blank mean "return to DCR".
+
+        Missing fields still mean "leave unchanged", which preserves the
+        write-only secret behavior for ordinary edits.
+        """
+        fields = self.model_fields_set
+        return (
+            "oauth_client_id" in fields
+            and "oauth_client_secret" in fields
+            and not self.oauth_client_id
+            and not self.oauth_client_secret
+        )
+
+    @property
+    def changes_oauth_credentials(self) -> bool:
+        return self.clears_oauth_credentials or bool(
+            self.oauth_client_id
+            or self.oauth_client_secret
+            or self.oauth_token_endpoint_auth_method
+        )
+
 
 class MCPServerResponse(SQLModel):
     id: UUID

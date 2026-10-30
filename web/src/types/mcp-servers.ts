@@ -63,10 +63,11 @@ export interface MCPServerUpdate {
 	group?: string | null;
 	visibility?: ResourceVisibility;
 	teamIds?: string[];
-	// Credentials — send only when changing them; blank keeps the stored value.
+	// Credentials: undefined keeps the stored value; explicit null for both
+	// OAuth fields removes static credentials and returns the server to DCR.
 	apiKey?: string;
-	oauthClientId?: string;
-	oauthClientSecret?: string;
+	oauthClientId?: string | null;
+	oauthClientSecret?: string | null;
 	serviceCredentialProvider?: ServiceCredentialProvider;
 	serviceCredentialsJson?: string;
 	serviceCredentialScopes?: string[];

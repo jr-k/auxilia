@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Eye, EyeOff, Plus, Trash2 } from "lucide-react";
+import { Eye, EyeOff, Plus, RotateCcw, Trash2 } from "lucide-react";
 import ForbiddenErrorDialog from "@/components/forbidden-error-dialog";
 import ResourceInUseDialog from "@/components/resource-in-use-dialog";
 import { useConfirmDialog } from "@/components/providers/dialog-provider";
@@ -204,6 +204,7 @@ export default function MCPServerDetail({
 	const [hasStoredSecret, setHasStoredSecret] = useState(
 		!!initialServer.oauthClientId,
 	);
+	const [resetOauthCredentials, setResetOauthCredentials] = useState(false);
 	// Admin-only, non-reversible hint (last 4 + length) about the stored secret.
 	const [secretHint, setSecretHint] = useState<OAuthSecretHint | null>(null);
 	// Don't let the async hint fetch clobber a Client ID the admin is editing.
@@ -279,6 +280,7 @@ export default function MCPServerDetail({
 		setImageFile(null);
 		setRemoveImage(false);
 		setDisabledTools(server.disabledTools ?? []);
+		setResetOauthCredentials(false);
 		clientIdDirtyRef.current = false;
 		resetTest();
 		setMode(true);
@@ -289,6 +291,7 @@ export default function MCPServerDetail({
 		setSubmitError(null);
 		setImageFile(null);
 		setRemoveImage(false);
+		setResetOauthCredentials(false);
 		resetTest();
 		setMode(false);
 	};
@@ -387,7 +390,11 @@ export default function MCPServerDetail({
 		}
 		// Setting static OAuth credentials on a server without them requires
 		// both fields — one alone would be silently dropped by the backend.
-		if (server.authType === "oauth2" && !hasStoredSecret) {
+		if (
+			server.authType === "oauth2" &&
+			!hasStoredSecret &&
+			!resetOauthCredentials
+		) {
 			const id = form.oauthClientId.trim();
 			const secret = form.oauthClientSecret.trim();
 			if (id && !secret) {
@@ -459,13 +466,17 @@ export default function MCPServerDetail({
 						? form.apiKey
 						: undefined,
 				oauthClientId:
-					server.authType === "oauth2" && form.oauthClientId
-						? form.oauthClientId
-						: undefined,
+					server.authType === "oauth2" && resetOauthCredentials
+						? null
+						: server.authType === "oauth2" && form.oauthClientId
+							? form.oauthClientId
+							: undefined,
 				oauthClientSecret:
-					server.authType === "oauth2" && form.oauthClientSecret
-						? form.oauthClientSecret
-						: undefined,
+					server.authType === "oauth2" && resetOauthCredentials
+						? null
+						: server.authType === "oauth2" && form.oauthClientSecret
+							? form.oauthClientSecret
+							: undefined,
 				serviceCredentialProvider:
 					server.authType === "service_identity" ||
 					server.authType === "custom_http"
@@ -504,9 +515,15 @@ export default function MCPServerDetail({
 				applyMcpServer(updated);
 				setServer(updated);
 			}
-			if (server.authType === "oauth2" && form.oauthClientSecret) {
-				setHasStoredSecret(true);
-				setSecretHint(null); // stale, the stored secret just changed
+			if (server.authType === "oauth2") {
+				if (resetOauthCredentials) {
+					setHasStoredSecret(false);
+					setSecretHint(null);
+					setResetOauthCredentials(false);
+				} else if (form.oauthClientSecret) {
+					setHasStoredSecret(true);
+					setSecretHint(null); // stale, the stored secret just changed
+				}
 			}
 			setMode(false);
 		} catch (error: unknown) {
@@ -1076,7 +1093,9 @@ export default function MCPServerDetail({
 							{isOauth && (
 								<>
 									<div className="text-[12.5px] leading-[1.55] text-meta dark:text-panel-dim">
-										{hasStoredSecret
+										{resetOauthCredentials
+											? "Static OAuth credentials are marked for removal."
+											: hasStoredSecret
 											? "Client ID and secret are configured. Edit the Client ID as needed; leave the secret blank to keep it, or enter a new one to replace it."
 											: "This server uses Dynamic Client Registration. Fill both fields to switch it to static credentials."}
 									</div>
@@ -1092,8 +1111,9 @@ export default function MCPServerDetail({
 											onChange={(e) => {
 												handleFormChange("oauthClientId", e.target.value);
 											}}
+											disabled={resetOauthCredentials}
 											aria-invalid={!!fieldErrors.oauthClientId}
-											className={MONO_INPUT_CLASS}
+											className={`${MONO_INPUT_CLASS} disabled:cursor-not-allowed disabled:opacity-50`}
 										/>
 										{fieldErrors.oauthClientId && (
 											<span className="text-[12.5px] text-destructive">
@@ -1119,8 +1139,9 @@ export default function MCPServerDetail({
 												onChange={(e) => {
 													handleFormChange("oauthClientSecret", e.target.value);
 												}}
+												disabled={resetOauthCredentials}
 												aria-invalid={!!fieldErrors.oauthClientSecret}
-												className={`${MONO_INPUT_CLASS} pr-10`}
+												className={`${MONO_INPUT_CLASS} pr-10 disabled:cursor-not-allowed disabled:opacity-50`}
 											/>
 											<button
 												type="button"
@@ -1143,6 +1164,53 @@ export default function MCPServerDetail({
 											</span>
 										)}
 									</div>
+									{hasStoredSecret &&
+										(resetOauthCredentials ? (
+											<div className="flex flex-col gap-3 rounded-lg border border-destructive/25 bg-destructive/5 px-3.5 py-3 sm:flex-row sm:items-center sm:justify-between">
+												<p className="text-[12.5px] leading-[1.5] text-destructive">
+													Saving will remove the stored Client ID and secret,
+													clear existing OAuth connections, and enable Dynamic
+													Client Registration.
+												</p>
+												<button
+													type="button"
+													onClick={() => {
+														setResetOauthCredentials(false);
+														setForm((current) => ({
+															...current,
+															oauthClientId: server.oauthClientId ?? "",
+															oauthClientSecret: "",
+														}));
+													}}
+													className="shrink-0 cursor-pointer rounded-md border border-destructive/30 px-3 py-1.5 text-[12px] font-semibold text-destructive transition-colors hover:bg-destructive/10"
+												>
+													Undo reset
+												</button>
+											</div>
+										) : (
+											<button
+												type="button"
+												disabled={busy}
+												onClick={() => {
+													setResetOauthCredentials(true);
+													setForm((current) => ({
+														...current,
+														oauthClientId: "",
+														oauthClientSecret: "",
+													}));
+													setFieldErrors((current) => ({
+														...current,
+														oauthClientId: undefined,
+														oauthClientSecret: undefined,
+													}));
+													if (testStatus !== "idle") resetTest();
+												}}
+												className="inline-flex w-fit cursor-pointer items-center gap-2 rounded-md border border-destructive/30 px-3 py-2 text-[12.5px] font-semibold text-destructive transition-colors hover:bg-destructive/10 disabled:cursor-not-allowed disabled:opacity-50"
+											>
+												<RotateCcw className="size-3.5" />
+												Reset to Dynamic Client Registration
+											</button>
+										))}
 								</>
 							)}
 

@@ -527,11 +527,7 @@ def register_management_tools(mcp: MCPServer) -> None:
             before = await service.get_scoped_for_update(server_id)
             previous_auth_type = before.auth_type
             previous_url = before.url
-            oauth_credentials_changed = bool(
-                data.oauth_client_id
-                or data.oauth_client_secret
-                or data.oauth_token_endpoint_auth_method
-            )
+            oauth_credentials_changed = data.changes_oauth_credentials
             updated = await service.update(server_id, data)
             # Redis OAuth state cannot roll back, so persist the row first.
             await db.commit()

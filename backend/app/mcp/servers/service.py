@@ -476,10 +476,11 @@ class MCPServerService(BaseService[MCPServerDB, MCPServerRepository]):
         if data.api_key:
             await self.repository.create_or_update_api_key(server_id, data.api_key)
 
-        # Partial: editing client_id (or the token-endpoint auth method) alone
-        # patches it while a blank secret keeps the stored one (the client secret
-        # is write-only in the UI).
-        if (
+        # Both fields explicitly blank remove static credentials and return the
+        # server to DCR. Missing fields retain the write-only stored secret.
+        if data.clears_oauth_credentials:
+            await self.repository.delete_credentials(server_id, api_key=False)
+        elif (
             data.oauth_client_id
             or data.oauth_client_secret
             or data.oauth_token_endpoint_auth_method
