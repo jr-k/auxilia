@@ -200,7 +200,7 @@ export default function AddMCPServerPage() {
 		setSubmitError(null);
 		setPendingUrl(server.url);
 		try {
-			await createMcpServer({
+			const created = await createMcpServer({
 				name: server.name,
 				url: server.url,
 				authType: server.authType,
@@ -213,6 +213,7 @@ export default function AddMCPServerPage() {
 				return next;
 			});
 			toast.success(`${server.name} added to the workspace`);
+			router.push(`/mcp-servers/${created.id}?edit=1`);
 		} catch (error: unknown) {
 			if (error instanceof Object && "status" in error && error.status === 403) {
 				setForbiddenOpen(true);

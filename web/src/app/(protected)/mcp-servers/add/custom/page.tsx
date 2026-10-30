@@ -286,7 +286,7 @@ export default function CustomMCPServerPage() {
 				}
 			}
 			toast.success(`${form.name.trim()} added to the workspace`);
-			router.push("/mcp-servers");
+			router.push(`/mcp-servers/${created.id}?edit=1`);
 		} catch (error: unknown) {
 			if (
 				error instanceof Object &&

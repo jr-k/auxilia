@@ -72,7 +72,7 @@ describe("CustomMCPServerPage", () => {
 			});
 		});
 		expect(useMcpServersStore.getState().mcpServers).toEqual([createdServer]);
-		expect(push).toHaveBeenCalledWith("/mcp-servers");
+		expect(push).toHaveBeenCalledWith("/mcp-servers/server-1?edit=1");
 	});
 
 	it("surfaces a fallback error, stays on the page, and does not publish on failure", async () => {
