@@ -15,9 +15,7 @@ MAX_SLACK_FILES_TOTAL_BYTES = 100 * 1024 * 1024
 _GENERIC_BINARY_MIME_TYPES = frozenset(
     {"", "application/octet-stream", "binary/octet-stream"}
 )
-_IMAGE_MIME_TYPES = frozenset(
-    {"image/gif", "image/jpeg", "image/png", "image/webp"}
-)
+_IMAGE_MIME_TYPES = frozenset({"image/gif", "image/jpeg", "image/png", "image/webp"})
 _TEXT_APPLICATION_MIME_TYPES = frozenset(
     {
         "application/javascript",
@@ -60,11 +58,7 @@ async def _download(
     max_bytes: int,
 ) -> bytes | None:
     url = file.url_private_download or file.url_private
-    if (
-        not url
-        or max_bytes <= 0
-        or (file.size is not None and file.size > max_bytes)
-    ):
+    if not url or max_bytes <= 0 or (file.size is not None and file.size > max_bytes):
         return None
     async with client.stream(
         "GET",

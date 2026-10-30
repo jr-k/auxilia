@@ -30,6 +30,7 @@ from app.workspaces.service import WorkspaceService, get_workspace_service
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/workspaces", tags=["workspaces"])
 
+
 @router.get("/", response_model=list[WorkspaceResponse])
 async def list_workspaces(
     current_user: UserDB = Depends(get_current_user),

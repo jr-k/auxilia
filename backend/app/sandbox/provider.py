@@ -142,9 +142,7 @@ class DeferredSandbox(BaseSandbox):
         backend = await self._get_backend()
         return await backend.aexecute(command, timeout=timeout)
 
-    def upload_files(
-        self, files: list[tuple[str, bytes]]
-    ) -> list[FileUploadResponse]:
+    def upload_files(self, files: list[tuple[str, bytes]]) -> list[FileUploadResponse]:
         return self._get_backend_sync().upload_files(files)
 
     async def aupload_files(

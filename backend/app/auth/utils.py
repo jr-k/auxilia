@@ -69,13 +69,9 @@ def create_access_token(
         session_started_at = (
             datetime.fromtimestamp(auth_time, UTC) if auth_time is not None else now
         )
-        expire = session_started_at + timedelta(
-            days=auth_settings.REMEMBER_ME_DAYS
-        )
+        expire = session_started_at + timedelta(days=auth_settings.REMEMBER_ME_DAYS)
     else:
-        expire = now + timedelta(
-            minutes=auth_settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES
-        )
+        expire = now + timedelta(minutes=auth_settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES)
 
     to_encode = {
         "sub": str(user_id),

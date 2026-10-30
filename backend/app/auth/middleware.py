@@ -50,9 +50,7 @@ class SlidingSessionMiddleware:
                         name = cookie.partition("=")[0]
                         # Sign-in, sign-out, or a workspace switch wins over
                         # values read at the beginning of this request.
-                        if not any(
-                            value.startswith(f"{name}=") for value in existing
-                        ):
+                        if not any(value.startswith(f"{name}=") for value in existing):
                             headers.append("set-cookie", cookie)
             await send(message)
 
