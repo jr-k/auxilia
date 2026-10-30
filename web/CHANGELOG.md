@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.12.83](https://github.com/jr-k/auxilia/compare/web-v0.12.82...web-v0.12.83) (2026-10-30)
+
+
+### Bug Fixes
+
+* **auth:** make deny action visible ([43a4498](https://github.com/jr-k/auxilia/commit/43a44982c7ffad9590d2956780fc2a9805c86d54))
+* **mcp:** open created servers in edit mode ([2c5c30d](https://github.com/jr-k/auxilia/commit/2c5c30db2aad14d4de38d99a218e989bbe5fabae))
+
 ## [0.12.82](https://github.com/jr-k/auxilia/compare/web-v0.12.81...web-v0.12.82) (2026-10-30)
 
 
