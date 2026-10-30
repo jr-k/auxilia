@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.86](https://github.com/jr-k/auxilia/compare/web-v0.12.85...web-v0.12.86) (2026-10-30)
+
+
+### Features
+
+* **integrations:** add Telegram side channel ([e9ab1fd](https://github.com/jr-k/auxilia/commit/e9ab1fda9578b49c0af74cd086bb9fc39b41dbf1))
+
 ## [0.12.85](https://github.com/jr-k/auxilia/compare/web-v0.12.84...web-v0.12.85) (2026-10-30)
 
 
