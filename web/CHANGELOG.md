@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.79](https://github.com/jr-k/auxilia/compare/web-v0.12.78...web-v0.12.79) (2026-10-30)
+
+
+### Bug Fixes
+
+* **artifacts:** correct card colors in dark mode ([416b232](https://github.com/jr-k/auxilia/commit/416b23289e1509216aabe1aecf7f66ddf00c9a99))
+
 ## [0.12.78](https://github.com/jr-k/auxilia/compare/web-v0.12.77...web-v0.12.78) (2026-10-29)
 
 
