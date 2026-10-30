@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.80](https://github.com/jr-k/auxilia/compare/web-v0.12.79...web-v0.12.80) (2026-10-30)
+
+
+### Features
+
+* **web:** add syntax highlighting to code blocks ([226e8ed](https://github.com/jr-k/auxilia/commit/226e8ed61d1f6b86490c7f93a799c134badab0ec))
+
 ## [0.12.79](https://github.com/jr-k/auxilia/compare/web-v0.12.78...web-v0.12.79) (2026-10-30)
 
 
