@@ -8,6 +8,10 @@ import {
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
 import ConfirmDialog from "@/components/ui/confirm-dialog";
+import {
+	STREAMDOWN_PLUGINS,
+	STREAMDOWN_SHIKI_THEME,
+} from "@/lib/streamdown";
 import { useConfirmExternalLinks } from "@/lib/user-preferences";
 import { cn } from "@/lib/utils";
 import type { ComponentProps, HTMLAttributes } from "react";
@@ -241,6 +245,8 @@ export const MessageResponse = memo(
 					className,
 				)}
 				components={{ ...components, a: MessageLink }}
+				plugins={STREAMDOWN_PLUGINS}
+				shikiTheme={STREAMDOWN_SHIKI_THEME}
 				linkSafety={{
 					...linkSafety,
 					enabled: confirmExternalLinks,

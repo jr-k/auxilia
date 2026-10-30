@@ -13,6 +13,7 @@ import { getApiErrorMessage } from "@/lib/api/errors";
 import { getDefaultModel } from "@/lib/utils/get-default-model";
 import { useTriggersStore } from "@/stores/triggers-store";
 import { useModelsStore } from "@/stores/models-store";
+import { CodeBlock } from "@/components/ai-elements/code-block";
 import { useConfirmDialog } from "@/components/providers/dialog-provider";
 import {
 	SubpageHeader,
@@ -27,6 +28,7 @@ import { UnderlineTabs } from "@/components/ui/underline-tabs";
 import { VisibilityPicker } from "@/components/ui/visibility-picker";
 import type { ResourceVisibility } from "@/types/visibility";
 import { groupOptions } from "@/lib/groups";
+import { PETROL_MONO_THEME } from "@/lib/shiki-petrol-mono";
 import ScheduleBuilder from "@/app/(protected)/triggers/components/schedule-builder";
 import NextRunsCard from "@/app/(protected)/triggers/components/next-runs-card";
 import TriggerResources from "@/app/(protected)/triggers/components/trigger-resources";
@@ -465,13 +467,16 @@ export default function TriggerEditor({
 											Optional POST overrides
 										</span>
 									</div>
-									<pre className="overflow-x-auto rounded-lg bg-foreground px-4 py-3 text-[11.5px] leading-5 text-background">
-{`{
+									<CodeBlock
+										code={`{
   "agent_id": "uuid",
   "model_id": "provider/model",
   "instructions": "Run-specific prompt"
 }`}
-									</pre>
+										language="json"
+										theme={PETROL_MONO_THEME}
+										className="bg-panel"
+									/>
 									<p className="mt-3 text-[11.5px] leading-5 text-meta dark:text-panel-dim">
 										Any omitted value falls back to this trigger&apos;s
 										configuration.

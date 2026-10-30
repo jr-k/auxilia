@@ -19,11 +19,13 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/dialog";
+import { CodeBlock } from "@/components/ai-elements/code-block";
 import { SlackLogo } from "@/components/slack-logo";
 import { DropdownMenu } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { useAppearanceStore } from "@/stores/appearance-store";
+import { PETROL_MONO_THEME } from "@/lib/shiki-petrol-mono";
 import type {
 	AgentSlackBotSettings,
 	AgentSlackBotSettingsUpdate,
@@ -121,9 +123,14 @@ function CopyValue({
 				</button>
 			</div>
 			{multiline ? (
-				<pre className="max-h-40 overflow-auto whitespace-pre-wrap break-all p-3 font-mono text-[11px] leading-[1.55] text-subtle">
-					{value}
-				</pre>
+				<div className="max-h-40 overflow-auto bg-panel">
+					<CodeBlock
+						code={value}
+						language="json"
+						theme={PETROL_MONO_THEME}
+						className="rounded-none"
+					/>
+				</div>
 			) : (
 				<code className="block truncate px-3 py-2.5 text-[12px] text-foreground">
 					{value}

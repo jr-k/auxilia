@@ -11,6 +11,10 @@ import {
   CodeBlock,
   SHIKI_MAX_CHARS,
 } from "@/components/ai-elements/code-block";
+import {
+  STREAMDOWN_PLUGINS,
+  STREAMDOWN_SHIKI_THEME,
+} from "@/lib/streamdown";
 import type { BundledLanguage, SpecialLanguage } from "shiki";
 import type { Artifact } from "@/lib/api/resources/artifacts";
 
@@ -191,6 +195,8 @@ function MarkdownViewer({ bytes }: ViewerProps) {
           mode="static"
           allowedTags={{}}
           components={{ img: () => <span>[Image omitted]</span> }}
+          plugins={STREAMDOWN_PLUGINS}
+          shikiTheme={STREAMDOWN_SHIKI_THEME}
         >
           {decodeArtifactText(preview)}
         </Streamdown>

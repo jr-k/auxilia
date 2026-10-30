@@ -34,6 +34,7 @@ import {
 	ChainStepIcon,
 	isSandboxTool,
 } from "@/components/ai-elements/chain-of-thought";
+import { CodeBlock } from "@/components/ai-elements/code-block";
 import {
 	ThreadMap,
 	threadMapAnchor,
@@ -77,6 +78,16 @@ function printable(value: unknown): string {
 		return JSON.stringify(value, null, 2);
 	} catch {
 		return String(value);
+	}
+}
+
+function printableLanguage(value: unknown): "json" | "plaintext" {
+	if (typeof value !== "string") return "json";
+	try {
+		JSON.parse(value);
+		return "json";
+	} catch {
+		return "plaintext";
 	}
 }
 
@@ -487,14 +498,20 @@ function ToolCall({
 			</summary>
 			<div className="space-y-2 border-t border-border p-3 dark:border-white/8">
 				{call.args && Object.keys(call.args).length > 0 && (
-					<pre className="max-h-64 overflow-auto whitespace-pre-wrap break-words rounded-[7px] bg-background p-2 font-mono text-[11px] text-subtle dark:bg-black/20 dark:text-panel-body">
-						{printable(call.args)}
-					</pre>
+					<div className="max-h-64 overflow-auto rounded-[7px] bg-background dark:bg-black/20">
+						<CodeBlock
+							code={printable(call.args)}
+							language={printableLanguage(call.args)}
+						/>
+					</div>
 				)}
 				{result != null && (
-					<pre className="max-h-80 overflow-auto whitespace-pre-wrap break-words rounded-[7px] bg-background p-2 font-mono text-[11px] text-subtle dark:bg-black/20 dark:text-panel-body">
-						{printable(result)}
-					</pre>
+					<div className="max-h-80 overflow-auto rounded-[7px] bg-background dark:bg-black/20">
+						<CodeBlock
+							code={printable(result)}
+							language={printableLanguage(result)}
+						/>
+					</div>
 				)}
 				{call.truncatedChars !== undefined && (
 					<p className="text-[11px] text-meta">
