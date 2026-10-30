@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.12.82](https://github.com/jr-k/auxilia/compare/web-v0.12.81...web-v0.12.82) (2026-10-30)
+
+
+### Features
+
+* **auth:** enforce workspace two-factor setup ([81c5820](https://github.com/jr-k/auxilia/commit/81c5820254afe864103e45bc2ef6417e9b9dcacc))
+
+
+### Bug Fixes
+
+* **mcp:** place name below URL in edit form ([0fb77ce](https://github.com/jr-k/auxilia/commit/0fb77cec52ecb2b8b6c46e99e3bb303d0032cf96))
+
 ## [0.12.81](https://github.com/jr-k/auxilia/compare/web-v0.12.80...web-v0.12.81) (2026-10-30)
 
 

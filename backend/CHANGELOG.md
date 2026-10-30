@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.11.55](https://github.com/jr-k/auxilia/compare/backend-v0.11.54...backend-v0.11.55) (2026-10-30)
+
+
+### Features
+
+* **auth:** enforce workspace two-factor setup ([81c5820](https://github.com/jr-k/auxilia/commit/81c5820254afe864103e45bc2ef6417e9b9dcacc))
+
+
+### Bug Fixes
+
+* **backend:** restore full type-check compatibility ([2d5aeac](https://github.com/jr-k/auxilia/commit/2d5aeacf86f38a223022f74f7e68c55866b904b8))
+
 ## [0.11.54](https://github.com/jr-k/auxilia/compare/backend-v0.11.53...backend-v0.11.54) (2026-10-29)
 
 
