@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.11.57](https://github.com/jr-k/auxilia/compare/backend-v0.11.56...backend-v0.11.57) (2026-10-30)
+
+
+### Features
+
+* **slack:** add run-scoped messaging tools ([57e4c80](https://github.com/jr-k/auxilia/commit/57e4c80a1b002675005c1a6c714ffc43c0130e33))
+
+
+### Bug Fixes
+
+* **mcp:** allow resetting OAuth client credentials ([5ae19f2](https://github.com/jr-k/auxilia/commit/5ae19f200b87c35bb62421f9e169bf2d383487d0))
+
 ## [0.11.56](https://github.com/jr-k/auxilia/compare/backend-v0.11.55...backend-v0.11.56) (2026-10-30)
 
 
