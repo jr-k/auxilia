@@ -307,8 +307,8 @@ function Card({
       className={cn(
         "my-2 flex w-full max-w-md items-center gap-3 rounded-xl border p-2.5 text-left transition-colors",
         selected
-          ? "border-petrol bg-petrol-tint"
-          : "border-border hover:bg-hover dark:hover:bg-white/5",
+          ? "border-petrol bg-petrol-tint dark:border-panel-terminal/35 dark:bg-panel-terminal/10"
+          : "border-border hover:bg-hover dark:bg-transparent dark:hover:bg-white/5",
       )}
     >
       <ArtifactIcon entry={entry} />
@@ -320,7 +320,7 @@ function Card({
           {entryMeta(entry)}
         </span>
       </span>
-      <span className="flex-none rounded-full bg-petrol-chip px-2 py-1 text-[11px] font-semibold text-petrol">
+      <span className="flex-none rounded-full bg-petrol-chip px-2 py-1 text-[11px] font-semibold text-petrol dark:bg-panel-terminal/10 dark:text-panel-terminal">
         Open
       </span>
     </button>
