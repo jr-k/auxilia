@@ -884,7 +884,7 @@ const UserTurn = ({
           <div
             className={
               sending
-                ? "ml-auto flex max-w-[82%] items-center justify-end gap-2"
+                ? "ml-auto flex max-w-[82%] items-end justify-end gap-2"
                 : "contents"
             }
           >
@@ -957,7 +957,7 @@ const OptimisticUserTurn = ({ prompt }: { prompt: QueuedPrompt }) => {
       )}
       {prompt.text && (
         <Message from="user">
-          <div className="ml-auto flex max-w-[82%] items-center justify-end gap-2">
+          <div className="ml-auto flex max-w-[82%] items-end justify-end gap-2">
             <Loader
               size={14}
               className="shrink-0 text-meta motion-reduce:animate-none dark:text-panel-dim"
