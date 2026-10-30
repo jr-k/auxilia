@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.85](https://github.com/jr-k/auxilia/compare/web-v0.12.84...web-v0.12.85) (2026-10-30)
+
+
+### Bug Fixes
+
+* **mcp:** allow resetting OAuth client credentials ([5ae19f2](https://github.com/jr-k/auxilia/commit/5ae19f200b87c35bb62421f9e169bf2d383487d0))
+
 ## [0.12.84](https://github.com/jr-k/auxilia/compare/web-v0.12.83...web-v0.12.84) (2026-10-30)
 
 
