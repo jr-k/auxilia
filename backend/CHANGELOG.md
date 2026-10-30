@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.56](https://github.com/jr-k/auxilia/compare/backend-v0.11.55...backend-v0.11.56) (2026-10-30)
+
+
+### Features
+
+* **users:** show prompt activity to admins ([aba9442](https://github.com/jr-k/auxilia/commit/aba9442ca974956b9e24a6c8a8085109c7d8625a))
+
 ## [0.11.55](https://github.com/jr-k/auxilia/compare/backend-v0.11.54...backend-v0.11.55) (2026-10-30)
 
 

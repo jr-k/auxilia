@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.12.84](https://github.com/jr-k/auxilia/compare/web-v0.12.83...web-v0.12.84) (2026-10-30)
+
+
+### Features
+
+* **users:** show prompt activity to admins ([aba9442](https://github.com/jr-k/auxilia/commit/aba9442ca974956b9e24a6c8a8085109c7d8625a))
+
+
+### Bug Fixes
+
+* **chat:** align pending message spinner ([58062f5](https://github.com/jr-k/auxilia/commit/58062f5572b64476926351e03eabaa37054dbe7b))
+
 ## [0.12.83](https://github.com/jr-k/auxilia/compare/web-v0.12.82...web-v0.12.83) (2026-10-30)
 
 
