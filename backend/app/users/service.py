@@ -6,6 +6,7 @@ from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.appearance.service import InstanceAppearanceService
+from app.auth.configuration import WorkspaceAuthenticationService
 from app.auth.two_factor import (
     build_otpauth_uri,
     build_qr_code_data_url,
@@ -208,6 +209,15 @@ class UserService(BaseService[UserDB, UserRepository]):
     async def disable_two_factor(
         self, user: UserDB, data: TwoFactorDisableRequest
     ) -> None:
+        if (
+            user.active_workspace_id is not None
+            and await WorkspaceAuthenticationService(self.db).enforces_two_factor(
+                user.active_workspace_id
+            )
+        ):
+            raise DomainValidationError(
+                "Two-factor authentication is required by your workspace"
+            )
         await self._verify_current_password(user, data.current_password)
         await self.verify_second_factor(user.id, data.code)
         await self.repository.disable_two_factor(user.id)

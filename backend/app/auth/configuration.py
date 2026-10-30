@@ -48,6 +48,10 @@ class WorkspaceAuthenticationService:
         config = await self.get_runtime_config(workspace_id)
         return config is None or not config.google_exclusive
 
+    async def enforces_two_factor(self, workspace_id: UUID) -> bool:
+        row = await self.repository.get_settings(workspace_id)
+        return bool(row and row.enforce_two_factor)
+
     async def get_response(self, workspace_id: UUID) -> WorkspaceAuthenticationResponse:
         row = await self.repository.get_settings(workspace_id)
         credentials = await self.repository.get_credentials(workspace_id)
@@ -56,6 +60,7 @@ class WorkspaceAuthenticationService:
             enabled=bool(row and row.enabled),
             is_configured=credentials is not None,
             google_exclusive=bool(row and row.google_exclusive),
+            enforce_two_factor=bool(row and row.enforce_two_factor),
             client_id_last4=client_id[-4:] if client_id else None,
             client_id_length=len(client_id) if client_id else None,
             callback_url=self.callback_url,
@@ -70,6 +75,21 @@ class WorkspaceAuthenticationService:
             and existing.google_client_id_encrypted
             and existing.google_client_secret_encrypted
         )
+        enabled = (
+            data.enabled
+            if data.enabled is not None
+            else bool(existing and existing.enabled)
+        )
+        google_exclusive = (
+            data.google_exclusive
+            if data.google_exclusive is not None
+            else bool(existing and existing.google_exclusive)
+        )
+        enforce_two_factor = (
+            data.enforce_two_factor
+            if data.enforce_two_factor is not None
+            else bool(existing and existing.enforce_two_factor)
+        )
         client_id = data.client_id.strip() if data.client_id is not None else None
         client_secret = (
             data.client_secret.strip() if data.client_secret is not None else None
@@ -82,21 +102,22 @@ class WorkspaceAuthenticationService:
             raise DomainValidationError("Google credentials cannot be empty")
         if client_secret is not None and not client_secret:
             raise DomainValidationError("Google credentials cannot be empty")
-        if data.enabled and not has_existing_pair and client_id is None:
+        if enabled and not has_existing_pair and client_id is None:
             raise DomainValidationError(
                 "Google client ID and client secret are required"
             )
         await self.repository.save(
             workspace_id=workspace_id,
-            enabled=data.enabled,
-            google_exclusive=data.google_exclusive if data.enabled else False,
+            enabled=enabled,
+            google_exclusive=google_exclusive if enabled else False,
+            enforce_two_factor=enforce_two_factor,
             client_id=client_id,
             client_secret=client_secret,
         )
         return await self.get_response(workspace_id)
 
     async def clear(self, workspace_id: UUID) -> WorkspaceAuthenticationResponse:
-        await self.repository.clear(workspace_id)
+        await self.repository.clear_google_credentials(workspace_id)
         return await self.get_response(workspace_id)
 
     async def build_oauth(self, workspace_id: UUID) -> OAuth | None:

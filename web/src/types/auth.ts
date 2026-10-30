@@ -15,6 +15,8 @@ export interface CurrentUser {
 	pictureUrl: string | null;
 	imageRevision: string | null;
 	twoFactorEnabled: boolean;
+	twoFactorEnforced: boolean;
+	twoFactorRequired: boolean;
 	supervision: {
 		actorId: string;
 		actorName: string | null;
@@ -36,14 +38,16 @@ export interface WorkspaceAuthenticationSettings {
 	enabled: boolean;
 	isConfigured: boolean;
 	googleExclusive: boolean;
+	enforceTwoFactor: boolean;
 	clientIdLast4: string | null;
 	clientIdLength: number | null;
 	callbackUrl: string;
 }
 
 export interface WorkspaceAuthenticationUpdate {
-	enabled: boolean;
-	googleExclusive: boolean;
+	enabled?: boolean;
+	googleExclusive?: boolean;
+	enforceTwoFactor?: boolean;
 	clientId?: string;
 	clientSecret?: string;
 }

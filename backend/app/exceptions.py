@@ -45,6 +45,16 @@ class PermissionDeniedError(DomainError):
     pass
 
 
+class TwoFactorSetupRequiredError(PermissionDeniedError):
+    """The active workspace requires this browser user to enroll in 2FA."""
+
+    def body(self) -> dict[str, Any]:
+        return {
+            "error": "two_factor_setup_required",
+            "detail": self.detail,
+        }
+
+
 class InvalidCredentialsError(DomainError):
     """Signin failed (wrong email/password, or password auth disabled)."""
 

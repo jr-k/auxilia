@@ -41,6 +41,7 @@ class WorkspaceAuthenticationRepository(BaseRepository[WorkspaceAuthenticationDB
         workspace_id: UUID,
         enabled: bool,
         google_exclusive: bool,
+        enforce_two_factor: bool,
         client_id: str | None,
         client_secret: str | None,
     ) -> WorkspaceAuthenticationDB:
@@ -49,6 +50,7 @@ class WorkspaceAuthenticationRepository(BaseRepository[WorkspaceAuthenticationDB
             row = WorkspaceAuthenticationDB(workspace_id=workspace_id)
         row.enabled = enabled
         row.google_exclusive = google_exclusive
+        row.enforce_two_factor = enforce_two_factor
         if client_id is not None:
             row.google_client_id_encrypted = encrypt_value(client_id)
         if client_secret is not None:
@@ -58,8 +60,16 @@ class WorkspaceAuthenticationRepository(BaseRepository[WorkspaceAuthenticationDB
         await self.db.refresh(row)
         return row
 
-    async def clear(self, workspace_id: UUID) -> None:
+    async def clear_google_credentials(self, workspace_id: UUID) -> None:
         row = await self.get_settings(workspace_id)
-        if row is not None:
+        if row is None:
+            return
+        if row.enforce_two_factor:
+            row.enabled = False
+            row.google_exclusive = False
+            row.google_client_id_encrypted = None
+            row.google_client_secret_encrypted = None
+            self.db.add(row)
+        else:
             await self.db.delete(row)
         await self.db.flush()

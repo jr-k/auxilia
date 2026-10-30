@@ -83,6 +83,8 @@ class SupervisionInfo(SQLModel):
 class CurrentUserResponse(UserResponse):
     workspace_id: UUID | None = None
     two_factor_enabled: bool = False
+    two_factor_enforced: bool = False
+    two_factor_required: bool = False
     supervision: SupervisionInfo | None = None
 
 

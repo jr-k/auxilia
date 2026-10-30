@@ -36,3 +36,4 @@ class WorkspaceAuthenticationDB(BaseDBModel, table=True):
         default=None, sa_column=Column(Text, nullable=True)
     )
     google_exclusive: bool = Field(default=False, nullable=False)
+    enforce_two_factor: bool = Field(default=False, nullable=False)

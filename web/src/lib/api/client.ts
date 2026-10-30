@@ -5,6 +5,7 @@ import { toApiError } from "@/lib/api/errors";
 import { ensureSignedIn } from "@/lib/api/session";
 
 const isServer = typeof window === "undefined";
+let redirectingToTwoFactorSetup = false;
 
 // API base URL:
 // - Server-side: call backend directly (no proxy needed, avoids localhost resolution issues)
@@ -132,6 +133,15 @@ api.interceptors.response.use(
 	(error: unknown) => {
 		const apiError = toApiError(error);
 		if (!isServer && apiError.status === 401) void ensureSignedIn();
+		if (
+			!isServer &&
+			apiError.code === "two_factor_setup_required" &&
+			window.location.pathname !== "/two-factor/setup" &&
+			!redirectingToTwoFactorSetup
+		) {
+			redirectingToTwoFactorSetup = true;
+			window.location.assign("/two-factor/setup");
+		}
 		return Promise.reject(apiError);
 	},
 );

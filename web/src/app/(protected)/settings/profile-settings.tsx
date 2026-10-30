@@ -194,6 +194,8 @@ function IdentityCard({ user }: { user: CurrentUser }) {
 			const nextUser = {
 				...updated,
 				supervision: user.supervision,
+				twoFactorEnforced: user.twoFactorEnforced,
+				twoFactorRequired: user.twoFactorRequired,
 				imageRevision,
 			};
 			setUser(nextUser);
@@ -604,16 +606,22 @@ function TwoFactorCard({ user }: { user: CurrentUser }) {
 						>
 							Regenerate backup codes
 						</button>
-						<button
-							type="button"
-							disabled={busy || !code}
-							onClick={() => {
-								void disable();
-							}}
-							className="cursor-pointer rounded-[7px] px-3.5 py-2 text-[12px] font-semibold text-destructive hover:bg-destructive/10 disabled:opacity-50"
-						>
-							Disable 2FA
-						</button>
+						{user.twoFactorEnforced ? (
+							<span className="self-center text-[11.5px] font-medium text-meta">
+								Required by your workspace
+							</span>
+						) : (
+							<button
+								type="button"
+								disabled={busy || !code}
+								onClick={() => {
+									void disable();
+								}}
+								className="cursor-pointer rounded-[7px] px-3.5 py-2 text-[12px] font-semibold text-destructive hover:bg-destructive/10 disabled:opacity-50"
+							>
+								Disable 2FA
+							</button>
+						)}
 					</div>
 				</div>
 			) : (

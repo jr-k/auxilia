@@ -7,6 +7,7 @@ import { useConfirmDialog } from "@/components/providers/dialog-provider";
 import { Input } from "@/components/ui/input";
 import * as authApi from "@/lib/api/resources/auth";
 import { isApiError } from "@/lib/api/errors";
+import { useUserStore } from "@/stores/user-store";
 import type { WorkspaceAuthenticationSettings } from "@/types/auth";
 
 interface Props {
@@ -18,10 +19,12 @@ const labelClass =
 
 export default function WorkspaceAuthentication({ onForbidden }: Props) {
 	const confirmDialog = useConfirmDialog();
+	const user = useUserStore((state) => state.user);
 	const [settings, setSettings] =
 		useState<WorkspaceAuthenticationSettings | null>(null);
 	const [enabled, setEnabled] = useState(false);
 	const [exclusive, setExclusive] = useState(false);
+	const [enforceTwoFactor, setEnforceTwoFactor] = useState(false);
 	const [clientId, setClientId] = useState("");
 	const [clientSecret, setClientSecret] = useState("");
 	const [saving, setSaving] = useState(false);
@@ -34,6 +37,7 @@ export default function WorkspaceAuthentication({ onForbidden }: Props) {
 				setSettings(value);
 				setEnabled(value.enabled);
 				setExclusive(value.googleExclusive);
+				setEnforceTwoFactor(value.enforceTwoFactor);
 			})
 			.catch((error: unknown) => {
 				if (isApiError(error) && error.status === 403) onForbidden();
@@ -106,6 +110,37 @@ export default function WorkspaceAuthentication({ onForbidden }: Props) {
 		}
 	};
 
+	const toggleTwoFactorEnforcement = async (checked: boolean) => {
+		setEnforceTwoFactor(checked);
+		setStatus(null);
+		setSaving(true);
+		try {
+			const updated = await authApi.updateWorkspaceAuthentication({
+				enforceTwoFactor: checked,
+			});
+			setSettings(updated);
+			setEnforceTwoFactor(updated.enforceTwoFactor);
+			setStatus(
+				checked
+					? "Two-factor authentication is now required."
+					: "Two-factor authentication is no longer required.",
+			);
+			if (checked && user && !user.twoFactorEnabled) {
+				window.location.assign("/two-factor/setup");
+			}
+		} catch (error: unknown) {
+			setEnforceTwoFactor(!checked);
+			if (isApiError(error) && error.status === 403) onForbidden();
+			setStatus(
+				isApiError(error) && error.detail
+					? error.detail
+					: "Could not update the two-factor authentication requirement.",
+			);
+		} finally {
+			setSaving(false);
+		}
+	};
+
 	const removeCredentials = async () => {
 		if (
 			!(await confirmDialog({
@@ -149,11 +184,31 @@ export default function WorkspaceAuthentication({ onForbidden }: Props) {
 				<span className="text-[10.5px] text-meta dark:text-panel-dim">admin</span>
 			</div>
 			<p className="mb-3.5 max-w-[620px] text-[13px] leading-[1.55] text-subtle dark:text-panel-body">
-				Configure Google sign-in for this workspace. Credentials are encrypted
-				before they are stored.
+				Configure sign-in methods and security requirements for this workspace.
 			</p>
 			<div className="overflow-hidden rounded-[10px] border border-border bg-card dark:border-white/10">
 				<div className="space-y-5 px-4 py-4">
+					<div className="flex items-center justify-between gap-4">
+						<div>
+							<div className="text-[13px] font-semibold text-foreground">
+								Enforce 2FA for all users
+							</div>
+							<div className="max-w-[560px] text-[11.5px] text-meta">
+								Users without 2FA must configure an authenticator before
+								they can access this workspace.
+							</div>
+						</div>
+						<Switch
+							aria-label="Enforce 2FA for all users"
+							checked={enforceTwoFactor}
+							disabled={saving}
+							onCheckedChange={(checked) => {
+								void toggleTwoFactorEnforcement(checked);
+							}}
+							className="cursor-pointer data-[state=checked]:bg-petrol"
+						/>
+					</div>
+					<div className="border-t border-hairline" />
 					<div className="flex items-center justify-between gap-4">
 						<div>
 							<div className="text-[13px] font-semibold text-foreground">
@@ -233,7 +288,7 @@ export default function WorkspaceAuthentication({ onForbidden }: Props) {
 						</>
 					)}
 				</div>
-				{(enabled || settings.isConfigured) && (
+				{(enabled || settings.isConfigured || enforceTwoFactor || status) && (
 					<div className="flex items-center gap-3 border-t border-hairline px-4 py-3">
 						{settings.isConfigured && (
 							<button

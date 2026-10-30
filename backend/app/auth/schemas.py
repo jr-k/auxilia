@@ -68,13 +68,15 @@ class WorkspaceAuthenticationResponse(BaseModel):
     enabled: bool
     is_configured: bool
     google_exclusive: bool
+    enforce_two_factor: bool
     client_id_last4: str | None = None
     client_id_length: int | None = None
     callback_url: str
 
 
 class WorkspaceAuthenticationUpdate(BaseModel):
-    enabled: bool = True
-    google_exclusive: bool = False
+    enabled: bool | None = None
+    google_exclusive: bool | None = None
+    enforce_two_factor: bool | None = None
     client_id: str | None = Field(default=None, max_length=2048)
     client_secret: str | None = Field(default=None, max_length=4096)

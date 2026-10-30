@@ -432,6 +432,18 @@ async def google_callback(
             status_code=302,
         )
 
+    if not user.two_factor_enabled and await authentication.enforces_two_factor(
+        workspace_id
+    ):
+        response = RedirectResponse(
+            url=f"{auth_settings.FRONTEND_URL}/two-factor/setup",
+            status_code=302,
+        )
+        attach_auth_cookie(response, access_token)
+        if user.active_workspace_id is not None:
+            set_active_workspace_cookie(response, user.active_workspace_id)
+        return response
+
     if user.two_factor_enabled:
         challenge = create_scoped_token(
             user.id,
@@ -466,7 +478,15 @@ async def google_callback(
 async def get_me(
     current_user: UserDB = Depends(get_current_user),
     context: SupervisionContext | None = Depends(get_supervision_context),
+    authentication: WorkspaceAuthenticationService = Depends(
+        get_workspace_authentication_service
+    ),
 ) -> CurrentUserResponse:
+    two_factor_enforced = bool(
+        context is None
+        and current_user.active_workspace_id is not None
+        and await authentication.enforces_two_factor(current_user.active_workspace_id)
+    )
     supervision = (
         SupervisionInfo(
             actor_id=context.actor.id,
@@ -481,6 +501,10 @@ async def get_me(
         current_user,
         update={
             "workspace_id": current_user.active_workspace_id,
+            "two_factor_enforced": two_factor_enforced,
+            "two_factor_required": (
+                two_factor_enforced and not current_user.two_factor_enabled
+            ),
             "supervision": supervision,
         },
     )

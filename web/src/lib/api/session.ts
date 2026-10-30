@@ -1,4 +1,4 @@
-const PUBLIC_PATHS = ["/auth", "/setup", "/invite", "/share"];
+const PUBLIC_PATHS = ["/auth", "/setup", "/invite", "/share", "/two-factor"];
 
 let inFlight: Promise<void> | null = null;
 

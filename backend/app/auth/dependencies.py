@@ -7,12 +7,17 @@ from fastapi import Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
+from app.auth.configuration import WorkspaceAuthenticationService
 from app.auth.settings import auth_settings
 from app.auth.tokens.repository import PersonalAccessTokenRepository
 from app.auth.tokens.service import TOKEN_PREFIX
 from app.auth.utils import SessionClaims, decode_access_token, decode_session_token
 from app.database import get_db
-from app.exceptions import DomainValidationError, PermissionDeniedError
+from app.exceptions import (
+    DomainValidationError,
+    PermissionDeniedError,
+    TwoFactorSetupRequiredError,
+)
 from app.users.models import UserDB, WorkspaceRole
 from app.workspaces.constants import ACTIVE_WORKSPACE_COOKIE
 from app.workspaces.repository import WorkspaceRepository
@@ -24,6 +29,13 @@ ROLE_HIERARCHY: dict[WorkspaceRole, int] = {
     WorkspaceRole.member: 0,
     WorkspaceRole.editor: 1,
     WorkspaceRole.admin: 2,
+}
+
+TWO_FACTOR_ENROLLMENT_PATHS = {
+    "/auth/me",
+    "/users/me/two-factor",
+    "/users/me/two-factor/setup",
+    "/users/me/two-factor/confirm",
 }
 
 
@@ -145,9 +157,7 @@ async def _resolve_request_user(request: Request, db: AsyncSession) -> UserDB | 
                 "pat" if bearer_token.startswith(TOKEN_PREFIX) else "jwt_bearer"
             )
             request.state.session_claims = (
-                None
-                if method == "pat"
-                else decode_session_token(bearer_token)
+                None if method == "pat" else decode_session_token(bearer_token)
             )
             request.state.supervision_actor = None
             request.state.auth_method = method
@@ -171,6 +181,19 @@ async def get_current_user(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Not authenticated",
+        )
+    if (
+        getattr(request.state, "auth_method", None) == "cookie"
+        and getattr(request.state, "supervision_actor", None) is None
+        and user.active_workspace_id is not None
+        and not user.two_factor_enabled
+        and request.url.path not in TWO_FACTOR_ENROLLMENT_PATHS
+        and await WorkspaceAuthenticationService(db).enforces_two_factor(
+            user.active_workspace_id
+        )
+    ):
+        raise TwoFactorSetupRequiredError(
+            "Two-factor authentication must be configured to access this workspace"
         )
     return user
 
