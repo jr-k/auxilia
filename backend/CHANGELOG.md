@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.58](https://github.com/jr-k/auxilia/compare/backend-v0.11.57...backend-v0.11.58) (2026-10-30)
+
+
+### Features
+
+* **integrations:** add Telegram side channel ([e9ab1fd](https://github.com/jr-k/auxilia/commit/e9ab1fda9578b49c0af74cd086bb9fc39b41dbf1))
+
 ## [0.11.57](https://github.com/jr-k/auxilia/compare/backend-v0.11.56...backend-v0.11.57) (2026-10-30)
 
 
