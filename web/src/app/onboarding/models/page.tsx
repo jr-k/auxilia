@@ -1,14 +1,17 @@
 "use client";
 
-import { Suspense } from "react";
+import { Suspense, useState } from "react";
 import { Loader2 } from "lucide-react";
-import Link from "next/link";
 import WorkspaceModels from "@/app/(protected)/settings/workspace-models";
 import { AuthShell } from "@/components/auth/auth-shell";
 import { SupervisionPageFrame } from "@/components/layout/supervision-page-frame";
 
 export default function ModelOnboardingPage() {
+	const [isContinuing, setIsContinuing] = useState(false);
+
 	const continueToAgents = () => {
+		if (isContinuing) return;
+		setIsContinuing(true);
 		window.location.assign("/agents");
 	};
 
@@ -40,12 +43,18 @@ export default function ModelOnboardingPage() {
 					/>
 				</Suspense>
 
-				<Link
-					href="/agents"
-					className="mt-1.5 cursor-pointer rounded-md bg-ink p-3.5 text-center text-[15px] font-semibold text-white transition-opacity hover:opacity-90"
+				<button
+					type="button"
+					disabled={isContinuing}
+					aria-busy={isContinuing}
+					onClick={continueToAgents}
+					className="mt-1.5 flex cursor-pointer items-center justify-center gap-2 rounded-md bg-ink p-3.5 text-center text-[15px] font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-default disabled:opacity-60"
 				>
-					Continue to agents →
-				</Link>
+					{isContinuing && (
+						<Loader2 className="size-4 animate-spin" aria-hidden="true" />
+					)}
+					{isContinuing ? "Opening agents…" : "Continue to agents →"}
+				</button>
 			</AuthShell>
 		</SupervisionPageFrame>
 	);

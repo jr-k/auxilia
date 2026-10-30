@@ -2,6 +2,7 @@
 
 import { useState, useEffect, use } from "react";
 import { useRouter } from "next/navigation";
+import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -65,7 +66,6 @@ export default function InviteAcceptPage({
 			router.push(result.twoFactorRequired ? "/auth?two_factor=required" : "/agents");
 		} catch (err: unknown) {
 			setError(getApiErrorMessage(err, "An error occurred"));
-		} finally {
 			setIsLoading(false);
 		}
 	};
@@ -213,8 +213,12 @@ export default function InviteAcceptPage({
 							type="submit"
 							className="w-full cursor-pointer"
 							disabled={isLoading}
+							aria-busy={isLoading}
 						>
-							{isLoading ? "Creating account..." : "Create account"}
+							{isLoading && (
+								<Loader2 className="size-4 animate-spin" aria-hidden="true" />
+							)}
+							{isLoading ? "Creating account…" : "Create account"}
 						</Button>
 
 						{inviteInfo.googleEnabled && (
