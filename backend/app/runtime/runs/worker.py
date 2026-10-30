@@ -11,8 +11,12 @@ runs them, semaphore-capped at `RUN_WORKER_CONCURRENCY`.
 import asyncio
 import logging
 from contextlib import aclosing, suppress
+from typing import Any
+from uuid import UUID
 
+from langchain_core.tools import BaseTool
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.core.service import AgentService
 from app.agents.models import EffectivePermission, ToolDiscoveryMode
@@ -25,7 +29,7 @@ from app.runtime.checkpoints import checkpoint_thread_id
 from app.runtime.hitl import pending_interrupt
 from app.runtime.protocol.wire import encode_event
 from app.runtime.runs.control import RunControl
-from app.runtime.runs.delivery import DeliveryFactory
+from app.runtime.runs.delivery import DeliveryFactory, RuntimeToolFactory
 from app.runtime.runs.events import BufferedEventPublisher, RunEventStream
 from app.runtime.runs.liveness import DispatcherLiveness, RunLiveness
 from app.runtime.runs.models import RunDB
@@ -55,10 +59,16 @@ async def _cancel(task: asyncio.Task) -> None:
 class RunWorker:
     """Executes a single claimed run end to end."""
 
-    def __init__(self, redis=None, delivery_factory: DeliveryFactory | None = None):
+    def __init__(
+        self,
+        redis=None,
+        delivery_factory: DeliveryFactory | None = None,
+        runtime_tool_factory: RuntimeToolFactory | None = None,
+    ):
         self.service = RunService(redis)
         self.redis = self.service.redis
         self._delivery_factory = delivery_factory
+        self._runtime_tool_factory = runtime_tool_factory
 
     async def run(self, record: RunDB) -> None:
         """Execute a run the dispatcher just claimed (already `running`)."""
@@ -115,6 +125,26 @@ class RunWorker:
             await consumer.run()
         except Exception:
             logger.exception("Delivery failed for run %s", run_id)
+
+    async def _runtime_tools(
+        self,
+        db: AsyncSession,
+        record: RunDB,
+        agent_id: UUID,
+    ) -> tuple[list[BaseTool], dict[str, bool]]:
+        if self._runtime_tool_factory is None:
+            return [], {}
+        try:
+            resolved = await self._runtime_tool_factory(
+                db,
+                record.delivery,
+                workspace_id=record.workspace_id,
+                agent_id=agent_id,
+            )
+            return list(resolved.tools), dict(resolved.interrupt_on or {})
+        except Exception:
+            logger.exception("Runtime tool factory failed for run %s", record.id)
+            return [], {}
 
     async def _execute(
         self, record: RunDB, events: RunEventStream, cancel_watch: asyncio.Task
@@ -205,6 +235,17 @@ class RunWorker:
             )
             await agents.ensure_subagent_scopes(thread.agent_id)
             discovery_override = delivery_tool_discovery_mode(record.delivery)
+            runtime_tools, runtime_tool_interrupt_on = await self._runtime_tools(
+                db,
+                record,
+                thread.agent_id,
+            )
+            runtime_options: dict[str, Any] = {}
+            if runtime_tools:
+                runtime_options = {
+                    "runtime_tools": runtime_tools,
+                    "runtime_tool_interrupt_on": runtime_tool_interrupt_on,
+                }
             agent = await Agent.build(
                 thread=thread,
                 db=db,
@@ -216,6 +257,7 @@ class RunWorker:
                     if discovery_override is not None
                     else None
                 ),
+                **runtime_options,
             )
             # Commit here, on purpose (CLAUDE.md, transactions, exception 2):
             # holding this pooled connection open for the length of an agent
@@ -282,8 +324,17 @@ class RunDispatcher:
     """Claims pending runs off Postgres and runs them, capped at
     `RUN_WORKER_CONCURRENCY` concurrent runs per process."""
 
-    def __init__(self, redis=None, delivery_factory: DeliveryFactory | None = None):
-        self.worker = RunWorker(redis, delivery_factory=delivery_factory)
+    def __init__(
+        self,
+        redis=None,
+        delivery_factory: DeliveryFactory | None = None,
+        runtime_tool_factory: RuntimeToolFactory | None = None,
+    ):
+        self.worker = RunWorker(
+            redis,
+            delivery_factory=delivery_factory,
+            runtime_tool_factory=runtime_tool_factory,
+        )
         self.service = self.worker.service
         self.liveness = DispatcherLiveness(self.service.redis)
         self._semaphore = asyncio.Semaphore(run_settings.worker_concurrency)

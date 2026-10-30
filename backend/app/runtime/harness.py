@@ -192,6 +192,7 @@ def harness_middleware(
     *,
     model,
     tools: list,
+    general_purpose_tools: list | None = None,
     backend,
     subagents=None,
     skills=None,
@@ -205,8 +206,9 @@ def harness_middleware(
     Order matters and mirrors deepagents exactly: skills (when the run has
     any), filesystem, the task tool, summarization, then the patcher — with
     our own `TodoListMiddleware` in front (see the module docstring). The
-    general-purpose subagent inherits the parent's full toolset and, as in
-    deepagents, the parent's skills.
+    general-purpose subagent inherits the parent's normal toolset and, as in
+    deepagents, the parent's skills. A caller may provide a narrower
+    ``general_purpose_tools`` list for host actions that must remain parent-only.
     """
     profile = _profile(model)
     supplied = list(subagents or [])
@@ -217,7 +219,7 @@ def harness_middleware(
     else:
         default = _general_purpose_subagent(
             model,
-            tools,
+            general_purpose_tools if general_purpose_tools is not None else tools,
             backend,
             profile,
             skills,

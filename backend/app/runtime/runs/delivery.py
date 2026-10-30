@@ -11,8 +11,12 @@ type only. The composition root (`main.py`) injects a concrete factory (the Slac
 one), so `app/runtime/runs` never imports `app/integrations`.
 """
 
-from collections.abc import Callable
-from typing import Protocol
+from collections.abc import Callable, Sequence
+from typing import Any, Protocol
+from uuid import UUID
+
+from langchain_core.tools import BaseTool
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.runtime.runs.models import RunDB
 
@@ -26,3 +30,23 @@ class DeliveryConsumer(Protocol):
 # Built once per run from its record; returns `None` when the record has no push
 # delivery (the common case — a pull subscriber handles it instead).
 DeliveryFactory = Callable[[RunDB], DeliveryConsumer | None]
+
+
+class RuntimeToolBundle(Protocol):
+    """Channel-owned tools and their run-local approval policy."""
+
+    tools: Sequence[BaseTool]
+    interrupt_on: dict[str, bool] | None
+
+
+class RuntimeToolFactory(Protocol):
+    """Build run-local tools without coupling the runtime to an integration."""
+
+    async def __call__(
+        self,
+        db: AsyncSession,
+        delivery: dict[str, Any] | None,
+        *,
+        workspace_id: UUID,
+        agent_id: UUID,
+    ) -> RuntimeToolBundle: ...

@@ -29,6 +29,7 @@ from app.integrations.langfuse.router import router as langfuse_router
 from app.integrations.slack.consumer import build_slack_run_consumer
 from app.integrations.slack.router import router as slack_router
 from app.integrations.slack.settings_router import router as agent_slack_router
+from app.integrations.slack.tools import build_slack_run_tools
 from app.integrations.tracing import flush_tracing
 from app.invites.router import router as invites_router
 from app.logging_config import configure_logging
@@ -102,7 +103,10 @@ async def lifespan(app: FastAPI):
             asyncio.create_task(dbhub_reconciler.run(), name="dbhub-reconciler")
         )
     if run_settings.dispatcher_enabled:
-        dispatcher = RunDispatcher(delivery_factory=build_slack_run_consumer)
+        dispatcher = RunDispatcher(
+            delivery_factory=build_slack_run_consumer,
+            runtime_tool_factory=build_slack_run_tools,
+        )
         reaper = RunReaper()
         event_relay = WorkspaceEventRelay()
         background.extend(

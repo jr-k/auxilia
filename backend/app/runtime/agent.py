@@ -1,5 +1,6 @@
 import asyncio
 import logging
+from collections.abc import Sequence
 from contextlib import AsyncExitStack, asynccontextmanager
 from dataclasses import dataclass, replace
 from datetime import datetime
@@ -26,6 +27,7 @@ from langchain_core.messages import (
     SystemMessage,
     convert_to_messages,
 )
+from langchain_core.tools import BaseTool
 from langgraph.errors import GraphRecursionError
 from langgraph.stream.transformers import UpdatesTransformer
 from langgraph.types import Command
@@ -283,6 +285,7 @@ def build_runnable(
     server_descriptions: dict[str, str | None] | None = None,
     discoverable_tools=(),
     general_purpose_interrupt_on: dict[str, bool] | None = None,
+    general_purpose_tools=None,
     artifact_context: tuple[UUID, str, UUID] | None = None,
 ):
     """Build a LangGraph runnable. One construction path, one middleware list.
@@ -331,6 +334,11 @@ def build_runnable(
     ``app.runtime.checkpoints.get_checkpoint_state``.
     """
     tools = list(tools)
+    general_purpose_tools = (
+        list(general_purpose_tools)
+        if general_purpose_tools is not None
+        else list(tools)
+    )
     searchable_tools = list(discoverable_tools)
     if not isinstance(tool_discovery_mode, ToolDiscoveryMode):
         tool_discovery_mode = ToolDiscoveryMode.disabled
@@ -368,11 +376,14 @@ def build_runnable(
 
     if sandbox_backend is not None:
         if artifact_context is not None:
-            tools.append(present_files_tool(sandbox_backend, *artifact_context))
+            present_tool = present_files_tool(sandbox_backend, *artifact_context)
+            tools.append(present_tool)
+            general_purpose_tools.append(present_tool)
         general_purpose_discovery = discovery_for(model)
         harness += harness_middleware(
             model=model,
             tools=tools,
+            general_purpose_tools=general_purpose_tools,
             backend=sandbox_backend,
             subagents=subagents,
             skills=skills,
@@ -519,12 +530,17 @@ def build_parent_middleware(
     created_at: datetime,
     prepared: PreparedToolset,
     tool_discovery_mode: ToolDiscoveryMode = ToolDiscoveryMode.disabled,
+    runtime_tool_interrupt_on: dict[str, bool] | None = None,
 ) -> list:
     """The parent agent's stack: checkpointed, under our own recursion limit."""
+    interrupt_on = {
+        **prepared.interrupt_on,
+        **(runtime_tool_interrupt_on or {}),
+    }
     return build_agent_middleware(
         created_at,
         recursion_limit=agent_settings.recursion_limit,
-        interrupt_on=prepared.interrupt_on,
+        interrupt_on=interrupt_on,
         tool_discovery_mode=tool_discovery_mode,
     )
 
@@ -680,6 +696,8 @@ class Agent:
         router_model=None,
         skills: list[SkillBundle] = (),
         tracing: RunTracing | None = None,
+        runtime_tools: Sequence[BaseTool] = (),
+        runtime_tool_interrupt_on: dict[str, bool] | None = None,
     ):
         self.thread = thread
         self.agent = agent
@@ -692,6 +710,10 @@ class Agent:
         # Minimal-effort variant of `model` for the lazy MCP router; None when
         # no agent of the graph runs lazy discovery.
         self.router_model = router_model
+        # Run-bound tools are supplied by the delivery channel, not persisted
+        # on the agent and never included in MCP discovery.
+        self.runtime_tools = list(runtime_tools)
+        self.runtime_tool_interrupt_on = dict(runtime_tool_interrupt_on or {})
         # One skill set for the whole graph, frozen for this run.
         self.skills = list(skills)
         # The provider session exists only after the model first uses a sandbox
@@ -730,6 +752,8 @@ class Agent:
         *,
         force_enable_all_capabilities: bool | None = None,
         tool_discovery_mode: ToolDiscoveryMode | None = None,
+        runtime_tools: Sequence[BaseTool] = (),
+        runtime_tool_interrupt_on: dict[str, bool] | None = None,
     ) -> "Agent":
         """Resolve everything a run needs from the database.
 
@@ -934,6 +958,7 @@ class Agent:
             thread.created_at,
             agent.prepared,
             agent.config.tool_discovery_mode,
+            runtime_tool_interrupt_on,
         )
         if thread.memories_enabled:
             preference = await MemoryPreferenceRepository(db).get_for_user(
@@ -1009,6 +1034,8 @@ class Agent:
             web_search_supported=resolved.supports_web_search,
             router_model=router_model,
             skills=skills,
+            runtime_tools=runtime_tools,
+            runtime_tool_interrupt_on=runtime_tool_interrupt_on,
         )
 
     def _web_search_tool(self, agent: ResolvedAgent) -> dict | None:
@@ -1061,15 +1088,16 @@ class Agent:
             else None
         )
         sandbox_backend = self._sandbox_for(self.agent)
+        web_search_tool = self._web_search_tool(self.agent)
+        general_purpose_tools = [
+            *self.agent.live.all,
+            *([web_search_tool] if web_search_tool is not None else []),
+        ]
         return build_runnable(
             model=self.model,
             tools=[
-                *self.agent.live.all,
-                *(
-                    [tool]
-                    if (tool := self._web_search_tool(self.agent)) is not None
-                    else []
-                ),
+                *self.runtime_tools,
+                *general_purpose_tools,
             ],
             system_prompt=with_attachments_prompt(
                 self.agent.config.instructions or "", sandbox_backend is not None
@@ -1087,6 +1115,7 @@ class Agent:
             server_descriptions=self.agent.prepared.server_description_by_name,
             discoverable_tools=self.agent.live.all,
             general_purpose_interrupt_on=self.agent.prepared.interrupt_on,
+            general_purpose_tools=general_purpose_tools,
             artifact_context=artifact_context,
         )
 
