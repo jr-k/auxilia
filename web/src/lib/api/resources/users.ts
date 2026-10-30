@@ -9,6 +9,7 @@ import type {
 	InstanceUser,
 	RoleCounts,
 	User,
+	UserPromptActivity,
 	WorkspaceRole,
 } from "@/types/users";
 
@@ -39,6 +40,19 @@ export async function listInstanceUsers(
 
 export async function getRoleCounts(): Promise<RoleCounts> {
 	const response = await api.get<RoleCounts>("/users/role-counts");
+	return response.data;
+}
+
+export async function getPromptActivity(
+	userIds: string[],
+): Promise<UserPromptActivity[]> {
+	if (userIds.length === 0) return [];
+	const query = userIds
+		.map((userId) => `user_ids=${encodeURIComponent(userId)}`)
+		.join("&");
+	const response = await api.get<UserPromptActivity[]>(
+		`/users/prompt-activity?${query}`,
+	);
 	return response.data;
 }
 

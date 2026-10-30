@@ -39,6 +39,12 @@ export interface InstanceUser {
 	memberships: InstanceUserMembership[];
 }
 
+export interface UserPromptActivity {
+	userId: string;
+	lastPromptAt: string | null;
+	hasActivePrompt: boolean;
+}
+
 /** `GET /users/role-counts`. */
 export interface RoleCounts {
 	total: number;

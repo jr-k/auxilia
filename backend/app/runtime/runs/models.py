@@ -36,6 +36,8 @@ class RunDB(TimestampMixin, SQLModel, table=True):
         # Run history per thread, newest first.
         Index("ix_runs_thread_id_created_at", "thread_id", "created_at"),
         Index("ix_runs_thread_id_started_at", "thread_id", "started_at"),
+        # Admin user activity reads the latest prompt across a user's threads.
+        Index("ix_runs_user_id_created_at", "user_id", "created_at"),
         Index(
             "ix_runs_pending_queue",
             "thread_id",

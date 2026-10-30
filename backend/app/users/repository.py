@@ -1,13 +1,16 @@
 from __future__ import annotations
 
+from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import delete, func, or_, update
+from sqlalchemy import case, delete, func, or_, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
 from app.pagination import PageParams
 from app.repository import BaseRepository
+from app.runtime.runs.models import RunDB
+from app.runtime.runs.state import RunStatus
 from app.users.models import UserDB, UserImageDB, UserTwoFactorDB, WorkspaceRole
 from app.workspaces.models import WorkspaceDB, WorkspaceMembershipDB
 
@@ -179,6 +182,39 @@ class UserRepository(BaseRepository[UserDB]):
             )
         result, total = await self.paginate(stmt, page)
         return list(result.all()), total
+
+    async def get_prompt_activity(
+        self,
+        user_ids: list[UUID],
+        *,
+        workspace_id: UUID | None,
+    ) -> dict[UUID, tuple[datetime | None, bool]]:
+        if not user_ids:
+            return {}
+        last_prompt_at = func.max(
+            case((RunDB.input.is_not(None), RunDB.created_at), else_=None)
+        ).label("last_prompt_at")
+        has_active_prompt = func.max(
+            case(
+                (
+                    RunDB.status.in_((RunStatus.pending, RunStatus.running)),
+                    1,
+                ),
+                else_=0,
+            )
+        ).label("has_active_prompt")
+        stmt = (
+            select(RunDB.user_id, last_prompt_at, has_active_prompt)
+            .where(RunDB.user_id.in_(user_ids))
+            .group_by(RunDB.user_id)
+        )
+        if workspace_id is not None:
+            stmt = stmt.where(RunDB.workspace_id == workspace_id)
+        result = await self.db.execute(stmt)
+        return {
+            row.user_id: (row.last_prompt_at, bool(row.has_active_prompt))
+            for row in result.all()
+        }
 
     async def list_instance_users(
         self,

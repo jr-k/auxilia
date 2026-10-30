@@ -1,7 +1,7 @@
 import logging
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, Header, UploadFile
+from fastapi import APIRouter, Depends, File, Header, Query, UploadFile
 from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -28,6 +28,7 @@ from app.users.schemas import (
     TwoFactorStatus,
     UserCreate,
     UserPatch,
+    UserPromptActivityResponse,
     UserResponse,
     UserRoleCounts,
     UserRolePatch,
@@ -66,6 +67,19 @@ async def get_users(
 ) -> Page[UserResponse]:
     return await service.list(
         workspace_id, page, role=role, search=search, team_id=team_id
+    )
+
+
+@router.get("/prompt-activity", response_model=list[UserPromptActivityResponse])
+async def get_prompt_activity(
+    user_ids: list[UUID] | None = Query(default=None),
+    current_user: UserDB = Depends(require_admin),
+    workspace_id: UUID = Depends(get_active_workspace_id),
+    service: UserService = Depends(get_user_service),
+) -> list[UserPromptActivityResponse]:
+    return await service.list_prompt_activity(
+        user_ids or [],
+        workspace_id=None if current_user.is_instance_owner else workspace_id,
     )
 
 

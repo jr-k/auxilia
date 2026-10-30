@@ -46,6 +46,7 @@ from app.users.schemas import (
     UserCreate,
     UserCreateDB,
     UserPatch,
+    UserPromptActivityResponse,
     UserResponse,
     UserRoleCounts,
     UserRolePatch,
@@ -283,6 +284,28 @@ class UserService(BaseService[UserDB, UserRepository]):
             user.set_workspace_membership(membership)
             items.append(UserResponse.model_validate(user))
         return Page.build(items, total, page)
+
+    async def list_prompt_activity(
+        self,
+        user_ids: list[UUID],
+        *,
+        workspace_id: UUID | None,
+    ) -> list[UserPromptActivityResponse]:
+        unique_ids = list(dict.fromkeys(user_ids))
+        if len(unique_ids) > 100:
+            raise DomainValidationError("At most 100 users can be requested")
+        activity = await self.repository.get_prompt_activity(
+            unique_ids,
+            workspace_id=workspace_id,
+        )
+        return [
+            UserPromptActivityResponse(
+                user_id=user_id,
+                last_prompt_at=activity.get(user_id, (None, False))[0],
+                has_active_prompt=activity.get(user_id, (None, False))[1],
+            )
+            for user_id in unique_ids
+        ]
 
     async def list_instance_users(
         self,

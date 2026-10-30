@@ -13,6 +13,7 @@ import {
 	Trash2,
 	Users,
 	Eye,
+	Loader2,
 } from "lucide-react";
 import ForbiddenErrorDialog from "@/components/forbidden-error-dialog";
 import { useConfirmDialog } from "@/components/providers/dialog-provider";
@@ -51,6 +52,7 @@ import type {
 	Invite,
 	RoleCounts,
 	User,
+	UserPromptActivity,
 	WorkspaceRole,
 } from "@/types/users";
 import { workspaceRoleLabel } from "@/lib/user-role";
@@ -94,6 +96,23 @@ function timeAgo(dateStr: string): string {
 	return `${days} days ago`;
 }
 
+function promptTimeAgo(dateStr: string): string {
+	const elapsedSeconds = Math.max(
+		0,
+		Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000),
+	);
+	if (elapsedSeconds < 60) return "Just now";
+	const minutes = Math.floor(elapsedSeconds / 60);
+	if (minutes < 60) return `${minutes}m ago`;
+	const hours = Math.floor(minutes / 60);
+	if (hours < 24) return `${hours}h ago`;
+	const days = Math.floor(hours / 24);
+	if (days < 30) return `${days}d ago`;
+	const months = Math.floor(days / 30);
+	if (months < 12) return `${months}mo ago`;
+	return `${Math.floor(months / 12)}y ago`;
+}
+
 function getInviterShortName(name: string | null): string {
 	if (!name) return "Unknown";
 	const parts = name.trim().split(" ");
@@ -112,6 +131,9 @@ export default function UsersPage() {
 	const fetchUsersTicket = useRef(0);
 	const membersTableRef = useRef<HTMLDivElement>(null);
 	const [users, setUsers] = useState<ListedUser[]>([]);
+	const [promptActivityByUser, setPromptActivityByUser] = useState<
+		Record<string, UserPromptActivity>
+	>({});
 	const [total, setTotal] = useState(0);
 	const [offset, setOffset] = useState(0);
 	const [roleCounts, setRoleCounts] = useState<RoleCounts | null>(null);
@@ -219,6 +241,36 @@ export default function UsersPage() {
 	useEffect(() => {
 		void fetchUsers();
 	}, [fetchUsers]);
+
+	const visibleUserIds = useMemo(() => users.map((user) => user.id), [users]);
+
+	useEffect(() => {
+		if (!isAdmin || visibleUserIds.length === 0) return;
+		let cancelled = false;
+
+		const refreshPromptActivity = async () => {
+			try {
+				const activity = await usersApi.getPromptActivity(visibleUserIds);
+				if (cancelled) return;
+				setPromptActivityByUser(
+					Object.fromEntries(activity.map((item) => [item.userId, item])),
+				);
+			} catch (error) {
+				if (!cancelled) {
+					console.error("Error fetching prompt activity:", error);
+				}
+			}
+		};
+
+		void refreshPromptActivity();
+		const interval = window.setInterval(() => {
+			void refreshPromptActivity();
+		}, 5000);
+		return () => {
+			cancelled = true;
+			window.clearInterval(interval);
+		};
+	}, [isAdmin, visibleUserIds]);
 
 	useEffect(() => {
 		void fetchRoleCounts();
@@ -643,6 +695,35 @@ export default function UsersPage() {
 		);
 	};
 
+	const renderPromptActivity = (user: ListedUser) => {
+		const activity = promptActivityByUser[user.id];
+		if (!activity) {
+			return <span className="text-[12px] text-meta">Loading…</span>;
+		}
+		return (
+			<div className="flex items-center gap-1.5">
+				<span
+					className="font-mono text-[11.5px] text-subtle dark:text-muted-foreground"
+					title={
+						activity.lastPromptAt
+							? new Date(activity.lastPromptAt).toLocaleString()
+							: undefined
+					}
+				>
+					{activity.lastPromptAt
+						? promptTimeAgo(activity.lastPromptAt)
+						: "Never"}
+				</span>
+				{activity.hasActivePrompt && (
+					<Loader2
+						className="size-3.5 shrink-0 animate-spin text-petrol motion-reduce:animate-none"
+						aria-label="Prompt is running"
+					/>
+				)}
+			</div>
+		);
+	};
+
 	const columns: DataTableColumn<ListedUser>[] = [
 		{
 			key: "name",
@@ -685,6 +766,16 @@ export default function UsersPage() {
 				</span>
 			),
 		},
+		...(isAdmin
+			? [
+					{
+						key: "last-prompt",
+						header: "Last prompt",
+						width: "130px",
+						cell: renderPromptActivity,
+					},
+				]
+			: []),
 		...(isOwner
 			? [
 					{
@@ -934,7 +1025,9 @@ export default function UsersPage() {
 						rows={users}
 						rowKey={(user) => user.id}
 						isLoading={isLoading}
-						minTableWidth={isOwner ? "1120px" : "1050px"}
+						minTableWidth={
+							isOwner ? (isAdmin ? "1250px" : "1120px") : isAdmin ? "1180px" : "1050px"
+						}
 						bleedOnNarrow
 						emptyMessage={
 							debouncedSearch || roleFilter !== "all" || teamFilterId
@@ -1076,6 +1169,14 @@ export default function UsersPage() {
 														{renderTeamControl(user)}
 													</div>
 												</>
+											)}
+											{isAdmin && (
+												<div className="col-span-2 min-w-0">
+													<p className="mb-1.5 text-[10px] font-semibold text-meta">
+														Last prompt
+													</p>
+													{renderPromptActivity(user)}
+												</div>
 											)}
 											<div className="col-span-2 mt-auto border-t border-hairline pt-3 dark:border-white/5">
 												<p className="mb-1.5 text-[10px] font-semibold text-meta">

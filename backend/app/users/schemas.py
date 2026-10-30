@@ -51,6 +51,12 @@ class UserResponse(SQLModel):
     updated_at: datetime
 
 
+class UserPromptActivityResponse(SQLModel):
+    user_id: UUID
+    last_prompt_at: datetime | None = None
+    has_active_prompt: bool = False
+
+
 class InstanceUserMembershipResponse(SQLModel):
     workspace_id: UUID
     workspace_name: str
