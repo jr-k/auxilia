@@ -1,5 +1,5 @@
 from collections import Counter
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Sequence
 from contextlib import asynccontextmanager
 from urllib.parse import urlsplit
 from uuid import UUID
@@ -61,8 +61,8 @@ def _sanitized_url(url: str) -> str:
 
 
 def _mcp_servers(
-    bindings: list[AgentMCPServerDB],
-    servers: list[MCPServerDB],
+    bindings: Sequence[AgentMCPServerDB],
+    servers: Sequence[MCPServerDB],
 ) -> dict[str, dict]:
     """Build the default-enabled, configured MCP surface without credentials."""
     servers_by_id = {server.id: server for server in servers}

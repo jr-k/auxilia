@@ -156,9 +156,8 @@ def _apply_tool_annotations(mcp: MCPServer) -> None:
         "preview_skill_source",
         "plan_skill_source_sync",
         "sync_skill_source",
-        "diff_skill_update",
     }
-    read_only_names = {"plan_skill_source_sync", "diff_skill_update"}
+    read_only_names = {"plan_skill_source_sync"}
     destructive_names = {"permanently_delete_agent"}
     for name, tool in tools.items():
         read_only = name.startswith(read_prefixes) or name in read_only_names
@@ -1242,18 +1241,6 @@ def register_management_tools(mcp: MCPServer) -> None:
             return to_json(
                 await SkillService(db, workspace_id).list_bound_agents(skill_id, user)
             )
-
-    @mcp.tool()
-    async def diff_skill_update(skill_id: UUID, ctx: Context) -> dict[str, Any]:
-        """Preview the available upstream update for a sourced skill."""
-        async with tool_session(ctx) as (db, user, workspace_id):
-            return to_json(await SkillService(db, workspace_id).diff(skill_id, user))
-
-    @mcp.tool()
-    async def adopt_skill_update(skill_id: UUID, ctx: Context) -> dict[str, Any]:
-        """Adopt the available upstream version of a sourced skill."""
-        async with tool_session(ctx) as (db, user, workspace_id):
-            return to_json(await SkillService(db, workspace_id).adopt(skill_id, user))
 
     @mcp.tool()
     async def get_current_workspace(ctx: Context) -> dict[str, Any]:
