@@ -6,6 +6,7 @@ import {
 	Download,
 	KeyRound,
 	Link2,
+	Loader2,
 	Menu,
 	ShieldCheck,
 	Unlink,
@@ -306,6 +307,7 @@ function ConnectedAccountsCard() {
 		null,
 	);
 	const [busy, setBusy] = useState<"slack" | "telegram" | null>(null);
+	const [checking, setChecking] = useState<"slack" | "telegram" | null>(null);
 	const [error, setError] = useState<string | null>(null);
 
 	const load = useCallback(async () => {
@@ -390,6 +392,15 @@ function ConnectedAccountsCard() {
 			setError(getApiErrorMessage(caught, "Could not unlink Telegram."));
 		} finally {
 			setBusy(null);
+		}
+	};
+
+	const checkConnection = async (channel: "slack" | "telegram") => {
+		setChecking(channel);
+		try {
+			await load();
+		} finally {
+			setChecking(null);
 		}
 	};
 
@@ -492,12 +503,19 @@ function ConnectedAccountsCard() {
 					</p>
 					<button
 						type="button"
+						disabled={checking !== null}
 						onClick={() => {
-							void load();
+							void checkConnection("slack");
 						}}
-						className="mt-2 cursor-pointer rounded-[6px] border border-input bg-card px-3 py-1.5 text-[11.5px] font-semibold text-foreground"
+						className="mt-2 flex cursor-pointer items-center gap-1.5 rounded-[6px] border border-input bg-card px-3 py-1.5 text-[11.5px] font-semibold text-foreground disabled:cursor-default disabled:opacity-60"
 					>
-						Check connection
+						{checking === "slack" && (
+							<Loader2
+								className="size-3.5 animate-spin"
+								aria-hidden="true"
+							/>
+						)}
+						{checking === "slack" ? "Checking…" : "Check connection"}
 					</button>
 				</div>
 			)}
@@ -524,12 +542,19 @@ function ConnectedAccountsCard() {
 						)}
 						<button
 							type="button"
+							disabled={checking !== null}
 							onClick={() => {
-								void load();
+								void checkConnection("telegram");
 							}}
-							className="cursor-pointer rounded-[6px] border border-input bg-card px-3 py-1.5 text-[11.5px] font-semibold text-foreground"
+							className="flex cursor-pointer items-center gap-1.5 rounded-[6px] border border-input bg-card px-3 py-1.5 text-[11.5px] font-semibold text-foreground disabled:cursor-default disabled:opacity-60"
 						>
-							Check connection
+							{checking === "telegram" && (
+								<Loader2
+									className="size-3.5 animate-spin"
+									aria-hidden="true"
+								/>
+							)}
+							{checking === "telegram" ? "Checking…" : "Check connection"}
 						</button>
 					</div>
 				</div>

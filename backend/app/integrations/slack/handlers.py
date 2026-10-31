@@ -769,6 +769,32 @@ async def _post_agent_denial(
     )
 
 
+def _link_prompt_text(app_name: str) -> str:
+    settings_url = (
+        f"{auth_settings.FRONTEND_URL.rstrip('/')}"
+        "/settings?tab=profile&amp;section=connected-accounts"
+    )
+    return (
+        f"Link your {app_name} account first. Generate a code in "
+        f"<{settings_url}|Profile &gt; Connected accounts>, then send "
+        "`link CODE` to this bot in a direct message."
+    )
+
+
+async def _post_link_prompt(
+    client: AsyncWebClient,
+    event: SlackEvent,
+    app_name: str,
+) -> None:
+    if not event.channel or not event.ts:
+        return
+    await client.chat_postMessage(
+        channel=event.channel,
+        thread_ts=event.thread_ts or event.ts,
+        text=_link_prompt_text(app_name),
+    )
+
+
 async def _acknowledge_agent_mention(
     client: AsyncWebClient,
     event: SlackEvent,
@@ -862,13 +888,7 @@ async def handle_agent_message(
     user = await resolve_user(event.user, workspace_id, slack_bot_id)
     if user is None:
         app_name = escape_mrkdwn(await _instance_app_name())
-        await _post_agent_denial(
-            client,
-            event,
-            f"Link your {app_name} account first. Generate a code in "
-            "Settings / Connected accounts, then send `link CODE` here "
-            "in a direct message.",
-        )
+        await _post_link_prompt(client, event, app_name)
         return
 
     raw_question = _agent_question(event.text or "")
@@ -1192,13 +1212,10 @@ async def handle_agent_message_shortcut_submission(
 
     actor = await resolve_user(payload.user.id, workspace_id, slack_bot_id)
     if actor is None:
+        app_name = escape_mrkdwn(await _instance_app_name())
         await client.chat_postMessage(
             channel=dm_channel_id,
-            text=(
-                "Link your Auxilia account first. Generate a code in "
-                "Settings / Connected accounts, then send `link CODE` "
-                "to this bot in a direct message."
-            ),
+            text=_link_prompt_text(app_name),
         )
         return
 

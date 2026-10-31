@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.core.service import AgentService
 from app.agents.models import EffectivePermission
+from app.auth.settings import auth_settings
 from app.exceptions import DomainError, DomainValidationError
 from app.integrations.telegram.attachments import load_telegram_attachments
 from app.integrations.telegram.client import TelegramClient
@@ -49,6 +50,18 @@ def _display_name(user: dict[str, Any]) -> str | None:
         if part
     )
     return name or str(user.get("username") or "").strip() or None
+
+
+def _link_prompt_text() -> str:
+    settings_url = (
+        f"{auth_settings.FRONTEND_URL.rstrip('/')}"
+        "/settings?tab=profile&section=connected-accounts"
+    )
+    return (
+        "Link your Auxilia account first. Generate a code in "
+        f"Profile > Connected accounts:\n{settings_url}\n"
+        "Then send /link CODE here."
+    )
 
 
 def _command(text: str) -> tuple[str | None, str | None]:
@@ -288,8 +301,7 @@ async def _handle_message(
     if identity is None:
         await client.send_message(
             chat_id,
-            "Link your Auxilia account first. Generate a code in "
-            "Settings / Connected accounts, then send /link CODE here.",
+            _link_prompt_text(),
             message_thread_id=topic,
         )
         return
