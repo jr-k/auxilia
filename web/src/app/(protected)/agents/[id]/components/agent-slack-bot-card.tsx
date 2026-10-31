@@ -29,9 +29,15 @@ interface Props {
 	agentId: string;
 	canManage: boolean;
 	readOnly: boolean;
+	onCountChange?: (count: number) => void;
 }
 
-export default function AgentSlackBotCard({ agentId, canManage, readOnly }: Props) {
+export default function AgentSlackBotCard({
+	agentId,
+	canManage,
+	readOnly,
+	onCountChange,
+}: Props) {
 	const confirmDialog = useConfirmDialog();
 	const appName = useAppearanceStore((state) => state.appearance.appName);
 	const [connections, setConnections] = useState<AgentSlackBotSettings[]>([]);
@@ -232,6 +238,10 @@ export default function AgentSlackBotCard({ agentId, canManage, readOnly }: Prop
 	};
 
 	const totalConnections = connections.length + telegramConnections.length;
+
+	useEffect(() => {
+		onCountChange?.(totalConnections);
+	}, [onCountChange, totalConnections]);
 
 	const statusLabel = (connection: {
 		workspaceEnabled: boolean;

@@ -2,7 +2,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Agent } from "@/types/agents";
-import AgentEditor, { type EditorTab } from "./agent-editor";
+import AgentEditor, {
+	type CapabilityTab,
+	type EditorTab,
+} from "./agent-editor";
 import { useAgentsStore } from "@/stores/agents-store";
 
 interface AgentDetailProps {
@@ -46,6 +49,7 @@ export default function AgentDetail({ agent }: AgentDetailProps) {
 
 	const [mode, setMode] = useState<"read" | "edit">("read");
 	const [tab, setTab] = useState<EditorTab>("instructions");
+	const [capabilityTab, setCapabilityTab] = useState<CapabilityTab>("mcp");
 
 	// The server-rendered copy is fresher than whatever the store loaded on
 	// layout mount — sync it in so read mode and the edit snapshot match it.
@@ -67,6 +71,8 @@ export default function AgentDetail({ agent }: AgentDetailProps) {
 			readOnly={mode === "read"}
 			initialTab={tab}
 			onTabChange={setTab}
+			initialCapabilityTab={capabilityTab}
+			onCapabilityTabChange={setCapabilityTab}
 			onEdit={
 				canEditAgent
 					? () => {

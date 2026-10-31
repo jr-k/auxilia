@@ -5,7 +5,9 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Skill } from "@/types/skills";
 import { useSkillsStore } from "@/stores/skills-store";
 import { getApiErrorMessage } from "@/lib/api/errors";
-import SkillEditor from "../components/skill-editor";
+import SkillEditor, {
+	type SkillEditorTab,
+} from "../components/skill-editor";
 
 export default function SkillPage() {
 	const params = useParams();
@@ -23,6 +25,7 @@ export default function SkillPage() {
 	// `?edit=1` (the library's row menu) opens straight in edit mode; a
 	// viewer who can't edit falls back to read mode below.
 	const [editing, setEditing] = useState(searchParams.get("edit") === "1");
+	const [tab, setTab] = useState<SkillEditorTab>("instructions");
 
 	useEffect(() => {
 		let current = true;
@@ -64,6 +67,8 @@ export default function SkillPage() {
 			key={`${skill.id}:${skill.revision}:${canEdit ? "edit" : "read"}`}
 			skill={skill}
 			readOnly={!canEdit}
+			initialTab={tab}
+			onTabChange={setTab}
 			onEdit={
 				skill.canEdit || skill.canManage
 					? () => {

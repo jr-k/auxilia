@@ -127,6 +127,8 @@ const NEW_SKILL = composeSkillMarkdown({
 	body: "# When to use\n\n# Steps\n\n1. \n",
 });
 
+export type SkillEditorTab = "instructions" | "more";
+
 interface SkillEditorProps {
 	/** Undefined = create mode (`/skills/new`). */
 	skill?: Skill;
@@ -138,6 +140,8 @@ interface SkillEditorProps {
 	/** Discard/Cancel: back to read mode (detail) or leave the page (create). */
 	onCancel: () => void;
 	onDeleted?: () => void;
+	initialTab?: SkillEditorTab;
+	onTabChange?: (tab: SkillEditorTab) => void;
 }
 
 interface Draft {
@@ -168,6 +172,8 @@ export default function SkillEditor({
 	onSaved,
 	onCancel,
 	onDeleted,
+	initialTab = "instructions",
+	onTabChange,
 }: SkillEditorProps) {
 	const confirmDialog = useConfirmDialog();
 	const { resolvedTheme } = useTheme();
@@ -224,9 +230,7 @@ export default function SkillEditor({
 	const locked = fields === null;
 	const [isSaving, setIsSaving] = useState(false);
 	const [error, setError] = useState<string | null>(null);
-	const [mobileTab, setMobileTab] = useState<"instructions" | "more">(
-		"instructions",
-	);
+	const [mobileTab, setMobileTab] = useState<SkillEditorTab>(initialTab);
 	const isMobile = useIsMobile();
 
 	const isDirty =
@@ -759,7 +763,10 @@ export default function SkillEditor({
 							{ key: "more", label: "More" },
 						]}
 						value={mobileTab}
-						onChange={setMobileTab}
+						onChange={(key) => {
+							setMobileTab(key);
+							onTabChange?.(key);
+						}}
 						className="mt-6 border-b border-border md:hidden"
 					/>
 

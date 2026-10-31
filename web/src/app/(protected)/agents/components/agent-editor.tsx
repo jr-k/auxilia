@@ -62,7 +62,12 @@ export type EditorTab =
 	| "permissions"
 	| "more";
 
-type CapabilityTab = "mcp" | "skills" | "sandbox" | "slack" | "subagents";
+export type CapabilityTab =
+	| "mcp"
+	| "skills"
+	| "sandbox"
+	| "slack"
+	| "subagents";
 
 const slugify = (name: string) =>
 	name.trim().toLowerCase().replace(/\s+/g, "-") || "…";
@@ -97,6 +102,8 @@ interface AgentEditorProps {
 	onCancel: () => void;
 	initialTab?: EditorTab;
 	onTabChange?: (tab: EditorTab) => void;
+	initialCapabilityTab?: CapabilityTab;
+	onCapabilityTabChange?: (tab: CapabilityTab) => void;
 }
 
 export default function AgentEditor({
@@ -107,6 +114,8 @@ export default function AgentEditor({
 	onCancel,
 	initialTab = "instructions",
 	onTabChange,
+	initialCapabilityTab = "mcp",
+	onCapabilityTabChange,
 }: AgentEditorProps) {
 	const router = useRouter();
 	const confirmDialog = useConfirmDialog();
@@ -180,7 +189,9 @@ export default function AgentEditor({
 		[form.skillIds, librarySkills, agent?.skills],
 	);
 	const [tab, setTab] = useState<EditorTab>(initialTab);
-	const [capabilityTab, setCapabilityTab] = useState<CapabilityTab>("mcp");
+	const [capabilityTab, setCapabilityTab] =
+		useState<CapabilityTab>(initialCapabilityTab);
+	const [sideChannelCount, setSideChannelCount] = useState(0);
 	const [isSaving, setIsSaving] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -214,6 +225,26 @@ export default function AgentEditor({
 	}, [agent]);
 
 	const agentId = agent?.id;
+	useEffect(() => {
+		if (!agentId) return;
+		let active = true;
+		void Promise.all([
+			agentsApi.listAgentSlackBots(agentId),
+			agentsApi.listAgentTelegramBots(agentId),
+		])
+			.then(([slackBots, telegramBots]) => {
+				if (active) {
+					setSideChannelCount(slackBots.length + telegramBots.length);
+				}
+			})
+			.catch(() => {
+				// The side-channel panel reports connection-loading failures.
+			});
+		return () => {
+			active = false;
+		};
+	}, [agentId]);
+
 	useEffect(() => {
 		if (readOnly || !agentId || !canEditAgent || !langfuseEnabled) return;
 		let active = true;
@@ -523,7 +554,15 @@ export default function AgentEditor({
 		{ key: "mcp", label: "MCP servers", count: form.mcpServers.length },
 		{ key: "skills", label: "Skills", count: form.skillIds.length },
 		{ key: "sandbox", label: "Sandbox", count: form.sandboxes.length },
-		...(agent ? [{ key: "slack" as const, label: "Side channels" }] : []),
+		...(agent
+			? [
+					{
+						key: "slack" as const,
+						label: "Side channels",
+						count: sideChannelCount,
+					},
+				]
+			: []),
 		{
 			key: "subagents",
 			label: "Subagents",
@@ -583,7 +622,10 @@ export default function AgentEditor({
 			<UnderlineTabs
 				tabs={capabilityTabs}
 				value={activeCapabilityTab}
-				onChange={setCapabilityTab}
+				onChange={(key) => {
+					setCapabilityTab(key);
+					onCapabilityTabChange?.(key);
+				}}
 				className="border-b border-border"
 			/>
 			<div className="min-h-0 pt-5">
@@ -623,6 +665,7 @@ export default function AgentEditor({
 							}}
 							onEnableCodeExecution={() => {
 								setCapabilityTab("sandbox");
+								onCapabilityTabChange?.("sandbox");
 								setAddToolOpen(true);
 							}}
 						/>
@@ -635,6 +678,7 @@ export default function AgentEditor({
 							agentId={agent.id}
 							canManage={canManageAgent}
 							readOnly={readOnly}
+							onCountChange={setSideChannelCount}
 						/>
 					</div>
 				)}
