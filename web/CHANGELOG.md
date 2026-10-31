@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.90](https://github.com/jr-k/auxilia/compare/web-v0.12.89...web-v0.12.90) (2026-10-31)
+
+
+### Bug Fixes
+
+* **side-channels:** improve account linking feedback ([8e00ca5](https://github.com/jr-k/auxilia/commit/8e00ca52b10d820ddec36bf2265c0ca833ee4855))
+
 ## [0.12.89](https://github.com/jr-k/auxilia/compare/web-v0.12.88...web-v0.12.89) (2026-10-31)
 
 
