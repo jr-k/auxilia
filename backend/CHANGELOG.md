@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.63](https://github.com/jr-k/auxilia/compare/backend-v0.11.62...backend-v0.11.63) (2026-10-31)
+
+
+### Bug Fixes
+
+* **side-channels:** respect default tool selections ([f4f28c6](https://github.com/jr-k/auxilia/commit/f4f28c6411fc5ed4d66d598d7c0a069de3a93222))
+
 ## [0.11.62](https://github.com/jr-k/auxilia/compare/backend-v0.11.61...backend-v0.11.62) (2026-10-31)
 
 
