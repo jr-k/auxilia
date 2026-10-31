@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.91](https://github.com/jr-k/auxilia/compare/web-v0.12.90...web-v0.12.91) (2026-10-31)
+
+
+### Bug Fixes
+
+* **agents:** preserve tabs and show side-channel count ([447ceb8](https://github.com/jr-k/auxilia/commit/447ceb8a9d404cc5c0864ede258f280334cd9a7b))
+
 ## [0.12.90](https://github.com/jr-k/auxilia/compare/web-v0.12.89...web-v0.12.90) (2026-10-31)
 
 
