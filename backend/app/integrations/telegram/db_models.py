@@ -23,6 +23,13 @@ from app.models import BaseDBModel
 
 
 class TelegramToolDiscoveryMode(str, Enum):
+    """How a Telegram connection exposes tools across the agent graph.
+
+    Lazy and ``all_capabilities`` re-enable every configured resource,
+    matching web conversations; Lazy routes MCP servers per prompt, while
+    ``all_capabilities`` loads every MCP schema eagerly.
+    """
+
     disabled = "disabled"
     lazy = "lazy"
     local = "local"
@@ -30,7 +37,10 @@ class TelegramToolDiscoveryMode(str, Enum):
 
     @property
     def force_enable_all_capabilities(self) -> bool:
-        return self is TelegramToolDiscoveryMode.all_capabilities
+        return self in {
+            TelegramToolDiscoveryMode.lazy,
+            TelegramToolDiscoveryMode.all_capabilities,
+        }
 
     @property
     def runtime_mode(self) -> ToolDiscoveryMode:
