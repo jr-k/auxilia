@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.89](https://github.com/jr-k/auxilia/compare/web-v0.12.88...web-v0.12.89) (2026-10-31)
+
+
+### Features
+
+* **slack:** add explicit account linking ([fa18cbf](https://github.com/jr-k/auxilia/commit/fa18cbf17bed7bface00e98ddae3513fda09dd85))
+
 ## [0.12.88](https://github.com/jr-k/auxilia/compare/web-v0.12.87...web-v0.12.88) (2026-10-31)
 
 
