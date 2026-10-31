@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.88](https://github.com/jr-k/auxilia/compare/web-v0.12.87...web-v0.12.88) (2026-10-31)
+
+
+### Features
+
+* **side-channels:** configure conversation links ([b087402](https://github.com/jr-k/auxilia/commit/b0874028a250d5da251034e8b84f6d8eed5d52a5))
+
 ## [0.12.87](https://github.com/jr-k/auxilia/compare/web-v0.12.86...web-v0.12.87) (2026-10-31)
 
 
