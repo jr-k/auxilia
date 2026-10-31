@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.87](https://github.com/jr-k/auxilia/compare/web-v0.12.86...web-v0.12.87) (2026-10-31)
+
+
+### Bug Fixes
+
+* **telegram:** restore account linking flow ([1481cd9](https://github.com/jr-k/auxilia/commit/1481cd972619dd361225315feedf4b6a57018c2c))
+
 ## [0.12.86](https://github.com/jr-k/auxilia/compare/web-v0.12.85...web-v0.12.86) (2026-10-30)
 
 
