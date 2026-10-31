@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.60](https://github.com/jr-k/auxilia/compare/backend-v0.11.59...backend-v0.11.60) (2026-10-31)
+
+
+### Features
+
+* **slack:** add explicit account linking ([fa18cbf](https://github.com/jr-k/auxilia/commit/fa18cbf17bed7bface00e98ddae3513fda09dd85))
+
 ## [0.11.59](https://github.com/jr-k/auxilia/compare/backend-v0.11.58...backend-v0.11.59) (2026-10-31)
 
 
