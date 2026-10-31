@@ -791,7 +791,7 @@ class Agent:
             thread.tool_mode is ThreadToolMode.no_tools
             and force_enable_all_capabilities is not True
         )
-        lazy_overrides_resource_selections = (
+        lazy_overrides_resource_selections = force_enable_all_capabilities is None and (
             discovery_override is ToolDiscoveryMode.lazy
             or (
                 discovery_override is None

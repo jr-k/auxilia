@@ -30,10 +30,7 @@ class TelegramToolDiscoveryMode(str, Enum):
 
     @property
     def force_enable_all_capabilities(self) -> bool:
-        return self in {
-            TelegramToolDiscoveryMode.lazy,
-            TelegramToolDiscoveryMode.all_capabilities,
-        }
+        return self is TelegramToolDiscoveryMode.all_capabilities
 
     @property
     def runtime_mode(self) -> ToolDiscoveryMode:

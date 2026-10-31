@@ -12,10 +12,9 @@ class SlackToolDiscoveryMode(str, Enum):
     """How a Slack connection exposes MCP tools, chosen per connection.
 
     The first three mirror ``ToolDiscoveryMode`` and apply it to every agent
-    of the graph. Lazy and ``all_capabilities`` re-enable the MCP servers,
-    sandboxes, subagents and skills the agent disables by default; Lazy then
-    routes MCP servers per prompt, while ``all_capabilities`` loads every
-    schema eagerly.
+    of the graph while preserving each resource's ``enabled_by_default``
+    setting. ``all_capabilities`` explicitly re-enables every configured
+    resource and loads every MCP schema eagerly.
     """
 
     disabled = "disabled"
@@ -25,10 +24,7 @@ class SlackToolDiscoveryMode(str, Enum):
 
     @property
     def force_enable_all_capabilities(self) -> bool:
-        return self in {
-            SlackToolDiscoveryMode.lazy,
-            SlackToolDiscoveryMode.all_capabilities,
-        }
+        return self is SlackToolDiscoveryMode.all_capabilities
 
     @property
     def runtime_mode(self) -> ToolDiscoveryMode:

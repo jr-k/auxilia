@@ -135,6 +135,35 @@ class ThreadService(BaseService[ThreadDB, ThreadRepository]):
     ) -> list[ThreadDB]:
         return await self.repository.list_for_trigger(trigger_id, since=since)
 
+    async def _default_disabled_resource_ids(
+        self, spec: RunSpec
+    ) -> tuple[list[UUID], list[UUID], list[UUID], list[UUID]]:
+        return (
+            [
+                binding.mcp_server_id
+                for binding in spec.all_mcp_bindings
+                if not binding.enabled_by_default
+            ],
+            list(
+                await SkillRepository(
+                    self.db, self.workspace_id
+                ).list_disabled_by_default_ids_for_agents(spec.all_agent_ids)
+            ),
+            list(
+                {
+                    agent_spec.sandbox.row.id
+                    for agent_spec in [spec.agent, *spec.subagents]
+                    if agent_spec.sandbox is not None
+                    and not agent_spec.sandbox.enabled_by_default
+                }
+            ),
+            [
+                subagent.id
+                for subagent in spec.subagents
+                if not subagent.enabled_by_default
+            ],
+        )
+
     async def create(
         self,
         data: ThreadCreate,
@@ -168,15 +197,12 @@ class ThreadService(BaseService[ThreadDB, ThreadRepository]):
                 )
             ):
                 reasoning_effort = default_effort
-        disabled_skill_ids_for_thread = (
-            data.disabled_skill_ids
-            if "disabled_skill_ids" in data.model_fields_set
-            else list(
-                await SkillRepository(
-                    self.db, self.workspace_id
-                ).list_disabled_by_default_ids_for_agents(spec.all_agent_ids)
-            )
-        )
+        (
+            default_disabled_mcp_server_ids,
+            default_disabled_skill_ids,
+            default_disabled_sandbox_ids,
+            default_disabled_subagent_ids,
+        ) = await self._default_disabled_resource_ids(spec)
         (
             disabled_mcp_server_ids,
             disabled_skill_ids,
@@ -187,33 +213,22 @@ class ThreadService(BaseService[ThreadDB, ThreadRepository]):
             (
                 data.disabled_mcp_server_ids
                 if "disabled_mcp_server_ids" in data.model_fields_set
-                else [
-                    binding.mcp_server_id
-                    for binding in spec.all_mcp_bindings
-                    if not binding.enabled_by_default
-                ]
+                else default_disabled_mcp_server_ids
             ),
-            disabled_skill_ids_for_thread,
+            (
+                data.disabled_skill_ids
+                if "disabled_skill_ids" in data.model_fields_set
+                else default_disabled_skill_ids
+            ),
             (
                 data.disabled_sandbox_ids
                 if "disabled_sandbox_ids" in data.model_fields_set
-                else list(
-                    {
-                        agent_spec.sandbox.row.id
-                        for agent_spec in [spec.agent, *spec.subagents]
-                        if agent_spec.sandbox is not None
-                        and not agent_spec.sandbox.enabled_by_default
-                    }
-                )
+                else default_disabled_sandbox_ids
             ),
             (
                 data.disabled_subagent_ids
                 if "disabled_subagent_ids" in data.model_fields_set
-                else [
-                    subagent.id
-                    for subagent in spec.subagents
-                    if not subagent.enabled_by_default
-                ]
+                else default_disabled_subagent_ids
             ),
             tolerated_mcp_ids=(
                 set(data.disabled_mcp_server_ids)
@@ -642,16 +657,34 @@ class ThreadService(BaseService[ThreadDB, ThreadRepository]):
         """
         thread = await self.repository.get(ts)
         if thread is None:
-            agent = await AgentRepository(self.db, self.workspace_id).get_scoped(
+            spec = await AgentRepository(self.db, self.workspace_id).get_run_spec(
                 UUID(agent_id)
             )
-            if agent is None:
+            if spec is None:
                 raise NotFoundError("Agent not found")
             # Side channels have no model picker, so new threads use the
             # workspace default unless the agent defines an available override.
             model_id, reasoning_effort = await self._resolve_agent_defaults(
-                agent.default_model_id,
-                agent.default_reasoning_effort,
+                spec.agent.default_model_id,
+                spec.agent.default_reasoning_effort,
+            )
+            (
+                default_disabled_mcp_server_ids,
+                default_disabled_skill_ids,
+                default_disabled_sandbox_ids,
+                default_disabled_subagent_ids,
+            ) = await self._default_disabled_resource_ids(spec)
+            (
+                disabled_mcp_server_ids,
+                disabled_skill_ids,
+                disabled_sandbox_ids,
+                disabled_subagent_ids,
+            ) = await self.normalize_resource_ids(
+                spec,
+                default_disabled_mcp_server_ids,
+                default_disabled_skill_ids,
+                default_disabled_sandbox_ids,
+                default_disabled_subagent_ids,
             )
             thread = ThreadDB(
                 id=ts,
@@ -662,6 +695,10 @@ class ThreadService(BaseService[ThreadDB, ThreadRepository]):
                 first_message_content=question,
                 user_id=user_id,
                 source=source,
+                disabled_mcp_server_ids=disabled_mcp_server_ids,
+                disabled_skill_ids=disabled_skill_ids,
+                disabled_sandbox_ids=disabled_sandbox_ids,
+                disabled_subagent_ids=disabled_subagent_ids,
             )
             self.db.add(thread)
             await self.db.flush()
