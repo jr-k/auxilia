@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.59](https://github.com/jr-k/auxilia/compare/backend-v0.11.58...backend-v0.11.59) (2026-10-31)
+
+
+### Features
+
+* **side-channels:** configure conversation links ([b087402](https://github.com/jr-k/auxilia/commit/b0874028a250d5da251034e8b84f6d8eed5d52a5))
+
 ## [0.11.58](https://github.com/jr-k/auxilia/compare/backend-v0.11.57...backend-v0.11.58) (2026-10-30)
 
 
