@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.64](https://github.com/jr-k/auxilia/compare/backend-v0.11.63...backend-v0.11.64) (2026-10-31)
+
+
+### Features
+
+* **tool-discovery:** default new resources to lazy ([5b5b1ee](https://github.com/jr-k/auxilia/commit/5b5b1ee196bad34c575b2a34c068a727d01294fa))
+
 ## [0.11.63](https://github.com/jr-k/auxilia/compare/backend-v0.11.62...backend-v0.11.63) (2026-10-31)
 
 
