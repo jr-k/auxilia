@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.62](https://github.com/jr-k/auxilia/compare/backend-v0.11.61...backend-v0.11.62) (2026-10-31)
+
+
+### Bug Fixes
+
+* **slack:** clarify account linking channel ([6617f77](https://github.com/jr-k/auxilia/commit/6617f77944537bcd4d44ce784d21149d914dac20))
+
 ## [0.11.61](https://github.com/jr-k/auxilia/compare/backend-v0.11.60...backend-v0.11.61) (2026-10-31)
 
 
