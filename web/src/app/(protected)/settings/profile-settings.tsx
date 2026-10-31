@@ -5,15 +5,19 @@ import {
 	Copy,
 	Download,
 	KeyRound,
+	Link2,
 	Menu,
 	ShieldCheck,
+	Unlink,
 	UserRound,
 	Volume2,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { TelegramLogo } from "@/components/telegram-logo";
 import { ImageUpload } from "@/components/ui/image-upload";
 import { Switch } from "@/components/ui/switch";
 import { getApiErrorMessage } from "@/lib/api/errors";
+import * as notificationsApi from "@/lib/api/resources/notifications";
 import * as usersApi from "@/lib/api/resources/users";
 import {
 	setConfirmExternalLinks,
@@ -27,6 +31,7 @@ import { useAgentsStore } from "@/stores/agents-store";
 import { useAppearanceStore } from "@/stores/appearance-store";
 import { useUserStore } from "@/stores/user-store";
 import type { CurrentUser } from "@/types/auth";
+import type { TelegramIdentity, TelegramLinkCode } from "@/types/notifications";
 
 const inputClass =
 	"w-full rounded-[8px] border border-input bg-card px-3 py-2.5 text-[13px] text-foreground outline-none transition-colors placeholder:text-meta focus:border-petrol";
@@ -282,6 +287,138 @@ function IdentityCard({ user }: { user: CurrentUser }) {
 					{saving ? "Saving…" : "Save profile"}
 				</button>
 			</div>
+		</section>
+	);
+}
+
+function ConnectedAccountsCard() {
+	const [identity, setIdentity] = useState<TelegramIdentity | null>(null);
+	const [link, setLink] = useState<TelegramLinkCode | null>(null);
+	const [busy, setBusy] = useState(false);
+	const [error, setError] = useState<string | null>(null);
+
+	const load = useCallback(async () => {
+		setError(null);
+		try {
+			setIdentity(await notificationsApi.getTelegramIdentity());
+		} catch (caught: unknown) {
+			setError(
+				getApiErrorMessage(caught, "Could not load connected accounts."),
+			);
+		}
+	}, []);
+
+	useEffect(() => {
+		const timeout = window.setTimeout(() => {
+			void load();
+		}, 0);
+		return () => {
+			window.clearTimeout(timeout);
+		};
+	}, [load]);
+
+	const generateCode = async () => {
+		setBusy(true);
+		setError(null);
+		try {
+			setLink(await notificationsApi.createTelegramLinkCode());
+		} catch (caught: unknown) {
+			setError(getApiErrorMessage(caught, "Could not create a link code."));
+		} finally {
+			setBusy(false);
+		}
+	};
+
+	const unlink = async () => {
+		setBusy(true);
+		setError(null);
+		try {
+			await notificationsApi.unlinkTelegramIdentity();
+			setIdentity({ linked: false, username: null, displayName: null });
+			setLink(null);
+		} catch (caught: unknown) {
+			setError(getApiErrorMessage(caught, "Could not unlink Telegram."));
+		} finally {
+			setBusy(false);
+		}
+	};
+
+	const linkedName = identity?.username
+		? `@${identity.username}`
+		: (identity?.displayName ?? "Telegram user");
+
+	return (
+		<section className="mt-4 rounded-[12px] border border-border bg-card p-5">
+			<SectionHeading
+				icon={<Link2 className="size-4" />}
+				title="Connected accounts"
+				description="Link Telegram so agents can identify you and apply your Auxilia permissions."
+			/>
+			<div className="flex items-center gap-3 rounded-[9px] border border-input px-4 py-3.5">
+				<span className="flex size-9 shrink-0 items-center justify-center rounded-[8px] border border-border bg-background shadow-sm dark:border-white/10">
+					<TelegramLogo className="size-[62%]" />
+				</span>
+				<div className="min-w-0 flex-1">
+					<p className="text-[13px] font-semibold text-foreground">Telegram</p>
+					<p className="mt-0.5 text-[12px] text-subtle dark:text-panel-body">
+						{identity?.linked ? `Linked as ${linkedName}` : "Not linked"}
+					</p>
+				</div>
+				{identity?.linked ? (
+					<button
+						type="button"
+						disabled={busy}
+						onClick={() => {
+							void unlink();
+						}}
+						className="flex cursor-pointer items-center gap-1.5 rounded-[7px] border border-input bg-card px-3 py-1.5 text-[12px] font-semibold text-destructive disabled:opacity-50"
+					>
+						<Unlink className="size-3.5" />
+						Unlink
+					</button>
+				) : (
+					<button
+						type="button"
+						disabled={busy}
+						onClick={() => {
+							void generateCode();
+						}}
+						className="cursor-pointer rounded-[7px] bg-petrol px-3 py-1.5 text-[12px] font-semibold text-white disabled:opacity-50"
+					>
+						{busy ? "Generating…" : "Link Telegram"}
+					</button>
+				)}
+			</div>
+			{link && !identity?.linked && (
+				<div className="mt-3 rounded-[9px] border border-petrol/20 bg-petrol/[0.045] p-3 dark:border-petrol/50 dark:bg-petrol/15">
+					<p className="text-[12px] leading-5 text-subtle dark:text-panel-body">
+						Send <code>/link {link.code}</code> in a private chat with the bot.
+						The code expires in 10 minutes and can only be used once.
+					</p>
+					<div className="mt-2 flex items-center gap-2">
+						{link.deepLinkUrl && (
+							<a
+								href={link.deepLinkUrl}
+								target="_blank"
+								rel="noreferrer"
+								className="rounded-[6px] bg-petrol px-3 py-1.5 text-[11.5px] font-semibold text-white"
+							>
+								Open Telegram
+							</a>
+						)}
+						<button
+							type="button"
+							onClick={() => {
+								void load();
+							}}
+							className="cursor-pointer rounded-[6px] border border-input bg-card px-3 py-1.5 text-[11.5px] font-semibold text-foreground"
+						>
+							Check connection
+						</button>
+					</div>
+				</div>
+			)}
+			{error && <p className="mt-3 text-[12px] text-destructive">{error}</p>}
 		</section>
 	);
 }
@@ -792,6 +929,7 @@ export default function ProfileSettings({
 			</div>
 			<div className={section === "information" ? "" : "hidden"}>
 				<IdentityCard user={user} />
+				<ConnectedAccountsCard />
 			</div>
 			<div className={section === "security" ? "contents" : "hidden"}>
 					<PasswordCard />

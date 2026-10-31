@@ -269,25 +269,20 @@ export default function AgentSlackBotCard({ agentId, canManage, readOnly }: Prop
 				Let people operate this agent from external conversations.
 			</p>
 
-			<div className="overflow-hidden rounded-[10px] border border-border bg-card dark:border-white/10">
+			<div
+				className={`overflow-hidden rounded-[10px] border ${
+					!loading && totalConnections === 0
+						? "border-dashed border-input"
+						: "border-border bg-card dark:border-white/10"
+				}`}
+			>
 				{loading ? (
 					<div className="px-3.5 py-4 text-[11px] text-meta">
 						Checking connections…
 					</div>
 				) : totalConnections === 0 ? (
-					<div className="flex items-center gap-3 px-3.5 py-4">
-						<div className="flex size-8 items-center justify-center rounded-[8px] border border-dashed border-border text-meta">
-							<Plus className="size-3.5" />
-						</div>
-						<div>
-							<p className="text-[12px] font-semibold text-foreground">
-								No side-channels connected
-							</p>
-							<p className="mt-0.5 text-[10.5px] text-meta">
-								Add Slack or Telegram to make this agent available outside
-								Auxilia.
-							</p>
-						</div>
+					<div className="px-4 py-8 text-center text-[13px] text-meta dark:text-panel-dim">
+						No side channels configured
 					</div>
 				) : (
 					<>

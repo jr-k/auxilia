@@ -2,6 +2,8 @@ import { api } from "@/lib/api/client";
 import type {
 	SlackNotificationSettings,
 	SlackNotificationSettingsUpdate,
+	TelegramIdentity,
+	TelegramLinkCode,
 	TelegramWorkspaceSettings,
 } from "@/types/notifications";
 
@@ -35,4 +37,22 @@ export async function updateTelegramSettings(
 		{ enabled },
 	);
 	return response.data;
+}
+
+export async function getTelegramIdentity(): Promise<TelegramIdentity> {
+	const response = await api.get<TelegramIdentity>(
+		"/integrations/telegram/account",
+	);
+	return response.data;
+}
+
+export async function createTelegramLinkCode(): Promise<TelegramLinkCode> {
+	const response = await api.post<TelegramLinkCode>(
+		"/integrations/telegram/link-code",
+	);
+	return response.data;
+}
+
+export async function unlinkTelegramIdentity(): Promise<void> {
+	await api.delete("/integrations/telegram/account");
 }

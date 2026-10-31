@@ -18,6 +18,7 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/dialog";
+import { DropdownMenu } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import type {
@@ -50,6 +51,11 @@ const discoveryOptions: Array<{
 		description: "Force all configured resources",
 	},
 ];
+
+const telegramToolDiscoveryLabel = (
+	mode: TelegramToolDiscoveryMode,
+): string =>
+	discoveryOptions.find((option) => option.value === mode)?.label ?? mode;
 
 function AgentTelegramSetupGuide({ onDone }: { onDone: () => void }) {
 	const [activeStep, setActiveStep] = useState(0);
@@ -283,7 +289,7 @@ export default function AgentTelegramBotDialog({
 		>
 			<DialogContent
 				className={`gap-0 overflow-hidden p-0 ${
-					view === "guide" ? "sm:max-w-[680px]" : "sm:max-w-[600px]"
+					view === "guide" ? "sm:max-w-[680px]" : "sm:max-w-[560px]"
 				}`}
 			>
 				<DialogHeader className="border-b border-border px-5 py-4 pr-14 dark:border-white/10 sm:px-6">
@@ -300,7 +306,9 @@ export default function AgentTelegramBotDialog({
 								<ArrowLeft className="size-4" />
 							</button>
 						) : (
-							<TelegramLogo className="size-9" />
+							<span className="flex size-9 shrink-0 items-center justify-center rounded-[9px] border border-border bg-card shadow-sm dark:border-white/10">
+								<TelegramLogo className="size-[62%]" />
+							</span>
 						)}
 						<div className="min-w-0">
 							<DialogTitle>
@@ -336,7 +344,7 @@ export default function AgentTelegramBotDialog({
 								onClick={() => {
 									setView("guide");
 								}}
-								className="group flex w-full cursor-pointer items-center gap-3 rounded-[10px] border border-[#2AABEE]/30 bg-[#2AABEE]/[0.07] p-4 text-left transition-all hover:border-[#2AABEE]/45 hover:bg-[#2AABEE]/[0.11] dark:border-[#2AABEE]/50 dark:bg-[#2AABEE]/15 dark:hover:bg-[#2AABEE]/20"
+								className="group flex w-full cursor-pointer items-center gap-3 rounded-[10px] border border-petrol/30 bg-petrol/[0.07] p-4 text-left transition-all hover:border-petrol/45 hover:bg-petrol/[0.11] dark:border-petrol/60 dark:bg-petrol/25 dark:hover:bg-petrol/35"
 							>
 								<span className="min-w-0 flex-1">
 									<span className="flex items-center gap-2">
@@ -346,7 +354,7 @@ export default function AgentTelegramBotDialog({
 												: "Set up with BotFather"}
 										</span>
 										{!settings.isConfigured && (
-											<span className="rounded-full bg-[#2AABEE]/10 px-1.5 py-0.5 text-[9px] font-bold text-[#168bc3] dark:text-[#70c8f2]">
+											<span className="rounded-full bg-petrol/10 px-1.5 py-0.5 text-[9px] font-bold text-petrol dark:bg-panel-terminal/15 dark:text-panel-terminal">
 												Required
 											</span>
 										)}
@@ -355,119 +363,134 @@ export default function AgentTelegramBotDialog({
 										Create the bot, choose its username, and copy its token.
 									</span>
 								</span>
-								<PackageOpen className="size-4 shrink-0 text-[#168bc3] dark:text-[#70c8f2]" />
+								<PackageOpen className="size-4 shrink-0 text-petrol dark:text-panel-terminal" />
 							</button>
 
-							<label className="block">
-								<span className="mb-1.5 block text-[11px] font-semibold text-foreground">
-									Bot token
-								</span>
-								<Input
-									type="password"
-									autoComplete="new-password"
-									value={token}
-									onChange={(event) => {
-										setToken(event.target.value);
-									}}
-									placeholder={
-										settings.isConfigured
-											? `Configured / ending in ${settings.botTokenLast4 ?? "••••"}`
-											: "123456:ABC-DEF1234..."
-									}
-								/>
-							</label>
-
-							{settings.isConfigured && (
-								<div className="rounded-[9px] border border-border bg-background p-3 text-[11.5px] text-meta dark:border-white/10">
-									<p className="font-semibold text-foreground">
-										@
-										{settings.botUsername ??
-											settings.botName ??
-											"Telegram bot"}
-									</p>
-									<p className="mt-1 break-all">
-										Webhook: {settings.webhookUrl}
-									</p>
+							<div className="space-y-3">
+								<div className="flex items-start justify-between gap-4">
+									<div>
+										<p className="text-[12px] font-semibold text-foreground">
+											Add the Telegram credentials
+										</p>
+										<p className="text-[10.5px] text-meta">
+											Copy the token from the BotFather bot you just created.
+										</p>
+									</div>
 									{settings.deepLinkUrl && (
 										<a
 											href={settings.deepLinkUrl}
 											target="_blank"
 											rel="noreferrer"
-											className="mt-2 inline-flex items-center gap-1 font-semibold text-petrol hover:underline"
+											className="inline-flex shrink-0 items-center gap-1 text-[11px] font-semibold text-petrol hover:underline"
 										>
 											Open bot
 											<ArrowUpRight className="size-3" />
 										</a>
 									)}
 								</div>
-							)}
+								<label className="block">
+									<span className="mb-1.5 block text-[11px] font-semibold text-label">
+										Bot token
+									</span>
+									<Input
+										type="password"
+										autoComplete="new-password"
+										value={token}
+										onChange={(event) => {
+											setToken(event.target.value);
+										}}
+										placeholder={
+											settings.isConfigured
+												? settings.botTokenLast4
+													? `****${settings.botTokenLast4}`
+													: "Token configured"
+												: "123456:ABC-DEF1234..."
+										}
+									/>
+								</label>
+							</div>
 
-							<div className="space-y-3 rounded-[10px] border border-border bg-card p-4 dark:border-white/10">
-								<div className="flex items-center justify-between gap-4">
-									<div>
-										<p className="text-[12px] font-semibold text-foreground">
-											Bot active
+							<div className="overflow-hidden rounded-[9px] border border-border bg-sidebar dark:border-white/10">
+								<div className="flex items-center justify-between gap-4 px-3.5 py-3">
+									<div className="min-w-0">
+										<p className="text-[12.5px] font-semibold text-foreground">
+											Tool discovery in Telegram
 										</p>
 										<p className="mt-0.5 text-[10.5px] text-meta">
-											Register the secure Telegram webhook.
+											How MCP tools reach the model for this connection,
+											overriding the agent’s own setting.
+										</p>
+									</div>
+									<DropdownMenu
+										align="end"
+										itemClassName="py-[9px]"
+										items={discoveryOptions.map((option) => ({
+											label: option.label,
+											description: option.description,
+											active: toolDiscoveryMode === option.value,
+											onClick: () => {
+												setToolDiscoveryMode(option.value);
+											},
+										}))}
+										trigger={
+											<button
+												type="button"
+												className="inline-flex h-8 shrink-0 cursor-pointer items-center whitespace-nowrap rounded-full bg-hover px-3 text-[12px] font-medium text-foreground transition-colors hover:bg-petrol-tint dark:bg-white/5 dark:hover:bg-white/10"
+											>
+												{telegramToolDiscoveryLabel(toolDiscoveryMode)}
+											</button>
+										}
+									/>
+								</div>
+								<div className="flex items-center justify-between gap-4 border-t border-hairline px-3.5 py-3">
+									<div>
+										<p className="text-[12.5px] font-semibold text-foreground">
+											Accept Telegram requests
+										</p>
+										<p className="mt-0.5 text-[10.5px] text-meta">
+											Agent permissions are checked on every message.
 										</p>
 									</div>
 									<Switch
 										checked={enabled}
 										onCheckedChange={setEnabled}
 										disabled={!settings.workspaceEnabled}
+										className="cursor-pointer data-[state=checked]:bg-petrol"
 									/>
 								</div>
-								<div className="flex items-center justify-between gap-4 border-t border-hairline pt-3">
+								<div className="flex items-center justify-between gap-4 border-t border-hairline px-3.5 py-3">
 									<div>
-										<p className="text-[12px] font-semibold text-foreground">
-											Require mentions in groups
+										<p className="text-[12.5px] font-semibold text-foreground">
+											Require @mention in groups
 										</p>
 										<p className="mt-0.5 text-[10.5px] text-meta">
-											Ignore ambient group messages except for context.
+											Only mentions start a run. Other messages remain
+											available as context.
 										</p>
 									</div>
 									<Switch
 										checked={requireMention}
 										onCheckedChange={setRequireMention}
+										className="cursor-pointer data-[state=checked]:bg-petrol"
 									/>
 								</div>
-								<div className="flex items-center justify-between gap-4 border-t border-hairline pt-3">
+								<div className="flex items-center justify-between gap-4 border-t border-hairline px-3.5 py-3">
 									<div>
-										<p className="text-[12px] font-semibold text-foreground">
-											Show tool activity
+										<p className="text-[12.5px] font-semibold text-foreground">
+											Show tool callouts
 										</p>
 										<p className="mt-0.5 text-[10.5px] text-meta">
-											Include compact tool callouts while streaming.
+											Display tool names while the agent works. Turn off to
+											keep only the textual response.
 										</p>
 									</div>
 									<Switch
 										checked={showToolCallouts}
 										onCheckedChange={setShowToolCallouts}
+										className="cursor-pointer data-[state=checked]:bg-petrol"
 									/>
 								</div>
 							</div>
-
-							<label className="block">
-								<span className="mb-1.5 block text-[11px] font-semibold text-foreground">
-									Tool discovery
-								</span>
-								<select
-									value={toolDiscoveryMode}
-									onChange={(event) => {
-										setToolDiscoveryMode(
-											event.target.value as TelegramToolDiscoveryMode,
-										);
-									}}
-									className="h-9 w-full rounded-[7px] border border-input bg-background px-3 text-[12px] text-foreground outline-none focus:border-petrol"
-								>
-									{discoveryOptions.map((option) => (
-										<option key={option.value} value={option.value}>
-											{option.label} / {option.description}
-										</option>
-									))}
-								</select>
-							</label>
 
 							{error && (
 								<p className="rounded-[7px] bg-destructive/10 px-3 py-2 text-[11.5px] text-destructive">
@@ -476,7 +499,7 @@ export default function AgentTelegramBotDialog({
 							)}
 						</div>
 
-						<DialogFooter className="border-t border-border px-5 py-4 dark:border-white/10 sm:px-6">
+						<DialogFooter className="border-t border-border px-5 py-3.5 dark:border-white/10 sm:px-6">
 							{onDisconnect && (
 								<DialogButton
 									variant="destructive"
@@ -505,7 +528,7 @@ export default function AgentTelegramBotDialog({
 									saving || (!settings.isConfigured && !token.trim())
 								}
 							>
-								{saving ? "Saving..." : "Save bot"}
+								{saving ? "Saving…" : "Save connection"}
 							</DialogButton>
 						</DialogFooter>
 					</>
