@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.61](https://github.com/jr-k/auxilia/compare/backend-v0.11.60...backend-v0.11.61) (2026-10-31)
+
+
+### Bug Fixes
+
+* **side-channels:** improve account linking feedback ([8e00ca5](https://github.com/jr-k/auxilia/commit/8e00ca52b10d820ddec36bf2265c0ca833ee4855))
+
 ## [0.11.60](https://github.com/jr-k/auxilia/compare/backend-v0.11.59...backend-v0.11.60) (2026-10-31)
 
 
