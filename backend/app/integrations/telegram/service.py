@@ -56,6 +56,7 @@ class TelegramRuntimeConfig:
     enabled: bool
     require_mention_in_groups: bool
     show_tool_callouts: bool
+    show_auxilia_link: bool
     tool_discovery_mode: TelegramToolDiscoveryMode
     bot_id: str
     bot_username: str | None
@@ -124,6 +125,7 @@ class TelegramBotService:
             enabled=row.enabled if row else True,
             require_mention_in_groups=(row.require_mention_in_groups if row else True),
             show_tool_callouts=row.show_tool_callouts if row else True,
+            show_auxilia_link=row.show_auxilia_link if row else True,
             tool_discovery_mode=(
                 row.tool_discovery_mode
                 if row
@@ -171,6 +173,7 @@ class TelegramBotService:
             enabled=row.enabled,
             require_mention_in_groups=row.require_mention_in_groups,
             show_tool_callouts=row.show_tool_callouts,
+            show_auxilia_link=row.show_auxilia_link,
             tool_discovery_mode=row.tool_discovery_mode,
             bot_id=row.bot_id,
             bot_username=row.bot_username,
@@ -203,6 +206,7 @@ class TelegramBotService:
             enabled=False,
             require_mention_in_groups=data.require_mention_in_groups,
             show_tool_callouts=data.show_tool_callouts,
+            show_auxilia_link=data.show_auxilia_link,
             tool_discovery_mode=data.tool_discovery_mode,
             bot_id=external_bot_id,
             bot_username=str(me.get("username") or "") or None,
@@ -258,6 +262,7 @@ class TelegramBotService:
         row.enabled = False
         row.require_mention_in_groups = data.require_mention_in_groups
         row.show_tool_callouts = data.show_tool_callouts
+        row.show_auxilia_link = data.show_auxilia_link
         row.tool_discovery_mode = data.tool_discovery_mode
         self.db.add(row)
         await self.db.commit()

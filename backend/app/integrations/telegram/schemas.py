@@ -17,6 +17,7 @@ class TelegramBotUpdate(BaseModel):
     enabled: bool = True
     require_mention_in_groups: bool = True
     show_tool_callouts: bool = True
+    show_auxilia_link: bool = True
     tool_discovery_mode: TelegramToolDiscoveryMode = (
         TelegramToolDiscoveryMode.all_capabilities
     )
@@ -30,6 +31,7 @@ class TelegramBotResponse(BaseModel):
     enabled: bool
     require_mention_in_groups: bool
     show_tool_callouts: bool
+    show_auxilia_link: bool
     tool_discovery_mode: TelegramToolDiscoveryMode
     is_configured: bool
     bot_token_last4: str | None = None

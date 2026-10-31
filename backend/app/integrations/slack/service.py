@@ -26,6 +26,7 @@ class AgentSlackRuntimeConfig:
     enabled: bool
     require_mention_in_threads: bool
     show_tool_callouts: bool
+    show_auxilia_link: bool
     tool_discovery_mode: SlackToolDiscoveryMode
     workspace_enabled: bool
     bot_token: str
@@ -153,6 +154,7 @@ class AgentSlackBotService:
                 row.require_mention_in_threads if row else True
             ),
             show_tool_callouts=row.show_tool_callouts if row else True,
+            show_auxilia_link=row.show_auxilia_link if row else True,
             tool_discovery_mode=(
                 row.tool_discovery_mode
                 if row
@@ -238,6 +240,7 @@ class AgentSlackBotService:
             enabled=data.enabled,
             require_mention_in_threads=data.require_mention_in_threads,
             show_tool_callouts=data.show_tool_callouts,
+            show_auxilia_link=data.show_auxilia_link,
             tool_discovery_mode=data.tool_discovery_mode,
             bot_token_encrypted=encrypt_value(token),
             signing_secret_encrypted=encrypt_value(secret),
@@ -287,6 +290,7 @@ class AgentSlackBotService:
         row.enabled = data.enabled
         row.require_mention_in_threads = data.require_mention_in_threads
         row.show_tool_callouts = data.show_tool_callouts
+        row.show_auxilia_link = data.show_auxilia_link
         row.tool_discovery_mode = data.tool_discovery_mode
         self.db.add(row)
         await self.db.flush()
@@ -346,6 +350,7 @@ class AgentSlackBotService:
             enabled=row.enabled,
             require_mention_in_threads=row.require_mention_in_threads,
             show_tool_callouts=row.show_tool_callouts,
+            show_auxilia_link=row.show_auxilia_link,
             tool_discovery_mode=row.tool_discovery_mode,
             workspace_enabled=(
                 workspace_enabled

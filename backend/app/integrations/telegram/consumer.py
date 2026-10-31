@@ -68,12 +68,15 @@ class TelegramRunConsumer(DeliveryConsumer):
         self.record = record
         self.delivery = cast(TelegramDelivery, record.delivery or {})
         self.redis = redis
+        self.show_auxilia_link = True
 
     async def _client(self) -> TelegramClient | None:
         async with AsyncSessionLocal() as db:
             config = await TelegramBotService(db).get_runtime(
                 UUID(self.delivery["telegram_bot_id"])
             )
+        if config is not None:
+            self.show_auxilia_link = config.show_auxilia_link
         return TelegramClient(config.bot_token) if config else None
 
     async def run(self) -> None:
@@ -313,6 +316,8 @@ class TelegramRunConsumer(DeliveryConsumer):
                 await db.commit()
 
     async def _post_auxilia_link(self, client: TelegramClient) -> None:
+        if not self.show_auxilia_link:
+            return
         async with AsyncSessionLocal() as db:
             thread = await ThreadRepository(db, self.record.workspace_id).get(
                 self.record.thread_id

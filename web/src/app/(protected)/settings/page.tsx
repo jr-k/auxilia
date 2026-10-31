@@ -129,6 +129,7 @@ function isProfileSection(value: string): value is ProfilePageSection {
 		value === "security" ||
 		value === "preferences" ||
 		value === "memories" ||
+		value === "connected-accounts" ||
 		value === "threads" ||
 		value === "tokens"
 	);
@@ -367,6 +368,18 @@ export default function SettingsPage() {
 									}}
 								>
 									Memories
+								</button>
+								<button
+									type="button"
+									aria-pressed={profileSection === "connected-accounts"}
+									className={railTabClass(
+										profileSection === "connected-accounts",
+									)}
+									onClick={() => {
+										setProfileSection("connected-accounts");
+									}}
+								>
+									Connected accounts
 								</button>
 							</div>
 							<div className="shrink-0">

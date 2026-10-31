@@ -223,6 +223,7 @@ class SlackRunConsumer(DeliveryConsumer):
         self.client = client
         self.app_name = "auxilia"
         self.show_tool_callouts = True
+        self.show_auxilia_link = True
         self.artifact_ids: list[UUID] = []
 
     @property
@@ -253,6 +254,7 @@ class SlackRunConsumer(DeliveryConsumer):
                     logger.error("Slack agent bot mismatch for run %s", self.record.id)
                     return None
                 self.show_tool_callouts = config.show_tool_callouts
+                self.show_auxilia_link = config.show_auxilia_link
                 return AsyncWebClient(token=config.bot_token)
             except Exception:
                 if attempt == 2:
@@ -579,6 +581,8 @@ class SlackRunConsumer(DeliveryConsumer):
 
     async def _instance_link_blocks(self) -> list[dict[str, Any]] | None:
         """Build the footer rendered inside the finalized streaming message."""
+        if not self.show_auxilia_link:
+            return None
         async with AsyncSessionLocal() as db:
             thread = await ThreadRepository(db, self.record.workspace_id).get(
                 self.record.thread_id

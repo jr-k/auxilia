@@ -264,6 +264,9 @@ export default function AgentTelegramBotDialog({
 	const [showToolCallouts, setShowToolCallouts] = useState(
 		settings.showToolCallouts,
 	);
+	const [showAuxiliaLink, setShowAuxiliaLink] = useState(
+		settings.showAuxiliaLink,
+	);
 	const [toolDiscoveryMode, setToolDiscoveryMode] =
 		useState<TelegramToolDiscoveryMode>(settings.toolDiscoveryMode);
 
@@ -272,6 +275,7 @@ export default function AgentTelegramBotDialog({
 			enabled,
 			requireMentionInGroups: requireMention,
 			showToolCallouts,
+			showAuxiliaLink,
 			toolDiscoveryMode,
 			...(token.trim() ? { botToken: token.trim() } : {}),
 		});
@@ -487,6 +491,21 @@ export default function AgentTelegramBotDialog({
 									<Switch
 										checked={showToolCallouts}
 										onCheckedChange={setShowToolCallouts}
+										className="cursor-pointer data-[state=checked]:bg-petrol"
+									/>
+								</div>
+								<div className="flex items-center justify-between gap-4 border-t border-hairline px-3.5 py-3">
+									<div>
+										<p className="text-[12.5px] font-semibold text-foreground">
+											Show Auxilia link
+										</p>
+										<p className="mt-0.5 text-[10.5px] text-meta">
+											Include “View in Auxilia” with successful responses.
+										</p>
+									</div>
+									<Switch
+										checked={showAuxiliaLink}
+										onCheckedChange={setShowAuxiliaLink}
 										className="cursor-pointer data-[state=checked]:bg-petrol"
 									/>
 								</div>

@@ -55,6 +55,7 @@ export interface AgentSlackBotSettings {
 	enabled: boolean;
 	requireMentionInThreads: boolean;
 	showToolCallouts: boolean;
+	showAuxiliaLink: boolean;
 	toolDiscoveryMode: SlackToolDiscoveryMode;
 	isConfigured: boolean;
 	botTokenLast4: string | null;
@@ -72,6 +73,7 @@ export interface AgentSlackBotSettingsUpdate {
 	enabled: boolean;
 	requireMentionInThreads: boolean;
 	showToolCallouts: boolean;
+	showAuxiliaLink: boolean;
 	toolDiscoveryMode: SlackToolDiscoveryMode;
 	botToken?: string;
 	signingSecret?: string;
@@ -86,6 +88,7 @@ export interface AgentTelegramBotSettings {
 	enabled: boolean;
 	requireMentionInGroups: boolean;
 	showToolCallouts: boolean;
+	showAuxiliaLink: boolean;
 	toolDiscoveryMode: TelegramToolDiscoveryMode;
 	isConfigured: boolean;
 	botTokenLast4: string | null;
@@ -100,6 +103,7 @@ export interface AgentTelegramBotSettingsUpdate {
 	enabled: boolean;
 	requireMentionInGroups: boolean;
 	showToolCallouts: boolean;
+	showAuxiliaLink: boolean;
 	toolDiscoveryMode: TelegramToolDiscoveryMode;
 	botToken?: string;
 }

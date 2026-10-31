@@ -10,6 +10,7 @@ class AgentSlackBotUpdate(BaseModel):
     enabled: bool = True
     require_mention_in_threads: bool = True
     show_tool_callouts: bool = True
+    show_auxilia_link: bool = True
     tool_discovery_mode: SlackToolDiscoveryMode = (
         SlackToolDiscoveryMode.all_capabilities
     )
@@ -23,6 +24,7 @@ class AgentSlackBotResponse(BaseModel):
     enabled: bool
     require_mention_in_threads: bool
     show_tool_callouts: bool
+    show_auxilia_link: bool
     tool_discovery_mode: SlackToolDiscoveryMode
     is_configured: bool
     bot_token_last4: str | None = None

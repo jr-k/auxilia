@@ -13,6 +13,7 @@ import {
 	Volume2,
 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
+import { SlackLogo } from "@/components/slack-logo";
 import { TelegramLogo } from "@/components/telegram-logo";
 import { ImageUpload } from "@/components/ui/image-upload";
 import { Switch } from "@/components/ui/switch";
@@ -348,51 +349,69 @@ function ConnectedAccountsCard() {
 		: (identity?.displayName ?? "Telegram user");
 
 	return (
-		<section className="mt-4 rounded-[12px] border border-border bg-card p-5">
+		<section className="rounded-[12px] border border-border bg-card p-5">
 			<SectionHeading
 				icon={<Link2 className="size-4" />}
-				title="Connected accounts"
-				description="Link Telegram so agents can identify you and apply your Auxilia permissions."
+				title="Side-channel identities"
+				description="See how Slack and Telegram identify you when you message an agent."
 			/>
-			<div className="flex items-center gap-3 rounded-[9px] border border-input px-4 py-3.5">
-				<span className="flex size-9 shrink-0 items-center justify-center rounded-[8px] border border-border bg-background shadow-sm dark:border-white/10">
-					<TelegramLogo className="size-[62%]" />
-				</span>
-				<div className="min-w-0 flex-1">
-					<p className="text-[13px] font-semibold text-foreground">Telegram</p>
-					<p className="mt-0.5 text-[12px] text-subtle dark:text-panel-body">
-						{identity?.linked ? `Linked as ${linkedName}` : "Not linked"}
-					</p>
+			<div className="overflow-hidden rounded-[9px] border border-input">
+				<div className="flex items-center gap-3 px-4 py-3.5">
+					<SlackLogo />
+					<div className="min-w-0 flex-1">
+						<p className="text-[13px] font-semibold text-foreground">Slack</p>
+						<p className="mt-0.5 text-[12px] text-subtle dark:text-panel-body">
+							Linked automatically when your Slack email matches your Auxilia
+							email.
+						</p>
+					</div>
 				</div>
-				{identity?.linked ? (
-					<button
-						type="button"
-						disabled={busy}
-						onClick={() => {
-							void unlink();
-						}}
-						className="flex cursor-pointer items-center gap-1.5 rounded-[7px] border border-input bg-card px-3 py-1.5 text-[12px] font-semibold text-destructive disabled:opacity-50"
-					>
-						<Unlink className="size-3.5" />
-						Unlink
-					</button>
-				) : (
-					<button
-						type="button"
-						disabled={busy}
-						onClick={() => {
-							void generateCode();
-						}}
-						className="cursor-pointer rounded-[7px] bg-petrol px-3 py-1.5 text-[12px] font-semibold text-white disabled:opacity-50"
-					>
-						{busy ? "Generating…" : "Link Telegram"}
-					</button>
-				)}
+				<div className="flex items-center gap-3 border-t border-hairline px-4 py-3.5">
+					<span className="flex size-9 shrink-0 items-center justify-center rounded-[8px] border border-border bg-background shadow-sm dark:border-white/10">
+						<TelegramLogo className="size-[62%]" />
+					</span>
+					<div className="min-w-0 flex-1">
+						<p className="text-[13px] font-semibold text-foreground">
+							Telegram
+						</p>
+						<p className="mt-0.5 text-[12px] text-subtle dark:text-panel-body">
+							{identity?.linked ? `Linked as ${linkedName}` : "Not linked"}
+						</p>
+					</div>
+					{identity?.linked ? (
+						<button
+							type="button"
+							disabled={busy}
+							onClick={() => {
+								void unlink();
+							}}
+							className="flex cursor-pointer items-center gap-1.5 rounded-[7px] border border-input bg-card px-3 py-1.5 text-[12px] font-semibold text-destructive disabled:opacity-50"
+						>
+							<Unlink className="size-3.5" />
+							Unlink
+						</button>
+					) : (
+						<button
+							type="button"
+							disabled={busy}
+							onClick={() => {
+								void generateCode();
+							}}
+							className="cursor-pointer rounded-[7px] bg-petrol px-3 py-1.5 text-[12px] font-semibold text-white disabled:opacity-50"
+						>
+							{busy ? "Generating…" : "Link Telegram"}
+						</button>
+					)}
+				</div>
 			</div>
 			{link && !identity?.linked && (
 				<div className="mt-3 rounded-[9px] border border-petrol/20 bg-petrol/[0.045] p-3 dark:border-petrol/50 dark:bg-petrol/15">
 					<p className="text-[12px] leading-5 text-subtle dark:text-panel-body">
-						Send <code>/link {link.code}</code> in a private chat with the bot.
+						Send{" "}
+						<code className="rounded-[2px] border border-border bg-background px-1 py-px font-mono text-[11.5px] text-foreground">
+							/link {link.code}
+						</code>{" "}
+						in a private chat with the bot.
 						The code expires in 10 minutes and can only be used once.
 					</p>
 					<div className="mt-2 flex items-center gap-2">
@@ -879,7 +898,11 @@ function PreferencesCard() {
 	);
 }
 
-export type ProfileSection = "information" | "security" | "preferences";
+export type ProfileSection =
+	| "information"
+	| "security"
+	| "preferences"
+	| "connected-accounts";
 
 const sectionCopy: Record<
 	ProfileSection,
@@ -897,6 +920,11 @@ const sectionCopy: Record<
 		title: "Preferences",
 		description: "",
 	},
+	"connected-accounts": {
+		title: "Connected accounts",
+		description:
+			"Link external identities so side-channel agents can apply your Auxilia permissions.",
+	},
 };
 
 export default function ProfileSettings({
@@ -908,14 +936,12 @@ export default function ProfileSettings({
 }) {
 	const appName = useAppearanceStore((state) => state.appearance.appName);
 	const copy =
-		section === "information"
-			? sectionCopy.information
-			: section === "security"
-				? sectionCopy.security
-				: {
-						...sectionCopy.preferences,
-						description: `Choose how ${appName} behaves for you on this browser.`,
-					};
+		section === "preferences"
+			? {
+					...sectionCopy.preferences,
+					description: `Choose how ${appName} behaves for you on this browser.`,
+				}
+			: sectionCopy[section];
 
 	return (
 		<div className="flex flex-col gap-4">
@@ -929,7 +955,6 @@ export default function ProfileSettings({
 			</div>
 			<div className={section === "information" ? "" : "hidden"}>
 				<IdentityCard user={user} />
-				<ConnectedAccountsCard />
 			</div>
 			<div className={section === "security" ? "contents" : "hidden"}>
 					<PasswordCard />
@@ -937,6 +962,9 @@ export default function ProfileSettings({
 			</div>
 			<div className={section === "preferences" ? "" : "hidden"}>
 				<PreferencesCard />
+			</div>
+			<div className={section === "connected-accounts" ? "" : "hidden"}>
+				<ConnectedAccountsCard />
 			</div>
 		</div>
 	);

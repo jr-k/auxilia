@@ -92,6 +92,10 @@ class AgentTelegramBotDB(BaseDBModel, table=True):
         default=True,
         sa_column=Column(Boolean, nullable=False, server_default="true"),
     )
+    show_auxilia_link: bool = Field(
+        default=True,
+        sa_column=Column(Boolean, nullable=False, server_default="true"),
+    )
     tool_discovery_mode: TelegramToolDiscoveryMode = Field(
         default=TelegramToolDiscoveryMode.all_capabilities,
         sa_column=Column(

@@ -67,6 +67,10 @@ class AgentSlackBotDB(BaseDBModel, table=True):
         default=True,
         sa_column=Column(Boolean, nullable=False, server_default="true"),
     )
+    show_auxilia_link: bool = Field(
+        default=True,
+        sa_column=Column(Boolean, nullable=False, server_default="true"),
+    )
     tool_discovery_mode: SlackToolDiscoveryMode = Field(
         default=SlackToolDiscoveryMode.all_capabilities,
         sa_column=Column(
