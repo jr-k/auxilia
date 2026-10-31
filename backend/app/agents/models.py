@@ -118,7 +118,7 @@ class AgentBase(SQLModel):
         sa_column=Column(Boolean, nullable=False, server_default="false"),
     )
     tool_discovery_mode: ToolDiscoveryMode = Field(
-        default=ToolDiscoveryMode.disabled,
+        default=ToolDiscoveryMode.lazy,
         sa_column=Column(
             SAEnum(
                 ToolDiscoveryMode,
@@ -127,7 +127,7 @@ class AgentBase(SQLModel):
                 length=16,
             ),
             nullable=False,
-            server_default=ToolDiscoveryMode.disabled.value,
+            server_default=ToolDiscoveryMode.lazy.value,
         ),
     )
     # Optional per-agent defaults for new threads. NULL inherits the

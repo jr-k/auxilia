@@ -487,7 +487,7 @@ export default function AgentEditor({
 				color: source.color ?? null,
 				visibility: source.visibility,
 				webSearchEnabled: source.webSearchEnabled ?? false,
-				toolDiscoveryMode: source.toolDiscoveryMode ?? "disabled",
+				toolDiscoveryMode: source.toolDiscoveryMode ?? "lazy",
 				defaultModelId: source.defaultModelId ?? null,
 				defaultReasoningEffort: source.defaultReasoningEffort ?? null,
 				teamIds: source.teamIds,

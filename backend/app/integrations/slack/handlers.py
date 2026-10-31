@@ -827,9 +827,7 @@ async def handle_agent_message(
     team_id: str | None = None,
     integration_enabled: bool = True,
     require_mention_in_threads: bool = True,
-    tool_discovery_mode: SlackToolDiscoveryMode = (
-        SlackToolDiscoveryMode.all_capabilities
-    ),
+    tool_discovery_mode: SlackToolDiscoveryMode = SlackToolDiscoveryMode.lazy,
 ) -> None:
     """Route an allowed channel mention or DM to one agent-specific Slack bot."""
     if not event.channel or not event.user or not event.ts:
@@ -1179,9 +1177,7 @@ async def handle_agent_message_shortcut_submission(
     *,
     agent_id: UUID,
     slack_bot_id: UUID,
-    tool_discovery_mode: SlackToolDiscoveryMode = (
-        SlackToolDiscoveryMode.all_capabilities
-    ),
+    tool_discovery_mode: SlackToolDiscoveryMode = SlackToolDiscoveryMode.lazy,
 ) -> None:
     """Run an agent from a private-message shortcut in a bot-owned DM."""
     if (

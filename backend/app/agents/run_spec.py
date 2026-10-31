@@ -55,7 +55,7 @@ class AgentSpec:
     mcp_servers: list[AgentMCPServerDB]
     sandbox: SandboxSpec | None
     web_search_enabled: bool = False
-    tool_discovery_mode: ToolDiscoveryMode = ToolDiscoveryMode.disabled
+    tool_discovery_mode: ToolDiscoveryMode = ToolDiscoveryMode.lazy
     default_model_id: str | None = None
     default_reasoning_effort: str | None = None
     enabled_by_default: bool = True

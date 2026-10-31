@@ -68,7 +68,7 @@ class AgentSlackBotDB(BaseDBModel, table=True):
         sa_column=Column(Boolean, nullable=False, server_default="true"),
     )
     tool_discovery_mode: SlackToolDiscoveryMode = Field(
-        default=SlackToolDiscoveryMode.all_capabilities,
+        default=SlackToolDiscoveryMode.lazy,
         sa_column=Column(
             SAEnum(
                 SlackToolDiscoveryMode,
@@ -77,7 +77,7 @@ class AgentSlackBotDB(BaseDBModel, table=True):
                 length=16,
             ),
             nullable=False,
-            server_default=SlackToolDiscoveryMode.all_capabilities.value,
+            server_default=SlackToolDiscoveryMode.lazy.value,
         ),
     )
     bot_token_encrypted: str = Field(sa_column=Column(Text, nullable=False))

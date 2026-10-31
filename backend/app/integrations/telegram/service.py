@@ -127,9 +127,7 @@ class TelegramBotService:
             show_tool_callouts=row.show_tool_callouts if row else True,
             show_auxilia_link=row.show_auxilia_link if row else True,
             tool_discovery_mode=(
-                row.tool_discovery_mode
-                if row
-                else TelegramToolDiscoveryMode.all_capabilities
+                row.tool_discovery_mode if row else TelegramToolDiscoveryMode.lazy
             ),
             is_configured=row is not None,
             bot_token_last4=(

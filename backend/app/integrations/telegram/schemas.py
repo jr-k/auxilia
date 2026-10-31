@@ -18,9 +18,7 @@ class TelegramBotUpdate(BaseModel):
     require_mention_in_groups: bool = True
     show_tool_callouts: bool = True
     show_auxilia_link: bool = True
-    tool_discovery_mode: TelegramToolDiscoveryMode = (
-        TelegramToolDiscoveryMode.all_capabilities
-    )
+    tool_discovery_mode: TelegramToolDiscoveryMode = TelegramToolDiscoveryMode.lazy
     bot_token: str | None = Field(default=None, max_length=4096)
 
 

@@ -94,7 +94,7 @@ class AgentTelegramBotDB(BaseDBModel, table=True):
         sa_column=Column(Boolean, nullable=False, server_default="true"),
     )
     tool_discovery_mode: TelegramToolDiscoveryMode = Field(
-        default=TelegramToolDiscoveryMode.all_capabilities,
+        default=TelegramToolDiscoveryMode.lazy,
         sa_column=Column(
             SAEnum(
                 TelegramToolDiscoveryMode,
@@ -103,7 +103,7 @@ class AgentTelegramBotDB(BaseDBModel, table=True):
                 length=24,
             ),
             nullable=False,
-            server_default=TelegramToolDiscoveryMode.all_capabilities.value,
+            server_default=TelegramToolDiscoveryMode.lazy.value,
         ),
     )
     bot_id: str = Field(

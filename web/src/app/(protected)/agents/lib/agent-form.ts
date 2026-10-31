@@ -50,7 +50,7 @@ export function defaultAgentForm(): AgentFormState {
 		emoji: "🤖",
 		color: randomAgentColor(),
 		webSearchEnabled: false,
-		toolDiscoveryMode: "disabled",
+		toolDiscoveryMode: "lazy",
 		defaultModelId: null,
 		defaultReasoningEffort: null,
 		mcpServers: [],
@@ -73,7 +73,7 @@ export function fromAgent(agent: Agent): AgentFormState {
 		emoji: agent.emoji || "🤖",
 		color: agent.color || AGENT_COLORS[0],
 		webSearchEnabled: agent.webSearchEnabled ?? false,
-		toolDiscoveryMode: agent.toolDiscoveryMode ?? "disabled",
+		toolDiscoveryMode: agent.toolDiscoveryMode ?? "lazy",
 		defaultModelId: agent.defaultModelId ?? null,
 		defaultReasoningEffort: agent.defaultReasoningEffort ?? null,
 		mcpServers: (agent.mcpServers || []).map((server) => ({
