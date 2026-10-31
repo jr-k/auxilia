@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.92](https://github.com/jr-k/auxilia/compare/web-v0.12.91...web-v0.12.92) (2026-10-31)
+
+
+### Features
+
+* **tool-discovery:** default new resources to lazy ([5b5b1ee](https://github.com/jr-k/auxilia/commit/5b5b1ee196bad34c575b2a34c068a727d01294fa))
+
 ## [0.12.91](https://github.com/jr-k/auxilia/compare/web-v0.12.90...web-v0.12.91) (2026-10-31)
 
 
