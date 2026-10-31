@@ -777,7 +777,7 @@ def _link_prompt_text(app_name: str) -> str:
     return (
         f"Link your {app_name} account first. Generate a code in "
         f"<{settings_url}|Profile &gt; Connected accounts>, then send "
-        "`link CODE` to this bot in a direct message."
+        "`link CODE` to this bot *in a direct message, not in a public channel*."
     )
 
 
