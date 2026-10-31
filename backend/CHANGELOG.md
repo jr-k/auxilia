@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.65](https://github.com/jr-k/auxilia/compare/backend-v0.11.64...backend-v0.11.65) (2026-10-31)
+
+
+### Bug Fixes
+
+* **side-channels:** align lazy discovery with web ([3024255](https://github.com/jr-k/auxilia/commit/3024255dc120cabfbe26b38f801214e83474b12a))
+
 ## [0.11.64](https://github.com/jr-k/auxilia/compare/backend-v0.11.63...backend-v0.11.64) (2026-10-31)
 
 
