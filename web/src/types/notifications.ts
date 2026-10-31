@@ -6,6 +6,16 @@ export interface SlackNotificationSettingsUpdate {
 	enabled: boolean;
 }
 
+export interface SlackIdentity {
+	linked: boolean;
+	workspaceCount: number;
+}
+
+export interface SlackLinkCode {
+	code: string;
+	expiresIn: number;
+}
+
 export interface TelegramWorkspaceSettings {
 	enabled: boolean;
 }

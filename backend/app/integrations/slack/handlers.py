@@ -19,6 +19,7 @@ from app.appearance.service import InstanceAppearanceService
 from app.auth.settings import auth_settings
 from app.database import AsyncSessionLocal, get_checkpointer
 from app.exceptions import (
+    AlreadyExistsError,
     DomainValidationError,
     ModelUnavailableError,
     NotFoundError,
@@ -41,6 +42,7 @@ from app.integrations.slack.db_models import (
 )
 from app.integrations.slack.models import SlackEvent, SlackInteractionPayload
 from app.integrations.slack.repository import SlackThreadBindingRepository
+from app.integrations.slack.service import AgentSlackBotService, SlackIdentityService
 from app.integrations.slack.utils import get_slack_client, resolve_user
 from app.model_providers.service import ModelService
 from app.runtime.checkpoints import checkpoint_thread_id
@@ -820,6 +822,33 @@ async def handle_agent_message(
     )
     if client is None:
         return
+    link_match = re.fullmatch(
+        r"\s*link\s+([A-Z0-9]{8})\s*",
+        event.text or "",
+        flags=re.IGNORECASE,
+    )
+    if event.channel_type == "im" and link_match is not None:
+        try:
+            async with AsyncSessionLocal() as db:
+                config = await AgentSlackBotService(db).get_runtime(
+                    slack_bot_id, require_active=False
+                )
+                if config is None:
+                    return
+                await SlackIdentityService(db, workspace_id).consume_link_code(
+                    slack_team_id=config.slack_team_id,
+                    slack_user_id=event.user,
+                    code=link_match.group(1),
+                )
+                await db.commit()
+            await _post_agent_denial(
+                client,
+                event,
+                "Your Slack account is now linked to Auxilia.",
+            )
+        except (AlreadyExistsError, DomainValidationError, NotFoundError) as exc:
+            await _post_agent_denial(client, event, str(exc))
+        return
     if not integration_enabled:
         app_name = escape_mrkdwn(await _instance_app_name())
         await _post_agent_denial(
@@ -836,7 +865,9 @@ async def handle_agent_message(
         await _post_agent_denial(
             client,
             event,
-            f"You need a {app_name} account in this workspace to use this agent.",
+            f"Link your {app_name} account first. Generate a code in "
+            "Settings / Connected accounts, then send `link CODE` here "
+            "in a direct message.",
         )
         return
 
@@ -1163,7 +1194,11 @@ async def handle_agent_message_shortcut_submission(
     if actor is None:
         await client.chat_postMessage(
             channel=dm_channel_id,
-            text="You need an account in this workspace to use this agent.",
+            text=(
+                "Link your Auxilia account first. Generate a code in "
+                "Settings / Connected accounts, then send `link CODE` "
+                "to this bot in a direct message."
+            ),
         )
         return
 

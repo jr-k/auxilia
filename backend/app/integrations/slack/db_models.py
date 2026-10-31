@@ -96,6 +96,33 @@ class AgentSlackBotDB(BaseDBModel, table=True):
     )
 
 
+class SlackIdentityDB(BaseDBModel, table=True):
+    __tablename__ = "slack_identities"
+    __table_args__ = (
+        UniqueConstraint(
+            "workspace_id",
+            "slack_team_id",
+            "slack_user_id",
+            name="uq_slack_identity_external",
+        ),
+        UniqueConstraint(
+            "workspace_id",
+            "slack_team_id",
+            "user_id",
+            name="uq_slack_identity_internal",
+        ),
+    )
+
+    workspace_id: UUID = Field(
+        foreign_key="workspaces.id", ondelete="CASCADE", nullable=False, index=True
+    )
+    slack_team_id: str = Field(sa_column=Column(String(64), nullable=False, index=True))
+    slack_user_id: str = Field(sa_column=Column(String(64), nullable=False, index=True))
+    user_id: UUID = Field(
+        foreign_key="users.id", ondelete="CASCADE", nullable=False, index=True
+    )
+
+
 class SlackThreadBindingDB(BaseDBModel, table=True):
     """Maps Slack's external thread coordinates to an internal Auxilia thread."""
 

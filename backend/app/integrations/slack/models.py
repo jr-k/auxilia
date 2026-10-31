@@ -111,14 +111,3 @@ class SlackInteractionPayload(BaseModel):
     view: SlackInteractionView | None = None
     api_app_id: str | None = None
     team: dict | None = None
-
-
-class SlackUserProfile(BaseModel):
-    email: str
-
-
-class SlackUserInfo(BaseModel):
-    id: str
-    name: str
-    real_name: str | None = None
-    profile: SlackUserProfile

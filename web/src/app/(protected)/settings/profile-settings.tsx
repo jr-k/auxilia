@@ -32,7 +32,12 @@ import { useAgentsStore } from "@/stores/agents-store";
 import { useAppearanceStore } from "@/stores/appearance-store";
 import { useUserStore } from "@/stores/user-store";
 import type { CurrentUser } from "@/types/auth";
-import type { TelegramIdentity, TelegramLinkCode } from "@/types/notifications";
+import type {
+	SlackIdentity,
+	SlackLinkCode,
+	TelegramIdentity,
+	TelegramLinkCode,
+} from "@/types/notifications";
 
 const inputClass =
 	"w-full rounded-[8px] border border-input bg-card px-3 py-2.5 text-[13px] text-foreground outline-none transition-colors placeholder:text-meta focus:border-petrol";
@@ -293,15 +298,25 @@ function IdentityCard({ user }: { user: CurrentUser }) {
 }
 
 function ConnectedAccountsCard() {
-	const [identity, setIdentity] = useState<TelegramIdentity | null>(null);
-	const [link, setLink] = useState<TelegramLinkCode | null>(null);
-	const [busy, setBusy] = useState(false);
+	const [slackIdentity, setSlackIdentity] = useState<SlackIdentity | null>(null);
+	const [slackLink, setSlackLink] = useState<SlackLinkCode | null>(null);
+	const [telegramIdentity, setTelegramIdentity] =
+		useState<TelegramIdentity | null>(null);
+	const [telegramLink, setTelegramLink] = useState<TelegramLinkCode | null>(
+		null,
+	);
+	const [busy, setBusy] = useState<"slack" | "telegram" | null>(null);
 	const [error, setError] = useState<string | null>(null);
 
 	const load = useCallback(async () => {
 		setError(null);
 		try {
-			setIdentity(await notificationsApi.getTelegramIdentity());
+			const [nextSlackIdentity, nextTelegramIdentity] = await Promise.all([
+				notificationsApi.getSlackIdentity(),
+				notificationsApi.getTelegramIdentity(),
+			]);
+			setSlackIdentity(nextSlackIdentity);
+			setTelegramIdentity(nextTelegramIdentity);
 		} catch (caught: unknown) {
 			setError(
 				getApiErrorMessage(caught, "Could not load connected accounts."),
@@ -318,35 +333,69 @@ function ConnectedAccountsCard() {
 		};
 	}, [load]);
 
-	const generateCode = async () => {
-		setBusy(true);
+	const generateSlackCode = async () => {
+		setBusy("slack");
 		setError(null);
 		try {
-			setLink(await notificationsApi.createTelegramLinkCode());
+			setSlackLink(await notificationsApi.createSlackLinkCode());
 		} catch (caught: unknown) {
-			setError(getApiErrorMessage(caught, "Could not create a link code."));
+			setError(
+				getApiErrorMessage(caught, "Could not create a Slack link code."),
+			);
 		} finally {
-			setBusy(false);
+			setBusy(null);
 		}
 	};
 
-	const unlink = async () => {
-		setBusy(true);
+	const unlinkSlack = async () => {
+		setBusy("slack");
+		setError(null);
+		try {
+			await notificationsApi.unlinkSlackIdentity();
+			setSlackIdentity({ linked: false, workspaceCount: 0 });
+			setSlackLink(null);
+		} catch (caught: unknown) {
+			setError(getApiErrorMessage(caught, "Could not unlink Slack."));
+		} finally {
+			setBusy(null);
+		}
+	};
+
+	const generateTelegramCode = async () => {
+		setBusy("telegram");
+		setError(null);
+		try {
+			setTelegramLink(await notificationsApi.createTelegramLinkCode());
+		} catch (caught: unknown) {
+			setError(
+				getApiErrorMessage(caught, "Could not create a Telegram link code."),
+			);
+		} finally {
+			setBusy(null);
+		}
+	};
+
+	const unlinkTelegram = async () => {
+		setBusy("telegram");
 		setError(null);
 		try {
 			await notificationsApi.unlinkTelegramIdentity();
-			setIdentity({ linked: false, username: null, displayName: null });
-			setLink(null);
+			setTelegramIdentity({
+				linked: false,
+				username: null,
+				displayName: null,
+			});
+			setTelegramLink(null);
 		} catch (caught: unknown) {
 			setError(getApiErrorMessage(caught, "Could not unlink Telegram."));
 		} finally {
-			setBusy(false);
+			setBusy(null);
 		}
 	};
 
-	const linkedName = identity?.username
-		? `@${identity.username}`
-		: (identity?.displayName ?? "Telegram user");
+	const linkedName = telegramIdentity?.username
+		? `@${telegramIdentity.username}`
+		: (telegramIdentity?.displayName ?? "Telegram user");
 
 	return (
 		<section className="rounded-[12px] border border-border bg-card p-5">
@@ -361,10 +410,35 @@ function ConnectedAccountsCard() {
 					<div className="min-w-0 flex-1">
 						<p className="text-[13px] font-semibold text-foreground">Slack</p>
 						<p className="mt-0.5 text-[12px] text-subtle dark:text-panel-body">
-							Linked automatically when your Slack email matches your Auxilia
-							email.
+							{slackIdentity?.linked
+								? `Linked in ${slackIdentity.workspaceCount} Slack ${slackIdentity.workspaceCount === 1 ? "workspace" : "workspaces"}`
+								: "Not linked"}
 						</p>
 					</div>
+					{slackIdentity?.linked ? (
+						<button
+							type="button"
+							disabled={busy !== null}
+							onClick={() => {
+								void unlinkSlack();
+							}}
+							className="flex cursor-pointer items-center gap-1.5 rounded-[7px] border border-input bg-card px-3 py-1.5 text-[12px] font-semibold text-destructive disabled:opacity-50"
+						>
+							<Unlink className="size-3.5" />
+							Unlink
+						</button>
+					) : (
+						<button
+							type="button"
+							disabled={busy !== null}
+							onClick={() => {
+								void generateSlackCode();
+							}}
+							className="cursor-pointer rounded-[7px] bg-petrol px-3 py-1.5 text-[12px] font-semibold text-white disabled:opacity-50"
+						>
+							{busy === "slack" ? "Generating…" : "Link Slack"}
+						</button>
+					)}
 				</div>
 				<div className="flex items-center gap-3 border-t border-hairline px-4 py-3.5">
 					<span className="flex size-9 shrink-0 items-center justify-center rounded-[8px] border border-border bg-background shadow-sm dark:border-white/10">
@@ -375,15 +449,17 @@ function ConnectedAccountsCard() {
 							Telegram
 						</p>
 						<p className="mt-0.5 text-[12px] text-subtle dark:text-panel-body">
-							{identity?.linked ? `Linked as ${linkedName}` : "Not linked"}
+							{telegramIdentity?.linked
+								? `Linked as ${linkedName}`
+								: "Not linked"}
 						</p>
 					</div>
-					{identity?.linked ? (
+					{telegramIdentity?.linked ? (
 						<button
 							type="button"
-							disabled={busy}
+							disabled={busy !== null}
 							onClick={() => {
-								void unlink();
+								void unlinkTelegram();
 							}}
 							className="flex cursor-pointer items-center gap-1.5 rounded-[7px] border border-input bg-card px-3 py-1.5 text-[12px] font-semibold text-destructive disabled:opacity-50"
 						>
@@ -393,31 +469,52 @@ function ConnectedAccountsCard() {
 					) : (
 						<button
 							type="button"
-							disabled={busy}
+							disabled={busy !== null}
 							onClick={() => {
-								void generateCode();
+								void generateTelegramCode();
 							}}
 							className="cursor-pointer rounded-[7px] bg-petrol px-3 py-1.5 text-[12px] font-semibold text-white disabled:opacity-50"
 						>
-							{busy ? "Generating…" : "Link Telegram"}
+							{busy === "telegram" ? "Generating…" : "Link Telegram"}
 						</button>
 					)}
 				</div>
 			</div>
-			{link && !identity?.linked && (
+			{slackLink && !slackIdentity?.linked && (
 				<div className="mt-3 rounded-[9px] border border-petrol/20 bg-petrol/[0.045] p-3 dark:border-petrol/50 dark:bg-petrol/15">
 					<p className="text-[12px] leading-5 text-subtle dark:text-panel-body">
 						Send{" "}
 						<code className="rounded-[2px] border border-border bg-background px-1 py-px font-mono text-[11.5px] text-foreground">
-							/link {link.code}
+							link {slackLink.code}
+						</code>{" "}
+						in a direct message to any Slack bot connected to this workspace.
+						The code expires in 10 minutes and can only be used once.
+					</p>
+					<button
+						type="button"
+						onClick={() => {
+							void load();
+						}}
+						className="mt-2 cursor-pointer rounded-[6px] border border-input bg-card px-3 py-1.5 text-[11.5px] font-semibold text-foreground"
+					>
+						Check connection
+					</button>
+				</div>
+			)}
+			{telegramLink && !telegramIdentity?.linked && (
+				<div className="mt-3 rounded-[9px] border border-petrol/20 bg-petrol/[0.045] p-3 dark:border-petrol/50 dark:bg-petrol/15">
+					<p className="text-[12px] leading-5 text-subtle dark:text-panel-body">
+						Send{" "}
+						<code className="rounded-[2px] border border-border bg-background px-1 py-px font-mono text-[11.5px] text-foreground">
+							/link {telegramLink.code}
 						</code>{" "}
 						in a private chat with the bot.
 						The code expires in 10 minutes and can only be used once.
 					</p>
 					<div className="mt-2 flex items-center gap-2">
-						{link.deepLinkUrl && (
+						{telegramLink.deepLinkUrl && (
 							<a
-								href={link.deepLinkUrl}
+								href={telegramLink.deepLinkUrl}
 								target="_blank"
 								rel="noreferrer"
 								className="rounded-[6px] bg-petrol px-3 py-1.5 text-[11.5px] font-semibold text-white"

@@ -1,3 +1,6 @@
+import json
+import secrets
+import string
 from dataclasses import dataclass
 from typing import Any
 from uuid import UUID
@@ -10,12 +13,33 @@ from app.agents.core.repository import AgentRepository
 from app.auth.settings import auth_settings
 from app.database import get_db
 from app.exceptions import AlreadyExistsError, DomainValidationError, NotFoundError
-from app.integrations.slack.db_models import AgentSlackBotDB, SlackToolDiscoveryMode
-from app.integrations.slack.repository import AgentSlackBotRepository
-from app.integrations.slack.schemas import AgentSlackBotResponse, AgentSlackBotUpdate
+from app.integrations.slack.db_models import (
+    AgentSlackBotDB,
+    SlackIdentityDB,
+    SlackToolDiscoveryMode,
+)
+from app.integrations.slack.repository import (
+    AgentSlackBotRepository,
+    SlackIdentityRepository,
+    SlackThreadBindingRepository,
+)
+from app.integrations.slack.schemas import (
+    AgentSlackBotResponse,
+    AgentSlackBotUpdate,
+    SlackIdentityResponse,
+    SlackLinkCodeResponse,
+)
 from app.notifications.repository import SlackNotificationSettingsRepository
+from app.redis_client import get_redis
+from app.users.models import UserDB
+from app.users.repository import UserRepository
 from app.utils.encryption import decrypt_value, encrypt_value
 from app.workspaces.dependencies import get_active_workspace_id
+from app.workspaces.repository import WorkspaceRepository
+
+
+SLACK_LINK_TTL_SECONDS = 600
+SLACK_LINK_PREFIX = "slack:link:"
 
 
 @dataclass(frozen=True)
@@ -362,6 +386,130 @@ class AgentSlackBotService:
             slack_team_id=row.slack_team_id,
             bot_user_id=row.bot_user_id,
         )
+
+
+class SlackIdentityService:
+    def __init__(self, db: AsyncSession, workspace_id: UUID):
+        self.db = db
+        self.workspace_id = workspace_id
+        self.repository = SlackIdentityRepository(db)
+        self.bindings = SlackThreadBindingRepository(db)
+        self.bots = AgentSlackBotRepository(db)
+
+    async def get_response(self, user_id: UUID) -> SlackIdentityResponse:
+        rows = await self.repository.list_for_user(self.workspace_id, user_id)
+        return SlackIdentityResponse(
+            linked=bool(rows),
+            workspace_count=len(rows),
+        )
+
+    async def create_link_code(self, user_id: UUID) -> SlackLinkCodeResponse:
+        alphabet = string.ascii_uppercase + string.digits
+        payload = json.dumps(
+            {"workspace_id": str(self.workspace_id), "user_id": str(user_id)}
+        )
+        redis = get_redis()
+        code = ""
+        for _ in range(8):
+            code = "".join(secrets.choice(alphabet) for _ in range(8))
+            if await redis.set(
+                f"{SLACK_LINK_PREFIX}{code}",
+                payload,
+                ex=SLACK_LINK_TTL_SECONDS,
+                nx=True,
+            ):
+                break
+        else:
+            raise RuntimeError("Could not allocate a Slack link code")
+        return SlackLinkCodeResponse(code=code, expires_in=SLACK_LINK_TTL_SECONDS)
+
+    async def consume_link_code(
+        self,
+        *,
+        slack_team_id: str,
+        slack_user_id: str,
+        code: str,
+    ) -> SlackIdentityDB:
+        key = f"{SLACK_LINK_PREFIX}{code.strip().upper()}"
+        redis = get_redis()
+        raw = await redis.get(key)
+        if not raw:
+            raise DomainValidationError("This link code is invalid or expired")
+        payload = json.loads(raw)
+        if payload.get("workspace_id") != str(self.workspace_id):
+            raise DomainValidationError("This link code belongs to another workspace")
+        if await redis.getdel(key) is None:
+            raise DomainValidationError("This link code was already used")
+        user_id = UUID(payload["user_id"])
+        if (
+            await WorkspaceRepository(self.db).get_membership(
+                self.workspace_id, user_id
+            )
+            is None
+        ):
+            raise NotFoundError("Workspace membership not found")
+
+        existing_external = await self.repository.get_external(
+            self.workspace_id, slack_team_id, slack_user_id
+        )
+        if existing_external is not None and existing_external.user_id != user_id:
+            raise AlreadyExistsError("This Slack account is already linked")
+
+        previous = await self.repository.get_internal(
+            self.workspace_id, slack_team_id, user_id
+        )
+        if previous is not None and previous.slack_user_id != slack_user_id:
+            bot_ids = [
+                bot.id
+                for bot in await self.bots.list_for_workspace(self.workspace_id)
+                if bot.slack_team_id == slack_team_id
+            ]
+            await self.bindings.delete_for_identity(bot_ids, previous.slack_user_id)
+            await self.repository.unlink_team_user(
+                self.workspace_id, slack_team_id, user_id
+            )
+
+        row = existing_external or SlackIdentityDB(
+            workspace_id=self.workspace_id,
+            slack_team_id=slack_team_id,
+            slack_user_id=slack_user_id,
+            user_id=user_id,
+        )
+        self.db.add(row)
+        await self.db.flush()
+        await self.db.refresh(row)
+        return row
+
+    async def resolve_user(
+        self, slack_team_id: str, slack_user_id: str
+    ) -> UserDB | None:
+        identity = await self.repository.get_external(
+            self.workspace_id, slack_team_id, slack_user_id
+        )
+        if identity is None:
+            return None
+        membership = await WorkspaceRepository(self.db).get_membership(
+            self.workspace_id, identity.user_id
+        )
+        if membership is None:
+            return None
+        user = await UserRepository(self.db).get(identity.user_id)
+        if user is None:
+            return None
+        user.set_workspace_membership(membership)
+        return user
+
+    async def unlink(self, user_id: UUID) -> None:
+        identities = await self.repository.list_for_user(self.workspace_id, user_id)
+        if not identities:
+            return
+        bots = await self.bots.list_for_workspace(self.workspace_id)
+        for identity in identities:
+            await self.bindings.delete_for_identity(
+                [bot.id for bot in bots if bot.slack_team_id == identity.slack_team_id],
+                identity.slack_user_id,
+            )
+        await self.repository.unlink_user(self.workspace_id, user_id)
 
 
 def get_agent_slack_bot_service(

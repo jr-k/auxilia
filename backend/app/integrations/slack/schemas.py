@@ -36,3 +36,13 @@ class AgentSlackBotResponse(BaseModel):
     events_url: str
     interactions_url: str
     manifest: dict[str, Any]
+
+
+class SlackIdentityResponse(BaseModel):
+    linked: bool
+    workspace_count: int
+
+
+class SlackLinkCodeResponse(BaseModel):
+    code: str
+    expires_in: int

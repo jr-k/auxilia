@@ -7,16 +7,14 @@ from dataclasses import dataclass
 from urllib.parse import parse_qs
 from uuid import UUID
 
-import httpx
 from fastapi import Header, HTTPException, Request
 from slack_sdk.web.async_client import AsyncWebClient
 
 from app.database import AsyncSessionLocal
 from app.integrations.slack.db_models import SlackToolDiscoveryMode
-from app.integrations.slack.models import SlackUserInfo
+from app.integrations.slack.repository import AgentSlackBotRepository
+from app.integrations.slack.service import SlackIdentityService
 from app.users.models import UserDB
-from app.users.repository import UserRepository
-from app.workspaces.repository import WorkspaceRepository
 
 
 logger = logging.getLogger(__name__)
@@ -130,54 +128,16 @@ async def get_slack_client(
     return AsyncWebClient(token=config.bot_token)
 
 
-async def get_user_info(
-    user_id: str, workspace_id: UUID, slack_bot_id: UUID
-) -> SlackUserInfo | None:
-    """Get user information from Slack API."""
-    url = "https://slack.com/api/users.info"
-    slack_client = await get_slack_client(workspace_id, slack_bot_id)
-    if slack_client is None:
-        return None
-    headers = {"Authorization": f"Bearer {slack_client.token}"}
-    params = {"user": user_id}
-
-    async with httpx.AsyncClient() as http_client:
-        try:
-            response = await http_client.get(url, headers=headers, params=params)
-            response.raise_for_status()
-
-            data = response.json()
-            if data.get("ok"):
-                return SlackUserInfo.model_validate(data.get("user"))
-            logger.warning("Slack API error (users.info): %s", data.get("error"))
-            return None
-        except httpx.HTTPStatusError as e:
-            logger.warning(
-                "HTTP error calling Slack API (users.info): %s - %s",
-                e.response.status_code,
-                e.response.text,
-            )
-            return None
-        except Exception:
-            logger.exception("Unexpected error calling Slack API (users.info)")
-            return None
-
-
 async def resolve_user(
     slack_user_id: str,
     workspace_id: UUID,
     slack_bot_id: UUID,
 ) -> UserDB | None:
-    """Map a Slack user ID to an internal user via email lookup."""
-    user_info = await get_user_info(slack_user_id, workspace_id, slack_bot_id)
-    if not user_info or not user_info.profile.email:
-        return None
+    """Resolve an explicitly linked Slack identity."""
     async with AsyncSessionLocal() as db:
-        user = await UserRepository(db).get_by_email(user_info.profile.email)
-        if user is None:
+        bot = await AgentSlackBotRepository(db).get_runtime(slack_bot_id)
+        if bot is None or bot.workspace_id != workspace_id:
             return None
-        membership = await WorkspaceRepository(db).get_membership(workspace_id, user.id)
-        if membership is None:
-            return None
-        user.set_workspace_membership(membership)
-        return user
+        return await SlackIdentityService(db, workspace_id).resolve_user(
+            bot.slack_team_id, slack_user_id
+        )
