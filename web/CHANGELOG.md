@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.93](https://github.com/jr-k/auxilia/compare/web-v0.12.92...web-v0.12.93) (2026-11-01)
+
+
+### Features
+
+* **slack:** configure thinking message ([fb24bdb](https://github.com/jr-k/auxilia/commit/fb24bdb5624e253257c01b39cc0a7befef43791b))
+
 ## [0.12.92](https://github.com/jr-k/auxilia/compare/web-v0.12.91...web-v0.12.92) (2026-10-31)
 
 
