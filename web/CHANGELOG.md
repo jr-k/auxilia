@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.94](https://github.com/jr-k/auxilia/compare/web-v0.12.93...web-v0.12.94) (2026-11-01)
+
+
+### Bug Fixes
+
+* **pwa:** open installed app from root ([649da57](https://github.com/jr-k/auxilia/commit/649da57bcf38e079542c7601d8b6e60c1ab954bc))
+
 ## [0.12.93](https://github.com/jr-k/auxilia/compare/web-v0.12.92...web-v0.12.93) (2026-11-01)
 
 
