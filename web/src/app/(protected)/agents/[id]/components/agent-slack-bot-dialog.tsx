@@ -547,6 +547,9 @@ export default function AgentSlackBotDialog({
 	const [showToolCallouts, setShowToolCallouts] = useState(
 		settings.showToolCallouts,
 	);
+	const [showThinkingMessage, setShowThinkingMessage] = useState(
+		settings.showThinkingMessage,
+	);
 	const [showAuxiliaLink, setShowAuxiliaLink] = useState(
 		settings.showAuxiliaLink,
 	);
@@ -572,6 +575,7 @@ export default function AgentSlackBotDialog({
 			enabled,
 			requireMentionInThreads,
 			showToolCallouts,
+			showThinkingMessage,
 			showAuxiliaLink,
 			toolDiscoveryMode,
 			...(credentialsComplete
@@ -632,7 +636,7 @@ export default function AgentSlackBotDialog({
 
 				{view === "configuration" ? (
 					<>
-						<div className="min-w-0 space-y-5 px-5 py-5 sm:px-6">
+						<div className="max-h-[68vh] min-w-0 space-y-5 overflow-y-auto px-5 py-5 sm:px-6">
 							{!settings.workspaceEnabled && (
 								<div className="rounded-[8px] border border-amber-500/25 bg-amber-500/[0.07] px-3.5 py-3 text-[11.5px] leading-5 text-amber-800 dark:text-amber-200">
 									Slack is disabled for the workspace. You can prepare this
@@ -795,6 +799,22 @@ export default function AgentSlackBotDialog({
 									<Switch
 										checked={showToolCallouts}
 										onCheckedChange={setShowToolCallouts}
+										className="cursor-pointer data-[state=checked]:bg-petrol"
+									/>
+								</div>
+								<div className="flex items-center justify-between gap-4 border-t border-hairline px-3.5 py-3">
+									<div>
+										<p className="text-[12.5px] font-semibold text-foreground">
+											Show thinking message
+										</p>
+										<p className="mt-0.5 text-[10.5px] text-meta">
+											Post a temporary “Working on it…” message while the
+											agent prepares its response.
+										</p>
+									</div>
+									<Switch
+										checked={showThinkingMessage}
+										onCheckedChange={setShowThinkingMessage}
 										className="cursor-pointer data-[state=checked]:bg-petrol"
 									/>
 								</div>

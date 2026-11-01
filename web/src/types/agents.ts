@@ -55,6 +55,7 @@ export interface AgentSlackBotSettings {
 	enabled: boolean;
 	requireMentionInThreads: boolean;
 	showToolCallouts: boolean;
+	showThinkingMessage: boolean;
 	showAuxiliaLink: boolean;
 	toolDiscoveryMode: SlackToolDiscoveryMode;
 	isConfigured: boolean;
@@ -73,6 +74,7 @@ export interface AgentSlackBotSettingsUpdate {
 	enabled: boolean;
 	requireMentionInThreads: boolean;
 	showToolCallouts: boolean;
+	showThinkingMessage: boolean;
 	showAuxiliaLink: boolean;
 	toolDiscoveryMode: SlackToolDiscoveryMode;
 	botToken?: string;

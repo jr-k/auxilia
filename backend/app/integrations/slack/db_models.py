@@ -75,6 +75,10 @@ class AgentSlackBotDB(BaseDBModel, table=True):
         default=True,
         sa_column=Column(Boolean, nullable=False, server_default="true"),
     )
+    show_thinking_message: bool = Field(
+        default=True,
+        sa_column=Column(Boolean, nullable=False, server_default="true"),
+    )
     show_auxilia_link: bool = Field(
         default=True,
         sa_column=Column(Boolean, nullable=False, server_default="true"),

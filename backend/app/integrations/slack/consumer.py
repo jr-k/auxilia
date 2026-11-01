@@ -220,6 +220,7 @@ class SlackRunConsumer(DeliveryConsumer):
         self.client = client
         self.app_name = "auxilia"
         self.show_tool_callouts = True
+        self.show_thinking_message = True
         self.show_auxilia_link = True
         self.artifact_ids: list[UUID] = []
 
@@ -251,6 +252,7 @@ class SlackRunConsumer(DeliveryConsumer):
                     logger.error("Slack agent bot mismatch for run %s", self.record.id)
                     return None
                 self.show_tool_callouts = config.show_tool_callouts
+                self.show_thinking_message = config.show_thinking_message
                 self.show_auxilia_link = config.show_auxilia_link
                 return AsyncWebClient(token=config.bot_token)
             except Exception:
@@ -290,7 +292,11 @@ class SlackRunConsumer(DeliveryConsumer):
             channel_id,
             thread_ts,
         )
-        marker_ts = await self._post_working_marker(channel_id, thread_ts)
+        marker_ts = (
+            await self._post_working_marker(channel_id, thread_ts)
+            if self.show_thinking_message
+            else None
+        )
         run_finished = False
         try:
             try:
