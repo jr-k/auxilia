@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.95](https://github.com/jr-k/auxilia/compare/web-v0.12.94...web-v0.12.95) (2026-11-01)
+
+
+### Bug Fixes
+
+* **chat:** keep submitted messages visible ([4abc452](https://github.com/jr-k/auxilia/commit/4abc452fb14d2007d644a7fb9e7e4d8ddc052f9b))
+
 ## [0.12.94](https://github.com/jr-k/auxilia/compare/web-v0.12.93...web-v0.12.94) (2026-11-01)
 
 
