@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.96](https://github.com/jr-k/auxilia/compare/web-v0.12.95...web-v0.12.96) (2026-11-01)
+
+
+### Features
+
+* **whatsapp:** add complete side-channel integration ([dd5809d](https://github.com/jr-k/auxilia/commit/dd5809dd6129fefcfc2f9c8199435656fe05b132))
+
 ## [0.12.95](https://github.com/jr-k/auxilia/compare/web-v0.12.94...web-v0.12.95) (2026-11-01)
 
 
