@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.97](https://github.com/jr-k/auxilia/compare/web-v0.12.96...web-v0.12.97) (2026-11-01)
+
+
+### Bug Fixes
+
+* **whatsapp:** use official logo ([a236fda](https://github.com/jr-k/auxilia/commit/a236fda1fd818a70fc7a0c214dc31403d3befca5))
+
 ## [0.12.96](https://github.com/jr-k/auxilia/compare/web-v0.12.95...web-v0.12.96) (2026-11-01)
 
 
