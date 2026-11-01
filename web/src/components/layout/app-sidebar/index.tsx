@@ -47,6 +47,7 @@ import {
 } from "@/components/ui/sidebar";
 import { DropdownMenu } from "@/components/ui/dropdown-menu";
 import { TelegramLogo } from "@/components/telegram-logo";
+import { WhatsAppLogo } from "@/components/whatsapp-logo";
 import { useThreadsStore } from "@/stores/threads-store";
 import { useUserStore } from "@/stores/user-store";
 import { useAgentsStore } from "@/stores/agents-store";
@@ -460,6 +461,11 @@ export function AppSidebar() {
 															)}
 															{thread.source === "telegram" && (
 																<TelegramLogo
+																	className={`size-3 ${activeRunThreadIds.has(thread.id) ? "" : "ml-auto"} ${trailingMetadataClass}`}
+																/>
+															)}
+															{thread.source === "whatsapp" && (
+																<WhatsAppLogo
 																	className={`size-3 ${activeRunThreadIds.has(thread.id) ? "" : "ml-auto"} ${trailingMetadataClass}`}
 																/>
 															)}

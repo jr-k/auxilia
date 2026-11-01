@@ -30,6 +30,7 @@ import {
 import { FileIcon } from "@/components/artifacts/file-type-icon";
 import { SlackLogo } from "@/components/slack-logo";
 import { TelegramLogo } from "@/components/telegram-logo";
+import { WhatsAppLogo } from "@/components/whatsapp-logo";
 import {
   Message,
   MessageAction,
@@ -988,6 +989,8 @@ const SideChannelContextDetails = ({
           <SlackLogo className="size-4 rounded-[4px] border-0 shadow-none" />
         ) : source === "telegram" ? (
           <TelegramLogo className="size-4" />
+        ) : source === "whatsapp" ? (
+          <WhatsAppLogo className="size-4" />
         ) : (
           <MessagesSquareIcon className="size-3.5 text-petrol dark:text-panel-terminal" />
         )}
@@ -996,6 +999,8 @@ const SideChannelContextDetails = ({
             ? "Slack"
             : source === "telegram"
               ? "Telegram"
+              : source === "whatsapp"
+                ? "WhatsApp"
               : (source ?? "Side channel")}
         </span>
         <span className="font-mono text-[10px]">context</span>

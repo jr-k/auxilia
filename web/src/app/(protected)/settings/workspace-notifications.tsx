@@ -7,6 +7,7 @@ import { getApiErrorMessage, isApiError } from "@/lib/api/errors";
 import * as notificationsApi from "@/lib/api/resources/notifications";
 import type { SlackNotificationSettings } from "@/types/notifications";
 import WorkspaceTelegram from "./workspace-telegram";
+import WorkspaceWhatsApp from "./workspace-whatsapp";
 
 interface Props {
 	onForbidden: () => void;
@@ -67,28 +68,6 @@ export default function WorkspaceMessaging({ onForbidden }: Props) {
 		}
 	};
 
-	if (!settings) {
-		if (loadError) {
-			return (
-				<div className="rounded-[10px] border border-destructive/25 bg-destructive/5 p-5">
-					<p className="text-[13px] text-destructive">{loadError}</p>
-					<button
-						type="button"
-						onClick={() => {
-							void load();
-						}}
-						className="mt-3 cursor-pointer rounded-[7px] border border-input bg-card px-3 py-1.5 text-[12px] font-semibold text-foreground"
-					>
-						Retry
-					</button>
-				</div>
-			);
-		}
-		return (
-			<div className="h-32 animate-pulse rounded-[10px] border border-border bg-card" />
-		);
-	}
-
 	return (
 		<div>
 			<div className="mb-1.5 flex items-center gap-2.5">
@@ -103,31 +82,49 @@ export default function WorkspaceMessaging({ onForbidden }: Props) {
 			</p>
 
 			<div className="overflow-hidden rounded-[10px] border border-border bg-card dark:border-white/10">
-				<div className="flex items-center gap-3 px-4 py-4">
-					<div className="flex size-9 shrink-0 items-center justify-center">
-						<SlackLogo />
+				{settings ? (
+					<div className="flex items-center gap-3 px-4 py-4">
+						<div className="flex size-9 shrink-0 items-center justify-center">
+							<SlackLogo />
+						</div>
+						<div className="min-w-0 flex-1">
+							<p className="text-[13px] font-semibold text-foreground">
+								Slack integration
+							</p>
+							<p className="mt-0.5 text-[11.5px] text-meta">
+								{enabled
+									? "Enabled for agent-specific bots"
+									: "Disabled for all agent bots"}
+							</p>
+						</div>
+						<Switch
+							aria-label="Enable Slack notifications"
+							checked={enabled}
+							disabled={saving}
+							onCheckedChange={(checked) => {
+								void toggleEnabled(checked);
+							}}
+							className="cursor-pointer data-[state=checked]:bg-petrol"
+						/>
 					</div>
-					<div className="min-w-0 flex-1">
-						<p className="text-[13px] font-semibold text-foreground">
-							Slack integration
-						</p>
-						<p className="mt-0.5 text-[11.5px] text-meta">
-							{enabled
-								? "Enabled for agent-specific bots"
-								: "Disabled for all agent bots"}
-						</p>
+				) : loadError ? (
+					<div className="flex items-center justify-between gap-3 px-4 py-4">
+						<p className="text-[12px] text-destructive">{loadError}</p>
+						<button
+							type="button"
+							onClick={() => {
+								void load();
+							}}
+							className="cursor-pointer rounded-[7px] border border-input bg-card px-3 py-1.5 text-[12px] font-semibold text-foreground"
+						>
+							Retry Slack
+						</button>
 					</div>
-					<Switch
-						aria-label="Enable Slack notifications"
-						checked={enabled}
-						disabled={saving}
-						onCheckedChange={(checked) => {
-							void toggleEnabled(checked);
-						}}
-						className="cursor-pointer data-[state=checked]:bg-petrol"
-					/>
-				</div>
+				) : (
+					<div className="h-[73px] animate-pulse bg-card" />
+				)}
 				<WorkspaceTelegram onForbidden={onForbidden} />
+				<WorkspaceWhatsApp onForbidden={onForbidden} />
 				{status && (
 					<div className="border-t border-hairline px-4 py-3 text-[12px] text-subtle">
 						{status}

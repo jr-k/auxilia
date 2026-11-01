@@ -22,6 +22,14 @@ from app.database import get_checkpointer
 from app.exceptions import DomainValidationError, NotFoundError, PermissionDeniedError
 from app.integrations.slack.schemas import AgentSlackBotUpdate
 from app.integrations.slack.service import AgentSlackBotService
+from app.integrations.whatsapp.schemas import (
+    WhatsAppConnectionUpdate,
+    WhatsAppWorkspaceSettingsUpdate,
+)
+from app.integrations.whatsapp.service import (
+    WhatsAppConnectionService,
+    WhatsAppWorkspaceSettingsService,
+)
 from app.invites.schemas import InviteCreate
 from app.invites.service import InviteService
 from app.mcp.client.connectivity import test_connection
@@ -1119,6 +1127,34 @@ def register_management_tools(mcp: MCPServer) -> None:
             )
 
     @mcp.tool()
+    async def get_whatsapp_notification_settings(ctx: Context) -> dict[str, Any]:
+        """Read whether agent-specific WhatsApp numbers are enabled."""
+        async with tool_session(ctx, minimum_role=WorkspaceRole.admin) as (
+            db,
+            _user,
+            workspace_id,
+        ):
+            return to_json(
+                await WhatsAppWorkspaceSettingsService(db, workspace_id).get_response()
+            )
+
+    @mcp.tool()
+    async def set_whatsapp_notification_settings(
+        data: WhatsAppWorkspaceSettingsUpdate, ctx: Context
+    ) -> dict[str, Any]:
+        """Enable or disable all agent-specific WhatsApp numbers."""
+        async with tool_session(ctx, minimum_role=WorkspaceRole.admin) as (
+            db,
+            _user,
+            workspace_id,
+        ):
+            return to_json(
+                await WhatsAppWorkspaceSettingsService(db, workspace_id).update(
+                    data.enabled
+                )
+            )
+
+    @mcp.tool()
     async def get_instance_appearance(ctx: Context) -> dict[str, Any]:
         """Read the application name and logo revision."""
         async with tool_session(ctx) as (db, _user, _workspace_id):
@@ -1214,6 +1250,84 @@ def register_management_tools(mcp: MCPServer) -> None:
                 "configure this agent's Slack bots",
             )
             await AgentSlackBotService(db, workspace_id).delete(agent_id, bot_id)
+            return {"deleted": True}
+
+    # Per-agent WhatsApp connections
+
+    @mcp.tool()
+    async def list_agent_whatsapp_connections(
+        agent_id: UUID, ctx: Context
+    ) -> list[dict[str, Any]]:
+        """List WhatsApp Cloud API connections for an agent."""
+        async with tool_session(ctx) as (db, user, workspace_id):
+            await _require_agent(
+                AgentService(db, workspace_id),
+                user,
+                agent_id,
+                EffectivePermission.member,
+                "view this agent's WhatsApp connections",
+            )
+            return to_json(
+                await WhatsAppConnectionService(db, workspace_id).list_connections(
+                    agent_id
+                )
+            )
+
+    @mcp.tool()
+    async def create_agent_whatsapp_connection(
+        agent_id: UUID, data: WhatsAppConnectionUpdate, ctx: Context
+    ) -> dict[str, Any]:
+        """Connect a WhatsApp Cloud API number to an agent."""
+        async with tool_session(ctx) as (db, user, workspace_id):
+            await _require_agent(
+                AgentService(db, workspace_id),
+                user,
+                agent_id,
+                EffectivePermission.admin,
+                "configure this agent's WhatsApp connections",
+            )
+            return to_json(
+                await WhatsAppConnectionService(db, workspace_id).create(agent_id, data)
+            )
+
+    @mcp.tool()
+    async def update_agent_whatsapp_connection(
+        agent_id: UUID,
+        connection_id: UUID,
+        data: WhatsAppConnectionUpdate,
+        ctx: Context,
+    ) -> dict[str, Any]:
+        """Update an agent's WhatsApp Cloud API connection."""
+        async with tool_session(ctx) as (db, user, workspace_id):
+            await _require_agent(
+                AgentService(db, workspace_id),
+                user,
+                agent_id,
+                EffectivePermission.admin,
+                "configure this agent's WhatsApp connections",
+            )
+            return to_json(
+                await WhatsAppConnectionService(db, workspace_id).update(
+                    agent_id, connection_id, data
+                )
+            )
+
+    @mcp.tool()
+    async def delete_agent_whatsapp_connection(
+        agent_id: UUID, connection_id: UUID, ctx: Context
+    ) -> dict[str, bool]:
+        """Disconnect a WhatsApp Cloud API number from an agent."""
+        async with tool_session(ctx) as (db, user, workspace_id):
+            await _require_agent(
+                AgentService(db, workspace_id),
+                user,
+                agent_id,
+                EffectivePermission.admin,
+                "configure this agent's WhatsApp connections",
+            )
+            await WhatsAppConnectionService(db, workspace_id).delete(
+                agent_id, connection_id
+            )
             return {"deleted": True}
 
     # Remaining skill and workspace operations

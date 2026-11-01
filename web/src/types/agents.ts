@@ -110,6 +110,42 @@ export interface AgentTelegramBotSettingsUpdate {
 	botToken?: string;
 }
 
+export type WhatsAppToolDiscoveryMode = ToolDiscoveryMode | "all_capabilities";
+
+/** Meta credentials stay server-side; this is the safe WhatsApp projection. */
+export interface AgentWhatsAppSettings {
+	id: string | null;
+	agentId: string;
+	workspaceEnabled: boolean;
+	enabled: boolean;
+	showTypingIndicator: boolean;
+	showToolCallouts: boolean;
+	showAuxiliaLink: boolean;
+	toolDiscoveryMode: WhatsAppToolDiscoveryMode;
+	isConfigured: boolean;
+	accessTokenLast4: string | null;
+	hasAppSecret: boolean;
+	businessAccountId: string | null;
+	phoneNumberId: string | null;
+	displayPhoneNumber: string | null;
+	verifiedName: string | null;
+	webhookUrl: string;
+	verifyToken: string | null;
+	deepLinkUrl: string | null;
+}
+
+export interface AgentWhatsAppSettingsUpdate {
+	enabled: boolean;
+	showTypingIndicator: boolean;
+	showToolCallouts: boolean;
+	showAuxiliaLink: boolean;
+	toolDiscoveryMode: WhatsAppToolDiscoveryMode;
+	accessToken?: string;
+	appSecret?: string;
+	businessAccountId?: string;
+	phoneNumberId?: string;
+}
+
 export interface SubagentInfo {
 	id: string;
 	name: string;

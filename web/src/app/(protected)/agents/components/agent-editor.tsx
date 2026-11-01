@@ -19,7 +19,7 @@ import { Agent, ToolDiscoveryMode } from "@/types/agents";
 import AgentToolList from "../[id]/components/agent-tool-list";
 import AgentSubagentList from "../[id]/components/agent-subagent-list";
 import AgentSkillList from "../[id]/components/agent-skill-list";
-import AgentSlackBotCard from "../[id]/components/agent-slack-bot-card";
+import AgentSideChannelCard from "../[id]/components/agent-side-channel-card";
 import { GroupPicker } from "@/components/ui/group-picker";
 import { VisibilityPicker } from "@/components/ui/visibility-picker";
 import { VisibilityBadge } from "@/components/ui/visibility-badge";
@@ -228,17 +228,27 @@ export default function AgentEditor({
 	useEffect(() => {
 		if (!agentId) return;
 		let active = true;
-		void Promise.all([
+		void Promise.allSettled([
 			agentsApi.listAgentSlackBots(agentId),
 			agentsApi.listAgentTelegramBots(agentId),
+			agentsApi.listAgentWhatsAppConnections(agentId),
 		])
-			.then(([slackBots, telegramBots]) => {
+			.then(([slackResult, telegramResult, whatsAppResult]) => {
 				if (active) {
-					setSideChannelCount(slackBots.length + telegramBots.length);
+					const slackCount =
+						slackResult.status === "fulfilled"
+							? slackResult.value.length
+							: 0;
+					const telegramCount =
+						telegramResult.status === "fulfilled"
+							? telegramResult.value.length
+							: 0;
+					const whatsAppCount =
+						whatsAppResult.status === "fulfilled"
+							? whatsAppResult.value.length
+							: 0;
+					setSideChannelCount(slackCount + telegramCount + whatsAppCount);
 				}
-			})
-			.catch(() => {
-				// The side-channel panel reports connection-loading failures.
 			});
 		return () => {
 			active = false;
@@ -674,7 +684,7 @@ export default function AgentEditor({
 				{activeCapabilityTab === "sandbox" && renderToolList("sandbox")}
 				{activeCapabilityTab === "slack" && agent && (
 					<div className="[&>section]:mt-0">
-						<AgentSlackBotCard
+						<AgentSideChannelCard
 							agentId={agent.id}
 							canManage={canManageAgent}
 							readOnly={readOnly}

@@ -36,6 +36,11 @@ from app.integrations.telegram.router import router as telegram_router
 from app.integrations.telegram.settings_router import router as telegram_settings_router
 from app.integrations.telegram.tools import build_telegram_run_tools
 from app.integrations.tracing import flush_tracing
+from app.integrations.whatsapp.consumer import build_whatsapp_run_consumer
+from app.integrations.whatsapp.processor import WhatsAppUpdateProcessor
+from app.integrations.whatsapp.router import router as whatsapp_router
+from app.integrations.whatsapp.settings_router import router as whatsapp_settings_router
+from app.integrations.whatsapp.tools import build_whatsapp_run_tools
 from app.invites.router import router as invites_router
 from app.logging_config import configure_logging
 from app.mcp.apps.router import router as mcp_apps_router
@@ -106,6 +111,7 @@ async def lifespan(app: FastAPI):
     event_relay: WorkspaceEventRelay | None = None
     dbhub_reconciler: DBHubReconciler | None = None
     telegram_processor: TelegramUpdateProcessor | None = None
+    whatsapp_processor: WhatsAppUpdateProcessor | None = None
     if dbhub_settings.enabled:
         dbhub_reconciler = DBHubReconciler()
         await dbhub_reconciler.ensure_config_file()
@@ -114,14 +120,17 @@ async def lifespan(app: FastAPI):
         )
     if run_settings.dispatcher_enabled:
         telegram_processor = TelegramUpdateProcessor()
+        whatsapp_processor = WhatsAppUpdateProcessor()
         dispatcher = RunDispatcher(
             delivery_factory=compose_delivery_factories(
                 build_slack_run_consumer,
                 build_telegram_run_consumer,
+                build_whatsapp_run_consumer,
             ),
             runtime_tool_factory=compose_runtime_tool_factories(
                 build_slack_run_tools,
                 build_telegram_run_tools,
+                build_whatsapp_run_tools,
             ),
         )
         reaper = RunReaper()
@@ -133,6 +142,9 @@ async def lifespan(app: FastAPI):
                 asyncio.create_task(event_relay.run(), name="workspace-event-relay"),
                 asyncio.create_task(
                     telegram_processor.run(), name="telegram-update-processor"
+                ),
+                asyncio.create_task(
+                    whatsapp_processor.run(), name="whatsapp-update-processor"
                 ),
             ]
         )
@@ -160,6 +172,8 @@ async def lifespan(app: FastAPI):
                 event_relay.stop()
             if telegram_processor is not None:
                 telegram_processor.stop()
+            if whatsapp_processor is not None:
+                whatsapp_processor.stop()
             if dbhub_reconciler is not None:
                 dbhub_reconciler.stop()
             for task in background:
@@ -301,6 +315,7 @@ async def version() -> dict[str, str]:
 app.include_router(agents_router)
 app.include_router(agent_slack_router)
 app.include_router(telegram_settings_router)
+app.include_router(whatsapp_settings_router)
 app.include_router(appearance_router)
 app.include_router(protocol_router)
 app.include_router(runs_router)
@@ -333,6 +348,7 @@ app.include_router(realtime_router)
 app.include_router(sandboxes_router)
 app.include_router(slack_router)
 app.include_router(telegram_router)
+app.include_router(whatsapp_router)
 
 app.mount(
     "/",

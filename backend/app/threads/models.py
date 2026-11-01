@@ -17,6 +17,7 @@ class ThreadSource(str, Enum):
     web = "web"
     slack = "slack"
     telegram = "telegram"
+    whatsapp = "whatsapp"
     api = "api"
     trigger = "trigger"
 
@@ -49,6 +50,7 @@ FIRST_PARTY_SOURCES: tuple[ThreadSource, ...] = (
     ThreadSource.web,
     ThreadSource.slack,
     ThreadSource.telegram,
+    ThreadSource.whatsapp,
     ThreadSource.trigger,
 )
 

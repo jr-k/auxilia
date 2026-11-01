@@ -7,6 +7,9 @@ import type {
 	TelegramIdentity,
 	TelegramLinkCode,
 	TelegramWorkspaceSettings,
+	WhatsAppIdentity,
+	WhatsAppLinkCode,
+	WhatsAppWorkspaceSettings,
 } from "@/types/notifications";
 
 export async function getSlackSettings(): Promise<SlackNotificationSettings> {
@@ -73,4 +76,38 @@ export async function createTelegramLinkCode(): Promise<TelegramLinkCode> {
 
 export async function unlinkTelegramIdentity(): Promise<void> {
 	await api.delete("/integrations/telegram/account");
+}
+
+export async function getWhatsAppSettings(): Promise<WhatsAppWorkspaceSettings> {
+	const response =
+		await api.get<WhatsAppWorkspaceSettings>("/notifications/whatsapp");
+	return response.data;
+}
+
+export async function updateWhatsAppSettings(
+	enabled: boolean,
+): Promise<WhatsAppWorkspaceSettings> {
+	const response = await api.put<WhatsAppWorkspaceSettings>(
+		"/notifications/whatsapp",
+		{ enabled },
+	);
+	return response.data;
+}
+
+export async function getWhatsAppIdentity(): Promise<WhatsAppIdentity> {
+	const response = await api.get<WhatsAppIdentity>(
+		"/integrations/whatsapp/account",
+	);
+	return response.data;
+}
+
+export async function createWhatsAppLinkCode(): Promise<WhatsAppLinkCode> {
+	const response = await api.post<WhatsAppLinkCode>(
+		"/integrations/whatsapp/link-code",
+	);
+	return response.data;
+}
+
+export async function unlinkWhatsAppIdentity(): Promise<void> {
+	await api.delete("/integrations/whatsapp/account");
 }

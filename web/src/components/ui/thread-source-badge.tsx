@@ -1,6 +1,7 @@
 import Image from "next/image";
 import { AlarmClock, Globe, Plug } from "lucide-react";
 import { TelegramLogo } from "@/components/telegram-logo";
+import { WhatsAppLogo } from "@/components/whatsapp-logo";
 import type { ThreadSource } from "@/types/threads";
 
 const SLACK_ICON_SRC =
@@ -14,6 +15,8 @@ function getLabel(source: ThreadSource): string {
 			return "Slack";
 		case "telegram":
 			return "Telegram";
+		case "whatsapp":
+			return "WhatsApp";
 		case "api":
 			return "External";
 		case "trigger":
@@ -44,6 +47,8 @@ export function ThreadSourceBadge({
 			/>
 		) : source === "telegram" ? (
 			<TelegramLogo className="size-3.5" />
+		) : source === "whatsapp" ? (
+			<WhatsAppLogo className="size-3.5" />
 		) : source === "web" ? (
 			<Globe className="h-3.5 w-3.5 shrink-0 text-[#A3B5AD] dark:text-muted-foreground" />
 		) : source === "trigger" ? (

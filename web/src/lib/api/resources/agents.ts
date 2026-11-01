@@ -16,6 +16,8 @@ import type {
 	AgentSlackBotSettingsUpdate,
 	AgentTelegramBotSettings,
 	AgentTelegramBotSettingsUpdate,
+	AgentWhatsAppSettings,
+	AgentWhatsAppSettingsUpdate,
 	ToolDiscoveryMode,
 } from "@/types/agents";
 import type { ResourceVisibility } from "@/types/visibility";
@@ -290,6 +292,56 @@ export async function deleteAgentTelegramBot(
 	botId: string,
 ): Promise<void> {
 	await api.delete(`/agents/${agentId}/integrations/telegram/${botId}`);
+}
+
+export async function listAgentWhatsAppConnections(
+	agentId: string,
+): Promise<AgentWhatsAppSettings[]> {
+	const response = await api.get<AgentWhatsAppSettings[]>(
+		`/agents/${agentId}/integrations/whatsapp`,
+	);
+	return response.data;
+}
+
+export async function getAgentWhatsAppSetup(
+	agentId: string,
+): Promise<AgentWhatsAppSettings> {
+	const response = await api.get<AgentWhatsAppSettings>(
+		`/agents/${agentId}/integrations/whatsapp/setup`,
+	);
+	return response.data;
+}
+
+export async function createAgentWhatsAppConnection(
+	agentId: string,
+	update: AgentWhatsAppSettingsUpdate,
+): Promise<AgentWhatsAppSettings> {
+	const response = await api.post<AgentWhatsAppSettings>(
+		`/agents/${agentId}/integrations/whatsapp`,
+		update,
+	);
+	return response.data;
+}
+
+export async function updateAgentWhatsAppConnection(
+	agentId: string,
+	connectionId: string,
+	update: AgentWhatsAppSettingsUpdate,
+): Promise<AgentWhatsAppSettings> {
+	const response = await api.put<AgentWhatsAppSettings>(
+		`/agents/${agentId}/integrations/whatsapp/${connectionId}`,
+		update,
+	);
+	return response.data;
+}
+
+export async function deleteAgentWhatsAppConnection(
+	agentId: string,
+	connectionId: string,
+): Promise<void> {
+	await api.delete(
+		`/agents/${agentId}/integrations/whatsapp/${connectionId}`,
+	);
 }
 
 export async function listAgentPermissions(agentId: string): Promise<AgentPermissionRow[]> {

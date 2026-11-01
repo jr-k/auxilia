@@ -31,3 +31,19 @@ export interface TelegramLinkCode {
 	expiresIn: number;
 	deepLinkUrl: string | null;
 }
+
+export interface WhatsAppWorkspaceSettings {
+	enabled: boolean;
+}
+
+export interface WhatsAppIdentity {
+	linked: boolean;
+	phoneNumber: string | null;
+	displayName: string | null;
+}
+
+export interface WhatsAppLinkCode {
+	code: string;
+	expiresIn: number;
+	deepLinkUrl: string | null;
+}

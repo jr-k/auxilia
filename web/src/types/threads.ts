@@ -1,6 +1,12 @@
 import { RunTerminalStatus } from "@/types/runs";
 
-export type ThreadSource = "web" | "slack" | "telegram" | "api" | "trigger";
+export type ThreadSource =
+	| "web"
+	| "slack"
+	| "telegram"
+	| "whatsapp"
+	| "api"
+	| "trigger";
 export type ThreadToolMode =
 	| "no_tools"
 	| "eager"

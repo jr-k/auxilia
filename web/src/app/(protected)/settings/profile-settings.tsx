@@ -16,6 +16,7 @@ import {
 import { useCallback, useEffect, useState } from "react";
 import { SlackLogo } from "@/components/slack-logo";
 import { TelegramLogo } from "@/components/telegram-logo";
+import { WhatsAppLogo } from "@/components/whatsapp-logo";
 import { ImageUpload } from "@/components/ui/image-upload";
 import { Switch } from "@/components/ui/switch";
 import { getApiErrorMessage } from "@/lib/api/errors";
@@ -38,6 +39,8 @@ import type {
 	SlackLinkCode,
 	TelegramIdentity,
 	TelegramLinkCode,
+	WhatsAppIdentity,
+	WhatsAppLinkCode,
 } from "@/types/notifications";
 
 const inputClass =
@@ -306,22 +309,35 @@ function ConnectedAccountsCard() {
 	const [telegramLink, setTelegramLink] = useState<TelegramLinkCode | null>(
 		null,
 	);
-	const [busy, setBusy] = useState<"slack" | "telegram" | null>(null);
-	const [checking, setChecking] = useState<"slack" | "telegram" | null>(null);
+	const [whatsAppIdentity, setWhatsAppIdentity] =
+		useState<WhatsAppIdentity | null>(null);
+	const [whatsAppLink, setWhatsAppLink] = useState<WhatsAppLinkCode | null>(
+		null,
+	);
+	type Channel = "slack" | "telegram" | "whatsapp";
+	const [busy, setBusy] = useState<Channel | null>(null);
+	const [checking, setChecking] = useState<Channel | null>(null);
 	const [error, setError] = useState<string | null>(null);
 
 	const load = useCallback(async () => {
 		setError(null);
-		try {
-			const [nextSlackIdentity, nextTelegramIdentity] = await Promise.all([
-				notificationsApi.getSlackIdentity(),
-				notificationsApi.getTelegramIdentity(),
-			]);
-			setSlackIdentity(nextSlackIdentity);
-			setTelegramIdentity(nextTelegramIdentity);
-		} catch (caught: unknown) {
+		const results = await Promise.allSettled([
+			notificationsApi.getSlackIdentity(),
+			notificationsApi.getTelegramIdentity(),
+			notificationsApi.getWhatsAppIdentity(),
+		]);
+		const [slackResult, telegramResult, whatsAppResult] = results;
+		if (slackResult.status === "fulfilled") setSlackIdentity(slackResult.value);
+		if (telegramResult.status === "fulfilled") {
+			setTelegramIdentity(telegramResult.value);
+		}
+		if (whatsAppResult.status === "fulfilled") {
+			setWhatsAppIdentity(whatsAppResult.value);
+		}
+		const failed = results.find((result) => result.status === "rejected");
+		if (failed?.status === "rejected") {
 			setError(
-				getApiErrorMessage(caught, "Could not load connected accounts."),
+				getApiErrorMessage(failed.reason, "Some connected accounts could not be loaded."),
 			);
 		}
 	}, []);
@@ -395,7 +411,39 @@ function ConnectedAccountsCard() {
 		}
 	};
 
-	const checkConnection = async (channel: "slack" | "telegram") => {
+	const generateWhatsAppCode = async () => {
+		setBusy("whatsapp");
+		setError(null);
+		try {
+			setWhatsAppLink(await notificationsApi.createWhatsAppLinkCode());
+		} catch (caught: unknown) {
+			setError(
+				getApiErrorMessage(caught, "Could not create a WhatsApp link code."),
+			);
+		} finally {
+			setBusy(null);
+		}
+	};
+
+	const unlinkWhatsApp = async () => {
+		setBusy("whatsapp");
+		setError(null);
+		try {
+			await notificationsApi.unlinkWhatsAppIdentity();
+			setWhatsAppIdentity({
+				linked: false,
+				phoneNumber: null,
+				displayName: null,
+			});
+			setWhatsAppLink(null);
+		} catch (caught: unknown) {
+			setError(getApiErrorMessage(caught, "Could not unlink WhatsApp."));
+		} finally {
+			setBusy(null);
+		}
+	};
+
+	const checkConnection = async (channel: Channel) => {
 		setChecking(channel);
 		try {
 			await load();
@@ -407,13 +455,17 @@ function ConnectedAccountsCard() {
 	const linkedName = telegramIdentity?.username
 		? `@${telegramIdentity.username}`
 		: (telegramIdentity?.displayName ?? "Telegram user");
+	const whatsAppLinkedName =
+		whatsAppIdentity?.displayName ??
+		whatsAppIdentity?.phoneNumber ??
+		"WhatsApp user";
 
 	return (
 		<section className="rounded-[12px] border border-border bg-card p-5">
 			<SectionHeading
 				icon={<Link2 className="size-4" />}
 				title="Side-channel identities"
-				description="See how Slack and Telegram identify you when you message an agent."
+				description="See how messaging providers identify you when you message an agent."
 			/>
 			<div className="overflow-hidden rounded-[9px] border border-input">
 				<div className="flex items-center gap-3 px-4 py-3.5">
@@ -490,6 +542,45 @@ function ConnectedAccountsCard() {
 						</button>
 					)}
 				</div>
+				<div className="flex items-center gap-3 border-t border-hairline px-4 py-3.5">
+					<span className="flex size-9 shrink-0 items-center justify-center rounded-[8px] border border-border bg-background shadow-sm dark:border-white/10">
+						<WhatsAppLogo className="size-[62%]" />
+					</span>
+					<div className="min-w-0 flex-1">
+						<p className="text-[13px] font-semibold text-foreground">
+							WhatsApp
+						</p>
+						<p className="mt-0.5 text-[12px] text-subtle dark:text-panel-body">
+							{whatsAppIdentity?.linked
+								? `Linked as ${whatsAppLinkedName}`
+								: "Not linked"}
+						</p>
+					</div>
+					{whatsAppIdentity?.linked ? (
+						<button
+							type="button"
+							disabled={busy !== null}
+							onClick={() => {
+								void unlinkWhatsApp();
+							}}
+							className="flex shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-[7px] border border-input bg-card px-3 py-1.5 text-[12px] font-semibold text-destructive disabled:opacity-50"
+						>
+							<Unlink className="size-3.5" />
+							Unlink
+						</button>
+					) : (
+						<button
+							type="button"
+							disabled={busy !== null}
+							onClick={() => {
+								void generateWhatsAppCode();
+							}}
+							className="shrink-0 cursor-pointer whitespace-nowrap rounded-[7px] bg-petrol px-3 py-1.5 text-[12px] font-semibold text-white disabled:opacity-50"
+						>
+							{busy === "whatsapp" ? "Generating…" : "Link WhatsApp"}
+						</button>
+					)}
+				</div>
 			</div>
 			{slackLink && !slackIdentity?.linked && (
 				<div className="mt-3 rounded-[9px] border border-petrol/20 bg-petrol/[0.045] p-3 dark:border-petrol/50 dark:bg-petrol/15">
@@ -555,6 +646,43 @@ function ConnectedAccountsCard() {
 								/>
 							)}
 							{checking === "telegram" ? "Checking…" : "Check connection"}
+						</button>
+					</div>
+				</div>
+			)}
+			{whatsAppLink && !whatsAppIdentity?.linked && (
+				<div className="mt-3 rounded-[9px] border border-petrol/20 bg-petrol/[0.045] p-3 dark:border-petrol/50 dark:bg-petrol/15">
+					<p className="text-[12px] leading-5 text-subtle dark:text-panel-body">
+						Send{" "}
+						<code className="rounded-[2px] border border-border bg-background px-1 py-px font-mono text-[11.5px] text-foreground">
+							/link {whatsAppLink.code}
+						</code>{" "}
+						to the agent&apos;s WhatsApp number. The code expires in 10 minutes
+						and can only be used once.
+					</p>
+					<div className="mt-2 flex items-center gap-2">
+						{whatsAppLink.deepLinkUrl && (
+							<a
+								href={whatsAppLink.deepLinkUrl}
+								target="_blank"
+								rel="noreferrer"
+								className="shrink-0 whitespace-nowrap rounded-[6px] bg-petrol px-3 py-1.5 text-[11.5px] font-semibold text-white"
+							>
+								Open WhatsApp
+							</a>
+						)}
+						<button
+							type="button"
+							disabled={checking !== null}
+							onClick={() => {
+								void checkConnection("whatsapp");
+							}}
+							className="flex shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-[6px] border border-input bg-card px-3 py-1.5 text-[11.5px] font-semibold text-foreground disabled:cursor-default disabled:opacity-60"
+						>
+							{checking === "whatsapp" && (
+								<Loader2 className="size-3.5 animate-spin" aria-hidden="true" />
+							)}
+							{checking === "whatsapp" ? "Checking…" : "Check connection"}
 						</button>
 					</div>
 				</div>
