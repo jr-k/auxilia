@@ -69,7 +69,7 @@ export default async function manifest(): Promise<MetadataRoute.Manifest> {
 		name,
 		short_name: name,
 		description: "Build and use MCP-powered AI assistants.",
-		start_url: "/agents",
+		start_url: "/",
 		scope: "/",
 		display: "standalone",
 		background_color: "#ffffff",
