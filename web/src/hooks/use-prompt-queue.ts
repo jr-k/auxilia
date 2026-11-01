@@ -14,8 +14,6 @@ const POLL_MS = 1000;
 /** How long a claimed item counts as "a run is starting" when the stream
  * never reports it (worker crashed before emitting a lifecycle event). */
 const CLAIM_GRACE_MS = 5000;
-/** Safety net for the optimistic bubble if a claimed run never emits input. */
-const CLAIMED_PROMPT_GRACE_MS = 15_000;
 
 const byPosition = (a: QueuedPrompt, b: QueuedPrompt) =>
 	a.position - b.position || a.id.localeCompare(b.id);
@@ -52,7 +50,6 @@ export function usePromptQueue(
 	const [claimedPrompt, setClaimedPrompt] = useState<{
 		threadId: string;
 		item: QueuedPrompt;
-		claimedAt: number;
 		baselineUserMessageCount: number;
 	} | null>(null);
 	const userMessageCountRef = useRef(userMessageCount);
@@ -116,23 +113,6 @@ export function usePromptQueue(
 			window.clearTimeout(timer);
 		};
 	}, [claimedRunStart]);
-	useEffect(() => {
-		if (claimedPrompt == null) return;
-		const remaining =
-			claimedPrompt.claimedAt + CLAIMED_PROMPT_GRACE_MS - Date.now();
-		const timer = window.setTimeout(
-			() => {
-				setClaimedPrompt((current) =>
-					current?.claimedAt === claimedPrompt.claimedAt ? null : current,
-				);
-			},
-			Math.max(0, remaining),
-		);
-		return () => {
-			window.clearTimeout(timer);
-		};
-	}, [claimedPrompt]);
-
 	const refresh = useCallback((): Promise<void> => {
 		if (refreshInFlight.current?.threadId === threadId) {
 			return refreshInFlight.current.promise;
@@ -160,7 +140,6 @@ export function usePromptQueue(
 						setClaimedPrompt({
 							threadId,
 							item: claimed,
-							claimedAt: now,
 							baselineUserMessageCount:
 								promptBaselines.current.get(claimed.id) ??
 								userMessageCountRef.current,

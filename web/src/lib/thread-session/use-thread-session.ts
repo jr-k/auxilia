@@ -10,6 +10,7 @@ import {
 } from "react";
 import {
   coerceMessageLikeToMessage,
+  HumanMessage,
   isHumanMessage,
 } from "@langchain/core/messages";
 import type { BaseMessage, BaseMessageLike } from "@langchain/core/messages";
@@ -234,6 +235,10 @@ export function useThreadSession({
     baselineUserMessageCount: number;
     accepted: boolean;
   } | null>(null);
+  const [submittedUserFallback, setSubmittedUserFallback] = useState<{
+    threadId: string;
+    message: HumanMessage;
+  } | null>(null);
   const currentThreadId = useRef(threadId);
   currentThreadId.current = threadId;
   const models = useModelsStore((store) => store.models);
@@ -452,13 +457,38 @@ export function useThreadSession({
   );
 
   // --- transcript views -----------------------------------------------------
-  const messages = useThrottledValue(stream.messages, THROTTLE_MS, {
+  const streamedMessages = useThrottledValue(stream.messages, THROTTLE_MS, {
     // `message-finish` can enrich an existing message with usage metadata
     // without replacing the messages array. The stream object still ticks
     // for that SSE event; snapshot only at the throttled render cadence.
     revision: stream,
     snapshot: snapshotMessages,
   });
+  const messages = useMemo(() => {
+    if (submittedUserFallback?.threadId !== threadId) return streamedMessages;
+    const fallback = submittedUserFallback.message;
+    const index = streamedMessages.findIndex(
+      (message) => message.id === fallback.id,
+    );
+    if (index < 0) return [...streamedMessages, fallback];
+
+    const current = streamedMessages[index];
+    const displayText = current.additional_kwargs?.display_text;
+    if (
+      current.text.length > 0 ||
+      (typeof displayText === "string" && displayText.length > 0)
+    ) {
+      return streamedMessages;
+    }
+
+    // The protocol echoes a human message as start/block/finish events. If
+    // rendering lands between start and block, the SDK briefly replaces the
+    // optimistic message with an empty one. Keep the submitted copy until
+    // the content event catches up so the user's bubble cannot disappear.
+    const next = streamedMessages.slice();
+    next[index] = fallback;
+    return next;
+  }, [streamedMessages, submittedUserFallback, threadId]);
   const liveToolCalls = useThrottledValue(stream.toolCalls, THROTTLE_MS);
   const [stoppingThreadId, setStoppingThreadId] = useState<string | null>(null);
   const stoppingRef = useRef<string | null>(null);
@@ -588,6 +618,16 @@ export function useThreadSession({
               }
             : {}),
         };
+        const messageId = globalThis.crypto.randomUUID();
+        const submittedMessage = new HumanMessage({
+          id: messageId,
+          content: input.content as HumanMessage["content"],
+          additional_kwargs,
+        });
+        setSubmittedUserFallback({
+          threadId,
+          message: submittedMessage,
+        });
         let submissionError: unknown;
         // `submit` settles only once the run has *ended*. The composer must
         // not wait that long: while it does, its submit guards stay held and
@@ -602,6 +642,7 @@ export function useThreadSession({
               messages: [
                 {
                   type: "human",
+                  id: messageId,
                   content: input.content,
                   ...(Object.keys(additional_kwargs).length > 0
                     ? { additional_kwargs }
@@ -623,6 +664,12 @@ export function useThreadSession({
             if (!pendingStart.accepted) {
               setPendingSubmission((current) =>
                 current?.threadId === threadId && current.sequence === sequence
+                  ? null
+                  : current,
+              );
+              setSubmittedUserFallback((current) =>
+                current?.threadId === threadId &&
+                current.message.id === messageId
                   ? null
                   : current,
               );
