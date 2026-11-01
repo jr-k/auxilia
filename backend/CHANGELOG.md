@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.66](https://github.com/jr-k/auxilia/compare/backend-v0.11.65...backend-v0.11.66) (2026-11-01)
+
+
+### Bug Fixes
+
+* **side-channels:** use conversation runtime settings ([89f80c6](https://github.com/jr-k/auxilia/commit/89f80c6bce076944e6793cb54e20b355d7285a99))
+
 ## [0.11.65](https://github.com/jr-k/auxilia/compare/backend-v0.11.64...backend-v0.11.65) (2026-10-31)
 
 
