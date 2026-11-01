@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.69](https://github.com/jr-k/auxilia/compare/backend-v0.11.68...backend-v0.11.69) (2026-11-01)
+
+
+### Features
+
+* **whatsapp:** add complete side-channel integration ([dd5809d](https://github.com/jr-k/auxilia/commit/dd5809dd6129fefcfc2f9c8199435656fe05b132))
+
 ## [0.11.68](https://github.com/jr-k/auxilia/compare/backend-v0.11.67...backend-v0.11.68) (2026-11-01)
 
 
