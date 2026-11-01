@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.68](https://github.com/jr-k/auxilia/compare/backend-v0.11.67...backend-v0.11.68) (2026-11-01)
+
+
+### Features
+
+* **telegram:** send messages to linked accounts ([d86a029](https://github.com/jr-k/auxilia/commit/d86a029aae56b705b7d315c382fb29d4a3919d33))
+
 ## [0.11.67](https://github.com/jr-k/auxilia/compare/backend-v0.11.66...backend-v0.11.67) (2026-11-01)
 
 
