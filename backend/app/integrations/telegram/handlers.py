@@ -180,6 +180,7 @@ async def _select_agent(
         question=None,
         user_id=str(user_id),
         source=ThreadSource.telegram,
+        tool_mode=config.tool_discovery_mode.thread_mode,
     )
     binding = TelegramThreadBindingDB(
         telegram_bot_id=config.id,

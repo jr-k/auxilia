@@ -688,7 +688,9 @@ async def _is_agent_ready(
     task silently — let the run launch and fail visibly instead."""
     from uuid import UUID
 
+    _ = tool_discovery_mode  # Delivery metadata only; the thread owns runtime policy.
     try:
+        conversation_mode = thread.tool_mode
         readiness = await AgentService(db, workspace_id).describe_readiness(
             thread.agent_id,
             user_id,
@@ -702,21 +704,14 @@ async def _is_agent_ready(
                 UUID(subagent_id) for subagent_id in thread.disabled_subagent_ids
             },
             force_enable_all_capabilities=(
-                tool_discovery_mode.force_enable_all_capabilities
-                if tool_discovery_mode is not None
-                else (
-                    thread.tool_mode.force_enable_all_capabilities
-                    if thread.tool_mode is not None
-                    else None
-                )
+                conversation_mode.force_enable_all_capabilities
+                if conversation_mode is not None
+                else None
             ),
             force_disable_all_capabilities=(
-                tool_discovery_mode is None
-                and thread.tool_mode is ThreadToolMode.no_tools
+                conversation_mode is ThreadToolMode.no_tools
             ),
-            inherit_agent_tool_mode=(
-                tool_discovery_mode is None and thread.tool_mode is None
-            ),
+            inherit_agent_tool_mode=conversation_mode is None,
         )
     except Exception:  # noqa: BLE001 — fail-open, per the docstring above
         logger.warning(
@@ -942,6 +937,7 @@ async def handle_agent_message(
                 agent_id=str(agent_id),
                 question=question,
                 user_id=str(user.id),
+                tool_mode=tool_discovery_mode.thread_mode,
             )
             binding = SlackThreadBindingDB(
                 slack_bot_id=slack_bot_id,
@@ -1227,6 +1223,7 @@ async def handle_agent_message_shortcut_submission(
             agent_id=str(agent_id),
             question=instruction,
             user_id=str(actor.id),
+            tool_mode=tool_discovery_mode.thread_mode,
         )
         if not await _is_agent_ready(
             created,

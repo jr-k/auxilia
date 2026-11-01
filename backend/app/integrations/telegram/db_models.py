@@ -20,20 +20,29 @@ from sqlmodel import Field
 
 from app.agents.models import ToolDiscoveryMode
 from app.models import BaseDBModel
+from app.threads.models import ThreadToolMode
 
 
 class TelegramToolDiscoveryMode(str, Enum):
-    """How a Telegram connection exposes tools across the agent graph.
+    """How a Telegram connection initializes a conversation's tool mode.
 
-    Lazy and ``all_capabilities`` re-enable every configured resource,
-    matching web conversations; Lazy routes MCP servers per prompt, while
-    ``all_capabilities`` loads every MCP schema eagerly.
+    After creation, the thread owns its mode so changes made from the
+    corresponding web conversation also apply to Telegram.
     """
 
     disabled = "disabled"
     lazy = "lazy"
     local = "local"
     all_capabilities = "all_capabilities"
+
+    @property
+    def thread_mode(self) -> ThreadToolMode:
+        return {
+            TelegramToolDiscoveryMode.disabled: ThreadToolMode.eager,
+            TelegramToolDiscoveryMode.lazy: ThreadToolMode.lazy,
+            TelegramToolDiscoveryMode.local: ThreadToolMode.precision,
+            TelegramToolDiscoveryMode.all_capabilities: ThreadToolMode.force_all,
+        }[self]
 
     @property
     def force_enable_all_capabilities(self) -> bool:

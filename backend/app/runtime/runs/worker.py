@@ -19,7 +19,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.core.service import AgentService
-from app.agents.models import EffectivePermission, ToolDiscoveryMode
+from app.agents.models import EffectivePermission
 from app.background import LoopHealth, register_loop
 from app.database import AsyncSessionLocal, get_checkpointer
 from app.exceptions import root_cause
@@ -35,12 +35,7 @@ from app.runtime.runs.liveness import DispatcherLiveness, RunLiveness
 from app.runtime.runs.models import RunDB
 from app.runtime.runs.service import RunService
 from app.runtime.runs.settings import run_settings
-from app.runtime.runs.state import (
-    RunStatus,
-    delivery_force_enable_all_capabilities,
-    delivery_tool_discovery_mode,
-    mcp_reauth_error,
-)
+from app.runtime.runs.state import RunStatus, mcp_reauth_error
 from app.threads.models import ThreadDB
 from app.users.models import UserDB
 from app.workspaces.repository import WorkspaceRepository
@@ -234,7 +229,6 @@ class RunWorker:
                 include_archived=True,
             )
             await agents.ensure_subagent_scopes(thread.agent_id)
-            discovery_override = delivery_tool_discovery_mode(record.delivery)
             runtime_tools, runtime_tool_interrupt_on = await self._runtime_tools(
                 db,
                 record,
@@ -249,14 +243,6 @@ class RunWorker:
             agent = await Agent.build(
                 thread=thread,
                 db=db,
-                force_enable_all_capabilities=delivery_force_enable_all_capabilities(
-                    record.delivery
-                ),
-                tool_discovery_mode=(
-                    ToolDiscoveryMode(discovery_override)
-                    if discovery_override is not None
-                    else None
-                ),
                 **runtime_options,
             )
             # Commit here, on purpose (CLAUDE.md, transactions, exception 2):

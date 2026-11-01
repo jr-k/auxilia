@@ -63,9 +63,6 @@ class SlackDelivery(TypedDict):
     team_id: str | None
     workspace_id: str
     slack_bot_id: str
-    # Both derived from the connection's SlackToolDiscoveryMode at enqueue
-    # time: the capability policy and the ToolDiscoveryMode value the worker
-    # applies to every agent of the graph.
     force_enable_all_capabilities: bool
     tool_discovery_mode: str
 

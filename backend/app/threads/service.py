@@ -23,7 +23,7 @@ from app.realtime.service import stage_workspace_event
 from app.runtime.runs.service import RunService
 from app.service import BaseService
 from app.skills.repository import SkillRepository
-from app.threads.models import ThreadDB, ThreadSource
+from app.threads.models import ThreadDB, ThreadSource, ThreadToolMode
 from app.threads.repository import ThreadRepository
 from app.threads.schemas import (
     AgentThreadResponse,
@@ -650,6 +650,7 @@ class ThreadService(BaseService[ThreadDB, ThreadRepository]):
         question: str | None,
         user_id: str,
         source: ThreadSource = ThreadSource.slack,
+        tool_mode: ThreadToolMode | None = None,
     ) -> ThreadDB:
         """Return the existing thread or create a side-channel thread.
 
@@ -695,6 +696,7 @@ class ThreadService(BaseService[ThreadDB, ThreadRepository]):
                 first_message_content=question,
                 user_id=user_id,
                 source=source,
+                tool_mode=tool_mode,
                 disabled_mcp_server_ids=disabled_mcp_server_ids,
                 disabled_skill_ids=disabled_skill_ids,
                 disabled_sandbox_ids=disabled_sandbox_ids,

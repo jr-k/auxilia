@@ -96,7 +96,6 @@ from app.sandbox.provider import (
     open_sandbox,
 )
 from app.skills.middleware import skills_read_middleware
-from app.skills.repository import SkillRepository
 from app.skills.runtime import (
     SkillsBackend,
     resolve_run_skills,
@@ -750,8 +749,6 @@ class Agent:
         thread: ThreadDB,
         db: AsyncSession,
         *,
-        force_enable_all_capabilities: bool | None = None,
-        tool_discovery_mode: ToolDiscoveryMode | None = None,
         runtime_tools: Sequence[BaseTool] = (),
         runtime_tool_interrupt_on: dict[str, bool] | None = None,
     ) -> "Agent":
@@ -759,9 +756,6 @@ class Agent:
 
         A resume (a HITL approval) resolves exactly as a first run does —
         there is no per-thread copy of anything to reuse.
-
-        `tool_discovery_mode` overrides the mode saved on every agent of the
-        graph — a side channel (Slack) chooses it per connection.
         """
         user_id = str(thread.user_id)
 
@@ -774,24 +768,17 @@ class Agent:
         if spec is None:
             raise NotFoundError("Agent not found")
 
-        # Web conversations can override discovery without rewriting the
-        # agent. Side-channel overrides (Slack delivery) take precedence.
-        conversation_discovery = {
+        # The thread is the runtime source of truth on every surface. Slack and
+        # Telegram stamp their connection default when they create a thread;
+        # later web edits therefore apply to subsequent side-channel turns.
+        discovery_override = {
             ThreadToolMode.eager: ToolDiscoveryMode.disabled,
             ThreadToolMode.lazy: ToolDiscoveryMode.lazy,
             ThreadToolMode.precision: ToolDiscoveryMode.local,
             ThreadToolMode.force_all: ToolDiscoveryMode.disabled,
         }.get(thread.tool_mode)
-        discovery_override = (
-            tool_discovery_mode
-            if tool_discovery_mode is not None
-            else conversation_discovery
-        )
-        force_no_tools = (
-            thread.tool_mode is ThreadToolMode.no_tools
-            and force_enable_all_capabilities is not True
-        )
-        lazy_overrides_resource_selections = force_enable_all_capabilities is None and (
+        force_no_tools = thread.tool_mode is ThreadToolMode.no_tools
+        lazy_overrides_resource_selections = (
             discovery_override is ToolDiscoveryMode.lazy
             or (
                 discovery_override is None
@@ -799,13 +786,9 @@ class Agent:
             )
         )
         force_enable_resources = (
-            force_enable_all_capabilities is True
-            or (
-                thread.tool_mode is not None
-                and thread.tool_mode.force_enable_all_capabilities
-            )
-            or lazy_overrides_resource_selections
-        )
+            thread.tool_mode is not None
+            and thread.tool_mode.force_enable_all_capabilities
+        ) or lazy_overrides_resource_selections
         exclusions = spec.resource_exclusions(
             disabled_mcp_server_ids={
                 UUID(server_id) for server_id in thread.disabled_mcp_server_ids
@@ -816,9 +799,7 @@ class Agent:
             disabled_subagent_ids={
                 UUID(subagent_id) for subagent_id in thread.disabled_subagent_ids
             },
-            force_enable_all_capabilities=(
-                True if force_enable_resources else force_enable_all_capabilities
-            ),
+            force_enable_all_capabilities=True if force_enable_resources else None,
             force_disable_all_capabilities=force_no_tools,
         )
 
@@ -996,12 +977,6 @@ class Agent:
         disabled_skill_ids = {UUID(skill_id) for skill_id in thread.disabled_skill_ids}
         if force_enable_resources:
             disabled_skill_ids.clear()
-        elif force_enable_all_capabilities is False:
-            disabled_skill_ids.update(
-                await SkillRepository(
-                    db, thread.workspace_id
-                ).list_disabled_by_default_ids_for_agents(spec.all_agent_ids)
-            )
         skills = (
             []
             if force_no_tools

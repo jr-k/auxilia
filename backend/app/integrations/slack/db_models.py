@@ -6,21 +6,30 @@ from sqlmodel import Field
 
 from app.agents.models import ToolDiscoveryMode
 from app.models import BaseDBModel
+from app.threads.models import ThreadToolMode
 
 
 class SlackToolDiscoveryMode(str, Enum):
     """How a Slack connection exposes MCP tools, chosen per connection.
 
-    The first three mirror ``ToolDiscoveryMode`` and apply it to every agent
-    of the graph. Lazy and ``all_capabilities`` re-enable every configured
-    resource, matching web conversations; Lazy then routes MCP servers per
-    prompt, while ``all_capabilities`` loads every MCP schema eagerly.
+    The setting initializes a new Slack conversation. After that, the thread
+    owns its mode so changes made from the corresponding web conversation also
+    apply to Slack.
     """
 
     disabled = "disabled"
     lazy = "lazy"
     local = "local"
     all_capabilities = "all_capabilities"
+
+    @property
+    def thread_mode(self) -> ThreadToolMode:
+        return {
+            SlackToolDiscoveryMode.disabled: ThreadToolMode.eager,
+            SlackToolDiscoveryMode.lazy: ThreadToolMode.lazy,
+            SlackToolDiscoveryMode.local: ThreadToolMode.precision,
+            SlackToolDiscoveryMode.all_capabilities: ThreadToolMode.force_all,
+        }[self]
 
     @property
     def force_enable_all_capabilities(self) -> bool:
