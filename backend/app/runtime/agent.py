@@ -709,8 +709,8 @@ class Agent:
         # Minimal-effort variant of `model` for the lazy MCP router; None when
         # no agent of the graph runs lazy discovery.
         self.router_model = router_model
-        # Run-bound tools are supplied by the delivery channel, not persisted
-        # on the agent and never included in MCP discovery.
+        # Run-bound tools are supplied by integrations, not persisted on the
+        # agent and never included in MCP discovery.
         self.runtime_tools = list(runtime_tools)
         self.runtime_tool_interrupt_on = dict(runtime_tool_interrupt_on or {})
         # One skill set for the whole graph, frozen for this run.

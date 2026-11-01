@@ -144,6 +144,27 @@ class TelegramThreadBindingRepository(BaseRepository[TelegramThreadBindingDB]):
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
+    async def get_private_for_identity(
+        self,
+        telegram_bot_ids: list[UUID],
+        telegram_user_id: str,
+    ) -> TelegramThreadBindingDB | None:
+        if not telegram_bot_ids:
+            return None
+        stmt = (
+            select(TelegramThreadBindingDB)
+            .where(
+                col(TelegramThreadBindingDB.telegram_bot_id).in_(telegram_bot_ids),
+                TelegramThreadBindingDB.telegram_user_id == telegram_user_id,
+                TelegramThreadBindingDB.chat_id == telegram_user_id,
+                TelegramThreadBindingDB.message_thread_id == "",
+            )
+            .order_by(col(TelegramThreadBindingDB.updated_at).desc())
+            .limit(1)
+        )
+        result = await self.db.execute(stmt)
+        return result.scalar_one_or_none()
+
     async def delete_for_identity(
         self, telegram_bot_ids: list[UUID], telegram_user_id: str
     ) -> None:

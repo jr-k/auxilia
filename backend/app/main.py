@@ -34,6 +34,7 @@ from app.integrations.telegram.consumer import build_telegram_run_consumer
 from app.integrations.telegram.processor import TelegramUpdateProcessor
 from app.integrations.telegram.router import router as telegram_router
 from app.integrations.telegram.settings_router import router as telegram_settings_router
+from app.integrations.telegram.tools import build_telegram_run_tools
 from app.integrations.tracing import flush_tracing
 from app.invites.router import router as invites_router
 from app.logging_config import configure_logging
@@ -50,7 +51,10 @@ from app.realtime.router import router as realtime_router
 from app.redis_client import close_redis, get_redis
 from app.runtime.api.protocol_router import router as protocol_router
 from app.runtime.api.runs_router import router as runs_router, user_runs_router
-from app.runtime.runs.delivery import compose_delivery_factories
+from app.runtime.runs.delivery import (
+    compose_delivery_factories,
+    compose_runtime_tool_factories,
+)
 from app.runtime.runs.reaper import RunReaper
 from app.runtime.runs.settings import run_settings
 from app.runtime.runs.worker import RunDispatcher
@@ -115,7 +119,10 @@ async def lifespan(app: FastAPI):
                 build_slack_run_consumer,
                 build_telegram_run_consumer,
             ),
-            runtime_tool_factory=build_slack_run_tools,
+            runtime_tool_factory=compose_runtime_tool_factories(
+                build_slack_run_tools,
+                build_telegram_run_tools,
+            ),
         )
         reaper = RunReaper()
         event_relay = WorkspaceEventRelay()

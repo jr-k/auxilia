@@ -12,7 +12,8 @@ factories, so `app/runtime/runs` never imports `app/integrations`.
 """
 
 from collections.abc import Callable, Sequence
-from typing import Any, Protocol
+from dataclasses import dataclass
+from typing import Any, Protocol, cast
 from uuid import UUID
 
 from langchain_core.tools import BaseTool
@@ -50,7 +51,7 @@ def compose_delivery_factories(
 
 
 class RuntimeToolBundle(Protocol):
-    """Channel-owned tools and their run-local approval policy."""
+    """Integration-owned tools and their run-local approval policy."""
 
     tools: Sequence[BaseTool]
     interrupt_on: dict[str, bool] | None
@@ -66,4 +67,46 @@ class RuntimeToolFactory(Protocol):
         *,
         workspace_id: UUID,
         agent_id: UUID,
+        user_id: UUID,
     ) -> RuntimeToolBundle: ...
+
+
+@dataclass(frozen=True)
+class CombinedRuntimeToolBundle:
+    tools: tuple[BaseTool, ...] = ()
+    interrupt_on: dict[str, bool] | None = None
+
+
+def compose_runtime_tool_factories(
+    *factories: RuntimeToolFactory,
+) -> RuntimeToolFactory:
+    """Combine independent integration tools into one run-local bundle."""
+
+    async def build(
+        db: AsyncSession,
+        delivery: dict[str, Any] | None,
+        *,
+        workspace_id: UUID,
+        agent_id: UUID,
+        user_id: UUID,
+    ) -> CombinedRuntimeToolBundle:
+        tools: list[BaseTool] = []
+        interrupt_on: dict[str, bool] = {}
+        names: set[str] = set()
+        for factory in factories:
+            resolved = await factory(
+                db,
+                delivery,
+                workspace_id=workspace_id,
+                agent_id=agent_id,
+                user_id=user_id,
+            )
+            for item in resolved.tools:
+                if item.name in names:
+                    raise RuntimeError(f"Duplicate runtime tool name: {item.name}")
+                names.add(item.name)
+                tools.append(item)
+            interrupt_on.update(resolved.interrupt_on or {})
+        return CombinedRuntimeToolBundle(tuple(tools), interrupt_on)
+
+    return cast(RuntimeToolFactory, build)

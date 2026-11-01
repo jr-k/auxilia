@@ -187,6 +187,7 @@ async def build_slack_run_tools(
     *,
     workspace_id: UUID,
     agent_id: UUID,
+    user_id: UUID,  # noqa: ARG001 - shared runtime-tool factory interface
 ) -> SlackRunTools:
     """Resolve tools for a Slack-bound run without exposing the bot token."""
     if not isinstance(delivery, dict) or delivery.get("channel") != "slack":

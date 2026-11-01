@@ -135,6 +135,7 @@ class RunWorker:
                 record.delivery,
                 workspace_id=record.workspace_id,
                 agent_id=agent_id,
+                user_id=record.user_id,
             )
             return list(resolved.tools), dict(resolved.interrupt_on or {})
         except Exception:
