@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.67](https://github.com/jr-k/auxilia/compare/backend-v0.11.66...backend-v0.11.67) (2026-11-01)
+
+
+### Features
+
+* **slack:** configure thinking message ([fb24bdb](https://github.com/jr-k/auxilia/commit/fb24bdb5624e253257c01b39cc0a7befef43791b))
+
 ## [0.11.66](https://github.com/jr-k/auxilia/compare/backend-v0.11.65...backend-v0.11.66) (2026-11-01)
 
 
