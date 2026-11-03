@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.80](https://github.com/jr-k/auxilia/compare/backend-v0.11.79...backend-v0.11.80) (2026-11-03)
+
+
+### Features
+
+* **notifications:** identify the responding agent in Web Push ([ba32fd2](https://github.com/jr-k/auxilia/commit/ba32fd2a0ae7758d8886c20c07d031b1c77a51ac))
+
 ## [0.11.79](https://github.com/jr-k/auxilia/compare/backend-v0.11.78...backend-v0.11.79) (2026-11-03)
 
 
