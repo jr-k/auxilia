@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.75](https://github.com/jr-k/auxilia/compare/backend-v0.11.74...backend-v0.11.75) (2026-11-03)
+
+
+### Features
+
+* **projects:** expose project management through MCP ([72c4730](https://github.com/jr-k/auxilia/commit/72c473012d371d23c0a5538f8c19d769ce0fe0bc))
+
 ## [0.11.74](https://github.com/jr-k/auxilia/compare/backend-v0.11.73...backend-v0.11.74) (2026-11-02)
 
 
