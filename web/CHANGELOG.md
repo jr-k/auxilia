@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.110](https://github.com/jr-k/auxilia/compare/web-v0.12.109...web-v0.12.110) (2026-11-03)
+
+
+### Bug Fixes
+
+* **threads:** improve new badge contrast in dark mode ([baa65e0](https://github.com/jr-k/auxilia/commit/baa65e00f2cfc0f8eb968a8ed79024e599aacb1a))
+
 ## [0.12.109](https://github.com/jr-k/auxilia/compare/web-v0.12.108...web-v0.12.109) (2026-11-03)
 
 
