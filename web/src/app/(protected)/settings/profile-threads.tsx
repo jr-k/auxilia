@@ -13,7 +13,6 @@ import {
 	Mail,
 	MailOpen,
 	MessageSquare,
-	MoreVertical,
 	Phone,
 	RotateCcw,
 	Search,
@@ -31,7 +30,6 @@ import {
 import { BulkActionBar } from "@/components/ui/bulk-action-bar";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
-import { DropdownMenu } from "@/components/ui/dropdown-menu";
 import { SelectableLeading } from "@/components/ui/selectable-leading";
 import {
 	SearchSelect,
@@ -268,7 +266,9 @@ export default function ProfileThreads() {
 			})
 			.catch((error: unknown) => {
 				if (cancelled) return;
-				setLoadError(getApiErrorMessage(error, "Could not load conversations."));
+				setLoadError(
+					getApiErrorMessage(error, "Could not load conversations."),
+				);
 			})
 			.finally(() => {
 				if (!cancelled) setSettledRequestKey(requestKey);
@@ -329,9 +329,7 @@ export default function ProfileThreads() {
 		setReadSavingIds((current) => new Set(current).add(thread.id));
 		setThreads((current) =>
 			current.map((item) =>
-				item.id === thread.id
-					? { ...item, isUnread: !thread.isUnread }
-					: item,
+				item.id === thread.id ? { ...item, isUnread: !thread.isUnread } : item,
 			),
 		);
 		try {
@@ -400,9 +398,9 @@ export default function ProfileThreads() {
 							size="sm"
 						/>
 					</SelectableLeading>
-					<div className="min-w-0">
+					<div className="min-w-0 flex-1">
 						<div className="flex items-center gap-1.5">
-							<p className="truncate text-[12.5px] font-semibold text-foreground">
+							<p className="min-w-0 truncate text-[12.5px] font-semibold text-foreground">
 								{threadTitle(thread)}
 							</p>
 							{thread.isUnread && <ThreadUnreadBadge />}
@@ -453,44 +451,40 @@ export default function ProfileThreads() {
 			),
 		},
 		{
-			key: "actions",
-			header: "",
-			width: "48px",
+			key: "read",
+			header: "Read",
+			width: "64px",
 			mobileWidth: "auto",
 			align: "right",
-			cell: (thread) => (
-				<div
-					className="flex justify-end"
-					onClick={(event) => {
-						event.stopPropagation();
-					}}
-				>
-					<DropdownMenu
-						align="end"
-						trigger={
-							<button
-								type="button"
-								aria-label={`More options for ${threadTitle(thread)}`}
-								disabled={readSavingIds.has(thread.id)}
-								className="flex size-7 cursor-pointer items-center justify-center rounded-[7px] text-meta transition-colors hover:bg-hover hover:text-foreground disabled:cursor-wait disabled:opacity-50"
-							>
-								<MoreVertical className="size-4" />
-							</button>
+			cell: (thread) =>
+				thread.completedAt === null ? (
+					<button
+						type="button"
+						aria-label={
+							thread.isUnread
+								? "Mark conversation as read"
+								: "Mark conversation as unread"
 						}
-						items={[
-							{
-								label: thread.isUnread
-									? "Mark as read"
-									: "Mark as unread",
-								icon: thread.isUnread ? <MailOpen /> : <Mail />,
-								onClick: () => {
-									void toggleReadState(thread);
-								},
-							},
-						]}
-					/>
-				</div>
-			),
+						title={thread.isUnread ? "Mark as read" : "Mark as unread"}
+						disabled={readSavingIds.has(thread.id)}
+						onClick={(event) => {
+							event.preventDefault();
+							event.stopPropagation();
+							void toggleReadState(thread);
+						}}
+						className={`ml-auto flex size-7 cursor-pointer items-center justify-center rounded-full border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-petrol/40 disabled:cursor-wait disabled:opacity-50 ${
+							thread.isUnread
+								? "border-petrol/25 bg-petrol/8 text-petrol hover:bg-petrol/12 dark:border-panel-terminal/25 dark:bg-panel-terminal/10 dark:text-panel-terminal"
+								: "border-border bg-card text-meta hover:bg-hover hover:text-foreground dark:bg-white/5"
+						}`}
+					>
+						{thread.isUnread ? (
+							<MailOpen className="size-3.5" />
+						) : (
+							<Mail className="size-3.5" />
+						)}
+					</button>
+				) : null,
 		},
 	];
 
@@ -717,9 +711,7 @@ export default function ProfileThreads() {
 						selection.remove(succeeded);
 						if (shouldGoBack) {
 							const previousOffset = Math.max(0, offset - PAGE_SIZE);
-							setOffsetParam(
-								previousOffset > 0 ? String(previousOffset) : "",
-							);
+							setOffsetParam(previousOffset > 0 ? String(previousOffset) : "");
 						}
 					}
 					return failures;

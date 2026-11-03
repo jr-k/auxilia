@@ -161,8 +161,7 @@ export function ProjectsTree({
 	const agents = useMemo(
 		() =>
 			allAgents.filter(
-				(agent) =>
-					!agent.isArchived && agent.currentUserPermission != null,
+				(agent) => !agent.isArchived && agent.currentUserPermission != null,
 			),
 		[allAgents],
 	);
@@ -257,7 +256,9 @@ export function ProjectsTree({
 		try {
 			await deleteProject(project.id);
 		} catch (error) {
-			toast.error(getApiErrorMessage(error, "The project could not be deleted."));
+			toast.error(
+				getApiErrorMessage(error, "The project could not be deleted."),
+			);
 		}
 	};
 
@@ -273,7 +274,9 @@ export function ProjectsTree({
 		try {
 			await deleteFolder(folder.id);
 		} catch (error) {
-			toast.error(getApiErrorMessage(error, "The folder could not be deleted."));
+			toast.error(
+				getApiErrorMessage(error, "The folder could not be deleted."),
+			);
 		}
 	};
 
@@ -561,7 +564,9 @@ function ProjectResources({
 			thread.folderId === folderId &&
 			matchesCompletionFilter(thread, completionFilter),
 	);
-	const triggers = project.triggers.filter((trigger) => trigger.folderId === folderId);
+	const triggers = project.triggers.filter(
+		(trigger) => trigger.folderId === folderId,
+	);
 	const toggleReadState = async (thread: ProjectThread) => {
 		try {
 			await setThreadReadState(thread.id, !thread.isUnread);
@@ -597,53 +602,53 @@ function ProjectResources({
 								</span>
 							</button>
 							<DropdownMenu
-									side="right"
-									align="start"
-									trigger={
-										<button
-											type="button"
-											aria-label={`More options for ${folder.name}`}
-											className="absolute right-1 flex size-6 cursor-pointer items-center justify-center rounded-md text-sidebar-muted opacity-0 hover:bg-sidebar-accent group-hover/folder:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100"
-										>
-											<MoreVertical className="size-3.5" />
-										</button>
-									}
-									items={[
-										{
-											label: "New conversation",
-											icon: <SquarePen />,
-											onClick: () => {
-												onStartConversation(project.id, folder.id);
-											},
+								side="right"
+								align="start"
+								trigger={
+									<button
+										type="button"
+										aria-label={`More options for ${folder.name}`}
+										className="absolute right-1 flex size-6 cursor-pointer items-center justify-center rounded-md text-sidebar-muted opacity-0 hover:bg-sidebar-accent group-hover/folder:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100"
+									>
+										<MoreVertical className="size-3.5" />
+									</button>
+								}
+								items={[
+									{
+										label: "New conversation",
+										icon: <SquarePen />,
+										onClick: () => {
+											onStartConversation(project.id, folder.id);
 										},
-										...(project.canManage
-											? [
-													{
-														label: "New folder",
-														icon: <FolderPlus />,
-														onClick: () => {
-															onCreateFolder(folder.id);
-														},
+									},
+									...(project.canManage
+										? [
+												{
+													label: "New folder",
+													icon: <FolderPlus />,
+													onClick: () => {
+														onCreateFolder(folder.id);
 													},
-													{
-														label: "Rename or move",
-														icon: <FolderInput />,
-														onClick: () => {
-															onEditFolder(folder);
-														},
+												},
+												{
+													label: "Rename or move",
+													icon: <FolderInput />,
+													onClick: () => {
+														onEditFolder(folder);
 													},
-													{
-														label: "Delete folder",
-														icon: <Trash2 />,
-														destructive: true,
-														onClick: () => {
-															onDeleteFolder(folder);
-														},
+												},
+												{
+													label: "Delete folder",
+													icon: <Trash2 />,
+													destructive: true,
+													onClick: () => {
+														onDeleteFolder(folder);
 													},
-												]
-											: []),
-									]}
-								/>
+												},
+											]
+										: []),
+								]}
+							/>
 						</div>
 						{isOpen && (
 							<div className="ml-[10px] border-l border-sidebar-border pl-1.5">
@@ -672,7 +677,8 @@ function ProjectResources({
 			{threads.map((thread) => {
 				const owned = thread.canManage;
 				const title = thread.title?.trim() || "Untitled conversation";
-				const active = pathname === `/agents/${thread.agentId}/chat/${thread.id}`;
+				const active =
+					pathname === `/agents/${thread.agentId}/chat/${thread.id}`;
 				return (
 					<li key={thread.id} className="group/resource relative">
 						<Link
@@ -720,44 +726,48 @@ function ProjectResources({
 								</button>
 							}
 							items={[
-								{
-									label: thread.isUnread
-										? "Mark as read"
-										: "Mark as unread",
-									icon: thread.isUnread ? <MailOpen /> : <Mail />,
-									onClick: () => {
-										void toggleReadState(thread);
-									},
-								},
+								...(thread.completedAt === null
+									? [
+											{
+												label: thread.isUnread
+													? "Mark as read"
+													: "Mark as unread",
+												icon: thread.isUnread ? <MailOpen /> : <Mail />,
+												onClick: () => {
+													void toggleReadState(thread);
+												},
+											},
+										]
+									: []),
 								...(owned
 									? [
-									{
-										label:
-											thread.completedAt === null
-												? "Mark as complete"
-												: "Reopen",
-										icon:
-											thread.completedAt === null ? (
-												<CircleCheck />
-											) : (
-												<Undo2 />
-											),
-										onClick: () => {
-											onToggleCompletion(thread);
-										},
-									},
-									{
-										label: "Move conversation",
-										icon: <FolderInput />,
-										onClick: () => {
-											onMoveThread({
-												id: thread.id,
-												title,
-												projectId: project.id,
-												folderId: thread.folderId,
-											});
-										},
-									},
+											{
+												label:
+													thread.completedAt === null
+														? "Mark as complete"
+														: "Reopen",
+												icon:
+													thread.completedAt === null ? (
+														<CircleCheck />
+													) : (
+														<Undo2 />
+													),
+												onClick: () => {
+													onToggleCompletion(thread);
+												},
+											},
+											{
+												label: "Move conversation",
+												icon: <FolderInput />,
+												onClick: () => {
+													onMoveThread({
+														id: thread.id,
+														title,
+														projectId: project.id,
+														folderId: thread.folderId,
+													});
+												},
+											},
 										]
 									: []),
 							]}

@@ -2,10 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { BaseMessage } from "@langchain/core/messages";
-import {
-  isAIMessage,
-  isHumanMessage,
-} from "@langchain/core/messages";
+import { isAIMessage, isHumanMessage } from "@langchain/core/messages";
 import {
   Conversation,
   ConversationContent,
@@ -78,6 +75,7 @@ const ChatPage = () => {
   const completionCandidate = useRef(0);
   const completionTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const readStateInFlight = useRef(false);
+  const automaticReadPromise = useRef<Promise<void> | null>(null);
   const readCompletionSequence = useRef(0);
   const runStatusRef = useRef<"idle" | "streaming" | "interrupted">("idle");
   const transcriptMessages = useRef<BaseMessage[]>([]);
@@ -158,7 +156,10 @@ const ChatPage = () => {
         return;
       }
       const assistantId = messages.at(latestAssistantResponse)?.id ?? null;
-      if (assistantId !== null && assistantId === acknowledgedAssistantId.current) {
+      if (
+        assistantId !== null &&
+        assistantId === acknowledgedAssistantId.current
+      ) {
         setResponsePendingDisplay(null);
         return;
       }
@@ -182,7 +183,8 @@ const ChatPage = () => {
       const candidate = ++completionCandidate.current;
       if (reason !== "success") {
         setResponsePendingDisplay(null);
-        if (completionTimer.current !== null) clearTimeout(completionTimer.current);
+        if (completionTimer.current !== null)
+          clearTimeout(completionTimer.current);
         return;
       }
       setResponsePendingDisplay(threadId);
@@ -220,7 +222,8 @@ const ChatPage = () => {
   useEffect(
     () => () => {
       completionCandidate.current += 1;
-      if (completionTimer.current !== null) clearTimeout(completionTimer.current);
+      if (completionTimer.current !== null)
+        clearTimeout(completionTimer.current);
     },
     [threadId],
   );
@@ -274,19 +277,15 @@ const ChatPage = () => {
     userMessageCount,
     meta.thread?.modelId,
   );
-  const {
-    acknowledgeClaimedPrompt,
-    claimedPrompt,
-    claimedPromptBaseline,
-  } = promptQueue;
+  const { acknowledgeClaimedPrompt, claimedPrompt, claimedPromptBaseline } =
+    promptQueue;
   const optimisticPrompt =
     claimedPrompt &&
     (claimedPromptBaseline === null ||
       userMessageCount <= claimedPromptBaseline)
       ? claimedPrompt
       : null;
-  const visibleOptimisticPrompt =
-    initialOptimisticPrompt ?? optimisticPrompt;
+  const visibleOptimisticPrompt = initialOptimisticPrompt ?? optimisticPrompt;
 
   useEffect(() => {
     if (
@@ -323,6 +322,7 @@ const ChatPage = () => {
       !pageVisible ||
       readStateInFlight.current ||
       manuallyUnreadOnPage.current ||
+      thread?.completedAt != null ||
       (!thread?.isUnread && !completionReady)
     ) {
       return;
@@ -331,8 +331,9 @@ const ChatPage = () => {
     const completionSequenceToRead = completionReady
       ? successfulCompletion.sequence
       : readCompletionSequence.current;
-    void setThreadReadState(threadId, false)
+    const request = setThreadReadState(threadId, false)
       .then(() => {
+        if (manuallyUnreadOnPage.current) return;
         setReadOverride({ threadId, isUnread: false });
         readCompletionSequence.current = Math.max(
           readCompletionSequence.current,
@@ -344,8 +345,12 @@ const ChatPage = () => {
         // Keep the unread state. A later visibility or workspace event retries.
       })
       .finally(() => {
+        if (automaticReadPromise.current === request) {
+          automaticReadPromise.current = null;
+        }
         readStateInFlight.current = false;
       });
+    automaticReadPromise.current = request;
   }, [
     meta.status,
     pageVisible,
@@ -354,6 +359,7 @@ const ChatPage = () => {
     run.status,
     setThreadReadState,
     successfulCompletion,
+    thread?.completedAt,
     thread?.isUnread,
     threadId,
     transcript.hydrated,
@@ -399,7 +405,10 @@ const ChatPage = () => {
     } catch (error) {
       setResourceSettingsOverride({ threadId, settings: previous });
       toast.error(
-        getApiErrorMessage(error, "Conversation resources could not be updated."),
+        getApiErrorMessage(
+          error,
+          "Conversation resources could not be updated.",
+        ),
       );
     } finally {
       setResourceSettingsSaving(false);
@@ -470,6 +479,11 @@ const ChatPage = () => {
     setReadOverride({ threadId, isUnread: nextUnread });
     setReadSaving(true);
     try {
+      if (nextUnread) {
+        // If the page was still finishing its automatic "read" write, let it
+        // settle first so this explicit user choice is always the final write.
+        await automaticReadPromise.current;
+      }
       await setThreadReadState(threadId, nextUnread);
       await recheckThreadMetadata();
     } catch (error) {
@@ -579,10 +593,7 @@ const ChatPage = () => {
         !meta.agentArchived
       }
       refreshKey={JSON.stringify(
-        transcript.toolCalls.map((toolCall) => [
-          toolCall.id,
-          toolCall.status,
-        ]),
+        transcript.toolCalls.map((toolCall) => [toolCall.id, toolCall.status]),
       )}
       order={transcript.toolCalls.map(
         (toolCall) => toolCall.callId ?? toolCall.id,
@@ -595,7 +606,9 @@ const ChatPage = () => {
               <span className="inline-flex">
                 <button
                   type="button"
-                  aria-label={completed ? "Reopen conversation" : "Complete conversation"}
+                  aria-label={
+                    completed ? "Reopen conversation" : "Complete conversation"
+                  }
                   aria-pressed={completed}
                   disabled={completionActionDisabled || completionSaving}
                   onClick={() => {
@@ -624,38 +637,42 @@ const ChatPage = () => {
               {completionTooltip}
             </TooltipContent>
           </Tooltip>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                type="button"
-                aria-label={isUnread ? "Mark as read" : "Mark as unread"}
-                aria-pressed={isUnread}
-                disabled={readSaving}
-                onClick={() => {
-                  void updateReadState(!isUnread);
-                }}
-                className={`flex h-[30px] cursor-pointer items-center gap-1.5 rounded-full border px-2.5 text-[11.5px] font-semibold transition-colors disabled:cursor-wait disabled:opacity-50 ${
-                  isUnread
-                    ? "border-petrol/25 bg-petrol/8 text-petrol hover:bg-petrol/12 dark:border-panel-terminal/25 dark:bg-panel-terminal/10 dark:text-panel-terminal"
-                    : "border-border bg-card text-meta hover:bg-hover hover:text-foreground dark:bg-white/5"
-                }`}
-              >
-                {readSaving ? (
-                  <LoaderCircle className="size-3.5 animate-spin" />
-                ) : isUnread ? (
-                  <MailOpen className="size-3.5" />
-                ) : (
-                  <Mail className="size-3.5" />
-                )}
-                <span className="hidden xl:inline">
-                  {isUnread ? "Mark read" : "Mark unread"}
-                </span>
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom" sideOffset={7}>
-              {isUnread ? "Mark conversation as read" : "Mark conversation as unread"}
-            </TooltipContent>
-          </Tooltip>
+          {!completed && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  aria-label={isUnread ? "Mark as read" : "Mark as unread"}
+                  aria-pressed={isUnread}
+                  disabled={readSaving}
+                  onClick={() => {
+                    void updateReadState(!isUnread);
+                  }}
+                  className={`flex h-[30px] cursor-pointer items-center gap-1.5 rounded-full border px-2.5 text-[11.5px] font-semibold transition-colors disabled:cursor-wait disabled:opacity-50 ${
+                    isUnread
+                      ? "border-petrol/25 bg-petrol/8 text-petrol hover:bg-petrol/12 dark:border-panel-terminal/25 dark:bg-panel-terminal/10 dark:text-panel-terminal"
+                      : "border-border bg-card text-meta hover:bg-hover hover:text-foreground dark:bg-white/5"
+                  }`}
+                >
+                  {readSaving ? (
+                    <LoaderCircle className="size-3.5 animate-spin" />
+                  ) : isUnread ? (
+                    <MailOpen className="size-3.5" />
+                  ) : (
+                    <Mail className="size-3.5" />
+                  )}
+                  <span className="hidden xl:inline">
+                    {isUnread ? "Mark read" : "Mark unread"}
+                  </span>
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" sideOffset={7}>
+                {isUnread
+                  ? "Mark conversation as read"
+                  : "Mark conversation as unread"}
+              </TooltipContent>
+            </Tooltip>
+          )}
         </ChatHeaderLeadingActions>
       )}
       {meta.status === "ready" && (
@@ -688,238 +705,242 @@ const ChatPage = () => {
         />
       )}
       <div className="h-full flex flex-col w-full overflow-hidden">
-      <div className="h-full relative flex flex-1 flex-col min-h-0 w-full">
-        <Conversation>
-          <ConversationContent className="max-w-4xl mx-auto w-full pb-16 lg:px-10 sm:px-6 px-2">
-            <ConversationBody
-              key={threadId}
-              agentId={agentId}
-              messages={transcript.messages}
-              runs={transcript.runs}
-              toolCalls={transcript.toolCalls}
-              subagents={transcript.subagents}
-              stream={transcript.stream}
-              supervisorTodos={transcript.todos}
-              isLoading={run.isLoading}
-              isStarting={run.isStarting}
-              isInterrupted={run.status === "interrupted"}
-              hitlToolNames={hitl.hitlToolNames}
-              decisions={hitl.decisions}
-              recordDecision={hitl.recordDecision}
-              nestedInterrupts={hitl.nestedInterrupts}
-              respond={actions.respond}
-              modelUnavailable={!meta.modelAvailable}
-              readOnly={completed}
-              onRegenerate={() => {
-                acknowledgeCurrentResponse();
-                actions.regenerate();
-              }}
-              optimisticPrompt={visibleOptimisticPrompt}
-              emptyPrompt={thread?.firstMessageContent?.trim() || null}
-              canRetryInitial={canRetryInitial}
-              showEmptyState={
-                meta.status === "ready" && transcript.hydrated
-              }
-              onRetryInitialPrompt={() => {
-                if (canRetryInitial) {
-                  void actions.retryInitial().catch((error: unknown) => {
-                    toast.error(
-                      getApiErrorMessage(
-                        error,
-                        "The original message could not be retried.",
-                      ),
-                    );
-                  });
-                  return;
-                }
-                const prompt = thread?.firstMessageContent?.trim();
-                if (!prompt) return;
-                acknowledgeCurrentResponse();
-                void actions
-                  .send({ text: prompt, files: [] })
-                  .catch((error: unknown) => {
-                    toast.error(
-                      getApiErrorMessage(error, "The message could not be sent."),
-                    );
-                  });
-              }}
-              hydrationError={transcript.hydrationError}
-              onRetryHydration={() => {
-                void actions.rehydrate().catch(() => {});
-              }}
-              error={run.error}
-              rehydratedError={run.rehydratedError}
-            />
-          </ConversationContent>
-          <ConversationScrollButton />
-        </Conversation>
-        <ThreadMap messages={transcript.messages} />
-        <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-background to-transparent z-10" />
-      </div>
-      <div className="w-full shrink-0 bg-background">
-        {meta.status === "ready" &&
-          meta.viewerRole === null &&
-          !meta.agentArchived &&
-          !meta.modelAvailable && (
-            <div className="w-full max-w-4xl mx-auto lg:px-10 sm:px-6 px-3 pt-6">
+        <div className="h-full relative flex flex-1 flex-col min-h-0 w-full">
+          <Conversation>
+            <ConversationContent className="max-w-4xl mx-auto w-full pb-16 lg:px-10 sm:px-6 px-2">
+              <ConversationBody
+                key={threadId}
+                agentId={agentId}
+                messages={transcript.messages}
+                runs={transcript.runs}
+                toolCalls={transcript.toolCalls}
+                subagents={transcript.subagents}
+                stream={transcript.stream}
+                supervisorTodos={transcript.todos}
+                isLoading={run.isLoading}
+                isStarting={run.isStarting}
+                isInterrupted={run.status === "interrupted"}
+                hitlToolNames={hitl.hitlToolNames}
+                decisions={hitl.decisions}
+                recordDecision={hitl.recordDecision}
+                nestedInterrupts={hitl.nestedInterrupts}
+                respond={actions.respond}
+                modelUnavailable={!meta.modelAvailable}
+                readOnly={completed}
+                onRegenerate={() => {
+                  acknowledgeCurrentResponse();
+                  actions.regenerate();
+                }}
+                optimisticPrompt={visibleOptimisticPrompt}
+                emptyPrompt={thread?.firstMessageContent?.trim() || null}
+                canRetryInitial={canRetryInitial}
+                showEmptyState={meta.status === "ready" && transcript.hydrated}
+                onRetryInitialPrompt={() => {
+                  if (canRetryInitial) {
+                    void actions.retryInitial().catch((error: unknown) => {
+                      toast.error(
+                        getApiErrorMessage(
+                          error,
+                          "The original message could not be retried.",
+                        ),
+                      );
+                    });
+                    return;
+                  }
+                  const prompt = thread?.firstMessageContent?.trim();
+                  if (!prompt) return;
+                  acknowledgeCurrentResponse();
+                  void actions
+                    .send({ text: prompt, files: [] })
+                    .catch((error: unknown) => {
+                      toast.error(
+                        getApiErrorMessage(
+                          error,
+                          "The message could not be sent.",
+                        ),
+                      );
+                    });
+                }}
+                hydrationError={transcript.hydrationError}
+                onRetryHydration={() => {
+                  void actions.rehydrate().catch(() => {});
+                }}
+                error={run.error}
+                rehydratedError={run.rehydratedError}
+              />
+            </ConversationContent>
+            <ConversationScrollButton />
+          </Conversation>
+          <ThreadMap messages={transcript.messages} />
+          <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-background to-transparent z-10" />
+        </div>
+        <div className="w-full shrink-0 bg-background">
+          {meta.status === "ready" &&
+            meta.viewerRole === null &&
+            !meta.agentArchived &&
+            !meta.modelAvailable && (
+              <div className="w-full max-w-4xl mx-auto lg:px-10 sm:px-6 px-3 pt-6">
+                <div className="flex items-center gap-3 rounded-lg border border-border bg-muted/50 px-4 py-3">
+                  <CircleSlash className="size-5 shrink-0 text-muted-foreground" />
+                  <p className="flex-1 text-sm text-muted-foreground">
+                    The model used by this conversation
+                    {thread?.modelId ? ` (${thread.modelId})` : ""} is no longer
+                    available in this workspace. Choose another model below, or
+                    ask a workspace admin to restore it.
+                  </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="shrink-0 cursor-pointer"
+                    onClick={() => {
+                      void actions.recheckModel();
+                    }}
+                  >
+                    Check again
+                  </Button>
+                </div>
+              </div>
+            )}
+          {meta.status === "error" ? (
+            <div className="w-full max-w-4xl mx-auto lg:px-10 sm:px-6 px-3 py-6">
+              <div className="flex items-center gap-3 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3">
+                <AlertTriangle className="size-5 shrink-0 text-destructive" />
+                <p className="flex-1 text-sm text-destructive">
+                  {getApiErrorMessage(
+                    openError,
+                    "This conversation could not be loaded.",
+                  )}
+                </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="shrink-0 cursor-pointer"
+                  onClick={actions.reopen}
+                >
+                  Retry
+                </Button>
+              </div>
+            </div>
+          ) : meta.viewerRole !== null ? (
+            <div className="w-full max-w-4xl mx-auto lg:px-10 sm:px-6 px-3 py-6">
               <div className="flex items-center gap-3 rounded-lg border border-border bg-muted/50 px-4 py-3">
-                <CircleSlash className="size-5 shrink-0 text-muted-foreground" />
+                <ShieldCheck className="size-5 shrink-0 text-muted-foreground" />
+                <p className="text-sm text-muted-foreground">
+                  {meta.viewerRole === "admin"
+                    ? "Viewing as admin, this conversation belongs to another user and is read-only."
+                    : "This conversation is shared through its project and is read-only."}
+                </p>
+              </div>
+            </div>
+          ) : meta.agentArchived ? (
+            <div className="w-full max-w-4xl mx-auto lg:px-10 sm:px-6 px-3 py-6">
+              <div className="flex items-center gap-3 rounded-lg border border-border bg-muted/50 px-4 py-3">
+                <ArchiveIcon className="size-5 shrink-0 text-muted-foreground" />
+                <p className="text-sm text-muted-foreground">
+                  The agent linked to this conversation has been archived. This
+                  thread is preserved as read-only so you can still review your
+                  past messages.
+                </p>
+              </div>
+            </div>
+          ) : meta.status !== "ready" ? (
+            // Metadata still loading (first open, or a Retry in flight): no
+            // composer yet, so nothing can be sent alongside a parked message.
+            <div
+              className="w-full max-w-4xl mx-auto lg:px-10 sm:px-6 px-3 py-4"
+              aria-busy="true"
+            />
+          ) : transcript.hydrationError != null ? (
+            <div
+              className="w-full max-w-4xl mx-auto lg:px-10 sm:px-6 px-3 py-4"
+              aria-busy="false"
+            />
+          ) : sandboxDown ? (
+            <div className="w-full max-w-4xl mx-auto lg:px-10 sm:px-6 px-3 py-6">
+              <div className="flex items-center gap-3 rounded-lg border border-border bg-muted/50 px-4 py-3">
+                <ServerCrash className="size-5 shrink-0 text-muted-foreground" />
                 <p className="flex-1 text-sm text-muted-foreground">
-                  The model used by this conversation
-                  {thread?.modelId ? ` (${thread.modelId})` : ""} is no longer
-                  available in this workspace. Choose another model below, or
-                  ask a workspace admin to restore it.
+                  {sandboxDown} Try again in a moment, or ask a workspace admin.
                 </p>
                 <Button
                   variant="outline"
                   size="sm"
                   className="shrink-0 cursor-pointer"
                   onClick={() => {
-                    void actions.recheckModel();
+                    actions.recheckSandbox();
+                    refetchReady();
                   }}
                 >
                   Check again
                 </Button>
               </div>
             </div>
+          ) : (
+            <ChatPromptInput
+              key={threadId}
+              agentId={agentId}
+              draftKey={threadId}
+              onSubmit={(message) => {
+                acknowledgeCurrentResponse();
+                return actions.send(message, {
+                  fileStorage: acceptsFiles === true,
+                });
+              }}
+              status={run.isLoading ? "streaming" : "ready"}
+              queueMode={run.status === "streaming" && !run.isStopping}
+              submissionDisabled={
+                !meta.modelAvailable ||
+                run.isStopping ||
+                memorySaving ||
+                completed
+              }
+              completed={completed}
+              reopening={completionSaving}
+              onReopen={() => {
+                void updateCompletion(false);
+              }}
+              className="w-full max-w-4xl mx-auto lg:px-10 sm:px-6 px-3 py-4"
+              stop={actions.stop}
+              stopping={run.isStopping}
+              selectedModel={thread?.modelId ?? undefined}
+              onModelChange={actions.changeModel}
+              modelChangeDisabled={
+                run.status !== "idle" || promptQueue.runStarting
+              }
+              selectedEffort={thread?.reasoningEffort ?? null}
+              onEffortChange={actions.changeReasoningEffort}
+              acceptsFiles={acceptsFiles}
+              disconnectedServers={disconnectedMcpServers}
+              onAllConnected={refetchReady}
+              resourceSettings={resourceSettings}
+              onResourceSettingsChange={(settings) => {
+                void updateResourceSettings(settings);
+              }}
+              resourceSettingsSaving={resourceSettingsSaving}
+              conversationMessages={transcript.messages}
+              loadLatestConversationMessages={actions.loadLatestMessages}
+              queuedPrompts={promptQueue.items}
+              queueLoading={promptQueue.isLoading}
+              onQueueAuthorizationRequired={refetchReady}
+              onEnqueue={async (message) => {
+                await promptQueue.enqueue(message, {
+                  fileStorage: acceptsFiles === true,
+                });
+              }}
+              onUpdateQueued={async (id, text) => {
+                await promptQueue.update(id, text);
+              }}
+              onBeginQueuedEdit={promptQueue.beginEdit}
+              onEndQueuedEdit={promptQueue.endEdit}
+              onSendQueuedNow={promptQueue.sendNow}
+              sendQueuedNowDisabled={
+                run.status === "interrupted" || run.isStopping
+              }
+              onRemoveQueued={promptQueue.remove}
+              onReorderQueued={promptQueue.reorder}
+            />
           )}
-        {meta.status === "error" ? (
-          <div className="w-full max-w-4xl mx-auto lg:px-10 sm:px-6 px-3 py-6">
-            <div className="flex items-center gap-3 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3">
-              <AlertTriangle className="size-5 shrink-0 text-destructive" />
-              <p className="flex-1 text-sm text-destructive">
-                {getApiErrorMessage(
-                  openError,
-                  "This conversation could not be loaded.",
-                )}
-              </p>
-              <Button
-                variant="outline"
-                size="sm"
-                className="shrink-0 cursor-pointer"
-                onClick={actions.reopen}
-              >
-                Retry
-              </Button>
-            </div>
-          </div>
-        ) : meta.viewerRole !== null ? (
-          <div className="w-full max-w-4xl mx-auto lg:px-10 sm:px-6 px-3 py-6">
-            <div className="flex items-center gap-3 rounded-lg border border-border bg-muted/50 px-4 py-3">
-              <ShieldCheck className="size-5 shrink-0 text-muted-foreground" />
-              <p className="text-sm text-muted-foreground">
-                {meta.viewerRole === "admin"
-                  ? "Viewing as admin, this conversation belongs to another user and is read-only."
-                  : "This conversation is shared through its project and is read-only."}
-              </p>
-            </div>
-          </div>
-        ) : meta.agentArchived ? (
-          <div className="w-full max-w-4xl mx-auto lg:px-10 sm:px-6 px-3 py-6">
-            <div className="flex items-center gap-3 rounded-lg border border-border bg-muted/50 px-4 py-3">
-              <ArchiveIcon className="size-5 shrink-0 text-muted-foreground" />
-              <p className="text-sm text-muted-foreground">
-                The agent linked to this conversation has been archived. This
-                thread is preserved as read-only so you can still review your
-                past messages.
-              </p>
-            </div>
-          </div>
-        ) : meta.status !== "ready" ? (
-          // Metadata still loading (first open, or a Retry in flight): no
-          // composer yet, so nothing can be sent alongside a parked message.
-          <div
-            className="w-full max-w-4xl mx-auto lg:px-10 sm:px-6 px-3 py-4"
-            aria-busy="true"
-          />
-        ) : transcript.hydrationError != null ? (
-          <div
-            className="w-full max-w-4xl mx-auto lg:px-10 sm:px-6 px-3 py-4"
-            aria-busy="false"
-          />
-        ) : sandboxDown ? (
-          <div className="w-full max-w-4xl mx-auto lg:px-10 sm:px-6 px-3 py-6">
-            <div className="flex items-center gap-3 rounded-lg border border-border bg-muted/50 px-4 py-3">
-              <ServerCrash className="size-5 shrink-0 text-muted-foreground" />
-              <p className="flex-1 text-sm text-muted-foreground">
-                {sandboxDown} Try again in a moment, or ask a workspace admin.
-              </p>
-              <Button
-                variant="outline"
-                size="sm"
-                className="shrink-0 cursor-pointer"
-                onClick={() => {
-                  actions.recheckSandbox();
-                  refetchReady();
-                }}
-              >
-                Check again
-              </Button>
-            </div>
-          </div>
-        ) : (
-          <ChatPromptInput
-            key={threadId}
-            agentId={agentId}
-            draftKey={threadId}
-            onSubmit={(message) => {
-              acknowledgeCurrentResponse();
-              return actions.send(message, {
-                fileStorage: acceptsFiles === true,
-              });
-            }}
-            status={run.isLoading ? "streaming" : "ready"}
-            queueMode={run.status === "streaming" && !run.isStopping}
-            submissionDisabled={
-              !meta.modelAvailable || run.isStopping || memorySaving || completed
-            }
-            completed={completed}
-            reopening={completionSaving}
-            onReopen={() => {
-              void updateCompletion(false);
-            }}
-            className="w-full max-w-4xl mx-auto lg:px-10 sm:px-6 px-3 py-4"
-            stop={actions.stop}
-            stopping={run.isStopping}
-            selectedModel={thread?.modelId ?? undefined}
-            onModelChange={actions.changeModel}
-            modelChangeDisabled={
-              run.status !== "idle" || promptQueue.runStarting
-            }
-            selectedEffort={thread?.reasoningEffort ?? null}
-            onEffortChange={actions.changeReasoningEffort}
-            acceptsFiles={acceptsFiles}
-            disconnectedServers={disconnectedMcpServers}
-            onAllConnected={refetchReady}
-            resourceSettings={resourceSettings}
-            onResourceSettingsChange={(settings) => {
-              void updateResourceSettings(settings);
-            }}
-            resourceSettingsSaving={resourceSettingsSaving}
-            conversationMessages={transcript.messages}
-            loadLatestConversationMessages={actions.loadLatestMessages}
-            queuedPrompts={promptQueue.items}
-            queueLoading={promptQueue.isLoading}
-            onQueueAuthorizationRequired={refetchReady}
-            onEnqueue={async (message) => {
-              await promptQueue.enqueue(message, {
-                fileStorage: acceptsFiles === true,
-              });
-            }}
-            onUpdateQueued={async (id, text) => {
-              await promptQueue.update(id, text);
-            }}
-            onBeginQueuedEdit={promptQueue.beginEdit}
-            onEndQueuedEdit={promptQueue.endEdit}
-            onSendQueuedNow={promptQueue.sendNow}
-            sendQueuedNowDisabled={
-              run.status === "interrupted" || run.isStopping
-            }
-            onRemoveQueued={promptQueue.remove}
-            onReorderQueued={promptQueue.reorder}
-          />
-        )}
-      </div>
+        </div>
       </div>
     </ArtifactWorkspace>
   );

@@ -204,13 +204,15 @@ class ThreadService(BaseService[ThreadDB, ThreadRepository]):
         user_id: UUID,
         data: ThreadReadStateUpdate,
     ) -> ThreadReadStateResponse:
-        thread = await self.repository.set_read_state(
-            thread_id,
+        thread = await self.repository.lock(thread_id)
+        if thread is None:
+            raise NotFoundError(self.not_found_message)
+        self._ensure_not_completed(thread)
+        await self.repository.set_read_state(
+            thread,
             user_id,
             unread=data.is_unread,
         )
-        if thread is None:
-            raise NotFoundError(self.not_found_message)
         await stage_workspace_event(
             self.db,
             workspace_id=self.workspace_id,

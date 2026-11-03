@@ -48,6 +48,7 @@ dependencies = [
     "python-multipart>=0.0.32",
     "qrcode>=8.2",
     "tomli-w>=1.2.0",
+    "pywebpush>=2.5.0",
 ]
 
 [dependency-groups]
@@ -171,6 +172,8 @@ module = [
     "mcp.*",
     "opensandbox.*",
     "pwdlib.*",
+    "py_vapid.*",
+    "pywebpush.*",
     "slack_sdk.*",
 ]
 ignore_missing_imports = true

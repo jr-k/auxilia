@@ -6,6 +6,7 @@ import { PageShell } from "@/components/layout/page-shell";
 import { WorkspacesProvider } from "@/components/providers/workspaces-provider";
 import { McpOAuthProvider } from "@/components/providers/mcp-oauth-provider";
 import { PromptInputProvider } from "@/components/ai-elements/prompt-input";
+import { WebPushProvider } from "@/components/providers/web-push-provider";
 
 export default async function ProtectedLayout({
 	children,
@@ -17,14 +18,16 @@ export default async function ProtectedLayout({
 
 	return (
 		<WorkspacesProvider>
-			<McpOAuthProvider>
-				<PromptInputProvider>
-					<SidebarProvider defaultOpen={defaultOpen} className="bg-surface">
-						<AppSidebar />
-						<PageShell>{children}</PageShell>
-					</SidebarProvider>
-				</PromptInputProvider>
-			</McpOAuthProvider>
+			<WebPushProvider>
+				<McpOAuthProvider>
+					<PromptInputProvider>
+						<SidebarProvider defaultOpen={defaultOpen} className="bg-surface">
+							<AppSidebar />
+							<PageShell>{children}</PageShell>
+						</SidebarProvider>
+					</PromptInputProvider>
+				</McpOAuthProvider>
+			</WebPushProvider>
 		</WorkspacesProvider>
 	);
 }

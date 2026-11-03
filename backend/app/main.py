@@ -49,7 +49,9 @@ from app.mcp.router import auxilia_mcp, transport_security_settings
 from app.mcp.servers.router import router as mcp_servers_router
 from app.memories.router import router as memories_router
 from app.model_providers.router import router as model_providers_router
+from app.notifications.processor import WebPushDeliveryProcessor
 from app.notifications.router import router as notifications_router
+from app.notifications.settings import web_push_settings
 from app.observability.router import router as observability_router
 from app.projects.router import router as projects_router
 from app.realtime.relay import WorkspaceEventRelay
@@ -113,6 +115,7 @@ async def lifespan(app: FastAPI):
     dbhub_reconciler: DBHubReconciler | None = None
     telegram_processor: TelegramUpdateProcessor | None = None
     whatsapp_processor: WhatsAppUpdateProcessor | None = None
+    web_push_processor: WebPushDeliveryProcessor | None = None
     if dbhub_settings.enabled:
         dbhub_reconciler = DBHubReconciler()
         await dbhub_reconciler.ensure_config_file()
@@ -122,6 +125,8 @@ async def lifespan(app: FastAPI):
     if run_settings.dispatcher_enabled:
         telegram_processor = TelegramUpdateProcessor()
         whatsapp_processor = WhatsAppUpdateProcessor()
+        if web_push_settings.enabled:
+            web_push_processor = WebPushDeliveryProcessor()
         dispatcher = RunDispatcher(
             delivery_factory=compose_delivery_factories(
                 build_slack_run_consumer,
@@ -149,6 +154,13 @@ async def lifespan(app: FastAPI):
                 ),
             ]
         )
+        if web_push_processor is not None:
+            background.append(
+                asyncio.create_task(
+                    web_push_processor.run(),
+                    name="web-push-delivery-processor",
+                )
+            )
         # The scanner enqueues onto the run queue, so it only runs where the
         # dispatcher does (always-on worker instances).
         if trigger_settings.scanner_enabled:
@@ -175,6 +187,8 @@ async def lifespan(app: FastAPI):
                 telegram_processor.stop()
             if whatsapp_processor is not None:
                 whatsapp_processor.stop()
+            if web_push_processor is not None:
+                web_push_processor.stop()
             if dbhub_reconciler is not None:
                 dbhub_reconciler.stop()
             for task in background:

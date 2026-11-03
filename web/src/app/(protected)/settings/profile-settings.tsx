@@ -1,6 +1,7 @@
 "use client";
 
 import {
+	BellRing,
 	Check,
 	Copy,
 	Download,
@@ -33,6 +34,7 @@ import {
 import { useAgentsStore } from "@/stores/agents-store";
 import { useAppearanceStore } from "@/stores/appearance-store";
 import { useUserStore } from "@/stores/user-store";
+import { useWebPushStore } from "@/stores/web-push-store";
 import type { CurrentUser } from "@/types/auth";
 import type {
 	SlackIdentity,
@@ -1105,6 +1107,27 @@ function PreferencesCard() {
 	const confirmExternalLinks = useConfirmExternalLinks();
 	const responseSoundEnabled = useResponseSoundEnabled();
 	const showShortcutsInMenu = useShowShortcutsInMenu();
+	const webPushState = useWebPushStore((state) => state.state);
+	const webPushError = useWebPushStore((state) => state.error);
+	const enableWebPush = useWebPushStore((state) => state.enable);
+	const disableWebPush = useWebPushStore((state) => state.disable);
+	const webPushDescription = {
+		loading: "Checking notification status…",
+		unsupported: "This browser does not support Web Push notifications.",
+		"not-configured":
+			"Browser notifications are not configured on this deployment.",
+		denied:
+			"Permission is blocked. Allow notifications in your browser site settings, then try again.",
+		disabled:
+			"Get a system notification when a response is ready, even when this tab is in the background.",
+		enabled: "System notifications are enabled on this browser.",
+		error: webPushError ?? "Could not check notification status.",
+	}[webPushState];
+	const webPushCanToggle = ![
+		"loading",
+		"unsupported",
+		"not-configured",
+	].includes(webPushState);
 
 	return (
 		<div className="flex flex-col gap-4">
@@ -1153,6 +1176,42 @@ function PreferencesCard() {
 						onCheckedChange={setConfirmExternalLinks}
 						aria-label="Confirm before opening external links"
 						className="cursor-pointer"
+					/>
+				</div>
+			</section>
+			<section className="rounded-[12px] border border-border bg-card p-5">
+				<SectionHeading
+					icon={<BellRing className="size-4" />}
+					title="Browser notifications"
+					description={`Choose whether ${appName} can notify you outside the active tab.`}
+				/>
+				<div className="flex items-center justify-between gap-6 rounded-[9px] border border-input px-4 py-3.5">
+					<div>
+						<p className="text-[13px] font-semibold text-foreground">
+							Notify me when an agent finishes
+						</p>
+						<p
+							className={`mt-0.5 text-[12px] leading-5 ${
+								webPushState === "error" || webPushState === "denied"
+									? "text-destructive"
+									: "text-subtle dark:text-panel-body"
+							}`}
+						>
+							{webPushDescription}
+						</p>
+					</div>
+					<Switch
+						checked={webPushState === "enabled"}
+						disabled={!webPushCanToggle}
+						onCheckedChange={(checked) => {
+							if (checked) {
+								void enableWebPush();
+							} else {
+								void disableWebPush();
+							}
+						}}
+						aria-label="Notify me when an agent finishes"
+						className="cursor-pointer disabled:cursor-default"
 					/>
 				</div>
 			</section>

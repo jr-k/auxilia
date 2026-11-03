@@ -173,7 +173,9 @@ function ProjectIdentityHeading({ project }: { project: ProjectDetail }) {
 		} catch (error) {
 			committedNameRef.current = previous;
 			setName(previous);
-			toast.error(getApiErrorMessage(error, "The project name could not be saved."));
+			toast.error(
+				getApiErrorMessage(error, "The project name could not be saved."),
+			);
 		} finally {
 			setPending((value) => Math.max(0, value - 1));
 		}
@@ -191,7 +193,9 @@ function ProjectIdentityHeading({ project }: { project: ProjectDetail }) {
 			await updateProject(project.id, { emoji: next });
 		} catch (error) {
 			setEmoji(previous);
-			toast.error(getApiErrorMessage(error, "The project icon could not be saved."));
+			toast.error(
+				getApiErrorMessage(error, "The project icon could not be saved."),
+			);
 		} finally {
 			setPending((value) => Math.max(0, value - 1));
 		}
@@ -332,7 +336,10 @@ function ProjectDescription({ project }: { project: ProjectDetail }) {
 			committedDescriptionRef.current = previous;
 			setDescription(previous);
 			toast.error(
-				getApiErrorMessage(error, "The project description could not be saved."),
+				getApiErrorMessage(
+					error,
+					"The project description could not be saved.",
+				),
 			);
 		} finally {
 			setSaving(false);
@@ -560,9 +567,7 @@ function FolderRow({
 					<span className="block truncate text-[13px] font-semibold text-foreground">
 						{folder.name}
 					</span>
-					<span className="mt-0.5 block text-[10.5px] text-meta">
-						Folder
-					</span>
+					<span className="mt-0.5 block text-[10.5px] text-meta">Folder</span>
 				</span>
 			</button>
 			{canManage && (
@@ -640,31 +645,29 @@ function ThreadRow({
 			<DropdownMenu
 				trigger={<ResourceMenuButton label={title} />}
 				items={[
-					{
-						label: thread.isUnread ? "Mark as read" : "Mark as unread",
-						icon: thread.isUnread ? <MailOpen /> : <Mail />,
-						onClick: onToggleReadState,
-					},
+					...(thread.completedAt === null
+						? [
+								{
+									label: thread.isUnread ? "Mark as read" : "Mark as unread",
+									icon: thread.isUnread ? <MailOpen /> : <Mail />,
+									onClick: onToggleReadState,
+								},
+							]
+						: []),
 					...(thread.canManage
 						? [
-						{
-							label:
-								thread.completedAt === null
-									? "Mark as complete"
-									: "Reopen",
-							icon:
-								thread.completedAt === null ? (
-									<CircleCheck />
-								) : (
-									<Undo2 />
-								),
-							onClick: onToggleCompletion,
-						},
-						{
-							label: "Move or detach conversation",
-							icon: <FolderInput />,
-							onClick: onMove,
-						},
+								{
+									label:
+										thread.completedAt === null ? "Mark as complete" : "Reopen",
+									icon:
+										thread.completedAt === null ? <CircleCheck /> : <Undo2 />,
+									onClick: onToggleCompletion,
+								},
+								{
+									label: "Move or detach conversation",
+									icon: <FolderInput />,
+									onClick: onMove,
+								},
 							]
 						: []),
 				]}
@@ -758,10 +761,7 @@ function ProjectTreeNavigation({
 			}
 			const parentId = folder?.parentId ?? null;
 			nodes
-				.find(
-					(node) =>
-						node.dataset.treeId === (parentId ?? PROJECT_ROOT),
-				)
+				.find((node) => node.dataset.treeId === (parentId ?? PROJECT_ROOT))
 				?.focus();
 			return;
 		}
@@ -779,8 +779,7 @@ function ProjectTreeNavigation({
 	const renderFolders = (parentId: string | null, depth: number) =>
 		(normalized.foldersByParent.get(parentId ?? PROJECT_ROOT) ?? []).map(
 			(folder) => {
-				const children =
-					normalized.foldersByParent.get(folder.id)?.length ?? 0;
+				const children = normalized.foldersByParent.get(folder.id)?.length ?? 0;
 				const isOpen = expanded.has(folder.id);
 				const isSelected = selectedFolderId === folder.id;
 				return (
@@ -911,9 +910,7 @@ export default function ProjectDetailView({
 	);
 	const deleteProject = useProjectsStore((state) => state.deleteProject);
 	const deleteFolder = useProjectsStore((state) => state.deleteFolder);
-	const refreshDetail = useProjectsStore(
-		(state) => state.refreshProjectDetail,
-	);
+	const refreshDetail = useProjectsStore((state) => state.refreshProjectDetail);
 	const recentThreads = useThreadsStore((state) => state.threads);
 	const setThreadCompleted = useThreadsStore(
 		(state) => state.setThreadCompleted,
@@ -925,8 +922,7 @@ export default function ProjectDetailView({
 	const agents = useMemo(
 		() =>
 			allAgents.filter(
-				(agent) =>
-					!agent.isArchived && agent.currentUserPermission != null,
+				(agent) => !agent.isArchived && agent.currentUserPermission != null,
 			),
 		[allAgents],
 	);
@@ -1043,7 +1039,10 @@ export default function ProjectDetailView({
 			if (event.shiftKey && (active === first || !panel?.contains(active))) {
 				event.preventDefault();
 				last?.focus();
-			} else if (!event.shiftKey && (active === last || !panel?.contains(active))) {
+			} else if (
+				!event.shiftKey &&
+				(active === last || !panel?.contains(active))
+			) {
 				event.preventDefault();
 				first?.focus();
 			}
@@ -1051,11 +1050,7 @@ export default function ProjectDetailView({
 		window.addEventListener("keydown", handleDialogKey);
 		return () => {
 			window.removeEventListener("keydown", handleDialogKey);
-			if (
-				!largeViewportSnapshot() &&
-				trigger &&
-				document.contains(trigger)
-			) {
+			if (!largeViewportSnapshot() && trigger && document.contains(trigger)) {
 				trigger.focus();
 			}
 		};
@@ -1141,7 +1136,9 @@ export default function ProjectDetailView({
 			await deleteFolder(folder.id);
 			await refreshDetail(detail.id);
 		} catch (error) {
-			toast.error(getApiErrorMessage(error, "The folder could not be deleted."));
+			toast.error(
+				getApiErrorMessage(error, "The folder could not be deleted."),
+			);
 		}
 	};
 
@@ -1160,7 +1157,9 @@ export default function ProjectDetailView({
 			router.push("/");
 		} catch (error) {
 			cancelPreparedNavigation();
-			toast.error(getApiErrorMessage(error, "The project could not be deleted."));
+			toast.error(
+				getApiErrorMessage(error, "The project could not be deleted."),
+			);
 		}
 	};
 
@@ -1318,8 +1317,8 @@ export default function ProjectDetailView({
 							Project access changed
 						</h1>
 						<p className="mt-2 text-[12.5px] leading-5 text-meta">
-							This project was removed or is no longer available in the
-							current workspace.
+							This project was removed or is no longer available in the current
+							workspace.
 						</p>
 						<Link
 							href="/"
@@ -1339,344 +1338,336 @@ export default function ProjectDetailView({
 					resizingInfoPanel && "select-none",
 				)}
 			>
-			<div className="contents" inert={modalInfoOpen}>
-			<SubpageHeader
-				trail={[
-					{ label: "workspace", href: "/" },
-					{ label: "projects" },
-					{
-						label: detail.emoji
-							? `${detail.emoji} ${detail.name}`
-							: detail.name,
-						href: selectedFolderId ? folderHref(null) : undefined,
-					},
-					...breadcrumbs.map((folder) => ({
-						label: folder.name,
-						href:
-							folder.id === selectedFolderId
-								? undefined
-								: folderHref(folder.id),
-					})),
-				]}
-			>
-				<HeaderButton
-					ref={infoTriggerRef}
-					className="lg:hidden"
-					aria-haspopup="dialog"
-					aria-expanded={modalInfoOpen}
-					aria-controls="project-info-dialog"
-					onClick={() => {
-						setInfoOpen(true);
-					}}
-				>
-					<PanelRight className="size-3.5" />
-					Info
-				</HeaderButton>
-				{detail.canManage ? (
-					<DropdownMenu
-						items={[
+				<div className="contents" inert={modalInfoOpen}>
+					<SubpageHeader
+						trail={[
+							{ label: "workspace", href: "/" },
+							{ label: "projects" },
 							{
-								label: "Delete project",
-								icon: <Trash2 />,
-								destructive: true,
-								onClick: () => {
-									void removeProject();
-								},
+								label: detail.emoji
+									? `${detail.emoji} ${detail.name}`
+									: detail.name,
+								href: selectedFolderId ? folderHref(null) : undefined,
 							},
+							...breadcrumbs.map((folder) => ({
+								label: folder.name,
+								href:
+									folder.id === selectedFolderId
+										? undefined
+										: folderHref(folder.id),
+							})),
 						]}
-					/>
-				) : (
-					<HeaderReadOnly title="You can view this project but cannot change it." />
-				)}
-			</SubpageHeader>
-			</div>
-
-			<div className="flex min-h-0 flex-1 overflow-hidden">
-				<div
-					inert={modalInfoOpen}
-					className="flex min-w-0 flex-1 flex-col"
-				>
-					<div className="border-b border-border px-4 py-3 sm:px-6">
-						<div className="flex items-center gap-2">
-							<div className="relative min-w-0 flex-1">
-								<Search className="absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-meta" />
-								<input
-									value={query}
-									onChange={(event) => {
-										setQuery(event.target.value);
-									}}
-									placeholder="Search folders, conversations, and triggers"
-									className="h-9 w-full rounded-[8px] border border-input bg-card pl-9 pr-3 text-[12.5px] text-foreground outline-none transition-[border-color,box-shadow] placeholder:text-meta focus:border-petrol focus:shadow-[0_0_0_3px_rgba(22,96,110,0.10)]"
-								/>
-							</div>
-							<ProjectViewToggle value={view} onChange={setView} />
+					>
+						<HeaderButton
+							ref={infoTriggerRef}
+							className="lg:hidden"
+							aria-haspopup="dialog"
+							aria-expanded={modalInfoOpen}
+							aria-controls="project-info-dialog"
+							onClick={() => {
+								setInfoOpen(true);
+							}}
+						>
+							<PanelRight className="size-3.5" />
+							Info
+						</HeaderButton>
+						{detail.canManage ? (
 							<DropdownMenu
-								trigger={
-									<button
-										type="button"
-										aria-label="Create project resource"
-										className="flex h-9 shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-[7px] bg-petrol px-3 text-[12px] font-semibold text-white transition-opacity hover:opacity-90"
-									>
-										<SquarePen className="size-3.5" />
-										<span className="hidden sm:inline">New</span>
-									</button>
-								}
 								items={[
 									{
-										label: "New conversation",
-										icon: <SquarePen />,
+										label: "Delete project",
+										icon: <Trash2 />,
+										destructive: true,
 										onClick: () => {
-											startConversation(selectedFolderId);
+											void removeProject();
 										},
 									},
-									...(detail.canManage
-										? [
-												{
-													label: "New folder",
-													icon: <FolderPlus />,
-													onClick: () => {
-														setFolderDialog({
-															folder: null,
-															parentId: selectedFolderId,
-														});
-													},
-												},
-											]
-										: []),
 								]}
 							/>
-						</div>
-					</div>
-
-					<div className="flex min-h-0 flex-1">
-						{view === "split" && (
-							<aside className="hidden w-56 shrink-0 overflow-y-auto border-r border-border bg-sidebar/30 p-3 sm:block">
-								<ProjectTreeNavigation
-									detail={detail}
-									selectedFolderId={selectedFolderId}
-									expanded={effectiveExpanded}
-									onSelect={(id) => {
-										updateQuery({ folder: id });
-									}}
-									onToggle={(id) => {
-										setExpanded((current) => {
-											const next = new Set(current);
-											if (next.has(id)) next.delete(id);
-											else next.add(id);
-											return next;
-										});
-									}}
-								/>
-							</aside>
+						) : (
+							<HeaderReadOnly title="You can view this project but cannot change it." />
 						)}
-						<main className="min-w-0 flex-1 overflow-y-auto px-4 py-5 sm:px-6">
-							<div className="mb-4 flex w-full items-end justify-between gap-3">
-								<div className="min-w-0 flex-1">
-									{selectedFolderId === null ? (
-										<ProjectIdentityHeading project={detail} />
-									) : (
-										<h1 className="truncate font-display text-[20px] font-bold text-foreground">
-											{normalized.foldersById.get(selectedFolderId)?.name}
-										</h1>
-									)}
-									<p className="mt-1 text-[11px] text-meta">
-										{needle
-											? `${searchFolders.length + searchThreads.length + searchTriggers.length} search results`
-											: `${folders.length} folders / ${threads.length} conversations / ${triggers.length} triggers`}
-									</p>
-									{selectedFolderId === null && (
-										<>
-											<ProjectDescription project={detail} />
-											{detail.canManage && (
-												<ProjectVisibilityEditor project={detail} />
-											)}
-										</>
-									)}
-								</div>
-							</div>
-							<div
-								className={cn(
-									"w-full",
-									view === "split" && "mx-auto max-w-3xl",
-								)}
-							>
-								{view === "split" && (
-									<div className="mb-4 sm:hidden">
-										<label className="text-[11px] font-semibold text-label">
-											Folder
-											<select
-												value={selectedFolderId ?? ""}
-												onChange={(event) => {
-													updateQuery({ folder: event.target.value || null });
-												}}
-												className="mt-1.5 h-9 w-full rounded-[8px] border border-input bg-card px-3 text-[12px] text-foreground outline-none focus:border-petrol"
-											>
-												<option value="">Project root</option>
-												{detail.folders.map((folder) => (
-													<option key={folder.id} value={folder.id}>
-														{getProjectFolderAncestors(
-															folder.id,
-															normalized.foldersById,
-														)
-															.map((item) => item.name)
-															.join(" / ")}
-													</option>
-												))}
-											</select>
-										</label>
-									</div>
-								)}
-								{resourceList}
-							</div>
-						</main>
-					</div>
+					</SubpageHeader>
 				</div>
 
-				<button
-					type="button"
-					aria-label="Close project info"
-					tabIndex={modalInfoOpen ? 0 : -1}
-					onClick={() => {
-						setInfoOpen(false);
-					}}
-					className={cn(
-						"fixed inset-0 z-40 bg-black/35 transition-opacity lg:hidden",
-						modalInfoOpen
-							? "opacity-100"
-							: "pointer-events-none opacity-0",
-					)}
-				/>
-				<aside
-					ref={infoPanelRef}
-					id="project-info-dialog"
-					role={isLargeViewport ? undefined : "dialog"}
-					aria-modal={isLargeViewport ? undefined : true}
-					aria-label="Project info"
-					aria-hidden={!isLargeViewport && !modalInfoOpen}
-					inert={!isLargeViewport && !modalInfoOpen}
-					style={isLargeViewport ? { width: infoPanelWidth } : undefined}
-					className={cn(
-						"fixed inset-y-0 right-0 z-50 flex w-[min(92vw,600px)] shrink-0 flex-col border-l border-border bg-background shadow-2xl transition-transform duration-200 lg:relative lg:inset-auto lg:z-auto lg:min-w-[340px] lg:max-w-[45vw] lg:translate-x-0 lg:shadow-none",
-						modalInfoOpen ? "translate-x-0" : "translate-x-full",
-					)}
-				>
-					<div
-						role="separator"
-						aria-label="Resize project info panel"
-						aria-orientation="vertical"
-						aria-valuemin={INFO_PANEL_MIN_WIDTH}
-						aria-valuemax={
-							isLargeViewport
-								? Math.round(window.innerWidth * 0.45)
-								: INFO_PANEL_DEFAULT_WIDTH
-						}
-						aria-valuenow={Math.round(infoPanelWidth)}
-						tabIndex={0}
-						onPointerDown={(event) => {
-							if (event.button !== 0) return;
-							event.currentTarget.setPointerCapture(event.pointerId);
-							infoResizeStart.current = {
-								x: event.clientX,
-								width: infoPanelWidth,
-							};
-							setResizingInfoPanel(true);
-						}}
-						onPointerMove={(event) => {
-							if (!infoResizeStart.current) return;
-							updateInfoPanelWidth(
-								infoResizeStart.current.width +
-									infoResizeStart.current.x -
-									event.clientX,
-							);
-						}}
-						onPointerUp={(event) => {
-							if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-								event.currentTarget.releasePointerCapture(event.pointerId);
-							}
-							infoResizeStart.current = null;
-							setResizingInfoPanel(false);
-						}}
-						onPointerCancel={() => {
-							infoResizeStart.current = null;
-							setResizingInfoPanel(false);
-						}}
-						onLostPointerCapture={() => {
-							infoResizeStart.current = null;
-							setResizingInfoPanel(false);
-						}}
-						onKeyDown={(event) => {
-							if (
-								event.key !== "ArrowLeft" &&
-								event.key !== "ArrowRight"
-							) {
-								return;
-							}
-							event.preventDefault();
-							updateInfoPanelWidth(
-								infoPanelWidth + (event.key === "ArrowLeft" ? 8 : -8),
-							);
+				<div className="flex min-h-0 flex-1 overflow-hidden">
+					<div inert={modalInfoOpen} className="flex min-w-0 flex-1 flex-col">
+						<div className="border-b border-border px-4 py-3 sm:px-6">
+							<div className="flex items-center gap-2">
+								<div className="relative min-w-0 flex-1">
+									<Search className="absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-meta" />
+									<input
+										value={query}
+										onChange={(event) => {
+											setQuery(event.target.value);
+										}}
+										placeholder="Search folders, conversations, and triggers"
+										className="h-9 w-full rounded-[8px] border border-input bg-card pl-9 pr-3 text-[12.5px] text-foreground outline-none transition-[border-color,box-shadow] placeholder:text-meta focus:border-petrol focus:shadow-[0_0_0_3px_rgba(22,96,110,0.10)]"
+									/>
+								</div>
+								<ProjectViewToggle value={view} onChange={setView} />
+								<DropdownMenu
+									trigger={
+										<button
+											type="button"
+											aria-label="Create project resource"
+											className="flex h-9 shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-[7px] bg-petrol px-3 text-[12px] font-semibold text-white transition-opacity hover:opacity-90"
+										>
+											<SquarePen className="size-3.5" />
+											<span className="hidden sm:inline">New</span>
+										</button>
+									}
+									items={[
+										{
+											label: "New conversation",
+											icon: <SquarePen />,
+											onClick: () => {
+												startConversation(selectedFolderId);
+											},
+										},
+										...(detail.canManage
+											? [
+													{
+														label: "New folder",
+														icon: <FolderPlus />,
+														onClick: () => {
+															setFolderDialog({
+																folder: null,
+																parentId: selectedFolderId,
+															});
+														},
+													},
+												]
+											: []),
+									]}
+								/>
+							</div>
+						</div>
+
+						<div className="flex min-h-0 flex-1">
+							{view === "split" && (
+								<aside className="hidden w-56 shrink-0 overflow-y-auto border-r border-border bg-sidebar/30 p-3 sm:block">
+									<ProjectTreeNavigation
+										detail={detail}
+										selectedFolderId={selectedFolderId}
+										expanded={effectiveExpanded}
+										onSelect={(id) => {
+											updateQuery({ folder: id });
+										}}
+										onToggle={(id) => {
+											setExpanded((current) => {
+												const next = new Set(current);
+												if (next.has(id)) next.delete(id);
+												else next.add(id);
+												return next;
+											});
+										}}
+									/>
+								</aside>
+							)}
+							<main className="min-w-0 flex-1 overflow-y-auto px-4 py-5 sm:px-6">
+								<div className="mb-4 flex w-full items-end justify-between gap-3">
+									<div className="min-w-0 flex-1">
+										{selectedFolderId === null ? (
+											<ProjectIdentityHeading project={detail} />
+										) : (
+											<h1 className="truncate font-display text-[20px] font-bold text-foreground">
+												{normalized.foldersById.get(selectedFolderId)?.name}
+											</h1>
+										)}
+										<p className="mt-1 text-[11px] text-meta">
+											{needle
+												? `${searchFolders.length + searchThreads.length + searchTriggers.length} search results`
+												: `${folders.length} folders / ${threads.length} conversations / ${triggers.length} triggers`}
+										</p>
+										{selectedFolderId === null && (
+											<>
+												<ProjectDescription project={detail} />
+												{detail.canManage && (
+													<ProjectVisibilityEditor project={detail} />
+												)}
+											</>
+										)}
+									</div>
+								</div>
+								<div
+									className={cn(
+										"w-full",
+										view === "split" && "mx-auto max-w-3xl",
+									)}
+								>
+									{view === "split" && (
+										<div className="mb-4 sm:hidden">
+											<label className="text-[11px] font-semibold text-label">
+												Folder
+												<select
+													value={selectedFolderId ?? ""}
+													onChange={(event) => {
+														updateQuery({ folder: event.target.value || null });
+													}}
+													className="mt-1.5 h-9 w-full rounded-[8px] border border-input bg-card px-3 text-[12px] text-foreground outline-none focus:border-petrol"
+												>
+													<option value="">Project root</option>
+													{detail.folders.map((folder) => (
+														<option key={folder.id} value={folder.id}>
+															{getProjectFolderAncestors(
+																folder.id,
+																normalized.foldersById,
+															)
+																.map((item) => item.name)
+																.join(" / ")}
+														</option>
+													))}
+												</select>
+											</label>
+										</div>
+									)}
+									{resourceList}
+								</div>
+							</main>
+						</div>
+					</div>
+
+					<button
+						type="button"
+						aria-label="Close project info"
+						tabIndex={modalInfoOpen ? 0 : -1}
+						onClick={() => {
+							setInfoOpen(false);
 						}}
 						className={cn(
-							"group absolute inset-y-0 left-[-4px] z-10 hidden w-2 cursor-col-resize touch-none outline-none lg:block",
-							"after:absolute after:inset-y-0 after:left-1/2 after:w-px after:-translate-x-1/2 after:bg-transparent after:transition-colors hover:after:bg-petrol/45 focus-visible:after:bg-petrol",
-							resizingInfoPanel && "after:bg-petrol",
+							"fixed inset-0 z-40 bg-black/35 transition-opacity lg:hidden",
+							modalInfoOpen ? "opacity-100" : "pointer-events-none opacity-0",
 						)}
 					/>
-					<div className="flex h-[52px] shrink-0 items-center gap-2 border-b border-border px-4 lg:hidden">
-						<Info className="size-4 text-petrol" />
-						<div className="min-w-0">
-							<p className="text-[13px] font-semibold text-foreground">
-								Project info
-							</p>
-							<p className="truncate text-[10.5px] text-meta">
-								Instructions, context files, and skills
-							</p>
-						</div>
-						<button
-							type="button"
-							aria-label="Close project info"
-							onClick={() => {
-								setInfoOpen(false);
+					<aside
+						ref={infoPanelRef}
+						id="project-info-dialog"
+						role={isLargeViewport ? undefined : "dialog"}
+						aria-modal={isLargeViewport ? undefined : true}
+						aria-label="Project info"
+						aria-hidden={!isLargeViewport && !modalInfoOpen}
+						inert={!isLargeViewport && !modalInfoOpen}
+						style={isLargeViewport ? { width: infoPanelWidth } : undefined}
+						className={cn(
+							"fixed inset-y-0 right-0 z-50 flex w-[min(92vw,600px)] shrink-0 flex-col border-l border-border bg-background shadow-2xl transition-transform duration-200 lg:relative lg:inset-auto lg:z-auto lg:min-w-[340px] lg:max-w-[45vw] lg:translate-x-0 lg:shadow-none",
+							modalInfoOpen ? "translate-x-0" : "translate-x-full",
+						)}
+					>
+						<div
+							role="separator"
+							aria-label="Resize project info panel"
+							aria-orientation="vertical"
+							aria-valuemin={INFO_PANEL_MIN_WIDTH}
+							aria-valuemax={
+								isLargeViewport
+									? Math.round(window.innerWidth * 0.45)
+									: INFO_PANEL_DEFAULT_WIDTH
+							}
+							aria-valuenow={Math.round(infoPanelWidth)}
+							tabIndex={0}
+							onPointerDown={(event) => {
+								if (event.button !== 0) return;
+								event.currentTarget.setPointerCapture(event.pointerId);
+								infoResizeStart.current = {
+									x: event.clientX,
+									width: infoPanelWidth,
+								};
+								setResizingInfoPanel(true);
 							}}
-							className="ml-auto flex size-8 cursor-pointer items-center justify-center rounded-[7px] text-meta hover:bg-hover hover:text-foreground dark:hover:bg-white/10"
-						>
-							<X className="size-4" />
-						</button>
-					</div>
-					<div className="min-h-0 flex-1">
-						<ProjectInfoPanel detail={detail} />
-					</div>
-				</aside>
-			</div>
-			<FolderDialog
-				open={folderDialog !== null}
-				onOpenChange={(open) => {
-					if (!open) setFolderDialog(null);
-				}}
-				project={detail}
-				folder={folderDialog?.folder ?? null}
-				initialParentId={folderDialog?.parentId ?? null}
-			/>
-			<ThreadPlacementDialog
-				open={movingThread !== null}
-				onOpenChange={(open) => {
-					if (!open) {
-						setMovingThread(null);
-						void refreshDetail(detail.id);
-					}
-				}}
-				thread={movingThread}
-			/>
-			<TriggerPlacementDialog
-				open={movingTrigger !== null}
-				onOpenChange={(open) => {
-					if (!open) {
-						setMovingTrigger(null);
-						void refreshDetail(detail.id);
-					}
-				}}
-				trigger={movingTrigger}
-			/>
+							onPointerMove={(event) => {
+								if (!infoResizeStart.current) return;
+								updateInfoPanelWidth(
+									infoResizeStart.current.width +
+										infoResizeStart.current.x -
+										event.clientX,
+								);
+							}}
+							onPointerUp={(event) => {
+								if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+									event.currentTarget.releasePointerCapture(event.pointerId);
+								}
+								infoResizeStart.current = null;
+								setResizingInfoPanel(false);
+							}}
+							onPointerCancel={() => {
+								infoResizeStart.current = null;
+								setResizingInfoPanel(false);
+							}}
+							onLostPointerCapture={() => {
+								infoResizeStart.current = null;
+								setResizingInfoPanel(false);
+							}}
+							onKeyDown={(event) => {
+								if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") {
+									return;
+								}
+								event.preventDefault();
+								updateInfoPanelWidth(
+									infoPanelWidth + (event.key === "ArrowLeft" ? 8 : -8),
+								);
+							}}
+							className={cn(
+								"group absolute inset-y-0 left-[-4px] z-10 hidden w-2 cursor-col-resize touch-none outline-none lg:block",
+								"after:absolute after:inset-y-0 after:left-1/2 after:w-px after:-translate-x-1/2 after:bg-transparent after:transition-colors hover:after:bg-petrol/45 focus-visible:after:bg-petrol",
+								resizingInfoPanel && "after:bg-petrol",
+							)}
+						/>
+						<div className="flex h-[52px] shrink-0 items-center gap-2 border-b border-border px-4 lg:hidden">
+							<Info className="size-4 text-petrol" />
+							<div className="min-w-0">
+								<p className="text-[13px] font-semibold text-foreground">
+									Project info
+								</p>
+								<p className="truncate text-[10.5px] text-meta">
+									Instructions, context files, and skills
+								</p>
+							</div>
+							<button
+								type="button"
+								aria-label="Close project info"
+								onClick={() => {
+									setInfoOpen(false);
+								}}
+								className="ml-auto flex size-8 cursor-pointer items-center justify-center rounded-[7px] text-meta hover:bg-hover hover:text-foreground dark:hover:bg-white/10"
+							>
+								<X className="size-4" />
+							</button>
+						</div>
+						<div className="min-h-0 flex-1">
+							<ProjectInfoPanel detail={detail} />
+						</div>
+					</aside>
+				</div>
+				<FolderDialog
+					open={folderDialog !== null}
+					onOpenChange={(open) => {
+						if (!open) setFolderDialog(null);
+					}}
+					project={detail}
+					folder={folderDialog?.folder ?? null}
+					initialParentId={folderDialog?.parentId ?? null}
+				/>
+				<ThreadPlacementDialog
+					open={movingThread !== null}
+					onOpenChange={(open) => {
+						if (!open) {
+							setMovingThread(null);
+							void refreshDetail(detail.id);
+						}
+					}}
+					thread={movingThread}
+				/>
+				<TriggerPlacementDialog
+					open={movingTrigger !== null}
+					onOpenChange={(open) => {
+						if (!open) {
+							setMovingTrigger(null);
+							void refreshDetail(detail.id);
+						}
+					}}
+					trigger={movingTrigger}
+				/>
 			</div>
 		</>
 	);

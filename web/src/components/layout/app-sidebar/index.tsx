@@ -327,11 +327,7 @@ export function AppSidebar() {
 		const saved = window.localStorage.getItem(
 			"auxilia:recent-threads-completion-filter",
 		);
-		if (
-			saved !== "mixed" &&
-			saved !== "uncompleted" &&
-			saved !== "completed"
-		) {
+		if (saved !== "mixed" && saved !== "uncompleted" && saved !== "completed") {
 			return;
 		}
 		queueMicrotask(() => {
@@ -422,7 +418,9 @@ export function AppSidebar() {
 					<div className="flex h-9 items-center gap-2 pl-2 pr-1">
 						<button
 							onClick={handleBrandLogoClick}
-							title={!isMobile && state === "collapsed" ? "Open sidebar" : "Home"}
+							title={
+								!isMobile && state === "collapsed" ? "Open sidebar" : "Home"
+							}
 							aria-label={
 								!isMobile && state === "collapsed" ? "Open sidebar" : "Home"
 							}
@@ -529,8 +527,16 @@ export function AppSidebar() {
 					<SidebarGroup className="pt-0 pb-1 group-data-[collapsible=icon]:hidden">
 						<div className="grid grid-cols-2 rounded-[8px] border border-sidebar-border bg-sidebar-accent/45 p-0.5">
 							{[
-								{ key: "threads" as const, label: "Threads", icon: MessagesSquare },
-								{ key: "projects" as const, label: "Projects", icon: FolderKanban },
+								{
+									key: "threads" as const,
+									label: "Threads",
+									icon: MessagesSquare,
+								},
+								{
+									key: "projects" as const,
+									label: "Projects",
+									icon: FolderKanban,
+								},
 							].map((item) => (
 								<button
 									key={item.key}
@@ -556,313 +562,327 @@ export function AppSidebar() {
 					<SidebarGroup className="flex-1 min-h-0 overflow-hidden pt-0">
 						{sidebarMode === "threads" ? (
 							<>
-						{/* mt-0 cancels shadcn's collapsed -mt-8 and nowrap keeps the
+								{/* mt-0 cancels shadcn's collapsed -mt-8 and nowrap keeps the
 						    (invisible) label the same height in the narrow rail, so the
 						 thread rows below don't move when collapsing */}
-						<SidebarGroupLabel className="h-auto overflow-hidden whitespace-nowrap pl-2 pr-[5px] pt-2 pb-1.5 font-sans text-[10px] font-semibold text-sidebar-muted-highlight group-data-[collapsible=icon]:mt-0">
-							<span>Recent threads</span>
-							<div className="ml-auto flex items-center gap-1">
-								<ThreadCompletionFilterControl
-									value={threadCompletionFilter}
-									onChange={cycleThreadCompletionFilter}
-								/>
-								<Link
-									href="/settings?tab=profile&section=threads"
-									title="View all threads"
-									aria-label="View all threads"
-									onClick={() => {
-										if (isMobile) setOpenMobile(false);
-									}}
-									className="relative flex size-4 shrink-0 items-center justify-end rounded-[4px] text-sidebar-muted transition-colors after:absolute after:-inset-1.5 hover:text-sidebar-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
-								>
-									<List className="size-3" />
-								</Link>
-							</div>
-						</SidebarGroupLabel>
-						<SidebarGroupContent className="overflow-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-							<SidebarMenu className="gap-px">
-								{visibleThreads.map((thread, i) => {
-									const isActive =
-										pathname === `/agents/${thread.agentId}/chat/${thread.id}`;
-									const isTriggerThread = thread.source === "trigger";
-									// Trigger threads are titled by firing time; the trigger
-									// name (stored as first_message_content) becomes the
-									// subtitle in place of the agent name.
-									const title = isTriggerThread
-										? formatRunAt(
-												thread.createdAt,
-												Intl.DateTimeFormat().resolvedOptions().timeZone,
-											)
-										: (thread.firstMessageContent ?? "Untitled conversation");
-									const subtitle = thread.agentArchived
-										? "Archived agent"
-										: isTriggerThread
-											? thread.firstMessageContent
-											: thread.agentName;
-									const isMenuOpen = openThreadMenuId === thread.id;
-									const trailingMetadataClass = !selection.selectionMode
-										? isMenuOpen
-											? "opacity-0 transition-opacity"
-											: "opacity-0 transition-opacity md:opacity-100 md:group-hover/menu-item:opacity-0 md:group-focus-within/menu-item:opacity-0"
-										: "";
-									return (
-										<SidebarMenuItem
-											key={thread.id}
-											className="animate-in fade-in duration-300"
-											style={{
-												animationDelay: `${Math.min(i, 10) * 30}ms`,
-												animationFillMode: "both",
+								<SidebarGroupLabel className="h-auto overflow-hidden whitespace-nowrap pl-2 pr-[5px] pt-2 pb-1.5 font-sans text-[10px] font-semibold text-sidebar-muted-highlight group-data-[collapsible=icon]:mt-0">
+									<span>Recent threads</span>
+									<div className="ml-auto flex items-center gap-1">
+										<ThreadCompletionFilterControl
+											value={threadCompletionFilter}
+											onChange={cycleThreadCompletionFilter}
+										/>
+										<Link
+											href="/settings?tab=profile&section=threads"
+											title="View all threads"
+											aria-label="View all threads"
+											onClick={() => {
+												if (isMobile) setOpenMobile(false);
 											}}
+											className="relative flex size-4 shrink-0 items-center justify-end rounded-[4px] text-sidebar-muted transition-colors after:absolute after:-inset-1.5 hover:text-sidebar-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
 										>
-											<SidebarMenuButton
-												asChild
-												isActive={isActive}
-												tooltip={title}
-												data-selected={
-													selection.isSelected(thread.id) || undefined
-												}
-												className={`h-12 rounded-[7px] pr-[5px]! focus-visible:ring-inset hover:bg-sidebar-hover data-[active=true]:bg-sidebar-accent data-[selected=true]:bg-sidebar-accent group-data-[collapsible=icon]:h-12! group-data-[collapsible=icon]:w-[38px]! group-data-[collapsible=icon]:p-[5px]! group-data-[collapsible=icon]:data-[active=true]:bg-transparent group-data-[collapsible=icon]:data-[selected=true]:bg-sidebar-accent ${
-													isMenuOpen ? "bg-sidebar-hover" : ""
-												}`}
-											>
-												<Link
-													href={`/agents/${thread.agentId}/chat/${thread.id}`}
-													// Every visible link would otherwise fire two router
-													// prefetches on page load — dozens of requests for
-													// threads the user rarely opens.
-													prefetch={false}
-													onClick={(event) => {
-														if (selection.selectionMode) {
-															event.preventDefault();
-															selection.toggle(thread.id, event.shiftKey);
-															return;
-														}
-														if (isMobile) setOpenMobile(false);
+											<List className="size-3" />
+										</Link>
+									</div>
+								</SidebarGroupLabel>
+								<SidebarGroupContent className="overflow-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+									<SidebarMenu className="gap-px">
+										{visibleThreads.map((thread, i) => {
+											const isActive =
+												pathname ===
+												`/agents/${thread.agentId}/chat/${thread.id}`;
+											const isTriggerThread = thread.source === "trigger";
+											// Trigger threads are titled by firing time; the trigger
+											// name (stored as first_message_content) becomes the
+											// subtitle in place of the agent name.
+											const title = isTriggerThread
+												? formatRunAt(
+														thread.createdAt,
+														Intl.DateTimeFormat().resolvedOptions().timeZone,
+													)
+												: (thread.firstMessageContent ??
+													"Untitled conversation");
+											const subtitle = thread.agentArchived
+												? "Archived agent"
+												: isTriggerThread
+													? thread.firstMessageContent
+													: thread.agentName;
+											const isMenuOpen = openThreadMenuId === thread.id;
+											const trailingMetadataClass = !selection.selectionMode
+												? isMenuOpen
+													? "opacity-0 transition-opacity"
+													: "opacity-0 transition-opacity md:opacity-100 md:group-hover/menu-item:opacity-0 md:group-focus-within/menu-item:opacity-0"
+												: "";
+											return (
+												<SidebarMenuItem
+													key={thread.id}
+													className="animate-in fade-in duration-300"
+													style={{
+														animationDelay: `${Math.min(i, 10) * 30}ms`,
+														animationFillMode: "both",
 													}}
-													className="flex items-center gap-1.5 px-[5px]"
 												>
-													<span className="w-7 shrink-0" aria-hidden />
-													<div className="min-w-0 flex-1 group-data-[collapsible=icon]:hidden">
-														<div className="flex items-center gap-1.5">
-															<span
-																className={`truncate text-[13px] leading-[1.45] text-sidebar-foreground ${isActive ? "font-semibold" : "font-medium"}`}
-															>
-																{title}
-															</span>
-															{thread.isUnread && <ThreadUnreadBadge />}
-														</div>
-														<div className="flex items-center gap-1.5">
-															<span className="truncate text-[10.5px] text-sidebar-muted-highlight">
-																{subtitle}
-															</span>
-														</div>
-													</div>
-													<div
-														className={`flex min-w-8 shrink-0 flex-col items-end justify-center gap-1 group-data-[collapsible=icon]:hidden ${trailingMetadataClass}`}
-													>
-														<span className="font-mono text-[10px] text-sidebar-section-label">
-															{shortTimeAgo(thread.createdAt)}
-														</span>
-														<div className="flex items-center gap-[3px]">
-															{activeRunThreadIds.has(thread.id) ? (
-																<Loader2
-																	aria-label="Running"
-																	className="size-3 shrink-0 animate-spin text-sidebar-active-icon"
-																/>
-															) : (
-																(thread.lastRunStatus === "error" ||
-																	thread.lastRunStatus === "timeout") && (
-																	<AlertCircle
-																		aria-label="Last run failed"
-																		className="size-3 shrink-0 text-destructive"
-																	>
-																		<title>Last run failed</title>
-																	</AlertCircle>
-																)
-															)}
-															{thread.source === "slack" && (
-																<Image
-																	src="https://pub-7a6e8912b3c448b8a8bfa47a0363f7bc.r2.dev/assets/icons/slack.png"
-																	alt="Slack"
-																	height={12}
-																	width={12}
-																	className="size-3 shrink-0"
-																	title="Thread initiated in Slack"
-																/>
-															)}
-															{thread.source === "telegram" && (
-																<TelegramLogo className="size-3 shrink-0" />
-															)}
-															{thread.source === "whatsapp" && (
-																<WhatsAppLogo className="size-3 shrink-0" />
-															)}
-															<span
-																aria-label={
-																	thread.completedAt
-																		? "Conversation completed"
-																		: "Conversation open"
-																}
-																title={
-																	thread.completedAt
-																		? "Completed"
-																		: "Open"
-																}
-																className={cn(
-																	"flex size-3 items-center justify-center rounded-full border",
-																	thread.completedAt
-																		? "border-emerald-600 bg-emerald-600 text-white"
-																		: "border-sidebar-muted-highlight text-transparent",
-																)}
-															>
-																<Check className="size-2" strokeWidth={3} />
-															</span>
-														</div>
-													</div>
-												</Link>
-											</SidebarMenuButton>
-											<SelectableLeading
-												selected={selection.isSelected(thread.id)}
-												selectionMode={selection.selectionMode}
-												disabled={!canDeleteThreads}
-												label={`Select ${title}`}
-												onToggle={(shiftKey) => {
-													selection.toggle(thread.id, shiftKey);
-												}}
-												hoverOnSelf
-												className="absolute left-[5px] top-1/2 z-10 size-7 -translate-y-1/2 group-data-[collapsible=icon]:hidden"
-											>
-												{isTriggerThread ? (
-													<span
-														title="Started by a trigger"
-														className={`flex size-7 items-center justify-center rounded-[7px] border border-input bg-sidebar-accent ${
-															isActive
-																? "group-data-[collapsible=icon]:ring-2 group-data-[collapsible=icon]:ring-sidebar-ring"
-																: ""
+													<SidebarMenuButton
+														asChild
+														isActive={isActive}
+														tooltip={title}
+														data-selected={
+															selection.isSelected(thread.id) || undefined
+														}
+														className={`h-12 rounded-[7px] pr-[5px]! focus-visible:ring-inset hover:bg-sidebar-hover data-[active=true]:bg-sidebar-accent data-[selected=true]:bg-sidebar-accent group-data-[collapsible=icon]:h-12! group-data-[collapsible=icon]:w-[38px]! group-data-[collapsible=icon]:p-[5px]! group-data-[collapsible=icon]:data-[active=true]:bg-transparent group-data-[collapsible=icon]:data-[selected=true]:bg-sidebar-accent ${
+															isMenuOpen ? "bg-sidebar-hover" : ""
 														}`}
 													>
-														<AlarmClock className="size-3.5 text-sidebar-active-icon" />
-													</span>
-												) : (
-													<AgentAvatar
-														agentId={thread.agentId}
-														name={thread.agentName}
-														imageRevision={thread.agentImageRevision}
-														color={thread.agentColor}
-														emoji={thread.agentEmoji}
-														size="xs"
-														className={
-															isActive
-																? "group-data-[collapsible=icon]:ring-2 group-data-[collapsible=icon]:ring-sidebar-ring"
-																: undefined
-														}
-													/>
-												)}
-											</SelectableLeading>
-											{!selection.selectionMode && (
-												<DropdownMenu
-													onOpenChange={(open) => {
-														setOpenThreadMenuId((current) =>
-															open
-																? thread.id
-																: current === thread.id
-																	? null
-																	: current,
-														);
-													}}
-													trigger={
-														<SidebarMenuAction
-															showOnHover
-															className="z-20 cursor-pointer data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+														<Link
+															href={`/agents/${thread.agentId}/chat/${thread.id}`}
+															// Every visible link would otherwise fire two router
+															// prefetches on page load — dozens of requests for
+															// threads the user rarely opens.
+															prefetch={false}
+															onClick={(event) => {
+																if (selection.selectionMode) {
+																	event.preventDefault();
+																	selection.toggle(thread.id, event.shiftKey);
+																	return;
+																}
+																if (isMobile) setOpenMobile(false);
+															}}
+															className="flex items-center gap-1.5 px-[5px]"
 														>
-															<MoreVertical className="size-4" />
-															<span className="sr-only">More options</span>
-														</SidebarMenuAction>
-													}
-													side="right"
-													align="start"
-													items={[
-														{
-															label: thread.isUnread
-																? "Mark as read"
-																: "Mark as unread",
-															icon: thread.isUnread ? <MailOpen /> : <Mail />,
-															onClick: () => {
-																void handleThreadReadState(thread);
-															},
-														},
-														{
-															label:
-																thread.completedAt == null
-																	? "Mark as complete"
-																	: "Reopen",
-															icon:
-																thread.completedAt == null ? (
-																	<CircleCheck />
-																) : (
-																	<Undo2 />
-																),
-															onClick: () => {
-																void handleThreadCompletion(thread);
-															},
-														},
-														{
-															label: "Move conversation",
-															icon: <FolderInput />,
-															onClick: () => {
-																setMovingThread({
-																	id: thread.id,
-																	title,
-																	projectId: thread.projectId ?? null,
-																	folderId: thread.folderId ?? null,
-																});
-															},
-														},
-														{
-															label: "Rename",
-															icon: <Pencil />,
-															onClick: () => {
-																setRenamingThread(thread);
-															},
-														},
-														...(canDeleteThreads
-															? [
-																	{
-																		label: "Delete",
-																		icon: <Trash2 />,
-																		destructive: true,
-																		onClick: () => {
-																			handleDeleteThread(thread.id);
-																		},
+															<span className="w-7 shrink-0" aria-hidden />
+															<div className="min-w-0 flex-1 group-data-[collapsible=icon]:hidden">
+																<div className="flex items-center gap-1.5">
+																	<span
+																		className={`truncate text-[13px] leading-[1.45] text-sidebar-foreground ${isActive ? "font-semibold" : "font-medium"}`}
+																	>
+																		{title}
+																	</span>
+																	{thread.isUnread && <ThreadUnreadBadge />}
+																</div>
+																<div className="flex items-center gap-1.5">
+																	<span className="truncate text-[10.5px] text-sidebar-muted-highlight">
+																		{subtitle}
+																	</span>
+																</div>
+															</div>
+															<div
+																className={`flex min-w-8 shrink-0 flex-col items-end justify-center gap-1 group-data-[collapsible=icon]:hidden ${trailingMetadataClass}`}
+															>
+																<span className="font-mono text-[10px] text-sidebar-section-label">
+																	{shortTimeAgo(thread.createdAt)}
+																</span>
+																<div className="flex items-center gap-[3px]">
+																	{!activeRunThreadIds.has(thread.id) &&
+																		(thread.lastRunStatus === "error" ||
+																			thread.lastRunStatus === "timeout") && (
+																			<AlertCircle
+																				aria-label="Last run failed"
+																				className="size-3 shrink-0 text-destructive"
+																			>
+																				<title>Last run failed</title>
+																			</AlertCircle>
+																		)}
+																	{thread.source === "slack" && (
+																		<Image
+																			src="https://pub-7a6e8912b3c448b8a8bfa47a0363f7bc.r2.dev/assets/icons/slack.png"
+																			alt="Slack"
+																			height={12}
+																			width={12}
+																			className="size-3 shrink-0"
+																			title="Thread initiated in Slack"
+																		/>
+																	)}
+																	{thread.source === "telegram" && (
+																		<TelegramLogo className="size-3 shrink-0" />
+																	)}
+																	{thread.source === "whatsapp" && (
+																		<WhatsAppLogo className="size-3 shrink-0" />
+																	)}
+																	{activeRunThreadIds.has(thread.id) ? (
+																		<Loader2
+																			aria-label="Running"
+																			className="size-3 shrink-0 animate-spin text-sidebar-active-icon"
+																		/>
+																	) : (
+																		<span
+																			aria-label={
+																				thread.completedAt
+																					? "Conversation completed"
+																					: "Conversation open"
+																			}
+																			title={
+																				thread.completedAt
+																					? "Completed"
+																					: "Open"
+																			}
+																			className={cn(
+																				"flex size-3 items-center justify-center rounded-full border",
+																				thread.completedAt
+																					? "border-emerald-600 bg-emerald-600 text-white"
+																					: "border-sidebar-muted-highlight text-transparent",
+																			)}
+																		>
+																			<Check
+																				className="size-2"
+																				strokeWidth={3}
+																			/>
+																		</span>
+																	)}
+																</div>
+															</div>
+														</Link>
+													</SidebarMenuButton>
+													<SelectableLeading
+														selected={selection.isSelected(thread.id)}
+														selectionMode={selection.selectionMode}
+														disabled={!canDeleteThreads}
+														label={`Select ${title}`}
+														onToggle={(shiftKey) => {
+															selection.toggle(thread.id, shiftKey);
+														}}
+														hoverOnSelf
+														className="absolute left-[5px] top-1/2 z-10 size-7 -translate-y-1/2 group-data-[collapsible=icon]:hidden"
+													>
+														{isTriggerThread ? (
+															<span
+																title="Started by a trigger"
+																className={`flex size-7 items-center justify-center rounded-[7px] border border-input bg-sidebar-accent ${
+																	isActive
+																		? "group-data-[collapsible=icon]:ring-2 group-data-[collapsible=icon]:ring-sidebar-ring"
+																		: ""
+																}`}
+															>
+																<AlarmClock className="size-3.5 text-sidebar-active-icon" />
+															</span>
+														) : (
+															<AgentAvatar
+																agentId={thread.agentId}
+																name={thread.agentName}
+																imageRevision={thread.agentImageRevision}
+																color={thread.agentColor}
+																emoji={thread.agentEmoji}
+																size="xs"
+																className={
+																	isActive
+																		? "group-data-[collapsible=icon]:ring-2 group-data-[collapsible=icon]:ring-sidebar-ring"
+																		: undefined
+																}
+															/>
+														)}
+													</SelectableLeading>
+													{!selection.selectionMode && (
+														<DropdownMenu
+															onOpenChange={(open) => {
+																setOpenThreadMenuId((current) =>
+																	open
+																		? thread.id
+																		: current === thread.id
+																			? null
+																			: current,
+																);
+															}}
+															trigger={
+																<SidebarMenuAction
+																	showOnHover
+																	className="z-20 cursor-pointer data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+																>
+																	<MoreVertical className="size-4" />
+																	<span className="sr-only">More options</span>
+																</SidebarMenuAction>
+															}
+															side="right"
+															align="start"
+															items={[
+																...(thread.completedAt == null
+																	? [
+																			{
+																				label: thread.isUnread
+																					? "Mark as read"
+																					: "Mark as unread",
+																				icon: thread.isUnread ? (
+																					<MailOpen />
+																				) : (
+																					<Mail />
+																				),
+																				onClick: () => {
+																					void handleThreadReadState(thread);
+																				},
+																			},
+																		]
+																	: []),
+																{
+																	label:
+																		thread.completedAt == null
+																			? "Mark as complete"
+																			: "Reopen",
+																	icon:
+																		thread.completedAt == null ? (
+																			<CircleCheck />
+																		) : (
+																			<Undo2 />
+																		),
+																	onClick: () => {
+																		void handleThreadCompletion(thread);
 																	},
-																]
-															: []),
-													]}
-												/>
-											)}
-										</SidebarMenuItem>
-									);
-								})}
-								{hasMoreThreads && (
-									<SidebarMenuItem className="group-data-[collapsible=icon]:hidden">
-										<button
-											type="button"
-											disabled={isLoadingMore}
-											onClick={() => {
-												void loadMoreThreads();
-											}}
-											className="mt-1 flex h-8 w-full cursor-pointer items-center justify-center gap-2 rounded-[7px] text-[10.5px] text-sidebar-muted-highlight transition-colors hover:bg-sidebar-hover hover:text-sidebar-foreground disabled:cursor-default disabled:opacity-60"
-										>
-											{isLoadingMore ? (
-												<Loader2 className="size-3.5 animate-spin" />
-											) : (
-												<ChevronDown className="size-3.5" />
-											)}
-											{isLoadingMore ? "loading…" : "show more"}
-										</button>
-									</SidebarMenuItem>
-								)}
-							</SidebarMenu>
-						</SidebarGroupContent>
+																},
+																{
+																	label: "Move conversation",
+																	icon: <FolderInput />,
+																	onClick: () => {
+																		setMovingThread({
+																			id: thread.id,
+																			title,
+																			projectId: thread.projectId ?? null,
+																			folderId: thread.folderId ?? null,
+																		});
+																	},
+																},
+																{
+																	label: "Rename",
+																	icon: <Pencil />,
+																	onClick: () => {
+																		setRenamingThread(thread);
+																	},
+																},
+																...(canDeleteThreads
+																	? [
+																			{
+																				label: "Delete",
+																				icon: <Trash2 />,
+																				destructive: true,
+																				onClick: () => {
+																					handleDeleteThread(thread.id);
+																				},
+																			},
+																		]
+																	: []),
+															]}
+														/>
+													)}
+												</SidebarMenuItem>
+											);
+										})}
+										{hasMoreThreads && (
+											<SidebarMenuItem className="group-data-[collapsible=icon]:hidden">
+												<button
+													type="button"
+													disabled={isLoadingMore}
+													onClick={() => {
+														void loadMoreThreads();
+													}}
+													className="mt-1 flex h-8 w-full cursor-pointer items-center justify-center gap-2 rounded-[7px] text-[10.5px] text-sidebar-muted-highlight transition-colors hover:bg-sidebar-hover hover:text-sidebar-foreground disabled:cursor-default disabled:opacity-60"
+												>
+													{isLoadingMore ? (
+														<Loader2 className="size-3.5 animate-spin" />
+													) : (
+														<ChevronDown className="size-3.5" />
+													)}
+													{isLoadingMore ? "loading…" : "show more"}
+												</button>
+											</SidebarMenuItem>
+										)}
+									</SidebarMenu>
+								</SidebarGroupContent>
 							</>
 						) : (
 							<>
@@ -1064,8 +1084,7 @@ export function AppSidebar() {
 				description="Their messages and run history will be removed permanently. This cannot be undone."
 				items={selectedThreads.map((thread) => ({
 					id: thread.id,
-					name:
-						thread.firstMessageContent?.trim() || "Untitled conversation",
+					name: thread.firstMessageContent?.trim() || "Untitled conversation",
 					note: thread.agentName ? `Agent: ${thread.agentName}` : undefined,
 				}))}
 				confirmLabel="Delete"

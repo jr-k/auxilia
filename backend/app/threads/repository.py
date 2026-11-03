@@ -234,18 +234,15 @@ class ThreadRepository(BaseRepository[ThreadDB]):
 
     async def set_read_state(
         self,
-        thread_id: str,
+        thread: ThreadDB,
         user_id: UUID,
         *,
         unread: bool,
-    ) -> ThreadDB | None:
-        thread = await self.lock(thread_id)
-        if thread is None:
-            return None
+    ) -> None:
         stmt = (
             pg_insert(ThreadReadStateDB)
             .values(
-                thread_id=thread_id,
+                thread_id=thread.id,
                 user_id=user_id,
                 last_read_version=thread.response_version,
                 manually_unread=unread,
@@ -263,7 +260,6 @@ class ThreadRepository(BaseRepository[ThreadDB]):
             )
         )
         await self.db.execute(stmt)
-        return thread
 
     async def set_awaiting_input(self, thread_id: str, awaiting: bool) -> None:
         stmt = (

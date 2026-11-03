@@ -29,6 +29,7 @@ from app.exceptions import (
     StaleRevisionError,
 )
 from app.model_providers.service import ModelService
+from app.notifications.service import stage_run_web_push_deliveries
 from app.realtime.schemas import WorkspaceEventKind
 from app.realtime.service import stage_workspace_event
 from app.redis_client import get_redis
@@ -723,6 +724,14 @@ class RunService:
                             db,
                             workspace_id=before.workspace_id,
                             kind=WorkspaceEventKind.trigger_history,
+                        )
+                    if thread is not None:
+                        await stage_run_web_push_deliveries(
+                            db,
+                            run_id=run_id,
+                            status=status.value,
+                            user_id=before.user_id,
+                            thread=thread,
                         )
             await db.commit()
             record = await repository.get(run_id)
