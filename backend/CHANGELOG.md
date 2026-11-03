@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.78](https://github.com/jr-k/auxilia/compare/backend-v0.11.77...backend-v0.11.78) (2026-11-03)
+
+
+### Features
+
+* **projects:** keep skills agent-scoped and sort recent threads ([afbaaef](https://github.com/jr-k/auxilia/commit/afbaaefee05f636e57936f6e4f1a62bd25cbcda4))
+
 ## [0.11.77](https://github.com/jr-k/auxilia/compare/backend-v0.11.76...backend-v0.11.77) (2026-11-03)
 
 

@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.107](https://github.com/jr-k/auxilia/compare/web-v0.12.106...web-v0.12.107) (2026-11-03)
+
+
+### Features
+
+* **projects:** keep skills agent-scoped and sort recent threads ([afbaaef](https://github.com/jr-k/auxilia/commit/afbaaefee05f636e57936f6e4f1a62bd25cbcda4))
+
 ## [0.12.106](https://github.com/jr-k/auxilia/compare/web-v0.12.105...web-v0.12.106) (2026-11-03)
 
 
