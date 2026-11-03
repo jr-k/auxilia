@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.79](https://github.com/jr-k/auxilia/compare/backend-v0.11.78...backend-v0.11.79) (2026-11-03)
+
+
+### Bug Fixes
+
+* restore thread creation and semantic home links ([f3f5be0](https://github.com/jr-k/auxilia/commit/f3f5be09759c28e98ed0ecfb0c87ee506674ab9d))
+
 ## [0.11.78](https://github.com/jr-k/auxilia/compare/backend-v0.11.77...backend-v0.11.78) (2026-11-03)
 
 

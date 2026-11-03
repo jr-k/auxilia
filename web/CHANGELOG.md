@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.109](https://github.com/jr-k/auxilia/compare/web-v0.12.108...web-v0.12.109) (2026-11-03)
+
+
+### Bug Fixes
+
+* restore thread creation and semantic home links ([f3f5be0](https://github.com/jr-k/auxilia/commit/f3f5be09759c28e98ed0ecfb0c87ee506674ab9d))
+
 ## [0.12.108](https://github.com/jr-k/auxilia/compare/web-v0.12.107...web-v0.12.108) (2026-11-03)
 
 
