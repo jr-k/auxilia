@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.111](https://github.com/jr-k/auxilia/compare/web-v0.12.110...web-v0.12.111) (2026-11-03)
+
+
+### Bug Fixes
+
+* **notifications:** focus the conversation from Web Push ([6428e5a](https://github.com/jr-k/auxilia/commit/6428e5aa6de7d151c725f615b440b2dda0734530))
+
 ## [0.12.110](https://github.com/jr-k/auxilia/compare/web-v0.12.109...web-v0.12.110) (2026-11-03)
 
 
