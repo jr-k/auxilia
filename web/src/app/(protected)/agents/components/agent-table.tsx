@@ -297,7 +297,12 @@ export default function AgentTable({
 			key: "visibility",
 			header: "Visibility",
 			width: "120px",
-			cell: (agent) => <VisibilityBadge visibility={agent.visibility} />,
+			cell: (agent) => (
+				<VisibilityBadge
+					visibility={agent.visibility}
+					teamIds={agent.teamIds}
+				/>
+			),
 		},
 		{
 			key: "owner",

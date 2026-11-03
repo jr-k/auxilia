@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { Thread } from "@/types/threads";
 import { RunTerminalStatus } from "@/types/runs";
 import * as threadsApi from "@/lib/api/resources/threads";
+import { useProjectsStore } from "@/stores/projects-store";
 import { useTriggerRunsStore } from "@/stores/trigger-runs-store";
 import { getWorkspaceGeneration, isCurrentWorkspaceGeneration } from "@/lib/workspace-generation";
 
@@ -29,6 +30,7 @@ interface ThreadsState {
 		folderId: string | null,
 	) => Promise<Thread>;
 	setThreadCompleted: (threadId: string, completed: boolean) => Promise<Thread>;
+	setThreadReadState: (threadId: string, isUnread: boolean) => Promise<void>;
 	markAgentArchived: (agentId: string) => void;
 	markAgentRestored: (agentId: string, agentName: string) => void;
 	/** Stamp a run outcome observed by the active-runs poll (sidebar badge). */
@@ -199,6 +201,36 @@ export const useThreadsStore = create<ThreadsState>((set, get) => ({
 						thread.id === threadId ? previous : thread,
 					),
 				}));
+			}
+			throw error;
+		}
+	},
+	setThreadReadState: async (threadId, isUnread) => {
+		const previous = get().threads.find((thread) => thread.id === threadId);
+		const projects = useProjectsStore.getState();
+		const previousProjectThread = projects.tree
+			.flatMap((project) => project.threads)
+			.find((thread) => thread.id === threadId);
+		set((state) => ({
+			threads: state.threads.map((thread) =>
+				thread.id === threadId ? { ...thread, isUnread } : thread,
+			),
+		}));
+		projects.setThreadReadState(threadId, isUnread);
+		try {
+			await threadsApi.updateThreadReadState(threadId, isUnread);
+		} catch (error) {
+			if (previous) {
+				set((state) => ({
+					threads: state.threads.map((thread) =>
+						thread.id === threadId ? previous : thread,
+					),
+				}));
+			}
+			if (previousProjectThread) {
+				useProjectsStore
+					.getState()
+					.setThreadReadState(threadId, previousProjectThread.isUnread);
 			}
 			throw error;
 		}

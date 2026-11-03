@@ -41,6 +41,7 @@ export function useRunTrigger() {
 			agentArchived: false,
 			source: "trigger",
 			triggerId: trigger.id,
+			isUnread: false,
 			createdAt,
 		});
 		addRun(trigger.id, {

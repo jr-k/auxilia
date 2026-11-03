@@ -14,6 +14,8 @@ import {
 	FolderInput,
 	FolderPlus,
 	LockKeyhole,
+	Mail,
+	MailOpen,
 	MoreVertical,
 	Pencil,
 	Plus,
@@ -25,8 +27,10 @@ import {
 import { toast } from "sonner";
 
 import { DropdownMenu } from "@/components/ui/dropdown-menu";
+import { ThreadUnreadBadge } from "@/components/ui/thread-unread-badge";
 import { useConfirmDialog } from "@/components/providers/dialog-provider";
 import { getApiErrorMessage } from "@/lib/api/errors";
+import * as teamsApi from "@/lib/api/resources/teams";
 import { cn } from "@/lib/utils";
 import { navigateWithUnsavedChanges } from "@/hooks/use-unsaved-changes-warning";
 import { useAgentsStore } from "@/stores/agents-store";
@@ -39,6 +43,7 @@ import type {
 	ProjectThread,
 	ProjectTree,
 } from "@/types/projects";
+import type { Team } from "@/types/users";
 import { ConversationCompletionButton } from "./conversation-completion-button";
 import { FolderDialog } from "./folder-dialog";
 import { ProjectDialog } from "./project-dialog";
@@ -54,6 +59,17 @@ import {
 const expandedStorageKey = (workspaceId: string) =>
 	`auxilia:projects-expanded:${workspaceId}`;
 
+export type ThreadCompletionFilter = "mixed" | "uncompleted" | "completed";
+
+function matchesCompletionFilter(
+	thread: ProjectThread,
+	filter: ThreadCompletionFilter,
+) {
+	if (filter === "mixed") return true;
+	if (filter === "completed") return thread.completedAt !== null;
+	return thread.completedAt === null;
+}
+
 type FolderDialogState = {
 	project: ProjectTree;
 	folder: ProjectFolder | null;
@@ -62,8 +78,12 @@ type FolderDialogState = {
 
 function ProjectVisibilityIcon({
 	visibility,
+	teamIds,
+	teams,
 }: {
 	visibility: Project["visibility"];
+	teamIds: string[];
+	teams: Team[];
 }) {
 	const Icon =
 		visibility === "personal"
@@ -77,22 +97,51 @@ function ProjectVisibilityIcon({
 			: visibility === "teams"
 				? "Teams"
 				: "Workspace";
+	const selectedTeams =
+		visibility === "teams"
+			? teamIds.flatMap((teamId) => {
+					const team = teams.find((candidate) => candidate.id === teamId);
+					return team ? [team] : [];
+				})
+			: [];
+	const detail =
+		selectedTeams.length > 0
+			? `${label}: ${selectedTeams.map((team) => team.name).join(", ")}`
+			: label;
 	return (
 		<span
-			aria-label={`${label} visibility`}
-			title={`${label} visibility`}
-			className="pointer-events-none absolute right-1 flex size-6 items-center justify-center text-sidebar-muted transition-opacity group-hover/project:opacity-0 group-focus-within/project:opacity-0"
+			aria-label={`${detail} visibility`}
+			title={`${detail} visibility`}
+			className="pointer-events-none absolute right-1 flex size-6 items-center justify-center text-sidebar-muted transition-opacity group-hover/project:opacity-0"
 		>
-			<Icon className="size-3.5" />
+			<span className="flex items-center gap-0.5">
+				<Icon className="size-3.5" />
+				{visibility === "teams" && teamIds.length > 0 && (
+					<span className="flex -space-x-0.5" aria-hidden="true">
+						{teamIds.slice(0, 2).map((teamId) => {
+							const team = teams.find((candidate) => candidate.id === teamId);
+							return (
+								<span
+									key={teamId}
+									className="size-1.5 rounded-full border border-sidebar"
+									style={{ backgroundColor: team?.color ?? "#78909C" }}
+								/>
+							);
+						})}
+					</span>
+				)}
+			</span>
 		</span>
 	);
 }
 
 export function ProjectsTree({
 	pathname,
+	completionFilter,
 	closeMobile,
 }: {
 	pathname: string;
+	completionFilter: ThreadCompletionFilter;
 	closeMobile: () => void;
 }) {
 	const router = useRouter();
@@ -125,7 +174,23 @@ export function ProjectsTree({
 		useState<ThreadPlacementTarget | null>(null);
 	const [movingTrigger, setMovingTrigger] =
 		useState<TriggerPlacementTarget | null>(null);
+	const [teams, setTeams] = useState<Team[]>([]);
 	const activeProjectId = pathname.match(/^\/projects\/([^/]+)/)?.[1] ?? null;
+
+	useEffect(() => {
+		let cancelled = false;
+		void teamsApi
+			.listTeams(workspaceId === "unknown" ? undefined : workspaceId)
+			.then((nextTeams) => {
+				if (!cancelled) setTeams(nextTeams);
+			})
+			.catch(() => {
+				if (!cancelled) setTeams([]);
+			});
+		return () => {
+			cancelled = true;
+		};
+	}, [workspaceId]);
 
 	useEffect(() => {
 		let cancelled = false;
@@ -173,10 +238,11 @@ export function ProjectsTree({
 		if (!agent) return;
 		const query = new URLSearchParams({ projectId });
 		if (folderId) query.set("folderId", folderId);
-		const navigated = navigateWithUnsavedChanges(() => {
+		void navigateWithUnsavedChanges(() => {
 			router.push(`/agents/${agent.id}/chat?${query.toString()}`);
+		}).then((navigated) => {
+			if (navigated) closeMobile();
 		});
-		if (navigated) closeMobile();
 	};
 
 	const removeProject = async (project: ProjectTree) => {
@@ -268,7 +334,10 @@ export function ProjectsTree({
 				{projects.map((project) => {
 					const isOpen = expanded.has(project.id);
 					const isActive = activeProjectId === project.id;
-					const count = project.threads.length + project.triggers.length;
+					const count =
+						project.threads.filter((thread) =>
+							matchesCompletionFilter(thread, completionFilter),
+						).length + project.triggers.length;
 					return (
 						<li key={project.id} className="group/project">
 							<div
@@ -319,7 +388,11 @@ export function ProjectsTree({
 										{count}
 									</span>
 								</Link>
-								<ProjectVisibilityIcon visibility={project.visibility} />
+								<ProjectVisibilityIcon
+									visibility={project.visibility}
+									teamIds={project.teamIds}
+									teams={teams}
+								/>
 								<DropdownMenu
 									side="right"
 									align="start"
@@ -380,6 +453,7 @@ export function ProjectsTree({
 										project={project}
 										folderId={null}
 										depth={0}
+										completionFilter={completionFilter}
 										expanded={expanded}
 										pathname={pathname}
 										onToggleExpanded={toggleExpanded}
@@ -446,6 +520,7 @@ function ProjectResources({
 	project,
 	folderId,
 	depth,
+	completionFilter,
 	expanded,
 	pathname,
 	onToggleExpanded,
@@ -461,6 +536,7 @@ function ProjectResources({
 	project: ProjectTree;
 	folderId: string | null;
 	depth: number;
+	completionFilter: ThreadCompletionFilter;
 	expanded: Set<string>;
 	pathname: string;
 	onToggleExpanded: (id: string) => void;
@@ -473,12 +549,28 @@ function ProjectResources({
 	onToggleCompletion: (thread: ProjectThread) => void;
 	closeMobile: () => void;
 }) {
+	const setThreadReadState = useThreadsStore(
+		(state) => state.setThreadReadState,
+	);
 	const folders = useMemo(
 		() => project.folders.filter((folder) => folder.parentId === folderId),
 		[folderId, project.folders],
 	);
-	const threads = project.threads.filter((thread) => thread.folderId === folderId);
+	const threads = project.threads.filter(
+		(thread) =>
+			thread.folderId === folderId &&
+			matchesCompletionFilter(thread, completionFilter),
+	);
 	const triggers = project.triggers.filter((trigger) => trigger.folderId === folderId);
+	const toggleReadState = async (thread: ProjectThread) => {
+		try {
+			await setThreadReadState(thread.id, !thread.isUnread);
+		} catch (error) {
+			toast.error(
+				getApiErrorMessage(error, "The conversation could not be updated."),
+			);
+		}
+	};
 
 	return (
 		<ul className="flex flex-col gap-px">
@@ -559,6 +651,7 @@ function ProjectResources({
 									project={project}
 									folderId={folder.id}
 									depth={depth + 1}
+									completionFilter={completionFilter}
 									expanded={expanded}
 									pathname={pathname}
 									onToggleExpanded={onToggleExpanded}
@@ -612,21 +705,32 @@ function ProjectResources({
 								</span>
 							)}
 							<span className="truncate text-sidebar-foreground">{title}</span>
+							{thread.isUnread && <ThreadUnreadBadge />}
 						</Link>
-						{owned && (
-							<DropdownMenu
-								side="right"
-								align="start"
-								trigger={
-									<button
-										type="button"
-										aria-label={`More options for ${title}`}
-										className="absolute right-1 top-1 flex size-6 cursor-pointer items-center justify-center rounded-md text-sidebar-muted opacity-0 hover:bg-sidebar-accent group-hover/resource:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100"
-									>
-										<MoreVertical className="size-3.5" />
-									</button>
-								}
-								items={[
+						<DropdownMenu
+							side="right"
+							align="start"
+							trigger={
+								<button
+									type="button"
+									aria-label={`More options for ${title}`}
+									className="absolute right-1 top-1 flex size-6 cursor-pointer items-center justify-center rounded-md text-sidebar-muted opacity-0 hover:bg-sidebar-accent group-hover/resource:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100"
+								>
+									<MoreVertical className="size-3.5" />
+								</button>
+							}
+							items={[
+								{
+									label: thread.isUnread
+										? "Mark as read"
+										: "Mark as unread",
+									icon: thread.isUnread ? <MailOpen /> : <Mail />,
+									onClick: () => {
+										void toggleReadState(thread);
+									},
+								},
+								...(owned
+									? [
 									{
 										label:
 											thread.completedAt === null
@@ -654,9 +758,10 @@ function ProjectResources({
 											});
 										},
 									},
-								]}
-							/>
-						)}
+										]
+									: []),
+							]}
+						/>
 					</li>
 				);
 			})}

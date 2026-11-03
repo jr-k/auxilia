@@ -63,9 +63,11 @@ def _bound_telegram_tools(
     async def telegram_send_message(text: str) -> str:
         """Send a message to the current user's linked Telegram account.
 
-        Use only when the user explicitly asks to send, post, or forward
-        content to their Telegram conversation. The destination is fixed from
-        their linked Auxilia profile and cannot be changed by tool arguments.
+        This is the primary tool for any explicit request to send, post,
+        publish, share, or forward content on Telegram, including requests made
+        from web chat and scheduled runs. Use it directly instead of a browser,
+        computer-control tool, or external Telegram MCP. The destination is
+        fixed from the user's linked Auxilia profile.
         """
         cleaned_text = text.strip()
         if not cleaned_text:

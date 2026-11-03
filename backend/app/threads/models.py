@@ -189,6 +189,13 @@ class ThreadDB(ThreadBase, TimestampMixin, table=True):
         default=0,
         sa_column=Column(BigInteger, nullable=False, server_default="0"),
     )
+    # Monotonic assistant-response version. Successful runs increment it in
+    # the same transaction as the terminal run status, allowing each viewer to
+    # compare their own read position without sharing another viewer's state.
+    response_version: int = Field(
+        default=0,
+        sa_column=Column(BigInteger, nullable=False, server_default="0"),
+    )
     # An interrupted run has released the per-thread running mutex, but normal
     # prompts must remain parked until an input.respond run resumes it.
     awaiting_input: bool = Field(
@@ -204,4 +211,28 @@ class ThreadDB(ThreadBase, TimestampMixin, table=True):
     queue_edit_expires_at: datetime | None = Field(
         default=None,
         sa_column=Column(DateTime(timezone=True), nullable=True),
+    )
+
+
+class ThreadReadStateDB(TimestampMixin, SQLModel, table=True):
+    __tablename__ = "thread_read_states"
+
+    thread_id: str = Field(
+        foreign_key="threads.id",
+        ondelete="CASCADE",
+        primary_key=True,
+    )
+    user_id: UUID = Field(
+        foreign_key="users.id",
+        ondelete="CASCADE",
+        primary_key=True,
+        index=True,
+    )
+    last_read_version: int = Field(
+        default=0,
+        sa_column=Column(BigInteger, nullable=False, server_default="0"),
+    )
+    manually_unread: bool = Field(
+        default=False,
+        sa_column=Column(Boolean, nullable=False, server_default="false"),
     )

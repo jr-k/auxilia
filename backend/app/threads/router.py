@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, Form, Query, Request, UploadFile
@@ -17,6 +18,7 @@ from app.threads.models import ThreadSource
 from app.threads.schemas import (
     ThreadBulkPlacementResponse,
     ThreadBulkPlacementUpdate,
+    ThreadCompletionFilter,
     ThreadCompletionUpdate,
     ThreadCreate,
     ThreadMemoriesUpdate,
@@ -24,6 +26,9 @@ from app.threads.schemas import (
     ThreadPatch,
     ThreadPlacementFilter,
     ThreadPlacementUpdate,
+    ThreadReadFilter,
+    ThreadReadStateResponse,
+    ThreadReadStateUpdate,
     ThreadResourcesPatch,
     ThreadResponse,
     ThreadStartCreate,
@@ -94,7 +99,7 @@ async def read_thread(
     """
     thread = await service.get(thread_id)
     viewer_role = await resolve_viewer_role(thread, current_user, agent_service)
-    thread_read = await service.get_with_agent(thread_id)
+    thread_read = await service.get_with_agent(thread_id, current_user.id)
     return {"thread": thread_read, "viewer_role": viewer_role}
 
 
@@ -105,6 +110,12 @@ async def get_threads(
     project_id: UUID | None = None,
     folder_id: UUID | None = None,
     placement: ThreadPlacementFilter = "all",
+    read_status: ThreadReadFilter = "all",
+    completion: ThreadCompletionFilter = "all",
+    source: ThreadSource | None = None,
+    created_from: datetime | None = None,
+    created_before: datetime | None = None,
+    include_api: bool = False,
     current_user: UserDB = Depends(get_current_user),
     service: ThreadService = Depends(get_thread_service),
 ) -> Page[ThreadResponse]:
@@ -115,6 +126,12 @@ async def get_threads(
         project_id=project_id,
         folder_id=folder_id,
         placement=placement,
+        read_status=read_status,
+        completion=completion,
+        source=source,
+        created_from=created_from,
+        created_before=created_before,
+        include_api=include_api,
     )
 
 
@@ -232,6 +249,19 @@ async def update_thread_completion(
     if thread.user_id != current_user.id:
         raise PermissionDeniedError("Not authorized to edit this thread")
     return await service.update_completion(thread_id, data)
+
+
+@router.put("/{thread_id}/read-state")
+async def update_thread_read_state(
+    thread_id: str,
+    data: ThreadReadStateUpdate,
+    current_user: UserDB = Depends(get_current_user),
+    service: ThreadService = Depends(get_thread_service),
+    agent_service: AgentService = Depends(get_agent_service),
+) -> ThreadReadStateResponse:
+    thread = await service.get(thread_id)
+    await resolve_viewer_role(thread, current_user, agent_service)
+    return await service.update_read_state(thread_id, current_user.id, data)
 
 
 @router.delete("/{thread_id}", status_code=204)

@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from sqlalchemy import delete, update
+from sqlalchemy import and_, delete, func, or_, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import SQLModel, col, select
 
@@ -13,7 +13,7 @@ from app.projects.models import (
 )
 from app.repository import BaseRepository
 from app.skills.models import SkillDB
-from app.threads.models import ThreadDB
+from app.threads.models import ThreadDB, ThreadReadStateDB
 from app.triggers.models import TriggerDB
 
 
@@ -251,9 +251,21 @@ class ProjectRepository(BaseRepository[ProjectDB]):
         await self.db.refresh(folder)
         return folder
 
-    async def list_threads(self, project_id: UUID) -> list[ThreadDB]:
+    async def list_threads(self, project_id: UUID, viewer_id: UUID):
+        is_unread = or_(
+            ThreadDB.response_version
+            > func.coalesce(ThreadReadStateDB.last_read_version, 0),
+            func.coalesce(ThreadReadStateDB.manually_unread, False).is_(True),
+        )
         stmt = (
-            select(ThreadDB)
+            select(ThreadDB, is_unread.label("is_unread"))
+            .outerjoin(
+                ThreadReadStateDB,
+                and_(
+                    col(ThreadReadStateDB.thread_id) == col(ThreadDB.id),
+                    col(ThreadReadStateDB.user_id) == viewer_id,
+                ),
+            )
             .where(
                 col(ThreadDB.workspace_id) == self.workspace_id,
                 col(ThreadDB.project_id) == project_id,
@@ -261,7 +273,7 @@ class ProjectRepository(BaseRepository[ProjectDB]):
             .order_by(col(ThreadDB.created_at).desc(), col(ThreadDB.id))
         )
         result = await self.db.execute(stmt)
-        return list(result.scalars().all())
+        return result.all()
 
     async def list_triggers(self, project_id: UUID) -> list[TriggerDB]:
         stmt = (

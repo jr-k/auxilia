@@ -108,7 +108,10 @@ export default function TriggerCard({
 					{trigger.name}
 				</div>
 				<div className="ml-auto flex max-w-full shrink-0 items-center gap-1.5">
-					<VisibilityBadge visibility={trigger.visibility} />
+					<VisibilityBadge
+						visibility={trigger.visibility}
+						teamIds={trigger.teamIds}
+					/>
 					{trigger.canManage && (
 						<div
 							onClick={(e) => {

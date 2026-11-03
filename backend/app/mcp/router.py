@@ -58,9 +58,10 @@ def transport_security_settings() -> TransportSecuritySettings:
 auxilia_mcp = MCPServer(
     "Auxilia",
     description=(
-        "Manage an Auxilia workspace: agents, conversations, projects, triggers, "
-        "skills and sources, MCP servers, models, sandboxes, teams, users, "
-        "invites, authentication, observability, appearance, and integrations."
+        "Create and manage scheduled or webhook triggers and administer an "
+        "Auxilia workspace: agents, conversations, projects, skills and sources, "
+        "MCP servers, models, sandboxes, teams, users, invites, authentication, "
+        "observability, appearance, and integrations."
     ),
     auth_server_provider=auxilia_oauth_provider,
     auth=AuthSettings(
@@ -165,7 +166,7 @@ async def get_conversation(thread_id: str, ctx: Context) -> dict[str, Any]:
         thread = await service.get(thread_id)
         if thread.user_id != user.id:
             raise NotFoundError("Thread not found")
-        metadata = await service.get_with_agent(thread_id)
+        metadata = await service.get_with_agent(thread_id, user.id)
         state = await ProtocolService().thread_state(workspace_id, thread_id)
         return {"thread": to_json(metadata), "state": state}
 

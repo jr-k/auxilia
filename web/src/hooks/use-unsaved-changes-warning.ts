@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { requestConfirmDialog } from "@/components/providers/dialog-provider";
 
 let dirtyEditorCount = 0;
 let forcedNavigationAllowed = false;
@@ -15,9 +16,15 @@ export function hasUnsavedChanges(): boolean {
 	return dirtyEditorCount > 0;
 }
 
-export function prepareToDiscardUnsavedChanges(): boolean {
+export async function prepareToDiscardUnsavedChanges(): Promise<boolean> {
 	if (!hasUnsavedChanges()) return true;
-	if (!window.confirm("Discard unsaved changes?")) return false;
+	const accepted = await requestConfirmDialog({
+		title: "Discard unsaved changes?",
+		description: "Your changes will be lost if you leave this page.",
+		confirmLabel: "Discard changes",
+		destructive: true,
+	});
+	if (!accepted) return false;
 	forcedNavigationAllowed = true;
 	return true;
 }
@@ -26,24 +33,13 @@ export function cancelPreparedNavigation(): void {
 	forcedNavigationAllowed = false;
 }
 
-export function navigateWithUnsavedChanges(
+export async function navigateWithUnsavedChanges(
 	navigate: () => void | Promise<void>,
-): boolean {
-	if (!prepareToDiscardUnsavedChanges()) return false;
+): Promise<boolean> {
+	if (!(await prepareToDiscardUnsavedChanges())) return false;
 	try {
-		const result = navigate();
-		if (result instanceof Promise) {
-			void result.then(
-				() => {
-					resetPreparedNavigationIfStillMounted();
-				},
-				() => {
-					cancelPreparedNavigation();
-				},
-			);
-		} else {
-			resetPreparedNavigationIfStillMounted();
-		}
+		await navigate();
+		resetPreparedNavigationIfStillMounted();
 	} catch (error) {
 		cancelPreparedNavigation();
 		throw error;
@@ -99,12 +95,11 @@ export function useUnsavedChangesWarning(isDirty: boolean): void {
 			) {
 				return;
 			}
-			if (!prepareToDiscardUnsavedChanges()) {
-				event.preventDefault();
-				event.stopImmediatePropagation();
-			} else {
-				resetPreparedNavigationIfStillMounted();
-			}
+			event.preventDefault();
+			event.stopImmediatePropagation();
+			void navigateWithUnsavedChanges(() => {
+				anchor.click();
+			});
 		};
 		const navigation = (
 			window as typeof window & { navigation?: NavigationLike }
@@ -117,11 +112,11 @@ export function useUnsavedChangesWarning(isDirty: boolean): void {
 			) {
 				return;
 			}
-			if (!prepareToDiscardUnsavedChanges()) {
-				event.preventDefault();
-			} else {
-				resetPreparedNavigationIfStillMounted();
-			}
+			const destinationUrl = event.destination.url;
+			event.preventDefault();
+			void navigateWithUnsavedChanges(() => {
+				window.location.assign(destinationUrl);
+			});
 		};
 		window.addEventListener("beforeunload", warn);
 		document.addEventListener("click", warnInternalNavigation, true);

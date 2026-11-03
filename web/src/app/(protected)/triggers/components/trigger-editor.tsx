@@ -30,6 +30,7 @@ import {
 	type AsyncSearchOption,
 } from "@/components/ui/async-search-select";
 import { UnderlineTabs } from "@/components/ui/underline-tabs";
+import { VisibilityBadge } from "@/components/ui/visibility-badge";
 import { VisibilityPicker } from "@/components/ui/visibility-picker";
 import type { ResourceVisibility } from "@/types/visibility";
 import { groupOptions } from "@/lib/groups";
@@ -414,13 +415,14 @@ export default function TriggerEditor({
 						/>
 					</div>
 					{selectedProject ? (
-						<p className="rounded-[8px] bg-petrol-tint px-3 py-2 text-[11.5px] leading-5 text-petrol dark:bg-white/5 dark:text-panel-dim">
-							Access is inherited from {selectedProject.name} (
-							{selectedProject.visibility === "teams"
-								? "selected teams"
-								: selectedProject.visibility}
-							).
-						</p>
+						<div className="flex flex-wrap items-center gap-2 rounded-[8px] bg-petrol-tint px-3 py-2 text-[11.5px] leading-5 text-petrol dark:bg-white/5 dark:text-panel-dim">
+							<span>Access is inherited from {selectedProject.name}.</span>
+							<VisibilityBadge
+								visibility={selectedProject.visibility}
+								teamIds={selectedProject.teamIds}
+								showTeams
+							/>
+						</div>
 					) : (
 						<VisibilityPicker
 							visibility={form.visibility}

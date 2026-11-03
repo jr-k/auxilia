@@ -425,7 +425,12 @@ export default function SkillTable({
 			key: "visibility",
 			header: "Visibility",
 			width: "120px",
-			cell: (skill) => <VisibilityBadge visibility={skill.visibility} />,
+			cell: (skill) => (
+				<VisibilityBadge
+					visibility={skill.visibility}
+					teamIds={skill.teamIds}
+				/>
+			),
 		},
 		{
 			key: "requires",

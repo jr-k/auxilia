@@ -2,7 +2,8 @@ from datetime import datetime
 from typing import Literal
 from uuid import UUID
 
-from sqlalchemy import delete, or_, update
+from sqlalchemy import and_, delete, func, or_, update
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
@@ -13,6 +14,7 @@ from app.runtime.runs.state import RunStatus
 from app.threads.models import (
     FIRST_PARTY_SOURCES,
     ThreadDB,
+    ThreadReadStateDB,
     ThreadSource,
     ThreadToolMode,
 )
@@ -28,6 +30,24 @@ class ThreadRepository(BaseRepository[ThreadDB]):
         if self.workspace_id is not None:
             stmt = stmt.where(ThreadDB.workspace_id == self.workspace_id)
         return stmt
+
+    @staticmethod
+    def _is_unread():
+        return or_(
+            ThreadDB.response_version
+            > func.coalesce(ThreadReadStateDB.last_read_version, 0),
+            func.coalesce(ThreadReadStateDB.manually_unread, False).is_(True),
+        )
+
+    @staticmethod
+    def _join_read_state(stmt, viewer_id: UUID):
+        return stmt.outerjoin(
+            ThreadReadStateDB,
+            and_(
+                ThreadReadStateDB.thread_id == ThreadDB.id,
+                ThreadReadStateDB.user_id == viewer_id,
+            ),
+        )
 
     async def get(self, id: str) -> ThreadDB | None:
         stmt = self._scope(select(ThreadDB).where(ThreadDB.id == id))
@@ -80,7 +100,7 @@ class ThreadRepository(BaseRepository[ThreadDB]):
         stmt = self._scope(delete(ThreadDB).where(ThreadDB.agent_id == agent_id))
         await self.db.execute(stmt)
 
-    async def get_with_agent(self, thread_id: str):
+    async def get_with_agent(self, thread_id: str, viewer_id: UUID):
         stmt = (
             select(
                 ThreadDB,
@@ -89,10 +109,12 @@ class ThreadRepository(BaseRepository[ThreadDB]):
                 AgentDB.color,
                 AgentDB.image_revision,
                 AgentDB.is_archived,
+                self._is_unread().label("is_unread"),
             )
             .join(AgentDB, ThreadDB.agent_id == AgentDB.id)
             .where(ThreadDB.id == thread_id)
         )
+        stmt = self._join_read_state(stmt, viewer_id)
         stmt = self._scope(stmt)
         result = await self.db.execute(stmt)
         return result.one_or_none()
@@ -107,6 +129,11 @@ class ThreadRepository(BaseRepository[ThreadDB]):
         folder_id: UUID | None = None,
         placement: Literal["all", "assigned", "unassigned"] = "all",
         include_api: bool = False,
+        read_status: Literal["all", "read", "unread"] = "all",
+        completion: Literal["all", "completed", "uncompleted"] = "all",
+        source: ThreadSource | None = None,
+        created_from: datetime | None = None,
+        created_before: datetime | None = None,
     ):
         sources = (
             (*FIRST_PARTY_SOURCES, ThreadSource.api)
@@ -121,12 +148,14 @@ class ThreadRepository(BaseRepository[ThreadDB]):
                 AgentDB.color,
                 AgentDB.image_revision,
                 AgentDB.is_archived,
+                self._is_unread().label("is_unread"),
             )
             .join(AgentDB, ThreadDB.agent_id == AgentDB.id)
             .where(ThreadDB.user_id == user_id)
             .where(ThreadDB.source.in_(sources))
             .order_by(ThreadDB.created_at.desc(), ThreadDB.id)
         )
+        stmt = self._join_read_state(stmt, user_id)
         if project_id is not None:
             stmt = stmt.where(ThreadDB.project_id == project_id)
         if folder_id is not None:
@@ -135,6 +164,20 @@ class ThreadRepository(BaseRepository[ThreadDB]):
             stmt = stmt.where(ThreadDB.project_id.is_not(None))
         elif placement == "unassigned":
             stmt = stmt.where(ThreadDB.project_id.is_(None))
+        if read_status == "read":
+            stmt = stmt.where(~self._is_unread())
+        elif read_status == "unread":
+            stmt = stmt.where(self._is_unread())
+        if completion == "completed":
+            stmt = stmt.where(ThreadDB.completed_at.is_not(None))
+        elif completion == "uncompleted":
+            stmt = stmt.where(ThreadDB.completed_at.is_(None))
+        if source is not None:
+            stmt = stmt.where(ThreadDB.source == source)
+        if created_from is not None:
+            stmt = stmt.where(ThreadDB.created_at >= created_from)
+        if created_before is not None:
+            stmt = stmt.where(ThreadDB.created_at < created_before)
         if query and (term := query.strip()):
             escape = "\\"
             escaped_term = (
@@ -178,6 +221,49 @@ class ThreadRepository(BaseRepository[ThreadDB]):
         if self.workspace_id is not None:
             stmt = stmt.where(ThreadDB.workspace_id == self.workspace_id)
         await self.db.execute(stmt)
+
+    async def increment_response_version(self, thread_id: str) -> None:
+        stmt = (
+            update(ThreadDB)
+            .where(ThreadDB.id == thread_id)
+            .values(response_version=ThreadDB.response_version + 1)
+        )
+        if self.workspace_id is not None:
+            stmt = stmt.where(ThreadDB.workspace_id == self.workspace_id)
+        await self.db.execute(stmt)
+
+    async def set_read_state(
+        self,
+        thread_id: str,
+        user_id: UUID,
+        *,
+        unread: bool,
+    ) -> ThreadDB | None:
+        thread = await self.lock(thread_id)
+        if thread is None:
+            return None
+        stmt = (
+            pg_insert(ThreadReadStateDB)
+            .values(
+                thread_id=thread_id,
+                user_id=user_id,
+                last_read_version=thread.response_version,
+                manually_unread=unread,
+            )
+            .on_conflict_do_update(
+                index_elements=[
+                    ThreadReadStateDB.thread_id,
+                    ThreadReadStateDB.user_id,
+                ],
+                set_={
+                    "last_read_version": thread.response_version,
+                    "manually_unread": unread,
+                    "updated_at": func.now(),
+                },
+            )
+        )
+        await self.db.execute(stmt)
+        return thread
 
     async def set_awaiting_input(self, thread_id: str, awaiting: bool) -> None:
         stmt = (
@@ -336,7 +422,12 @@ class ThreadRepository(BaseRepository[ThreadDB]):
             stmt = stmt.where(ThreadDB.workspace_id == self.workspace_id)
         await self.db.execute(stmt)
 
-    async def list_for_agent(self, agent_id: UUID, page: PageParams):
+    async def list_for_agent(
+        self,
+        agent_id: UUID,
+        page: PageParams,
+        viewer_id: UUID,
+    ):
         stmt = (
             select(
                 ThreadDB,
@@ -347,12 +438,14 @@ class ThreadRepository(BaseRepository[ThreadDB]):
                 AgentDB.is_archived,
                 UserDB.email,
                 UserDB.name,
+                self._is_unread().label("is_unread"),
             )
             .join(AgentDB, ThreadDB.agent_id == AgentDB.id)
             .join(UserDB, ThreadDB.user_id == UserDB.id)
             .where(ThreadDB.agent_id == agent_id)
             .order_by(ThreadDB.created_at.desc(), ThreadDB.id)
         )
+        stmt = self._join_read_state(stmt, viewer_id)
         stmt = self._scope(stmt)
         result, total = await self.paginate(stmt, page)
         return result.all(), total

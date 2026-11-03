@@ -314,12 +314,14 @@ class UserService(BaseService[UserDB, UserRepository]):
         self,
         page: PageParams,
         *,
+        workspace_id: UUID,
         role: WorkspaceRole | None = None,
         search: str | None = None,
         team_id: UUID | None = None,
     ) -> Page[InstanceUserResponse]:
         users, total = await self.repository.list_instance_users(
             page,
+            workspace_id=workspace_id,
             role=role,
             search=search,
             team_id=team_id,

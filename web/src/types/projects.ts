@@ -39,6 +39,7 @@ export interface ProjectThread {
 	completedAt: string | null;
 	folderId: string | null;
 	canManage: boolean;
+	isUnread: boolean;
 	createdAt: string;
 }
 

@@ -223,7 +223,10 @@ export default function TriggerDetail({ trigger }: TriggerDetailProps) {
 									{liveTrigger.isActive ? "Active" : "Paused"}
 								</span>
 								<span className="size-[3px] rounded-full bg-faint dark:bg-white/20" />
-								<VisibilityBadge visibility={liveTrigger.visibility} />
+								<VisibilityBadge
+									visibility={liveTrigger.visibility}
+									teamIds={liveTrigger.teamIds}
+								/>
 								<span className="size-[3px] rounded-full bg-faint dark:bg-white/20" />
 								<span className="text-[11px] text-meta dark:text-panel-dim">
 									{liveTrigger.triggerType === "webhook" ? (

@@ -23,6 +23,8 @@ import {
 	Info,
 	ListTree,
 	Loader2,
+	Mail,
+	MailOpen,
 	MoreVertical,
 	PanelRight,
 	Search,
@@ -40,6 +42,7 @@ import {
 } from "@/components/layout/subpage-header";
 import { useConfirmDialog } from "@/components/providers/dialog-provider";
 import { DropdownMenu } from "@/components/ui/dropdown-menu";
+import { ThreadUnreadBadge } from "@/components/ui/thread-unread-badge";
 import { VisibilityPicker } from "@/components/ui/visibility-picker";
 import { ConversationCompletionButton } from "@/components/layout/app-sidebar/conversation-completion-button";
 import { FolderDialog } from "@/components/layout/app-sidebar/folder-dialog";
@@ -588,10 +591,12 @@ function FolderRow({
 function ThreadRow({
 	thread,
 	onToggleCompletion,
+	onToggleReadState,
 	onMove,
 }: {
 	thread: ProjectThread;
 	onToggleCompletion: () => void;
+	onToggleReadState: () => void;
 	onMove: () => void;
 }) {
 	const title = titleOf(thread);
@@ -622,17 +627,26 @@ function ThreadRow({
 				prefetch={false}
 				className="min-w-0 flex-1 py-3"
 			>
-				<span className="block truncate text-[13px] font-semibold text-foreground">
-					{title}
+				<span className="flex items-center gap-1.5">
+					<span className="truncate text-[13px] font-semibold text-foreground">
+						{title}
+					</span>
+					{thread.isUnread && <ThreadUnreadBadge />}
 				</span>
 				<span className="mt-0.5 block text-[10.5px] text-meta">
 					{thread.completedAt ? "Completed conversation" : "Conversation"}
 				</span>
 			</Link>
-			{thread.canManage && (
-				<DropdownMenu
-					trigger={<ResourceMenuButton label={title} />}
-					items={[
+			<DropdownMenu
+				trigger={<ResourceMenuButton label={title} />}
+				items={[
+					{
+						label: thread.isUnread ? "Mark as read" : "Mark as unread",
+						icon: thread.isUnread ? <MailOpen /> : <Mail />,
+						onClick: onToggleReadState,
+					},
+					...(thread.canManage
+						? [
 						{
 							label:
 								thread.completedAt === null
@@ -651,9 +665,10 @@ function ThreadRow({
 							icon: <FolderInput />,
 							onClick: onMove,
 						},
-					]}
-				/>
-			)}
+							]
+						: []),
+				]}
+			/>
 		</div>
 	);
 }
@@ -903,6 +918,9 @@ export default function ProjectDetailView({
 	const setThreadCompleted = useThreadsStore(
 		(state) => state.setThreadCompleted,
 	);
+	const setThreadReadState = useThreadsStore(
+		(state) => state.setThreadReadState,
+	);
 	const allAgents = useAgentsStore((state) => state.agents);
 	const agents = useMemo(
 		() =>
@@ -1105,7 +1123,7 @@ export default function ProjectDetailView({
 		}
 		const params = new URLSearchParams({ projectId: detail.id });
 		if (folderId) params.set("folderId", folderId);
-		navigateWithUnsavedChanges(() => {
+		void navigateWithUnsavedChanges(() => {
 			router.push(`/agents/${agent.id}/chat?${params.toString()}`);
 		});
 	};
@@ -1136,7 +1154,7 @@ export default function ProjectDetailView({
 			destructive: true,
 		});
 		if (!accepted) return;
-		if (!prepareToDiscardUnsavedChanges()) return;
+		if (!(await prepareToDiscardUnsavedChanges())) return;
 		try {
 			await deleteProject(detail.id);
 			router.push("/");
@@ -1150,6 +1168,16 @@ export default function ProjectDetailView({
 		try {
 			await setThreadCompleted(thread.id, thread.completedAt === null);
 			await refreshDetail(detail.id);
+		} catch (error) {
+			toast.error(
+				getApiErrorMessage(error, "The conversation could not be updated."),
+			);
+		}
+	};
+
+	const toggleReadState = async (thread: ProjectThread) => {
+		try {
+			await setThreadReadState(thread.id, !thread.isUnread);
 		} catch (error) {
 			toast.error(
 				getApiErrorMessage(error, "The conversation could not be updated."),
@@ -1213,6 +1241,9 @@ export default function ProjectDetailView({
 			thread={thread}
 			onToggleCompletion={() => {
 				void toggleCompletion(thread);
+			}}
+			onToggleReadState={() => {
+				void toggleReadState(thread);
 			}}
 			onMove={() => {
 				setMovingThread({

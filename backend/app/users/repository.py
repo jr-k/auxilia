@@ -220,6 +220,7 @@ class UserRepository(BaseRepository[UserDB]):
         self,
         page: PageParams,
         *,
+        workspace_id: UUID,
         role: WorkspaceRole | None = None,
         search: str | None = None,
         team_id: UUID | None = None,
@@ -227,7 +228,8 @@ class UserRepository(BaseRepository[UserDB]):
         stmt = select(UserDB).order_by(UserDB.created_at.desc(), UserDB.id)
         if role is not None or team_id is not None:
             membership_filter = select(WorkspaceMembershipDB.user_id).where(
-                WorkspaceMembershipDB.user_id == UserDB.id
+                WorkspaceMembershipDB.user_id == UserDB.id,
+                WorkspaceMembershipDB.workspace_id == workspace_id,
             )
             if role is not None:
                 membership_filter = membership_filter.where(

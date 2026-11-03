@@ -400,7 +400,10 @@ export default function MCPServerTable({
 			header: "Visibility",
 			width: "120px",
 			cell: (server) => (
-				<VisibilityBadge visibility={server.visibility ?? "workspace"} />
+				<VisibilityBadge
+					visibility={server.visibility ?? "workspace"}
+					teamIds={server.teamIds}
+				/>
 			),
 		},
 		{
@@ -660,7 +663,10 @@ export default function MCPServerTable({
 										</h2>
 										<div className="mt-1 flex flex-wrap items-center gap-1.5">
 											<AuthTypeBadge authType={server.authType} />
-											<VisibilityBadge visibility={server.visibility ?? "workspace"} />
+											<VisibilityBadge
+												visibility={server.visibility ?? "workspace"}
+												teamIds={server.teamIds}
+											/>
 										</div>
 									</div>
 								</div>

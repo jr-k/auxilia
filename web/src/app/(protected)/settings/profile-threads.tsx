@@ -1,7 +1,15 @@
 "use client";
 
 import { useDeferredValue, useEffect, useState } from "react";
-import { Search, X } from "lucide-react";
+import {
+	Filter,
+	Mail,
+	MailOpen,
+	MoreVertical,
+	RotateCcw,
+	Search,
+	X,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { AgentAvatar } from "@/components/ui/agent-avatar";
@@ -13,16 +21,38 @@ import {
 import { BulkActionBar } from "@/components/ui/bulk-action-bar";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
+import { DropdownMenu } from "@/components/ui/dropdown-menu";
 import { SelectableLeading } from "@/components/ui/selectable-leading";
 import { ThreadSourceBadge } from "@/components/ui/thread-source-badge";
+import { ThreadUnreadBadge } from "@/components/ui/thread-unread-badge";
+import { useQueryParamState } from "@/hooks/use-query-param-state";
 import { useRowSelection } from "@/hooks/use-row-selection";
 import { getApiErrorMessage } from "@/lib/api/errors";
 import * as threadsApi from "@/lib/api/resources/threads";
 import { useThreadsStore } from "@/stores/threads-store";
 import { useUserStore } from "@/stores/user-store";
-import type { Thread } from "@/types/threads";
+import { useWorkspaceEventsStore } from "@/stores/workspace-events-store";
+import type { Thread, ThreadSource } from "@/types/threads";
 
 const PAGE_SIZE = 20;
+const READ_FILTERS = ["all", "read", "unread"] as const;
+const COMPLETION_FILTERS = ["all", "completed", "uncompleted"] as const;
+const SOURCES: Array<{ value: ThreadSource; label: string }> = [
+	{ value: "web", label: "Web" },
+	{ value: "slack", label: "Slack" },
+	{ value: "telegram", label: "Telegram" },
+	{ value: "whatsapp", label: "WhatsApp" },
+	{ value: "api", label: "API" },
+	{ value: "trigger", label: "Trigger" },
+];
+
+function localDateBoundary(value: string, nextDay = false): string | undefined {
+	if (!value) return undefined;
+	const date = new Date(`${value}T00:00:00`);
+	if (Number.isNaN(date.getTime())) return undefined;
+	if (nextDay) date.setDate(date.getDate() + 1);
+	return date.toISOString();
+}
 
 function formatDate(value: string): string {
 	return new Date(value)
@@ -47,12 +77,53 @@ export default function ProfileThreads() {
 	const setThreadCompleted = useThreadsStore(
 		(state) => state.setThreadCompleted,
 	);
+	const setThreadReadState = useThreadsStore(
+		(state) => state.setThreadReadState,
+	);
+	const threadsVersion = useWorkspaceEventsStore(
+		(state) => state.threadsVersion,
+	);
 	const [threads, setThreads] = useState<Thread[]>([]);
 	const [total, setTotal] = useState(0);
-	const [offset, setOffset] = useState(0);
-	const [search, setSearch] = useState("");
+	const [search, setSearch] = useQueryParamState("threadQuery");
+	const [readParam, setReadParam] = useQueryParamState("threadRead", "all");
+	const [completionParam, setCompletionParam] = useQueryParamState(
+		"threadCompletion",
+		"all",
+	);
+	const [sourceParam, setSourceParam] = useQueryParamState("threadSource");
+	const [createdFrom, setCreatedFrom] = useQueryParamState("threadFrom");
+	const [createdTo, setCreatedTo] = useQueryParamState("threadTo");
+	const [offsetParam, setOffsetParam] = useQueryParamState("threadOffset");
+	const readStatus = READ_FILTERS.includes(
+		readParam as (typeof READ_FILTERS)[number],
+	)
+		? (readParam as (typeof READ_FILTERS)[number])
+		: "all";
+	const completion = COMPLETION_FILTERS.includes(
+		completionParam as (typeof COMPLETION_FILTERS)[number],
+	)
+		? (completionParam as (typeof COMPLETION_FILTERS)[number])
+		: "all";
+	const source = SOURCES.some((option) => option.value === sourceParam)
+		? (sourceParam as ThreadSource)
+		: undefined;
+	const parsedOffset = Number.parseInt(offsetParam, 10);
+	const offset =
+		Number.isFinite(parsedOffset) && parsedOffset >= 0 ? parsedOffset : 0;
 	const deferredSearch = useDeferredValue(search);
-	const requestKey = `${offset}:${deferredSearch.trim()}`;
+	const [reloadVersion, setReloadVersion] = useState(0);
+	const requestKey = [
+		offset,
+		deferredSearch.trim(),
+		readStatus,
+		completion,
+		source ?? "",
+		createdFrom,
+		createdTo,
+		threadsVersion,
+		reloadVersion,
+	].join(":");
 	const [settledRequestKey, setSettledRequestKey] = useState<string | null>(
 		null,
 	);
@@ -62,6 +133,19 @@ export default function ProfileThreads() {
 	const [completionSavingIds, setCompletionSavingIds] = useState<Set<string>>(
 		new Set(),
 	);
+	const [readSavingIds, setReadSavingIds] = useState<Set<string>>(new Set());
+	const activeFilterCount = [
+		search.trim(),
+		readStatus !== "all" ? readStatus : "",
+		completion !== "all" ? completion : "",
+		source ?? "",
+		createdFrom,
+		createdTo,
+	].filter(Boolean).length;
+
+	const resetOffset = () => {
+		setOffsetParam("");
+	};
 
 	useEffect(() => {
 		let cancelled = false;
@@ -70,6 +154,12 @@ export default function ProfileThreads() {
 				limit: PAGE_SIZE,
 				offset,
 				q: deferredSearch.trim() || undefined,
+				readStatus,
+				completion,
+				source,
+				createdFrom: localDateBoundary(createdFrom),
+				createdBefore: localDateBoundary(createdTo, true),
+				includeApi: true,
 			})
 			.then((page) => {
 				if (cancelled) return;
@@ -87,7 +177,16 @@ export default function ProfileThreads() {
 		return () => {
 			cancelled = true;
 		};
-	}, [deferredSearch, offset, requestKey]);
+	}, [
+		completion,
+		createdFrom,
+		createdTo,
+		deferredSearch,
+		offset,
+		readStatus,
+		requestKey,
+		source,
+	]);
 
 	const selection = useRowSelection({
 		orderedIds: threads.map((thread) => thread.id),
@@ -110,12 +209,46 @@ export default function ProfileThreads() {
 			setThreads((current) =>
 				current.map((item) => (item.id === thread.id ? updated : item)),
 			);
+			if (completion !== "all") {
+				setReloadVersion((current) => current + 1);
+			}
 		} catch (error) {
 			toast.error(
 				getApiErrorMessage(error, "The conversation could not be updated."),
 			);
 		} finally {
 			setCompletionSavingIds((current) => {
+				const next = new Set(current);
+				next.delete(thread.id);
+				return next;
+			});
+		}
+	};
+
+	const toggleReadState = async (thread: Thread) => {
+		if (readSavingIds.has(thread.id)) return;
+		setReadSavingIds((current) => new Set(current).add(thread.id));
+		setThreads((current) =>
+			current.map((item) =>
+				item.id === thread.id
+					? { ...item, isUnread: !thread.isUnread }
+					: item,
+			),
+		);
+		try {
+			await setThreadReadState(thread.id, !thread.isUnread);
+			if (readStatus !== "all") {
+				setReloadVersion((current) => current + 1);
+			}
+		} catch (error) {
+			setThreads((current) =>
+				current.map((item) => (item.id === thread.id ? thread : item)),
+			);
+			toast.error(
+				getApiErrorMessage(error, "The conversation could not be updated."),
+			);
+		} finally {
+			setReadSavingIds((current) => {
 				const next = new Set(current);
 				next.delete(thread.id);
 				return next;
@@ -169,9 +302,12 @@ export default function ProfileThreads() {
 						/>
 					</SelectableLeading>
 					<div className="min-w-0">
-						<p className="truncate text-[12.5px] font-semibold text-foreground">
-							{threadTitle(thread)}
-						</p>
+						<div className="flex items-center gap-1.5">
+							<p className="truncate text-[12.5px] font-semibold text-foreground">
+								{threadTitle(thread)}
+							</p>
+							{thread.isUnread && <ThreadUnreadBadge />}
+						</div>
 						<p className="mt-0.5 truncate text-[11.5px] text-meta dark:text-panel-dim">
 							{thread.agentArchived
 								? "Archived agent"
@@ -217,6 +353,46 @@ export default function ProfileThreads() {
 				/>
 			),
 		},
+		{
+			key: "actions",
+			header: "",
+			width: "48px",
+			mobileWidth: "auto",
+			align: "right",
+			cell: (thread) => (
+				<div
+					className="flex justify-end"
+					onClick={(event) => {
+						event.stopPropagation();
+					}}
+				>
+					<DropdownMenu
+						align="end"
+						trigger={
+							<button
+								type="button"
+								aria-label={`More options for ${threadTitle(thread)}`}
+								disabled={readSavingIds.has(thread.id)}
+								className="flex size-7 cursor-pointer items-center justify-center rounded-[7px] text-meta transition-colors hover:bg-hover hover:text-foreground disabled:cursor-wait disabled:opacity-50"
+							>
+								<MoreVertical className="size-4" />
+							</button>
+						}
+						items={[
+							{
+								label: thread.isUnread
+									? "Mark as read"
+									: "Mark as unread",
+								icon: thread.isUnread ? <MailOpen /> : <Mail />,
+								onClick: () => {
+									void toggleReadState(thread);
+								},
+							},
+						]}
+					/>
+				</div>
+			),
+		},
 	];
 
 	return (
@@ -230,29 +406,121 @@ export default function ProfileThreads() {
 				</p>
 			</div>
 
-			<div className="relative max-w-[420px]">
-				<Search className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-meta" />
-				<input
-					type="search"
-					value={search}
-					placeholder="Search conversations or agents…"
+			<div className="flex flex-wrap items-center gap-2 rounded-[11px] border border-border bg-sidebar/55 p-2 dark:border-white/10 dark:bg-white/[0.025]">
+				<div className="flex h-8 shrink-0 items-center gap-1.5 px-1 text-[11px] font-semibold text-subtle">
+					<Filter className="size-3.5" />
+					<span>
+						Filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}
+					</span>
+				</div>
+				<div className="relative min-w-[220px] flex-[1.4]">
+					<Search className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-meta" />
+					<input
+						type="search"
+						value={search}
+						placeholder="Search conversations or agents…"
+						onChange={(event) => {
+							setSearch(event.target.value);
+							resetOffset();
+						}}
+						className="h-8 w-full rounded-[8px] border border-border bg-card pl-9 pr-9 text-[12px] text-foreground outline-none transition-[border-color,box-shadow] placeholder:text-ghost focus:border-petrol/55 focus:shadow-[0_0_0_3px_rgba(38,103,81,0.08)] dark:border-white/10"
+					/>
+					{search && (
+						<button
+							type="button"
+							aria-label="Clear search"
+							onClick={() => {
+								setSearch("");
+								resetOffset();
+							}}
+							className="absolute right-1.5 top-1/2 flex size-6 -translate-y-1/2 cursor-pointer items-center justify-center rounded-[6px] text-meta transition-colors hover:bg-hover hover:text-foreground"
+						>
+							<X className="size-3.5" />
+						</button>
+					)}
+				</div>
+				<select
+					value={readStatus}
+					aria-label="Read status"
 					onChange={(event) => {
-						setSearch(event.target.value);
-						setOffset(0);
+						setReadParam(event.target.value);
+						resetOffset();
 					}}
-					className="h-9 w-full rounded-[9px] border border-border bg-card pl-9 pr-9 text-[12.5px] text-foreground outline-none transition-[border-color,box-shadow] placeholder:text-ghost focus:border-petrol/55 focus:shadow-[0_0_0_3px_rgba(38,103,81,0.08)] dark:border-white/10"
-				/>
-				{search && (
+					className="h-8 cursor-pointer rounded-[8px] border border-border bg-card px-2.5 text-[11.5px] font-medium text-foreground outline-none focus:border-petrol/55 dark:border-white/10"
+				>
+					<option value="all">All read states</option>
+					<option value="unread">Unread</option>
+					<option value="read">Read</option>
+				</select>
+				<select
+					value={completion}
+					aria-label="Completion status"
+					onChange={(event) => {
+						setCompletionParam(event.target.value);
+						resetOffset();
+					}}
+					className="h-8 cursor-pointer rounded-[8px] border border-border bg-card px-2.5 text-[11.5px] font-medium text-foreground outline-none focus:border-petrol/55 dark:border-white/10"
+				>
+					<option value="all">All completion states</option>
+					<option value="uncompleted">Uncompleted</option>
+					<option value="completed">Completed</option>
+				</select>
+				<select
+					value={source ?? ""}
+					aria-label="Conversation source"
+					onChange={(event) => {
+						setSourceParam(event.target.value);
+						resetOffset();
+					}}
+					className="h-8 cursor-pointer rounded-[8px] border border-border bg-card px-2.5 text-[11.5px] font-medium text-foreground outline-none focus:border-petrol/55 dark:border-white/10"
+				>
+					<option value="">All sources</option>
+					{SOURCES.map((option) => (
+						<option key={option.value} value={option.value}>
+							{option.label}
+						</option>
+					))}
+				</select>
+				<label className="flex h-8 items-center gap-1.5 rounded-[8px] border border-border bg-card px-2.5 text-[10.5px] text-meta dark:border-white/10">
+					<span>From</span>
+					<input
+						type="date"
+						value={createdFrom}
+						onChange={(event) => {
+							setCreatedFrom(event.target.value);
+							resetOffset();
+						}}
+						className="min-w-0 bg-transparent font-mono text-[10.5px] text-foreground outline-none"
+					/>
+				</label>
+				<label className="flex h-8 items-center gap-1.5 rounded-[8px] border border-border bg-card px-2.5 text-[10.5px] text-meta dark:border-white/10">
+					<span>To</span>
+					<input
+						type="date"
+						value={createdTo}
+						onChange={(event) => {
+							setCreatedTo(event.target.value);
+							resetOffset();
+						}}
+						className="min-w-0 bg-transparent font-mono text-[10.5px] text-foreground outline-none"
+					/>
+				</label>
+				{activeFilterCount > 0 && (
 					<button
 						type="button"
-						aria-label="Clear search"
 						onClick={() => {
 							setSearch("");
-							setOffset(0);
+							setReadParam("all");
+							setCompletionParam("all");
+							setSourceParam("");
+							setCreatedFrom("");
+							setCreatedTo("");
+							resetOffset();
 						}}
-						className="absolute right-2 top-1/2 flex size-6 -translate-y-1/2 cursor-pointer items-center justify-center rounded-[6px] text-meta transition-colors hover:bg-hover hover:text-foreground"
+						className="flex h-8 cursor-pointer items-center gap-1.5 rounded-[8px] px-2.5 text-[11.5px] font-semibold text-meta transition-colors hover:bg-hover hover:text-foreground"
 					>
-						<X className="size-3.5" />
+						<RotateCcw className="size-3.5" />
+						Reset
 					</button>
 				)}
 			</div>
@@ -297,14 +565,16 @@ export default function ProfileThreads() {
 					router.push(`/agents/${thread.agentId}/chat/${thread.id}`);
 				}}
 				emptyMessage={
-					deferredSearch ? "No conversation matches this search." : "No conversations yet."
+					activeFilterCount > 0
+						? "No conversation matches these filters."
+						: "No conversations yet."
 				}
 				pagination={{
 					total,
 					limit: PAGE_SIZE,
 					offset,
 					onOffsetChange: (nextOffset) => {
-						setOffset(nextOffset);
+						setOffsetParam(nextOffset > 0 ? String(nextOffset) : "");
 					},
 					itemLabel: total === 1 ? "thread" : "threads",
 				}}
@@ -352,7 +622,10 @@ export default function ProfileThreads() {
 						setTotal((current) => Math.max(0, current - succeeded.length));
 						selection.remove(succeeded);
 						if (shouldGoBack) {
-							setOffset((current) => Math.max(0, current - PAGE_SIZE));
+							const previousOffset = Math.max(0, offset - PAGE_SIZE);
+							setOffsetParam(
+								previousOffset > 0 ? String(previousOffset) : "",
+							);
 						}
 					}
 					return failures;

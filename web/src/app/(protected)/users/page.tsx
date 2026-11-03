@@ -126,8 +126,10 @@ export default function UsersPage() {
 	const confirmDialog = useConfirmDialog();
 	const currentUser = useUserStore((state) => state.user);
 	const activeWorkspaceId = useWorkspacesStore((state) => state.activeWorkspaceId);
-	const isAdmin = currentUser?.role === "admin";
 	const isOwner = currentUser?.isInstanceOwner === true;
+	const isAdmin =
+		currentUser?.role === "admin" ||
+		(isOwner && currentUser.supervision === null);
 	const fetchUsersTicket = useRef(0);
 	const membersTableRef = useRef<HTMLDivElement>(null);
 	const [users, setUsers] = useState<ListedUser[]>([]);
@@ -194,7 +196,7 @@ export default function UsersPage() {
 						user.memberships.find(
 							(membership) =>
 								membership.workspaceId === activeWorkspaceId,
-						) ?? user.memberships[0];
+						);
 					return {
 						...user,
 						role: activeMembership?.role ?? "member",
@@ -325,7 +327,19 @@ export default function UsersPage() {
 			await usersApi.setUserRole(userId, newRole);
 			if (roleFilter === "all") {
 				setUsers((prev) =>
-					prev.map((u) => (u.id === userId ? { ...u, role: newRole } : u)),
+					prev.map((user) =>
+						user.id === userId
+							? {
+									...user,
+									role: newRole,
+									memberships: user.memberships?.map((membership) =>
+										membership.workspaceId === activeWorkspaceId
+											? { ...membership, role: newRole }
+											: membership,
+									),
+								}
+							: user,
+					),
 				);
 			} else {
 				// The row may no longer match the active filter — resync the page.
@@ -548,38 +562,32 @@ export default function UsersPage() {
 		}));
 
 	const renderRoleControl = (user: ListedUser) => {
-		if (isOwner) {
+		if (user.isInstanceOwner) {
 			return (
-				<div className="flex flex-col items-start gap-1.5">
-					{user.isInstanceOwner && (
-						<span className="inline-flex rounded-full bg-amber-500/12 px-2.5 py-1 text-[11.5px] font-semibold text-amber-800 dark:bg-amber-400/15 dark:text-amber-200">
-							Owner
-						</span>
-					)}
-					{!user.isInstanceOwner &&
-						(user.memberships ?? []).map((membership) => (
-							<span
-								key={membership.workspaceId}
-								className="inline-flex items-center gap-[7px] text-[12px] font-medium text-subtle dark:text-muted-foreground"
-							>
-								<span
-									className="size-1.5 rounded-full"
-									style={{ background: ROLE_DOT[membership.role] }}
-								/>
-								{workspaceRoleLabel(membership.role)}
-							</span>
-						))}
-				</div>
+				<span className="inline-flex rounded-full bg-amber-500/12 px-2.5 py-1 text-[11.5px] font-semibold text-amber-800 dark:bg-amber-400/15 dark:text-amber-200">
+					Owner
+				</span>
 			);
 		}
+		const activeMembership = user.memberships?.find(
+			(membership) => membership.workspaceId === activeWorkspaceId,
+		);
+		if (user.memberships && !activeMembership) {
+			return (
+				<span className="inline-flex px-2.5 py-[5px] text-[12.5px] font-medium text-meta">
+					No access
+				</span>
+			);
+		}
+		const role = activeMembership?.role ?? user.role;
 		const isCurrentUser = user.id === currentUser?.id;
 		return isCurrentUser || !isAdmin ? (
 			<span className="inline-flex items-center gap-[7px] px-2.5 py-[5px] text-[12.5px] font-medium text-subtle dark:text-muted-foreground">
 				<span
 					className="size-1.5 rounded-full"
-					style={{ background: ROLE_DOT[user.role] }}
+					style={{ background: ROLE_DOT[role] }}
 				/>
-				{ROLE_LABELS[user.role]}
+				{ROLE_LABELS[role]}
 			</span>
 		) : (
 			<DropdownMenu
@@ -587,9 +595,9 @@ export default function UsersPage() {
 					<button className={CHIP_CLASS}>
 						<span
 							className="size-1.5 rounded-full"
-							style={{ background: ROLE_DOT[user.role] }}
+							style={{ background: ROLE_DOT[role] }}
 						/>
-						{ROLE_LABELS[user.role]}
+						{ROLE_LABELS[role]}
 						<ChevronDown className="size-3.5 text-meta" />
 					</button>
 				}
@@ -599,21 +607,21 @@ export default function UsersPage() {
 						onClick: () => {
 							void handleRoleChange(user.id, "admin");
 						},
-						active: user.role === "admin",
+						active: role === "admin",
 					},
 					{
 						label: "Editor",
 						onClick: () => {
 							void handleRoleChange(user.id, "editor");
 						},
-						active: user.role === "editor",
+						active: role === "editor",
 					},
 					{
 						label: "Member",
 						onClick: () => {
 							void handleRoleChange(user.id, "member");
 						},
-						active: user.role === "member",
+						active: role === "member",
 					},
 				]}
 			/>
@@ -626,7 +634,7 @@ export default function UsersPage() {
 				checked={user.isInstanceOwner || user.canCreateWorkspace}
 				disabled={
 					user.isInstanceOwner ||
-					currentUser?.role !== "admin" ||
+					!isAdmin ||
 					(Boolean(user.memberships) &&
 						!user.memberships?.some(
 							(membership) =>
@@ -653,7 +661,7 @@ export default function UsersPage() {
 			<Switch
 				checked={user.canDeleteThreads}
 				disabled={
-					currentUser?.role !== "admin" ||
+					!isAdmin ||
 					(Boolean(user.memberships) &&
 						!user.memberships?.some(
 							(membership) =>
@@ -1181,28 +1189,9 @@ export default function UsersPage() {
 											{isOwner ? (
 												<div className="col-span-2 min-w-0">
 													<p className="mb-1.5 text-[10px] font-semibold text-meta">
-														Workspace access
+														Role
 													</p>
-													<div className="space-y-1.5">
-														{user.isInstanceOwner && (
-															<span className="inline-flex rounded-full bg-amber-500/12 px-2.5 py-1 text-[11.5px] font-semibold text-amber-800 dark:bg-amber-400/15 dark:text-amber-200">
-																Owner
-															</span>
-														)}
-														{(user.memberships ?? []).map((membership) => (
-															<div
-																key={membership.workspaceId}
-																className="flex items-center justify-between gap-3 text-[11.5px]"
-															>
-																<span className="truncate font-medium text-label">
-																	{membership.workspaceName}
-																</span>
-																<span className="shrink-0 text-meta">
-																	{workspaceRoleLabel(membership.role)}
-																</span>
-															</div>
-														))}
-													</div>
+													{renderRoleControl(user)}
 												</div>
 											) : (
 												<>

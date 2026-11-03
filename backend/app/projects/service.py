@@ -226,7 +226,7 @@ class ProjectService(BaseService[ProjectDB, ProjectRepository]):
         self, project: ProjectResponse, user: UserDB
     ) -> ProjectTreeResponse:
         folders = await self.repository.list_folders(project.id)
-        threads = await self.repository.list_threads(project.id)
+        threads = await self.repository.list_threads(project.id, user.id)
         triggers = await self.repository.list_triggers(project.id)
         return ProjectTreeResponse(
             **project.model_dump(),
@@ -242,9 +242,10 @@ class ProjectService(BaseService[ProjectDB, ProjectRepository]):
                     completed_at=thread.completed_at,
                     folder_id=thread.folder_id,
                     can_manage=thread.user_id == user.id,
+                    is_unread=is_unread,
                     created_at=thread.created_at,
                 )
-                for thread in threads
+                for thread, is_unread in threads
             ],
             triggers=[
                 ProjectTriggerRow.model_validate(

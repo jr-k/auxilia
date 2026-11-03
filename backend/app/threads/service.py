@@ -31,6 +31,7 @@ from app.threads.schemas import (
     AgentThreadResponse,
     ThreadBulkPlacementResponse,
     ThreadBulkPlacementUpdate,
+    ThreadCompletionFilter,
     ThreadCompletionUpdate,
     ThreadCreate,
     ThreadMemoriesUpdate,
@@ -39,6 +40,9 @@ from app.threads.schemas import (
     ThreadPlacementFilter,
     ThreadPlacementResult,
     ThreadPlacementUpdate,
+    ThreadReadFilter,
+    ThreadReadStateResponse,
+    ThreadReadStateUpdate,
     ThreadResourcesPatch,
     ThreadResponse,
     ThreadStartCreate,
@@ -54,6 +58,7 @@ def _thread_with_agent(
     agent_color: str | None,
     agent_image_revision: UUID | None,
     agent_archived: bool,
+    is_unread: bool,
 ) -> ThreadResponse:
     return ThreadResponse.model_validate(
         thread,
@@ -63,6 +68,7 @@ def _thread_with_agent(
             "agent_color": agent_color,
             "agent_image_revision": agent_image_revision,
             "agent_archived": agent_archived,
+            "is_unread": is_unread,
         },
     )
 
@@ -76,6 +82,7 @@ def _agent_thread(
     agent_archived: bool,
     user_email: str | None,
     user_name: str | None,
+    is_unread: bool,
 ) -> AgentThreadResponse:
     return AgentThreadResponse.model_validate(
         thread,
@@ -87,6 +94,7 @@ def _agent_thread(
             "agent_archived": agent_archived,
             "user_email": user_email,
             "user_name": user_name,
+            "is_unread": is_unread,
         },
     )
 
@@ -117,8 +125,12 @@ class ThreadService(BaseService[ThreadDB, ThreadRepository]):
             return model_id, reasoning_effort
         return await model_service.get_default_model_id(), None
 
-    async def get_with_agent(self, thread_id: str) -> ThreadResponse:
-        row = await self.repository.get_with_agent(thread_id)
+    async def get_with_agent(
+        self,
+        thread_id: str,
+        viewer_id: UUID,
+    ) -> ThreadResponse:
+        row = await self.repository.get_with_agent(thread_id, viewer_id)
         if not row:
             raise NotFoundError(self.not_found_message)
         response = _thread_with_agent(*row)
@@ -137,12 +149,25 @@ class ThreadService(BaseService[ThreadDB, ThreadRepository]):
         folder_id: UUID | None = None,
         placement: ThreadPlacementFilter = "all",
         include_api: bool = False,
+        read_status: ThreadReadFilter = "all",
+        completion: ThreadCompletionFilter = "all",
+        source: ThreadSource | None = None,
+        created_from: datetime | None = None,
+        created_before: datetime | None = None,
     ) -> Page[ThreadResponse]:
         if placement == "unassigned" and (
             project_id is not None or folder_id is not None
         ):
             raise DomainValidationError(
                 "Unassigned conversations cannot be filtered by project or folder"
+            )
+        if (
+            created_from is not None
+            and created_before is not None
+            and created_before <= created_from
+        ):
+            raise DomainValidationError(
+                "created_before must be later than created_from"
             )
         rows, total = await self.repository.list_for_user(
             user_id,
@@ -152,14 +177,55 @@ class ThreadService(BaseService[ThreadDB, ThreadRepository]):
             folder_id=folder_id,
             placement=placement,
             include_api=include_api,
+            read_status=read_status,
+            completion=completion,
+            source=source,
+            created_from=created_from,
+            created_before=created_before,
         )
         return Page.build([_thread_with_agent(*row) for row in rows], total, page)
 
     async def list_for_agent(
-        self, agent_id: UUID, page: PageParams
+        self,
+        agent_id: UUID,
+        page: PageParams,
+        viewer_id: UUID,
     ) -> Page[AgentThreadResponse]:
-        rows, total = await self.repository.list_for_agent(agent_id, page)
+        rows, total = await self.repository.list_for_agent(
+            agent_id,
+            page,
+            viewer_id,
+        )
         return Page.build([_agent_thread(*row) for row in rows], total, page)
+
+    async def update_read_state(
+        self,
+        thread_id: str,
+        user_id: UUID,
+        data: ThreadReadStateUpdate,
+    ) -> ThreadReadStateResponse:
+        thread = await self.repository.set_read_state(
+            thread_id,
+            user_id,
+            unread=data.is_unread,
+        )
+        if thread is None:
+            raise NotFoundError(self.not_found_message)
+        await stage_workspace_event(
+            self.db,
+            workspace_id=self.workspace_id,
+            kind=WorkspaceEventKind.threads,
+            target_user_id=user_id,
+            thread_id=thread_id,
+        )
+        if thread.project_id is not None:
+            await stage_workspace_event(
+                self.db,
+                workspace_id=self.workspace_id,
+                kind=WorkspaceEventKind.projects,
+                target_user_id=user_id,
+            )
+        return ThreadReadStateResponse(is_unread=data.is_unread)
 
     async def list_for_trigger(
         self, trigger_id: UUID, since: datetime | None = None
@@ -537,25 +603,25 @@ class ThreadService(BaseService[ThreadDB, ThreadRepository]):
                 workspace_id=self.workspace_id,
                 kind=WorkspaceEventKind.projects,
             )
-        return await self.get_with_agent(thread_id)
+        return await self.get_with_agent(thread_id, thread.user_id)
 
     async def update_model(
         self, thread_id: str, data: ThreadModelUpdate
     ) -> ThreadResponse:
-        await self._lock_editable(thread_id)
+        thread = await self._lock_editable(thread_id)
         await ModelService(self.db, self.workspace_id).ensure_available(data.model_id)
         await ModelService.validate_reasoning_effort(
             data.model_id, data.reasoning_effort
         )
         await self.repository.set_model(thread_id, data.model_id, data.reasoning_effort)
-        return await self.get_with_agent(thread_id)
+        return await self.get_with_agent(thread_id, thread.user_id)
 
     async def update_memories(
         self, thread_id: str, data: ThreadMemoriesUpdate
     ) -> ThreadResponse:
-        await self._lock_editable(thread_id)
+        thread = await self._lock_editable(thread_id)
         await self.repository.set_memories_enabled(thread_id, data.memories_enabled)
-        return await self.get_with_agent(thread_id)
+        return await self.get_with_agent(thread_id, thread.user_id)
 
     async def update_resources(
         self, thread_id: str, data: ThreadResourcesPatch
@@ -599,7 +665,7 @@ class ThreadService(BaseService[ThreadDB, ThreadRepository]):
             disabled_subagent_ids,
             data.tool_mode,
         )
-        return await self.get_with_agent(thread_id)
+        return await self.get_with_agent(thread_id, thread.user_id)
 
     @staticmethod
     def _ensure_not_completed(thread: ThreadDB) -> None:
@@ -643,7 +709,7 @@ class ThreadService(BaseService[ThreadDB, ThreadRepository]):
                 workspace_id=self.workspace_id,
                 kind=WorkspaceEventKind.projects,
             )
-        return await self.get_with_agent(thread_id)
+        return await self.get_with_agent(thread_id, user.id)
 
     async def update_placements(
         self,
@@ -729,7 +795,7 @@ class ThreadService(BaseService[ThreadDB, ThreadRepository]):
                 workspace_id=self.workspace_id,
                 kind=WorkspaceEventKind.projects,
             )
-        return await self.get_with_agent(thread_id)
+        return await self.get_with_agent(thread_id, thread.user_id)
 
     async def normalize_resource_ids(
         self,

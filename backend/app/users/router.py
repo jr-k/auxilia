@@ -90,10 +90,12 @@ async def get_instance_users(
     team_id: UUID | None = None,
     page: PageParams = Depends(),
     _: UserDB = Depends(require_instance_owner),
+    workspace_id: UUID = Depends(get_active_workspace_id),
     service: UserService = Depends(get_user_service),
 ) -> Page[InstanceUserResponse]:
     return await service.list_instance_users(
         page,
+        workspace_id=workspace_id,
         role=role,
         search=search,
         team_id=team_id,

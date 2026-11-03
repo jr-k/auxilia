@@ -159,8 +159,9 @@ servers:
     supports_dcr: true
     requires_url_configuration: true
     description: >-
-      Manages agents and skills, searches conversations, and configures an
-      Auxilia workspace after OAuth sign-in and workspace selection.
+      Creates and manages scheduled or webhook triggers, agents, skills,
+      conversations, and other Auxilia workspace settings after OAuth sign-in
+      and workspace selection.
 
   - name: "AWS MCP"
     url: "https://aws-mcp.us-east-1.api.aws/mcp"

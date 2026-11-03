@@ -3,6 +3,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import * as DropdownMenuPrimitive from "@radix-ui/react-dropdown-menu";
 import { Building2, Check, ChevronDown, LockKeyhole, Search, Users } from "lucide-react";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipTrigger,
+} from "@/components/ui/tooltip";
 import * as teamsApi from "@/lib/api/resources/teams";
 import { cn } from "@/lib/utils";
 import type { Team } from "@/types/users";
@@ -53,6 +58,13 @@ export function VisibilityPicker({
 		const term = query.trim().toLowerCase();
 		return teams.filter((team) => !term || team.name.toLowerCase().includes(term));
 	}, [query, teams]);
+	const selectedTeams = useMemo(() => {
+		const teamsById = new Map(teams.map((team) => [team.id, team]));
+		return teamIds.flatMap((teamId) => {
+			const team = teamsById.get(teamId);
+			return team ? [team] : [];
+		});
+	}, [teamIds, teams]);
 
 	const chooseVisibility = (next: ResourceVisibility) => {
 		onChange(next, next === "teams" ? teamIds : []);
@@ -100,6 +112,48 @@ export function VisibilityPicker({
 						>
 							{selected.label}
 						</span>
+						{visibility === "teams" && selectedTeams.length > 0 && (
+							<Tooltip>
+								<TooltipTrigger asChild>
+									<span className="flex max-w-[220px] items-center gap-1">
+										{selectedTeams.slice(0, 2).map((team) => (
+											<span
+												key={team.id}
+												className="inline-flex min-w-0 items-center gap-1 rounded-full bg-hover px-1.5 py-0.5 text-[10px] font-semibold text-subtle dark:bg-white/10 dark:text-panel-body"
+											>
+												<span
+													className="size-1.5 shrink-0 rounded-full"
+													style={{
+														backgroundColor: team.color ?? "#78909C",
+													}}
+												/>
+												<span className="max-w-[88px] truncate">{team.name}</span>
+											</span>
+										))}
+										{selectedTeams.length > 2 && (
+											<span className="shrink-0 text-[10px] font-semibold text-meta">
+												+{selectedTeams.length - 2}
+											</span>
+										)}
+									</span>
+								</TooltipTrigger>
+								<TooltipContent sideOffset={6}>
+									<div className="space-y-1.5">
+										{selectedTeams.map((team) => (
+											<div key={team.id} className="flex items-center gap-2">
+												<span
+													className="size-2 rounded-full"
+													style={{
+														backgroundColor: team.color ?? "#78909C",
+													}}
+												/>
+												<span>{team.name}</span>
+											</div>
+										))}
+									</div>
+								</TooltipContent>
+							</Tooltip>
+						)}
 						<ChevronDown className={cn("size-3.5 text-meta transition-transform", open && "rotate-180")} />
 					</button>
 				</DropdownMenuPrimitive.Trigger>

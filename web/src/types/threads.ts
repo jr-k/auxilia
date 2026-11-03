@@ -30,6 +30,7 @@ export interface Thread {
 	projectId?: string | null;
 	folderId?: string | null;
 	completedAt?: string | null;
+	isUnread?: boolean;
 	/** Outcome of the most recent run; null = no finished run. In-flight state
 	 * comes from the active-runs poll, never from this field. */
 	lastRunStatus?: RunTerminalStatus | null;

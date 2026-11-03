@@ -50,7 +50,7 @@ export function WorkspaceSwitcher() {
 
 	const choose = async (workspaceId: string) => {
 		if (workspaceId === activeWorkspaceId) return;
-		if (!prepareToDiscardUnsavedChanges()) return;
+		if (!(await prepareToDiscardUnsavedChanges())) return;
 		const destination = currentWorkspaceSwitchDestination();
 		try {
 			await selectWorkspace(workspaceId);

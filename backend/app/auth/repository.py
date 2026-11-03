@@ -100,7 +100,10 @@ class PasswordResetTokenRepository(BaseRepository[PasswordResetTokenDB]):
         self, token: PasswordResetTokenDB
     ) -> PasswordResetTokenDB:
         await self.delete_for_user(token.user_id)
-        return await self.create(token)
+        self.db.add(token)
+        await self.db.flush()
+        await self.db.refresh(token)
+        return token
 
     async def has_recent_for_user(self, user_id: UUID, since: datetime) -> bool:
         stmt = (

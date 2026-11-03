@@ -211,10 +211,16 @@ def require_role(minimum_role: WorkspaceRole) -> Callable:
     """Factory that returns a FastAPI dependency requiring a minimum workspace role."""
 
     async def dependency(
+        request: Request,
         current_user: UserDB = Depends(get_current_user),
     ) -> UserDB:
         if current_user.active_workspace_id is None:
             raise DomainValidationError("No active workspace selected")
+        if (
+            current_user.is_instance_owner
+            and getattr(request.state, "supervision_actor", None) is None
+        ):
+            return current_user
         if ROLE_HIERARCHY[current_user.role] < ROLE_HIERARCHY[minimum_role]:
             raise PermissionDeniedError(f"{minimum_role.value} access required")
         return current_user

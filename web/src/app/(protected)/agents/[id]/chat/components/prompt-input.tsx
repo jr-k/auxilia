@@ -115,7 +115,6 @@ interface ChatPromptInputProps {
 	// May persist (thread page): the pill shows a pending state and a failure
 	// toasts instead of leaving the UI out of sync with the server.
 	onEffortChange?: (effort: string | null) => void | Promise<void>;
-	agentReady?: boolean | null;
 	acceptsFiles?: boolean | null;
 	disconnectedServers?: MCPServer[];
 	onAllConnected?: () => void;
@@ -183,7 +182,6 @@ const ChatPromptInput = ({
 	readOnlyEffort = readOnlyModel,
 	selectedEffort = null,
 	onEffortChange,
-	agentReady,
 	acceptsFiles = null,
 	disconnectedServers = [],
 	onAllConnected,
@@ -1134,10 +1132,7 @@ const ChatPromptInput = ({
 							</Dialog>
 						)}
 						<ConnectButton
-							needsConnection={
-								agentReady === false &&
-								enabledDisconnectedServers.length > 0
-							}
+							needsConnection={enabledDisconnectedServers.length > 0}
 							onClick={() => {
 								setConnectDialogOpen(true);
 							}}

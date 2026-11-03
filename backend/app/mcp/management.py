@@ -620,7 +620,11 @@ def register_management_tools(mcp: MCPServer) -> None:
 
     @mcp.tool()
     async def list_triggers(ctx: Context) -> list[dict[str, Any]]:
-        """List scheduled and webhook triggers visible to the caller."""
+        """List scheduled and webhook triggers visible to the caller.
+
+        Use this first when the user refers to an existing recurring
+        automation by its purpose rather than by trigger ID.
+        """
         async with tool_session(ctx) as (db, user, workspace_id):
             return to_json(await TriggerService(db, workspace_id).list(user))
 
@@ -634,6 +638,9 @@ def register_management_tools(mcp: MCPServer) -> None:
     async def create_trigger(data: TriggerCreate, ctx: Context) -> dict[str, Any]:
         """Create a scheduled or webhook trigger for an agent.
 
+        This is the primary tool when the user asks to schedule or automate
+        recurring agent work, for example every day at 08:00. Do not claim the
+        automation is active until this tool returns the created trigger.
         Call get_agent_resources first when choosing resources. Put every
         unchosen resource ID in its matching disabled list and every rejected
         tool name in disabled_mcp_tools under its MCP server ID. Trigger tools
@@ -654,7 +661,7 @@ def register_management_tools(mcp: MCPServer) -> None:
     async def update_trigger(
         trigger_id: UUID, data: TriggerPatch, ctx: Context
     ) -> dict[str, Any]:
-        """Update, pause, move, or change resource selection for a trigger."""
+        """Update an existing trigger's instructions, schedule, state, or resources."""
         async with tool_session(ctx) as (db, user, workspace_id):
             return to_json(
                 await TriggerService(db, workspace_id).update(trigger_id, data, user)
@@ -1624,7 +1631,9 @@ def register_management_tools(mcp: MCPServer) -> None:
             )
             return to_json(
                 await ThreadService(db, workspace_id).list_for_agent(
-                    agent_id, PageParams(limit=limit, offset=offset)
+                    agent_id,
+                    PageParams(limit=limit, offset=offset),
+                    user.id,
                 )
             )
 

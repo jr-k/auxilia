@@ -10,6 +10,7 @@ import {
 	AlertCircle,
 	Bot,
 	Check,
+	Circle,
 	CircleCheck,
 	ChevronDown,
 	Loader2,
@@ -34,6 +35,9 @@ import {
 	FolderKanban,
 	MessagesSquare,
 	FolderInput,
+	ListFilter,
+	Mail,
+	MailOpen,
 	type LucideIcon,
 } from "lucide-react";
 import {
@@ -75,6 +79,7 @@ import {
 	type BulkFailure,
 } from "@/components/ui/bulk-confirm-dialog";
 import { SelectableLeading } from "@/components/ui/selectable-leading";
+import { ThreadUnreadBadge } from "@/components/ui/thread-unread-badge";
 import { RenameThreadDialog } from "@/components/layout/app-sidebar/rename-thread-dialog";
 import { AboutDialog } from "@/components/layout/app-sidebar/about-dialog";
 import { Thread } from "@/types/threads";
@@ -84,12 +89,20 @@ import { useShowShortcutsInMenu } from "@/lib/user-preferences";
 import { getApiErrorMessage } from "@/lib/api/errors";
 import { userRoleLabel } from "@/lib/user-role";
 import { cn } from "@/lib/utils";
-import { ProjectsTree } from "@/components/layout/app-sidebar/projects-tree";
+import {
+	ProjectsTree,
+	type ThreadCompletionFilter,
+} from "@/components/layout/app-sidebar/projects-tree";
 import {
 	ThreadPlacementDialog,
 	type ThreadPlacementTarget,
 } from "@/components/layout/app-sidebar/thread-placement-dialog";
 import { toast } from "sonner";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 const navItems: {
 	title: string;
@@ -127,7 +140,6 @@ const navItems: {
 ];
 
 type ThemeMode = "system" | "dark" | "light";
-
 const NEXT_THEME: Record<ThemeMode, ThemeMode> = {
 	system: "dark",
 	dark: "light",
@@ -138,6 +150,33 @@ const THEME_LABELS: Record<ThemeMode, string> = {
 	system: "System mode",
 	dark: "Dark mode",
 	light: "Light mode",
+};
+
+const NEXT_THREAD_FILTER: Record<
+	ThreadCompletionFilter,
+	ThreadCompletionFilter
+> = {
+	mixed: "uncompleted",
+	uncompleted: "completed",
+	completed: "mixed",
+};
+
+const THREAD_FILTER_COPY: Record<
+	ThreadCompletionFilter,
+	{ label: string; description: string }
+> = {
+	mixed: {
+		label: "Mixed",
+		description: "Showing open and completed conversations",
+	},
+	uncompleted: {
+		label: "Uncompleted",
+		description: "Showing open conversations only",
+	},
+	completed: {
+		label: "Completed",
+		description: "Showing completed conversations only",
+	},
 };
 
 /** Compact relative time for thread rows: now, 5m, 2h, 3d, 4w */
@@ -163,6 +202,54 @@ function IconSlot({ children }: { children: React.ReactNode }) {
 	);
 }
 
+function ThreadCompletionFilterControl({
+	value,
+	onChange,
+}: {
+	value: ThreadCompletionFilter;
+	onChange: () => void;
+}) {
+	return (
+		<Tooltip>
+			<TooltipTrigger asChild>
+				<button
+					type="button"
+					onClick={onChange}
+					aria-label={`Thread filter: ${THREAD_FILTER_COPY[value].label}`}
+					className={cn(
+						"relative flex size-4 shrink-0 cursor-pointer items-center justify-center rounded-[4px] transition-colors after:absolute after:-inset-1.5 hover:bg-sidebar-accent hover:text-sidebar-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring",
+						value === "mixed"
+							? "text-sidebar-muted"
+							: "text-sidebar-active-icon",
+					)}
+				>
+					{value === "mixed" ? (
+						<ListFilter className="size-3" />
+					) : value === "completed" ? (
+						<CircleCheck className="size-3" />
+					) : (
+						<Circle className="size-3" />
+					)}
+				</button>
+			</TooltipTrigger>
+			<TooltipContent
+				side="right"
+				sideOffset={10}
+				className="px-2.5 py-2 shadow-xl"
+			>
+				<div className="flex min-w-44 flex-col gap-0.5">
+					<span className="font-semibold">
+						{THREAD_FILTER_COPY[value].label}
+					</span>
+					<span className="text-[10px] opacity-70">
+						{THREAD_FILTER_COPY[value].description}
+					</span>
+				</div>
+			</TooltipContent>
+		</Tooltip>
+	);
+}
+
 export function AppSidebar() {
 	const router = useRouter();
 	const pathname = usePathname();
@@ -174,6 +261,7 @@ export function AppSidebar() {
 		loadMoreThreads,
 		removeThread,
 		setThreadCompleted,
+		setThreadReadState,
 	} = useThreadsStore();
 	const triggers = useTriggersStore((state) => state.triggers);
 	const refreshProjectTree = useProjectsStore((state) => state.refreshTree);
@@ -198,15 +286,24 @@ export function AppSidebar() {
 	const [sidebarMode, setSidebarMode] = useState<"threads" | "projects">(
 		"threads",
 	);
+	const [threadCompletionFilter, setThreadCompletionFilter] =
+		useState<ThreadCompletionFilter>("mixed");
 	const [movingThread, setMovingThread] =
 		useState<ThreadPlacementTarget | null>(null);
-	const activeRunThreadIds = useActiveRunThreadIds(threads);
+	const visibleThreads = threads.filter((thread) => {
+		if (threadCompletionFilter === "mixed") return true;
+		if (threadCompletionFilter === "completed") {
+			return thread.completedAt != null;
+		}
+		return thread.completedAt == null;
+	});
+	const activeRunThreadIds = useActiveRunThreadIds(visibleThreads);
 	const appearance = useAppearanceStore((state) => state.appearance);
 	const showShortcutsInMenu = useShowShortcutsInMenu();
 	const selection = useRowSelection({
-		orderedIds: threads.map((thread) => thread.id),
+		orderedIds: visibleThreads.map((thread) => thread.id),
 	});
-	const selectedThreads = threads.filter((thread) =>
+	const selectedThreads = visibleThreads.filter((thread) =>
 		selection.selectedIds.has(thread.id),
 	);
 
@@ -226,10 +323,36 @@ export function AppSidebar() {
 		});
 	}, []);
 
+	useEffect(() => {
+		const saved = window.localStorage.getItem(
+			"auxilia:recent-threads-completion-filter",
+		);
+		if (
+			saved !== "mixed" &&
+			saved !== "uncompleted" &&
+			saved !== "completed"
+		) {
+			return;
+		}
+		queueMicrotask(() => {
+			setThreadCompletionFilter(saved);
+		});
+	}, []);
+
 	const changeSidebarMode = (mode: "threads" | "projects") => {
 		if (mode === "projects") selection.clear();
 		setSidebarMode(mode);
 		window.localStorage.setItem("auxilia:sidebar-mode", mode);
+	};
+
+	const cycleThreadCompletionFilter = () => {
+		const next = NEXT_THREAD_FILTER[threadCompletionFilter];
+		selection.clear();
+		setThreadCompletionFilter(next);
+		window.localStorage.setItem(
+			"auxilia:recent-threads-completion-filter",
+			next,
+		);
 	};
 
 	const navCounts: Record<string, number | undefined> = {
@@ -262,14 +385,25 @@ export function AppSidebar() {
 		}
 	};
 
+	const handleThreadReadState = async (thread: Thread) => {
+		try {
+			await setThreadReadState(thread.id, !thread.isUnread);
+		} catch (error) {
+			toast.error(
+				getApiErrorMessage(error, "The conversation could not be updated."),
+			);
+		}
+	};
+
 	const handleLogout = () => {
-		navigateWithUnsavedChanges(logout);
+		void navigateWithUnsavedChanges(logout);
 	};
 	const navigateTo = (href: string) => {
-		const navigated = navigateWithUnsavedChanges(() => {
+		void navigateWithUnsavedChanges(() => {
 			router.push(href);
+		}).then((navigated) => {
+			if (navigated && isMobile) setOpenMobile(false);
 		});
-		if (navigated && isMobile) setOpenMobile(false);
 	};
 	const navigateHome = () => {
 		navigateTo("/");
@@ -427,21 +561,27 @@ export function AppSidebar() {
 						 thread rows below don't move when collapsing */}
 						<SidebarGroupLabel className="h-auto overflow-hidden whitespace-nowrap pl-2 pr-[5px] pt-2 pb-1.5 font-sans text-[10px] font-semibold text-sidebar-muted-highlight group-data-[collapsible=icon]:mt-0">
 							<span>Recent threads</span>
-							<Link
-								href="/settings?tab=profile&section=threads"
-								title="View all threads"
-								aria-label="View all threads"
-								onClick={() => {
-									if (isMobile) setOpenMobile(false);
-								}}
-								className="relative ml-auto flex size-4 shrink-0 items-center justify-end rounded-[4px] text-sidebar-muted transition-colors after:absolute after:-inset-1.5 hover:text-sidebar-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
-							>
-								<List className="size-3" />
-							</Link>
+							<div className="ml-auto flex items-center gap-1">
+								<ThreadCompletionFilterControl
+									value={threadCompletionFilter}
+									onChange={cycleThreadCompletionFilter}
+								/>
+								<Link
+									href="/settings?tab=profile&section=threads"
+									title="View all threads"
+									aria-label="View all threads"
+									onClick={() => {
+										if (isMobile) setOpenMobile(false);
+									}}
+									className="relative flex size-4 shrink-0 items-center justify-end rounded-[4px] text-sidebar-muted transition-colors after:absolute after:-inset-1.5 hover:text-sidebar-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
+								>
+									<List className="size-3" />
+								</Link>
+							</div>
 						</SidebarGroupLabel>
 						<SidebarGroupContent className="overflow-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
 							<SidebarMenu className="gap-px">
-								{threads.map((thread, i) => {
+								{visibleThreads.map((thread, i) => {
 									const isActive =
 										pathname === `/agents/${thread.agentId}/chat/${thread.id}`;
 									const isTriggerThread = thread.source === "trigger";
@@ -503,12 +643,13 @@ export function AppSidebar() {
 												>
 													<span className="w-7 shrink-0" aria-hidden />
 													<div className="min-w-0 flex-1 group-data-[collapsible=icon]:hidden">
-														<div className="flex items-center">
+														<div className="flex items-center gap-1.5">
 															<span
 																className={`truncate text-[13px] leading-[1.45] text-sidebar-foreground ${isActive ? "font-semibold" : "font-medium"}`}
 															>
 																{title}
 															</span>
+															{thread.isUnread && <ThreadUnreadBadge />}
 														</div>
 														<div className="flex items-center gap-1.5">
 															<span className="truncate text-[10.5px] text-sidebar-muted-highlight">
@@ -641,6 +782,15 @@ export function AppSidebar() {
 													align="start"
 													items={[
 														{
+															label: thread.isUnread
+																? "Mark as read"
+																: "Mark as unread",
+															icon: thread.isUnread ? <MailOpen /> : <Mail />,
+															onClick: () => {
+																void handleThreadReadState(thread);
+															},
+														},
+														{
 															label:
 																thread.completedAt == null
 																	? "Mark as complete"
@@ -718,10 +868,17 @@ export function AppSidebar() {
 							<>
 								<SidebarGroupLabel className="h-auto overflow-hidden whitespace-nowrap pl-2 pr-[5px] pt-2 pb-1.5 font-sans text-[10px] font-semibold text-sidebar-muted-highlight group-data-[collapsible=icon]:mt-0">
 									<span>Projects</span>
+									<div className="ml-auto flex items-center">
+										<ThreadCompletionFilterControl
+											value={threadCompletionFilter}
+											onChange={cycleThreadCompletionFilter}
+										/>
+									</div>
 								</SidebarGroupLabel>
 								<SidebarGroupContent className="overflow-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
 									<ProjectsTree
 										pathname={pathname}
+										completionFilter={threadCompletionFilter}
 										closeMobile={() => {
 											if (isMobile) setOpenMobile(false);
 										}}

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import re
 from collections.abc import Awaitable, Callable, Mapping
 from typing import Annotated, Any, cast
 
@@ -25,7 +26,12 @@ from langchain_core.tools import BaseTool, StructuredTool
 from langgraph.types import Command, Overwrite
 
 from app.agents.models import ToolDiscoveryMode
-from app.runtime.tool_catalog import SearchHit, ToolCatalog, tool_server_name
+from app.runtime.tool_catalog import (
+    SearchHit,
+    ToolCatalog,
+    search_tokens,
+    tool_server_name,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -39,12 +45,61 @@ LOCAL_ROUTER_SERVER_LIMIT = 3
 LOCAL_ROUTER_CATALOG_LIMIT = 48
 LAZY_DESCRIPTION_LIMIT = 140
 LAZY_QUERY_LIMIT = 4000
+RECURRING_INTENT_TERMS = frozenset(
+    {
+        "chaque",
+        "cron",
+        "daily",
+        "every",
+        "hebdomadaire",
+        "hourly",
+        "mensuel",
+        "mensuelle",
+        "monthly",
+        "nightly",
+        "periodique",
+        "quotidien",
+        "quotidienne",
+        "quotidiennement",
+        "recurrence",
+        "recurrent",
+        "recurrente",
+        "scheduled",
+        "scheduling",
+        "weekly",
+    }
+)
+RECURRING_FREQUENCY_TERMS = frozenset(
+    {
+        "ans",
+        "annees",
+        "dimanches",
+        "heures",
+        "jeudis",
+        "jours",
+        "lundis",
+        "mardis",
+        "matins",
+        "mercredis",
+        "minutes",
+        "mois",
+        "nuits",
+        "samedis",
+        "semaines",
+        "soirs",
+        "vendredis",
+    }
+)
 
 LAZY_ROUTER_PROMPT = (
     "You route one user request to MCP servers. Return the names of the MCP "
     "servers whose tools this request needs, nothing else. Return an empty "
     "list when the request needs no MCP tool. Keep a server that was active "
-    "in the previous turn when the request continues work with it."
+    "in the previous turn when the request continues work with it. Always "
+    "select a server explicitly named by the user, including phrases such as "
+    "'via the X MCP'. Scheduling, recurring automation, and requests phrased "
+    "as 'every day', 'every week', or 'at 8 AM' need a server whose "
+    "description mentions triggers, schedules, or workspace management."
 )
 
 
@@ -212,6 +267,15 @@ class LazyToolDiscoveryMiddleware(HiddenSchemaMiddleware):
         self.tools_by_server = {
             server: tuple(names) for server, names in tools_by_server.items()
         }
+        self.recurring_servers = [
+            server
+            for server, names in self.tools_by_server.items()
+            if any(
+                "trigger" in search_tokens(name)
+                and {"create", "update"} & set(search_tokens(name))
+                for name in names
+            )
+        ]
         self.server_by_tool = {
             name: server
             for server, names in self.tools_by_server.items()
@@ -261,6 +325,25 @@ class LazyToolDiscoveryMiddleware(HiddenSchemaMiddleware):
             if self.server_by_tool.get(name) in wanted
         ]
 
+    def _explicit_servers(self, query: str) -> list[str]:
+        folded_query = query.casefold()
+        return [
+            server
+            for server in self.tools_by_server
+            if re.search(
+                rf"(?<!\w){re.escape(server.casefold())}(?!\w)",
+                folded_query,
+            )
+        ]
+
+    def _recurring_servers(self, query: str) -> list[str]:
+        tokens = set(search_tokens(query))
+        recurring = bool(tokens & RECURRING_INTENT_TERMS) or (
+            bool(tokens & {"tous", "toutes"})
+            and bool(tokens & RECURRING_FREQUENCY_TERMS)
+        )
+        return self.recurring_servers if recurring else []
+
     async def _route(self, query: str, previous: list[str]) -> list[str] | None:
         """The servers the request needs; ``None`` when the router failed."""
         server_names = list(self.tools_by_server)
@@ -299,9 +382,15 @@ class LazyToolDiscoveryMiddleware(HiddenSchemaMiddleware):
             return None
         return list(
             dict.fromkeys(
-                server
-                for server in raw
-                if isinstance(server, str) and server in self.tools_by_server
+                [
+                    *(
+                        server
+                        for server in raw
+                        if isinstance(server, str) and server in self.tools_by_server
+                    ),
+                    *self._explicit_servers(query),
+                    *self._recurring_servers(query),
+                ]
             )
         )
 

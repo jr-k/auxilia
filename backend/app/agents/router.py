@@ -520,8 +520,9 @@ async def is_ready(
 async def list_agent_threads(
     agent_id: UUID,
     page: PageParams = Depends(),
+    current_user: UserDB = Depends(get_current_user),
     thread_service: ThreadService = Depends(get_thread_service),
 ) -> Page[AgentThreadResponse]:
     """List an agent's threads across users, newest first. Restricted to agent
     owners and admins (workspace or agent-level)."""
-    return await thread_service.list_for_agent(agent_id, page)
+    return await thread_service.list_for_agent(agent_id, page, current_user.id)

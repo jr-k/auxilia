@@ -160,7 +160,10 @@ export default function AgentCard({
 						)}
 					</div>
 					<div className="ml-auto flex max-w-full shrink-0 flex-wrap items-center justify-end gap-1.5">
-						<VisibilityBadge visibility={agent.visibility} />
+						<VisibilityBadge
+							visibility={agent.visibility}
+							teamIds={agent.teamIds}
+						/>
 						{(() => {
 							const badge = agent.currentUserPermission
 								? ROLE_BADGE_CONFIG[agent.currentUserPermission]

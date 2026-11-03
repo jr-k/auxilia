@@ -101,7 +101,6 @@ const StarterChatPage = () => {
 		[agents],
 	);
 	const {
-		ready: agentReady,
 		acceptsFiles,
 		status,
 		detail: statusDetail,
@@ -474,7 +473,6 @@ const StarterChatPage = () => {
 							}}
 							selectedEffort={reasoningEffort}
 							onEffortChange={setReasoningEffort}
-							agentReady={agentReady}
 							acceptsFiles={acceptsFiles}
 							disconnectedServers={disconnectedMcpServers}
 							onAllConnected={() => {

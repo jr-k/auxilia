@@ -34,6 +34,7 @@ interface ProjectsState {
 	fetchProjects: () => Promise<void>;
 	refreshTree: () => Promise<void>;
 	setProjectDetail: (detail: ProjectDetail) => void;
+	setThreadReadState: (threadId: string, isUnread: boolean) => void;
 	mountProjectDetail: (id: string) => void;
 	unmountProjectDetail: (id: string) => void;
 	evictProjectDetail: (id: string, accessLost?: boolean) => void;
@@ -183,6 +184,27 @@ export const useProjectsStore = create<ProjectsState>((set, get) => ({
 						project.id === detail.id ? projectFromTree(detail) : project,
 					)
 				: [...state.projects, projectFromTree(detail)],
+		}));
+	},
+	setThreadReadState: (threadId, isUnread) => {
+		set((state) => ({
+			tree: state.tree.map((project) => ({
+				...project,
+				threads: project.threads.map((thread) =>
+					thread.id === threadId ? { ...thread, isUnread } : thread,
+				),
+			})),
+			detailsById: Object.fromEntries(
+				Object.entries(state.detailsById).map(([id, project]) => [
+					id,
+					{
+						...project,
+						threads: project.threads.map((thread) =>
+							thread.id === threadId ? { ...thread, isUnread } : thread,
+						),
+					},
+				]),
+			),
 		}));
 	},
 	mountProjectDetail: (id) => {

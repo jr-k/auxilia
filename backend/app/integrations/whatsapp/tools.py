@@ -54,9 +54,12 @@ def _bound_whatsapp_tools(
     async def whatsapp_send_message(text: str) -> str:
         """Send a message to the current user's linked WhatsApp account.
 
-        Use only when the user explicitly asks to send, post, or forward
-        content to WhatsApp. The destination is fixed by their linked Auxilia
-        profile. WhatsApp permits this only during the 24-hour service window.
+        This is the primary tool for any explicit request to send, post,
+        publish, share, or forward content on WhatsApp, including requests made
+        from web chat and scheduled runs. Use it directly instead of a browser,
+        computer-control tool, or external WhatsApp MCP. The destination is
+        fixed by the user's linked Auxilia profile. WhatsApp permits this only
+        during the 24-hour service window.
         """
         cleaned_text = text.strip()
         if not cleaned_text:

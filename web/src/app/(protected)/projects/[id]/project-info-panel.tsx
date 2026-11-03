@@ -364,19 +364,33 @@ function ContextPanel({
 		};
 	}, [getFile, selectedId]);
 
-	const choose = (id: string) => {
+	const choose = async (id: string) => {
 		if (id === selectedId) return;
-		if (dirty && !window.confirm("Discard the unsaved context file changes?")) {
-			return;
+		if (dirty) {
+			const accepted = await confirm({
+				title: "Discard context file changes?",
+				description: "Your unsaved changes to this context file will be lost.",
+				confirmLabel: "Discard changes",
+				cancelLabel: "Keep editing",
+				destructive: true,
+			});
+			if (!accepted) return;
 		}
 		setSelectedId(id);
 		setLoaded(null);
 		setRemoteState(null);
 	};
 
-	const startNew = () => {
-		if (dirty && !window.confirm("Discard the unsaved context file changes?")) {
-			return;
+	const startNew = async () => {
+		if (dirty) {
+			const accepted = await confirm({
+				title: "Discard context file changes?",
+				description: "Your unsaved changes to this context file will be lost.",
+				confirmLabel: "Discard changes",
+				cancelLabel: "Keep editing",
+				destructive: true,
+			});
+			if (!accepted) return;
 		}
 		setSelectedId(null);
 		setLoaded(null);
@@ -485,7 +499,9 @@ function ContextPanel({
 					{detail.canManage && (
 						<button
 							type="button"
-							onClick={startNew}
+							onClick={() => {
+								void startNew();
+							}}
 							className="mb-1 flex h-8 w-full cursor-pointer items-center gap-2 whitespace-nowrap rounded-[6px] px-2 text-left text-[11.5px] font-semibold text-petrol transition-colors hover:bg-petrol-tint dark:text-panel-terminal dark:hover:bg-white/5"
 						>
 							<FilePlus2 className="size-3.5" />
@@ -497,7 +513,7 @@ function ContextPanel({
 							key={file.id}
 							type="button"
 							onClick={() => {
-								choose(file.id);
+								void choose(file.id);
 							}}
 							className={cn(
 								"flex w-full cursor-pointer items-start gap-2 rounded-[6px] px-2 py-2 text-left transition-colors hover:bg-hover",

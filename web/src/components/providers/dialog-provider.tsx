@@ -13,10 +13,11 @@ import {
 import { usePathname } from "next/navigation";
 import ConfirmDialog from "@/components/ui/confirm-dialog";
 
-interface ConfirmDialogOptions {
+export interface ConfirmDialogOptions {
 	title: string;
 	description: ReactNode;
 	confirmLabel?: string;
+	cancelLabel?: string;
 	destructive?: boolean;
 }
 
@@ -28,6 +29,13 @@ interface PendingConfirmation extends ConfirmDialogOptions {
 type Confirm = (options: ConfirmDialogOptions) => Promise<boolean>;
 
 const DialogContext = createContext<Confirm | null>(null);
+let globalConfirm: Confirm | null = null;
+
+export function requestConfirmDialog(
+	options: ConfirmDialogOptions,
+): Promise<boolean> {
+	return globalConfirm?.(options) ?? Promise.resolve(false);
+}
 
 /**
  * App-wide replacement for the browser's blocking `window.confirm`.
@@ -74,6 +82,15 @@ export function DialogProvider({ children }: { children: ReactNode }) {
 	}, [pathname, settle]);
 
 	const value = useMemo(() => confirm, [confirm]);
+	useEffect(() => {
+		globalConfirm = confirm;
+		return () => {
+			if (globalConfirm === confirm) globalConfirm = null;
+			const current = pendingRef.current;
+			pendingRef.current = null;
+			current?.resolve(false);
+		};
+	}, [confirm]);
 
 	return (
 		<DialogContext.Provider value={value}>
@@ -87,6 +104,7 @@ export function DialogProvider({ children }: { children: ReactNode }) {
 					title={pending.title}
 					description={pending.description}
 					confirmLabel={pending.confirmLabel ?? "Continue"}
+					cancelLabel={pending.cancelLabel}
 					destructive={pending.destructive}
 					onConfirm={() => {
 						settle(pending.id, true);

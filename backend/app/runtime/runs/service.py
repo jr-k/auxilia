@@ -677,6 +677,8 @@ class RunService:
                 cancelled_waiter = was_pending_queue and status == RunStatus.cancelled
                 if not cancelled_waiter:
                     await threads.set_last_run_status(thread_id, status)
+                if status == RunStatus.success:
+                    await threads.increment_response_version(thread_id)
                 if status == RunStatus.interrupted:
                     await threads.set_awaiting_input(thread_id, True)
                 elif was_command and status == RunStatus.success:
@@ -689,6 +691,14 @@ class RunService:
                         target_user_id=before.user_id,
                         thread_id=thread_id,
                     )
+                    if status == RunStatus.success:
+                        await stage_workspace_event(
+                            db,
+                            workspace_id=before.workspace_id,
+                            kind=WorkspaceEventKind.threads,
+                            target_user_id=before.user_id,
+                            thread_id=thread_id,
+                        )
                     if was_pending_queue:
                         await stage_workspace_event(
                             db,
@@ -698,6 +708,16 @@ class RunService:
                             thread_id=thread_id,
                         )
                     thread = await threads.get(thread_id)
+                    if (
+                        status == RunStatus.success
+                        and thread is not None
+                        and thread.project_id is not None
+                    ):
+                        await stage_workspace_event(
+                            db,
+                            workspace_id=before.workspace_id,
+                            kind=WorkspaceEventKind.projects,
+                        )
                     if thread is not None and thread.trigger_id is not None:
                         await stage_workspace_event(
                             db,

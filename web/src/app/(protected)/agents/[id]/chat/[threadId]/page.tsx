@@ -66,6 +66,8 @@ const ChatPage = () => {
   const playedCompletionSequence = useRef(0);
   const completionCandidate = useRef(0);
   const completionTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const readStateInFlight = useRef(false);
+  const readCompletionSequence = useRef(0);
   const runStatusRef = useRef<"idle" | "streaming" | "interrupted">("idle");
   const transcriptMessages = useRef<BaseMessage[]>([]);
   // Id of the assistant message whose completion was already accounted for.
@@ -77,6 +79,10 @@ const ChatPage = () => {
     threadId: string;
     sequence: number;
   } | null>(null);
+  const [responsePendingDisplay, setResponsePendingDisplay] = useState<
+    string | null
+  >(null);
+  const [pageVisible, setPageVisible] = useState(false);
   const [resourceSettingsOverride, setResourceSettingsOverride] = useState<{
     threadId: string;
     settings: ThreadResourceSettings;
@@ -95,8 +101,14 @@ const ChatPage = () => {
   const threadsVersion = useWorkspaceEventsStore(
     (state) => state.threadsVersion,
   );
+  const projectsVersion = useWorkspaceEventsStore(
+    (state) => state.projectsVersion,
+  );
   const setThreadCompleted = useThreadsStore(
     (state) => state.setThreadCompleted,
+  );
+  const setThreadReadState = useThreadsStore(
+    (state) => state.setThreadReadState,
   );
   const refreshThreads = useThreadsStore((state) => state.refreshThreads);
   const refreshProjectTree = useProjectsStore((state) => state.refreshTree);
@@ -130,9 +142,11 @@ const ChatPage = () => {
       }
       const assistantId = messages.at(latestAssistantResponse)?.id ?? null;
       if (assistantId !== null && assistantId === acknowledgedAssistantId.current) {
+        setResponsePendingDisplay(null);
         return;
       }
       acknowledgedAssistantId.current = assistantId;
+      setResponsePendingDisplay(null);
       completionSequence.current += 1;
       setSuccessfulCompletion({
         threadId,
@@ -150,17 +164,36 @@ const ChatPage = () => {
     onCompleted: ({ reason }) => {
       const candidate = ++completionCandidate.current;
       if (reason !== "success") {
+        setResponsePendingDisplay(null);
         if (completionTimer.current !== null) clearTimeout(completionTimer.current);
         return;
       }
+      setResponsePendingDisplay(threadId);
       settleSuccessfulCompletion(candidate);
     },
   });
   const recheckThreadMetadata = actions.recheckModel;
   useEffect(() => {
-    if (threadsVersion === 0 || meta.status !== "ready") return;
+    if (
+      (threadsVersion === 0 && projectsVersion === 0) ||
+      meta.status !== "ready"
+    ) {
+      return;
+    }
     void recheckThreadMetadata();
-  }, [meta.status, recheckThreadMetadata, threadsVersion]);
+  }, [meta.status, projectsVersion, recheckThreadMetadata, threadsVersion]);
+  useEffect(() => {
+    const updateVisibility = () => {
+      setPageVisible(document.visibilityState === "visible");
+    };
+    updateVisibility();
+    document.addEventListener("visibilitychange", updateVisibility);
+    window.addEventListener("focus", updateVisibility);
+    return () => {
+      document.removeEventListener("visibilitychange", updateVisibility);
+      window.removeEventListener("focus", updateVisibility);
+    };
+  }, []);
   useEffect(() => {
     transcriptMessages.current = transcript.messages;
   }, [transcript.messages]);
@@ -254,6 +287,51 @@ const ChatPage = () => {
     userMessageCount,
   ]);
   const thread = meta.thread;
+  useEffect(() => {
+    const completionReady =
+      successfulCompletion?.threadId === threadId &&
+      successfulCompletion.sequence > readCompletionSequence.current;
+    if (
+      meta.status !== "ready" ||
+      !transcript.hydrated ||
+      run.status !== "idle" ||
+      responsePendingDisplay === threadId ||
+      !pageVisible ||
+      readStateInFlight.current ||
+      (!thread?.isUnread && !completionReady)
+    ) {
+      return;
+    }
+    readStateInFlight.current = true;
+    const completionSequenceToRead = completionReady
+      ? successfulCompletion.sequence
+      : readCompletionSequence.current;
+    void setThreadReadState(threadId, false)
+      .then(() => {
+        readCompletionSequence.current = Math.max(
+          readCompletionSequence.current,
+          completionSequenceToRead,
+        );
+        return recheckThreadMetadata();
+      })
+      .catch(() => {
+        // Keep the unread state. A later visibility or workspace event retries.
+      })
+      .finally(() => {
+        readStateInFlight.current = false;
+      });
+  }, [
+    meta.status,
+    pageVisible,
+    recheckThreadMetadata,
+    responsePendingDisplay,
+    run.status,
+    setThreadReadState,
+    successfulCompletion,
+    thread?.isUnread,
+    threadId,
+    transcript.hydrated,
+  ]);
   const completed =
     completionOverride?.threadId === threadId
       ? completionOverride.completed
@@ -371,7 +449,6 @@ const ChatPage = () => {
   ]);
 
   const {
-    ready: agentReady,
     acceptsFiles,
     status: agentStatus,
     detail: agentStatusDetail,
@@ -669,7 +746,6 @@ const ChatPage = () => {
             }
             selectedEffort={thread?.reasoningEffort ?? null}
             onEffortChange={actions.changeReasoningEffort}
-            agentReady={agentReady}
             acceptsFiles={acceptsFiles}
             disconnectedServers={disconnectedMcpServers}
             onAllConnected={refetchReady}

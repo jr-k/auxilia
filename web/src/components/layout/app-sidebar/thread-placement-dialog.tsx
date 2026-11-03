@@ -1,8 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
+import {
+	AsyncSearchSelect,
+	type AsyncSearchOption,
+} from "@/components/ui/async-search-select";
 import {
 	Dialog,
 	DialogButton,
@@ -13,6 +17,7 @@ import {
 	DialogTitle,
 } from "@/components/ui/dialog";
 import { getApiErrorMessage } from "@/lib/api/errors";
+import * as projectsApi from "@/lib/api/resources/projects";
 import { getProjectFolderPath } from "@/lib/project-folders";
 import { useProjectsStore } from "@/stores/projects-store";
 import { useThreadsStore } from "@/stores/threads-store";
@@ -46,9 +51,46 @@ export function ThreadPlacementDialog({
 		setFolderId(thread?.folderId ?? null);
 	}, [open, thread]);
 
-	const folders = useMemo(
-		() => projects.find((project) => project.id === projectId)?.folders ?? [],
-		[projectId, projects],
+	const selectedProject = projects.find((project) => project.id === projectId);
+	const folders = selectedProject?.folders ?? [];
+	const selectedFolder = folders.find((folder) => folder.id === folderId);
+	const selectedProjectOption: AsyncSearchOption | null = selectedProject
+		? {
+				value: selectedProject.id,
+				label: selectedProject.emoji
+					? `${selectedProject.emoji} ${selectedProject.name}`
+					: selectedProject.name,
+				description: selectedProject.description || undefined,
+			}
+		: null;
+	const selectedFolderOption: AsyncSearchOption | null = selectedFolder
+		? {
+				value: selectedFolder.id,
+				label: getProjectFolderPath(selectedFolder, folders),
+			}
+		: null;
+	const loadProjectOptions = useCallback(
+		async (query: string, signal: AbortSignal) =>
+			(await projectsApi.searchProjects(query, signal)).map((project) => ({
+				value: project.id,
+				label: project.emoji
+					? `${project.emoji} ${project.name}`
+					: project.name,
+				description: project.description || undefined,
+			})),
+		[],
+	);
+	const loadFolderOptions = useCallback(
+		async (query: string, signal: AbortSignal) => {
+			if (!projectId) return [];
+			return (
+				await projectsApi.searchProjectFolders(projectId, query, signal)
+			).map((folder) => ({
+				value: folder.id,
+				label: folder.path,
+			}));
+		},
+		[projectId],
 	);
 
 	const save = async () => {
@@ -77,47 +119,30 @@ export function ThreadPlacementDialog({
 					</DialogDescription>
 				</DialogHeader>
 				<div className="grid gap-3 sm:grid-cols-2">
-					<label className="block">
-						<span className="mb-1.5 block text-[11px] font-semibold text-label dark:text-muted-foreground">
-							Project
-						</span>
-						<select
-							value={projectId ?? ""}
-							onChange={(event) => {
-								setProjectId(event.target.value || null);
-								setFolderId(null);
-							}}
-							className="h-10 w-full cursor-pointer rounded-[9px] border border-input bg-card px-3 text-[13px] text-foreground outline-none focus:border-petrol"
-						>
-							<option value="">No project</option>
-							{projects.map((project) => (
-								<option key={project.id} value={project.id}>
-									{project.emoji ? `${project.emoji} ` : ""}
-									{project.name}
-								</option>
-							))}
-						</select>
-					</label>
-					<label className="block">
-						<span className="mb-1.5 block text-[11px] font-semibold text-label dark:text-muted-foreground">
-							Folder
-						</span>
-						<select
-							value={folderId ?? ""}
-							disabled={projectId === null}
-							onChange={(event) => {
-								setFolderId(event.target.value || null);
-							}}
-							className="h-10 w-full cursor-pointer rounded-[9px] border border-input bg-card px-3 text-[13px] text-foreground outline-none focus:border-petrol disabled:cursor-not-allowed disabled:opacity-50"
-						>
-							<option value="">Project root</option>
-							{folders.map((folder) => (
-								<option key={folder.id} value={folder.id}>
-									{getProjectFolderPath(folder, folders)}
-								</option>
-							))}
-						</select>
-					</label>
+					<AsyncSearchSelect
+						label="Project"
+						value={projectId}
+						selectedOption={selectedProjectOption}
+						placeholder="Search projects"
+						emptyValueLabel="No project"
+						loadOptions={loadProjectOptions}
+						onChange={(nextProjectId) => {
+							setProjectId(nextProjectId);
+							setFolderId(null);
+						}}
+					/>
+					<AsyncSearchSelect
+						label="Folder"
+						value={folderId}
+						selectedOption={selectedFolderOption}
+						placeholder="Search folders"
+						emptyValueLabel="Project root"
+						disabled={projectId === null}
+						loadOptions={loadFolderOptions}
+						onChange={(nextFolderId) => {
+							setFolderId(nextFolderId);
+						}}
+					/>
 				</div>
 				<DialogFooter>
 					<DialogButton

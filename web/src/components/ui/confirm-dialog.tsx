@@ -18,6 +18,7 @@ interface ConfirmDialogProps {
 	description: React.ReactNode;
 	/** The confirming button's label, e.g. "Delete skill". */
 	confirmLabel: string;
+	cancelLabel?: string;
 	/** Red fill for irreversible actions (design 19a: never a bare red text button). */
 	destructive?: boolean;
 	/** Resolves when done; a rejection keeps the dialog open with the error. */
@@ -36,6 +37,7 @@ export default function ConfirmDialog({
 	title,
 	description,
 	confirmLabel,
+	cancelLabel = "Cancel",
 	destructive = false,
 	onConfirm,
 	errorMessage = "Something went wrong. Please try again.",
@@ -82,7 +84,7 @@ export default function ConfirmDialog({
 							onOpenChange(false);
 						}}
 					>
-						Cancel
+						{cancelLabel}
 					</DialogButton>
 					<DialogButton
 						variant={destructive ? "destructive" : "primary"}

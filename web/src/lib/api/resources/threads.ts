@@ -16,10 +16,22 @@ import type {
 	ThreadCreate,
 	ThreadRead,
 	ThreadResourceSettings,
+	ThreadSource,
 } from "@/types/threads";
 
 export type PageParams = { limit: number; offset: number };
-export type ThreadPageParams = PageParams & { q?: string };
+export type ThreadPageParams = PageParams & {
+	q?: string;
+	projectId?: string;
+	folderId?: string;
+	placement?: "all" | "assigned" | "unassigned";
+	readStatus?: "all" | "read" | "unread";
+	completion?: "all" | "completed" | "uncompleted";
+	source?: ThreadSource;
+	createdFrom?: string;
+	createdBefore?: string;
+	includeApi?: boolean;
+};
 
 export interface ConversationShare {
 	id: string;
@@ -194,6 +206,17 @@ export async function updateThreadCompletion(
 	const response = await api.put<Thread>(`/threads/${threadId}/completion`, {
 		completed,
 	});
+	return response.data;
+}
+
+export async function updateThreadReadState(
+	threadId: string,
+	isUnread: boolean,
+): Promise<{ isUnread: boolean }> {
+	const response = await api.put<{ isUnread: boolean }>(
+		`/threads/${threadId}/read-state`,
+		{ isUnread },
+	);
 	return response.data;
 }
 

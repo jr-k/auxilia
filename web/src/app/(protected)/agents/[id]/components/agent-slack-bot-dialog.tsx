@@ -73,24 +73,16 @@ interface Props {
 	onDisconnect?: () => Promise<void>;
 }
 
-const scopes = [
-	"app_mentions:read",
-	"assistant:write",
-	"channels:history",
-	"chat:write",
-	"chat:write.public",
-	"commands",
-	"files:read",
-	"files:write",
-	"groups:history",
-	"im:history",
-	"im:write",
-	"mpim:history",
-	"reactions:read",
-	"reactions:write",
-	"users:read",
-	"users:read.email",
-];
+function slackBotScopes(manifest: Record<string, unknown>): string[] {
+	const oauthConfig = manifest.oauth_config;
+	if (!oauthConfig || typeof oauthConfig !== "object") return [];
+	const manifestScopes = (oauthConfig as Record<string, unknown>).scopes;
+	if (!manifestScopes || typeof manifestScopes !== "object") return [];
+	const botScopes = (manifestScopes as Record<string, unknown>).bot;
+	return Array.isArray(botScopes)
+		? botScopes.filter((scope): scope is string => typeof scope === "string")
+		: [];
+}
 
 function CopyValue({
 	label,
@@ -157,6 +149,10 @@ function AgentSlackSetupGuide({
 	const [activeStep, setActiveStep] = useState(0);
 	const [setupMode, setSetupMode] = useState<"manifest" | "manual">("manifest");
 	const appName = useAppearanceStore((state) => state.appearance.appName);
+	const scopes = useMemo(
+		() => slackBotScopes(settings.manifest),
+		[settings.manifest],
+	);
 	const badgeClass =
 		"rounded-[4px] border border-border bg-background px-1.5 py-0.5 text-[11.5px] text-foreground dark:border-white/10";
 
@@ -324,6 +320,8 @@ function AgentSlackSetupGuide({
 						))}
 					</div>
 					<p className="mt-3">
+						The channel read scopes let the agent find the best channel from
+						an approximate name before publishing.{" "}
 						The public write scope lets the agent publish in public channels.
 						Private channels still require an invitation. The reactions scopes
 						let it understand existing reactions, acknowledge mentions, and

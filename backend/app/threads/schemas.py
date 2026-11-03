@@ -64,6 +64,8 @@ class ThreadPlacementUpdate(SQLModel):
 
 
 ThreadPlacementFilter = Literal["all", "assigned", "unassigned"]
+ThreadReadFilter = Literal["all", "read", "unread"]
+ThreadCompletionFilter = Literal["all", "completed", "uncompleted"]
 
 
 class ThreadBulkPlacementUpdate(BaseModel):
@@ -86,6 +88,14 @@ class ThreadBulkPlacementResponse(SQLModel):
 
 class ThreadCompletionUpdate(SQLModel):
     completed: bool
+
+
+class ThreadReadStateUpdate(SQLModel):
+    is_unread: bool
+
+
+class ThreadReadStateResponse(SQLModel):
+    is_unread: bool
 
 
 class ThreadResourcesPatch(SQLModel):
@@ -116,6 +126,7 @@ class ThreadResponse(ThreadBase):
     agent_color: str | None = None
     agent_image_revision: UUID | None = None
     agent_archived: bool = False
+    is_unread: bool = False
     # Whether the thread's current model can run right now (whitelist ∧
     # provider key ∧ admin-enabled). Server-computed on the single-thread GET
     # so the frontend can disable the composer without re-deriving the rule;

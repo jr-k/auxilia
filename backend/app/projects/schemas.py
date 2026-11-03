@@ -116,6 +116,7 @@ class ProjectThreadRow(SQLModel):
     completed_at: datetime | None = None
     folder_id: UUID | None = None
     can_manage: bool = False
+    is_unread: bool = False
     created_at: datetime
 
 
