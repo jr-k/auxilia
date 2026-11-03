@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.108](https://github.com/jr-k/auxilia/compare/web-v0.12.107...web-v0.12.108) (2026-11-03)
+
+
+### Bug Fixes
+
+* **projects:** stretch info panel editor to full height ([b58641b](https://github.com/jr-k/auxilia/commit/b58641bfad73f98af8f7aa8d0a6d5f6747a8e4a4))
+
 ## [0.12.107](https://github.com/jr-k/auxilia/compare/web-v0.12.106...web-v0.12.107) (2026-11-03)
 
 
