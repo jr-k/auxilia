@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.76](https://github.com/jr-k/auxilia/compare/backend-v0.11.75...backend-v0.11.76) (2026-11-03)
+
+
+### Features
+
+* **workspace:** improve conversations and resource controls ([8d853b1](https://github.com/jr-k/auxilia/commit/8d853b1467383193cf0e93ce00fe5299428dc7ac))
+
 ## [0.11.75](https://github.com/jr-k/auxilia/compare/backend-v0.11.74...backend-v0.11.75) (2026-11-03)
 
 

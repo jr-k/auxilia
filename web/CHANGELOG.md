@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.104](https://github.com/jr-k/auxilia/compare/web-v0.12.103...web-v0.12.104) (2026-11-03)
+
+
+### Features
+
+* **workspace:** improve conversations and resource controls ([8d853b1](https://github.com/jr-k/auxilia/commit/8d853b1467383193cf0e93ce00fe5299428dc7ac))
+
 ## [0.12.103](https://github.com/jr-k/auxilia/compare/web-v0.12.102...web-v0.12.103) (2026-11-02)
 
 
