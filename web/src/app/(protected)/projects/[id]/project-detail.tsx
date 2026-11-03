@@ -836,7 +836,9 @@ function ProjectTreeNavigation({
 							</button>
 						</div>
 						{isOpen && children > 0 && (
-							<ul role="group">{renderFolders(folder.id, depth + 1)}</ul>
+							<ul role="group" className="space-y-px pt-px">
+								{renderFolders(folder.id, depth + 1)}
+							</ul>
 						)}
 					</li>
 				);
@@ -1620,7 +1622,7 @@ export default function ProjectDetailView({
 									Project info
 								</p>
 								<p className="truncate text-[10.5px] text-meta">
-									Instructions, context files, and skills
+									Instructions and context files
 								</p>
 							</div>
 							<button

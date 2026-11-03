@@ -36,8 +36,6 @@ from app.projects.schemas import (
     ProjectFolderSearchResponse,
     ProjectPatch,
     ProjectResponse,
-    ProjectSkillsResponse,
-    ProjectSkillsUpdate,
     ProjectThreadRow,
     ProjectTreeResponse,
     ProjectTriggerRow,
@@ -45,8 +43,6 @@ from app.projects.schemas import (
 from app.realtime.schemas import WorkspaceEventKind
 from app.realtime.service import stage_workspace_event
 from app.service import BaseService
-from app.skills.models import SkillDB
-from app.skills.repository import SkillRepository
 from app.teams.repository import TeamRepository
 from app.triggers.models import TriggerDB
 from app.users.models import UserDB, WorkspaceRole
@@ -359,7 +355,6 @@ class ProjectService(BaseService[ProjectDB, ProjectRepository]):
             system_prompt=project.system_prompt,
             revision=project.revision,
             context_files=[self._context_summary(row) for row in context_files],
-            skill_ids=await self.repository.list_skill_ids(project.id),
         )
 
     async def create(self, data: ProjectCreate, owner: UserDB) -> ProjectResponse:
@@ -396,55 +391,6 @@ class ProjectService(BaseService[ProjectDB, ProjectRepository]):
                 team_ids=team_ids,
                 agents=agents,
             )
-
-    async def _ensure_bound_skills_fit(
-        self,
-        project: ProjectDB,
-        visibility: ResourceVisibility,
-        team_ids: builtins.list[UUID],
-    ) -> None:
-        skills = SkillRepository(self.db, self.workspace_id)
-        for skill in await self.repository.list_skills(project.id, for_update=True):
-            skill_team_ids = (
-                set(await skills.list_team_ids(skill.id))
-                if skill.visibility == ResourceVisibility.teams
-                else set()
-            )
-            if not audience_contains(
-                parent_visibility=visibility,
-                parent_owner_id=project.owner_id,
-                parent_team_ids=set(team_ids),
-                child_visibility=skill.visibility,
-                child_owner_id=skill.owner_id,
-                child_team_ids=skill_team_ids,
-            ):
-                raise DomainValidationError(
-                    f"Skill '{skill.name}' is more private than this project"
-                )
-
-    async def ensure_projects_fit_skill(
-        self,
-        skill: SkillDB,
-        visibility: ResourceVisibility,
-        team_ids: builtins.list[UUID],
-    ) -> None:
-        for project in await self.repository.list_projects_for_skill(skill.id):
-            project_team_ids = (
-                set(await self.repository.list_team_ids(project.id))
-                if project.visibility == ResourceVisibility.teams
-                else set()
-            )
-            if not audience_contains(
-                parent_visibility=project.visibility,
-                parent_owner_id=project.owner_id,
-                parent_team_ids=project_team_ids,
-                child_visibility=visibility,
-                child_owner_id=skill.owner_id,
-                child_team_ids=set(team_ids),
-            ):
-                raise DomainValidationError(
-                    f"Skill scope is incompatible with project '{project.name}'"
-                )
 
     async def ensure_trigger_agent_fits(
         self,
@@ -494,7 +440,6 @@ class ProjectService(BaseService[ProjectDB, ProjectRepository]):
         )
         if audience_changed:
             await self._ensure_trigger_agents_fit(project, visibility, team_ids)
-            await self._ensure_bound_skills_fit(project, visibility, team_ids)
         project = await self.repository.update(project, data)
         if data.team_ids is not None or visibility != previous_visibility:
             await self.repository.set_team_ids(project.id, team_ids)
@@ -657,86 +602,12 @@ class ProjectService(BaseService[ProjectDB, ProjectRepository]):
         await self.repository.delete_context_file(row)
         await self._stage_events()
 
-    async def list_skills(
-        self, project_id: UUID, user: UserDB
-    ) -> ProjectSkillsResponse:
-        project = await self.get_visible(project_id, user)
-        return ProjectSkillsResponse(
-            skill_ids=await self.repository.list_skill_ids(project.id),
-            revision=project.revision,
-        )
-
-    async def set_skills(
-        self,
-        project_id: UUID,
-        data: ProjectSkillsUpdate,
-        user: UserDB,
-    ) -> ProjectSkillsResponse:
-        project = await self.repository.get_for_update(project_id)
-        if project is None:
-            raise NotFoundError(self.not_found_message)
-        self._ensure_can_manage(project, user)
-        if data.revision != project.revision:
-            raise StaleRevisionError(
-                "This project changed since you opened it. Reload it before saving."
-            )
-        skill_ids = list(dict.fromkeys(data.skill_ids))
-        project_team_ids = await self._team_ids(project)
-        skills = SkillRepository(self.db, self.workspace_id)
-        for skill_id in sorted(skill_ids, key=str):
-            skill = await skills.get_for_update(skill_id)
-            if skill is None:
-                raise NotFoundError("Skill not found")
-            skill_team_ids = (
-                set(await skills.list_team_ids(skill.id))
-                if skill.visibility == ResourceVisibility.teams
-                else set()
-            )
-            if not audience_contains(
-                parent_visibility=project.visibility,
-                parent_owner_id=project.owner_id,
-                parent_team_ids=set(project_team_ids),
-                child_visibility=skill.visibility,
-                child_owner_id=skill.owner_id,
-                child_team_ids=skill_team_ids,
-            ):
-                raise DomainValidationError(
-                    f"Skill '{skill.name}' is more private than this project"
-                )
-        changed = set(skill_ids) != set(
-            await self.repository.list_skill_ids(project.id)
-        )
-        if changed:
-            await self.repository.set_skill_ids(project.id, skill_ids)
-        project.revision += 1
-        self.db.add(project)
-        await self.db.flush()
-        await self.db.refresh(project)
-        await self._stage_events()
-        if changed:
-            await stage_workspace_event(
-                self.db,
-                workspace_id=self.workspace_id,
-                kind=WorkspaceEventKind.skills,
-            )
-        return ProjectSkillsResponse(
-            skill_ids=skill_ids,
-            revision=project.revision,
-        )
-
     async def delete(self, project_id: UUID, user: UserDB) -> None:
         project = await self.get_or_404(project_id)
         self._ensure_can_manage(project, user)
-        had_skills = bool(await self.repository.list_skill_ids(project.id))
         await self.repository.detach_project_content(project.id)
         await self.repository.delete(project)
         await self._stage_events(content=True)
-        if had_skills:
-            await stage_workspace_event(
-                self.db,
-                workspace_id=self.workspace_id,
-                kind=WorkspaceEventKind.skills,
-            )
 
     async def create_folder(
         self, project_id: UUID, data: ProjectFolderCreate, user: UserDB

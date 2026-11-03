@@ -32,7 +32,6 @@ def context_file_description(content: str) -> str | None:
 class ProjectRunContext:
     system_prompt: str
     rows: tuple[ProjectContextFileDB, ...]
-    skill_ids: tuple[UUID, ...]
 
     @property
     def files(self) -> dict[str, bytes]:
@@ -95,7 +94,6 @@ async def resolve_project_run_context(
     return ProjectRunContext(
         system_prompt=project.system_prompt,
         rows=tuple(await repository.list_context_files(project.id)),
-        skill_ids=tuple(await repository.list_skill_ids(project.id)),
     )
 
 

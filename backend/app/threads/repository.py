@@ -134,6 +134,7 @@ class ThreadRepository(BaseRepository[ThreadDB]):
         source: ThreadSource | None = None,
         created_from: datetime | None = None,
         created_before: datetime | None = None,
+        order: Literal["created", "activity"] = "created",
     ):
         sources = (
             (*FIRST_PARTY_SOURCES, ThreadSource.api)
@@ -153,7 +154,17 @@ class ThreadRepository(BaseRepository[ThreadDB]):
             .join(AgentDB, ThreadDB.agent_id == AgentDB.id)
             .where(ThreadDB.user_id == user_id)
             .where(ThreadDB.source.in_(sources))
-            .order_by(ThreadDB.created_at.desc(), ThreadDB.id)
+        )
+        stmt = stmt.order_by(
+            *(
+                (
+                    ThreadDB.updated_at.desc(),
+                    ThreadDB.created_at.desc(),
+                    ThreadDB.id,
+                )
+                if order == "activity"
+                else (ThreadDB.created_at.desc(), ThreadDB.id)
+            )
         )
         stmt = self._join_read_state(stmt, user_id)
         if project_id is not None:

@@ -88,13 +88,9 @@ export function useWorkspaceResourcesSync(): void {
 
 	useEffect(() => {
 		if (skillsVersion === 0) return;
-		const projects = useProjectsStore.getState();
 		void Promise.allSettled([
 			useSkillsStore.getState().fetchSkills(true),
 			useSkillsStore.getState().fetchSources(true),
-			...Object.keys(projects.mountedDetailIds)
-				.filter((id) => projects.detailsById[id])
-				.map((id) => projects.refreshProjectDetail(id)),
 		]).then((results) => {
 			for (const result of results) {
 				if (result.status === "rejected") {

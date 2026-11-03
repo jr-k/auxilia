@@ -36,6 +36,7 @@ from app.threads.schemas import (
     ThreadCreate,
     ThreadMemoriesUpdate,
     ThreadModelUpdate,
+    ThreadOrder,
     ThreadPatch,
     ThreadPlacementFilter,
     ThreadPlacementResult,
@@ -154,6 +155,7 @@ class ThreadService(BaseService[ThreadDB, ThreadRepository]):
         source: ThreadSource | None = None,
         created_from: datetime | None = None,
         created_before: datetime | None = None,
+        order: ThreadOrder = "created",
     ) -> Page[ThreadResponse]:
         if placement == "unassigned" and (
             project_id is not None or folder_id is not None
@@ -182,6 +184,7 @@ class ThreadService(BaseService[ThreadDB, ThreadRepository]):
             source=source,
             created_from=created_from,
             created_before=created_before,
+            order=order,
         )
         return Page.build([_thread_with_agent(*row) for row in rows], total, page)
 
@@ -645,7 +648,6 @@ class ThreadService(BaseService[ThreadDB, ThreadRepository]):
             data.disabled_skill_ids,
             data.disabled_sandbox_ids,
             data.disabled_subagent_ids,
-            project_id=thread.project_id,
             tolerated_mcp_ids={
                 UUID(resource_id) for resource_id in thread.disabled_mcp_server_ids
             },
@@ -807,7 +809,6 @@ class ThreadService(BaseService[ThreadDB, ThreadRepository]):
         disabled_sandbox_ids: list[UUID],
         disabled_subagent_ids: list[UUID],
         *,
-        project_id: UUID | None = None,
         tolerated_mcp_ids: set[UUID] | None = None,
         tolerated_skill_ids: set[UUID] | None = None,
         tolerated_sandbox_ids: set[UUID] | None = None,
@@ -821,12 +822,6 @@ class ThreadService(BaseService[ThreadDB, ThreadRepository]):
         available_skill_ids = await SkillRepository(
             self.db, self.workspace_id
         ).list_attached_ids_for_agents(spec.all_agent_ids)
-        if project_id is not None:
-            available_skill_ids.update(
-                await ProjectService(
-                    self.db, self.workspace_id
-                ).repository.list_skill_ids(project_id)
-            )
         available_sandbox_ids = {sandbox.id for sandbox in spec.all_sandbox_rows}
         available_subagent_ids = {subagent.id for subagent in spec.subagents}
         unknown_mcp_ids = (

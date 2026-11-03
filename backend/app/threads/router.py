@@ -23,6 +23,7 @@ from app.threads.schemas import (
     ThreadCreate,
     ThreadMemoriesUpdate,
     ThreadModelUpdate,
+    ThreadOrder,
     ThreadPatch,
     ThreadPlacementFilter,
     ThreadPlacementUpdate,
@@ -115,6 +116,7 @@ async def get_threads(
     source: ThreadSource | None = None,
     created_from: datetime | None = None,
     created_before: datetime | None = None,
+    order: ThreadOrder = "created",
     include_api: bool = False,
     current_user: UserDB = Depends(get_current_user),
     service: ThreadService = Depends(get_thread_service),
@@ -131,6 +133,7 @@ async def get_threads(
         source=source,
         created_from=created_from,
         created_before=created_before,
+        order=order,
         include_api=include_api,
     )
 

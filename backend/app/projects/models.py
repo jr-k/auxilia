@@ -99,21 +99,3 @@ class ProjectContextFileDB(BaseDBModel, table=True):
     path: str = Field(max_length=500, nullable=False)
     content: str = Field(sa_column=Column(Text, nullable=False))
     revision: int = Field(default=1, nullable=False)
-
-
-class ProjectSkillDB(TimestampMixin, SQLModel, table=True):
-    __tablename__ = "project_skills"
-
-    project_id: UUID = Field(
-        foreign_key="projects.id",
-        ondelete="CASCADE",
-        nullable=False,
-        primary_key=True,
-    )
-    skill_id: UUID = Field(
-        foreign_key="skills.id",
-        ondelete="CASCADE",
-        nullable=False,
-        primary_key=True,
-        index=True,
-    )

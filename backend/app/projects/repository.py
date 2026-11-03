@@ -8,11 +8,9 @@ from app.projects.models import (
     ProjectContextFileDB,
     ProjectDB,
     ProjectFolderDB,
-    ProjectSkillDB,
     ProjectTeamDB,
 )
 from app.repository import BaseRepository
-from app.skills.models import SkillDB
 from app.threads.models import ThreadDB, ThreadReadStateDB
 from app.triggers.models import TriggerDB
 
@@ -138,62 +136,6 @@ class ProjectRepository(BaseRepository[ProjectDB]):
     async def delete_context_file(self, row: ProjectContextFileDB) -> None:
         await self.db.delete(row)
         await self.db.flush()
-
-    async def list_skill_ids(self, project_id: UUID) -> list[UUID]:
-        stmt = (
-            select(ProjectSkillDB.skill_id)
-            .where(col(ProjectSkillDB.project_id) == project_id)
-            .order_by(col(ProjectSkillDB.skill_id))
-        )
-        result = await self.db.execute(stmt)
-        return list(result.scalars().all())
-
-    async def list_skills(
-        self, project_id: UUID, *, for_update: bool = False
-    ) -> list[SkillDB]:
-        stmt = (
-            select(SkillDB)
-            .join(ProjectSkillDB, col(ProjectSkillDB.skill_id) == col(SkillDB.id))
-            .where(
-                col(ProjectSkillDB.project_id) == project_id,
-                col(SkillDB.workspace_id) == self.workspace_id,
-            )
-            .order_by(col(SkillDB.id))
-        )
-        if for_update:
-            stmt = stmt.with_for_update()
-        result = await self.db.execute(stmt)
-        return list(result.scalars().all())
-
-    async def set_skill_ids(self, project_id: UUID, skill_ids: list[UUID]) -> None:
-        stmt = delete(ProjectSkillDB).where(
-            col(ProjectSkillDB.project_id) == project_id
-        )
-        await self.db.execute(stmt)
-        self.db.add_all(
-            [
-                ProjectSkillDB(project_id=project_id, skill_id=skill_id)
-                for skill_id in dict.fromkeys(skill_ids)
-            ]
-        )
-        await self.db.flush()
-
-    async def list_projects_for_skill(
-        self, skill_id: UUID, *, for_update: bool = False
-    ) -> list[ProjectDB]:
-        stmt = (
-            select(ProjectDB)
-            .join(ProjectSkillDB, col(ProjectSkillDB.project_id) == col(ProjectDB.id))
-            .where(
-                col(ProjectSkillDB.skill_id) == skill_id,
-                col(ProjectDB.workspace_id) == self.workspace_id,
-            )
-            .order_by(col(ProjectDB.id))
-        )
-        if for_update:
-            stmt = stmt.with_for_update()
-        result = await self.db.execute(stmt)
-        return list(result.scalars().all())
 
     async def get_folder(self, folder_id: UUID) -> ProjectFolderDB | None:
         stmt = (

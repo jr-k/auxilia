@@ -198,8 +198,6 @@ class TriggerService(BaseService[TriggerDB, TriggerRepository]):
         self,
         agent_id: UUID,
         selection: dict[str, list[UUID] | dict[UUID, list[str]] | None],
-        *,
-        project_id: UUID | None = None,
     ) -> dict[str, list[str] | dict[str, list[str]] | None]:
         """Validate explicit trigger overrides against the selected agent graph."""
         if not selection:
@@ -220,7 +218,6 @@ class TriggerService(BaseService[TriggerDB, TriggerRepository]):
             selected_ids.get("disabled_skill_ids", []),
             selected_ids.get("disabled_sandbox_ids", []),
             selected_ids.get("disabled_subagent_ids", []),
-            project_id=project_id,
         )
         result: dict[str, list[str] | dict[str, list[str]] | None] = {
             field: normalized[index] if selection.get(field) is not None else None
@@ -436,7 +433,6 @@ class TriggerService(BaseService[TriggerDB, TriggerRepository]):
                 for field in (*_RESOURCE_FIELDS, _TOOL_RESOURCE_FIELD)
                 if getattr(data, field) is not None
             },
-            project_id=data.project_id,
         )
         next_run_at = (
             compute_next_run_at(
@@ -605,7 +601,6 @@ class TriggerService(BaseService[TriggerDB, TriggerRepository]):
                 update=await self._normalize_resource_selection(
                     update_data.get("agent_id", trigger.agent_id),
                     resource_selection,
-                    project_id=next_project_id,
                 )
             )
         reactivating = data.is_active is True and not trigger.is_active

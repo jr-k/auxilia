@@ -451,7 +451,7 @@ export function ProjectsTree({
 								/>
 							</div>
 							{isOpen && (
-								<div className="ml-[15px] border-l border-sidebar-border pl-1.5">
+								<div className="ml-[15px] border-l border-sidebar-border pl-1.5 pt-px">
 									<ProjectResources
 										project={project}
 										folderId={null}
@@ -651,7 +651,7 @@ function ProjectResources({
 							/>
 						</div>
 						{isOpen && (
-							<div className="ml-[10px] border-l border-sidebar-border pl-1.5">
+							<div className="ml-[10px] border-l border-sidebar-border pl-1.5 pt-px">
 								<ProjectResources
 									project={project}
 									folderId={folder.id}

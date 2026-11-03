@@ -1,37 +1,28 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
 	CircleAlert,
 	FilePlus2,
 	FileText,
 	Loader2,
-	Search,
 	Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 
 import { useConfirmDialog } from "@/components/providers/dialog-provider";
-import { Checkbox } from "@/components/ui/checkbox";
-import { SkillAvatar } from "@/components/ui/skill-avatar";
 import { UnderlineTabs } from "@/components/ui/underline-tabs";
 import { formatBytes } from "@/app/(protected)/skills/lib/skill-form";
 import { useUnsavedChangesWarning } from "@/hooks/use-unsaved-changes-warning";
 import { getApiErrorMessage, toApiError } from "@/lib/api/errors";
-import * as projectsApi from "@/lib/api/resources/projects";
-import {
-	audienceContains,
-	incompatibleSkillReason,
-} from "@/lib/resource-visibility";
 import { cn } from "@/lib/utils";
 import { useProjectsStore } from "@/stores/projects-store";
-import { useSkillsStore } from "@/stores/skills-store";
 import type {
 	ProjectContextFile,
 	ProjectDetail,
 } from "@/types/projects";
 
-type InfoTab = "prompt" | "context" | "skills";
+type InfoTab = "prompt" | "context";
 type DirtyHandler = (dirty: boolean) => void;
 
 const fieldClass =
@@ -693,249 +684,11 @@ function ContextPanel({
 	);
 }
 
-const sameIds = (left: Set<string>, right: readonly string[]): boolean =>
-	left.size === right.length && right.every((id) => left.has(id));
-
-function SkillsPanel({
-	detail,
-	onDirtyChange,
-}: {
-	detail: ProjectDetail;
-	onDirtyChange: DirtyHandler;
-}) {
-	const skills = useSkillsStore((state) => state.skills);
-	const fetchSkills = useSkillsStore((state) => state.fetchSkills);
-	const replaceSkills = useProjectsStore(
-		(state) => state.replaceProjectSkills,
-	);
-	const [query, setQuery] = useState("");
-	const [selected, setSelected] = useState(() => new Set(detail.skillIds));
-	const [base, setBase] = useState(() => new Set(detail.skillIds));
-	const [revision, setRevision] = useState(detail.revision);
-	const [remote, setRemote] = useState<{
-		skillIds: string[];
-		revision: number;
-	} | null>(null);
-	const [saving, setSaving] = useState(false);
-
-	useEffect(() => {
-		void fetchSkills().catch((error: unknown) => {
-			toast.error(getApiErrorMessage(error, "Skills could not be loaded."));
-		});
-	}, [fetchSkills]);
-
-	const dirty =
-		selected.size !== base.size || [...selected].some((id) => !base.has(id));
-
-	useEffect(() => {
-		onDirtyChange(dirty);
-	}, [dirty, onDirtyChange]);
-
-	useEffect(() => {
-		if (saving) return;
-		if (sameIds(base, detail.skillIds)) {
-			if (revision !== detail.revision) {
-				queueMicrotask(() => {
-					setRevision(detail.revision);
-				});
-			}
-			return;
-		}
-		queueMicrotask(() => {
-			if (dirty) {
-				setRemote({
-					skillIds: detail.skillIds,
-					revision: detail.revision,
-				});
-				return;
-			}
-			const next = new Set(detail.skillIds);
-			setSelected(next);
-			setBase(next);
-			setRevision(detail.revision);
-			setRemote(null);
-		});
-	}, [base, detail.revision, detail.skillIds, dirty, revision, saving]);
-
-	const filtered = useMemo(() => {
-		const needle = query.trim().toLocaleLowerCase();
-		if (!needle) return skills;
-		return skills.filter(
-			(skill) =>
-				skill.name.toLocaleLowerCase().includes(needle) ||
-				skill.description.toLocaleLowerCase().includes(needle),
-		);
-	}, [query, skills]);
-
-	const save = async () => {
-		if (!detail.canManage || !dirty || saving) return;
-		setSaving(true);
-		try {
-			const result = await replaceSkills(detail.id, [...selected], revision);
-			setSelected(new Set(result.skillIds));
-			setBase(new Set(result.skillIds));
-			setRevision(result.revision);
-			setRemote(null);
-			toast.success("Project skills saved.");
-		} catch (error) {
-			if (toApiError(error).status === 409) {
-				toast.error(
-					"Project skills changed elsewhere. Your selection is preserved.",
-				);
-				try {
-					const latest = await projectsApi.getProjectSkills(detail.id);
-					setRemote(latest);
-					await useProjectsStore
-						.getState()
-						.refreshProjectDetail(detail.id);
-				} catch {
-					toast.error("The latest project skills could not be loaded.");
-				}
-			} else {
-				toast.error(
-					getApiErrorMessage(error, "Project skills could not be saved."),
-				);
-			}
-		} finally {
-			setSaving(false);
-		}
-	};
-
-	const incompatibleSelected = skills.some(
-		(skill) =>
-			selected.has(skill.id) &&
-			!audienceContains(detail, skill),
-	);
-
-	return (
-		<div className="flex min-h-0 flex-1 flex-col">
-			<div className="min-h-0 flex-1 overflow-y-auto p-4">
-				{remote && (
-					<div className="mb-3 rounded-[9px] border border-warning/25 bg-warning-bg px-3 py-2.5">
-						<div className="flex items-start gap-2">
-							<CircleAlert className="mt-0.5 size-3.5 shrink-0 text-warning" />
-							<p className="text-[11px] leading-4 text-warning">
-								Project skills changed elsewhere. Your selection is preserved.
-							</p>
-						</div>
-						<button
-							type="button"
-							onClick={() => {
-								const next = new Set(remote.skillIds);
-								setSelected(next);
-								setBase(next);
-								setRevision(remote.revision);
-								setRemote(null);
-							}}
-							className="mt-2 cursor-pointer whitespace-nowrap text-[11px] font-semibold text-warning underline-offset-2 hover:underline"
-						>
-							Discard selection and reload
-						</button>
-					</div>
-				)}
-				<p className="mb-3 text-[11.5px] leading-5 text-meta dark:text-panel-dim">
-					The model selects relevant skills automatically. No slash command is
-					needed.
-				</p>
-				<div className="relative">
-					<Search className="absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-meta" />
-					<input
-						value={query}
-						onChange={(event) => {
-							setQuery(event.target.value);
-						}}
-						placeholder="Search skills"
-						className={cn(fieldClass, "h-9 pl-9")}
-					/>
-				</div>
-				<div className="mt-3 space-y-1">
-					{filtered.map((skill) => {
-						const checked = selected.has(skill.id);
-						const compatible = audienceContains(detail, skill);
-						return (
-							<div
-								key={skill.id}
-								className={cn(
-									"flex items-center gap-3 rounded-[8px] border px-3 py-2.5",
-									checked
-										? "border-petrol/25 bg-petrol-tint/70 dark:bg-white/5"
-										: "border-transparent hover:bg-hover",
-								)}
-							>
-								<Checkbox
-									checked={checked}
-									disabled={
-										!detail.canManage || (!compatible && !checked)
-									}
-									aria-label={`${checked ? "Remove" : "Add"} ${skill.name}`}
-									onCheckedChange={(next) => {
-										setSelected((current) => {
-											const updated = new Set(current);
-											if (next) updated.add(skill.id);
-											else updated.delete(skill.id);
-											return updated;
-										});
-									}}
-								/>
-								<SkillAvatar
-									skillId={skill.id}
-									name={skill.name}
-									emoji={skill.emoji}
-									color={skill.color}
-									imageRevision={skill.imageRevision}
-									size="xs"
-								/>
-								<div className="min-w-0">
-									<p className="truncate text-[12px] font-semibold text-foreground">
-										{skill.name}
-									</p>
-									<p className="truncate text-[10.5px] text-meta">
-										{compatible
-											? skill.description
-											: incompatibleSkillReason(detail, skill)}
-									</p>
-								</div>
-							</div>
-						);
-					})}
-					{filtered.length === 0 && (
-						<p className="py-8 text-center text-[11.5px] text-meta">
-							No skills match this search.
-						</p>
-					)}
-				</div>
-			</div>
-			{detail.canManage && (
-				<PanelActions
-					dirty={dirty}
-					saving={saving}
-					disabled={incompatibleSelected}
-					onDiscard={() => {
-						if (remote) {
-							const next = new Set(remote.skillIds);
-							setSelected(next);
-							setBase(next);
-							setRevision(remote.revision);
-							setRemote(null);
-						} else {
-							setSelected(new Set(base));
-						}
-					}}
-					onSave={() => {
-						void save();
-					}}
-				/>
-			)}
-		</div>
-	);
-}
-
 export function ProjectInfoPanel({ detail }: { detail: ProjectDetail }) {
 	const [tab, setTab] = useState<InfoTab>("prompt");
 	const [dirtyPanels, setDirtyPanels] = useState<Record<InfoTab, boolean>>({
 		prompt: false,
 		context: false,
-		skills: false,
 	});
 	const setPromptDirty = useCallback((dirty: boolean) => {
 		setDirtyPanels((current) =>
@@ -945,11 +698,6 @@ export function ProjectInfoPanel({ detail }: { detail: ProjectDetail }) {
 	const setContextDirty = useCallback((dirty: boolean) => {
 		setDirtyPanels((current) =>
 			current.context === dirty ? current : { ...current, context: dirty },
-		);
-	}, []);
-	const setSkillsDirty = useCallback((dirty: boolean) => {
-		setDirtyPanels((current) =>
-			current.skills === dirty ? current : { ...current, skills: dirty },
 		);
 	}, []);
 	const isDirty = Object.values(dirtyPanels).some(Boolean);
@@ -974,12 +722,6 @@ export function ProjectInfoPanel({ detail }: { detail: ProjectDetail }) {
 							count: detail.contextFiles.length,
 							alert: dirtyPanels.context ? "Unsaved changes" : undefined,
 						},
-						{
-							key: "skills",
-							label: "Skills",
-							count: detail.skillIds.length,
-							alert: dirtyPanels.skills ? "Unsaved changes" : undefined,
-						},
 					]}
 				/>
 			</div>
@@ -1003,15 +745,6 @@ export function ProjectInfoPanel({ detail }: { detail: ProjectDetail }) {
 				className={cn("min-h-0 flex-1", tab !== "context" && "hidden")}
 			>
 				<ContextPanel detail={detail} onDirtyChange={setContextDirty} />
-			</div>
-			<div
-				id={`project-info-${detail.id}-panel-skills`}
-				role="tabpanel"
-				aria-labelledby={`project-info-${detail.id}-tab-skills`}
-				hidden={tab !== "skills"}
-				className={cn("min-h-0 flex-1", tab !== "skills" && "hidden")}
-			>
-				<SkillsPanel detail={detail} onDirtyChange={setSkillsDirty} />
 			</div>
 		</div>
 	);

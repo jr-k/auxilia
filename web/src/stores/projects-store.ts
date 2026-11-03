@@ -17,7 +17,6 @@ import type {
 	ProjectFolderCreate,
 	ProjectFolderPatch,
 	ProjectPatch,
-	ProjectSkillsResponse,
 	ProjectTree,
 	ProjectWrite,
 } from "@/types/projects";
@@ -58,11 +57,6 @@ interface ProjectsState {
 		id: string,
 		revision: number,
 	) => Promise<void>;
-	replaceProjectSkills: (
-		projectId: string,
-		skillIds: string[],
-		revision: number,
-	) => Promise<ProjectSkillsResponse>;
 	createProject: (payload: ProjectWrite) => Promise<Project>;
 	updateProject: (id: string, payload: ProjectPatch) => Promise<Project>;
 	deleteProject: (id: string) => Promise<void>;
@@ -381,31 +375,6 @@ export const useProjectsStore = create<ProjectsState>((set, get) => ({
 				},
 			};
 		});
-	},
-	replaceProjectSkills: async (projectId, skillIds, revision) => {
-		const generation = getWorkspaceGeneration();
-		const result = await projectsApi.replaceProjectSkills(
-			projectId,
-			skillIds,
-			revision,
-		);
-		if (isCurrentWorkspaceGeneration(generation)) {
-			set((state) => {
-				const detail = state.detailsById[projectId];
-				if (!detail) return state;
-				return {
-					detailsById: {
-						...state.detailsById,
-						[projectId]: {
-							...detail,
-							skillIds: result.skillIds,
-							revision: result.revision,
-						},
-					},
-				};
-			});
-		}
-		return result;
 	},
 	createProject: async (payload) => {
 		const generation = getWorkspaceGeneration();

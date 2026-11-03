@@ -77,7 +77,6 @@ export interface ProjectDetail extends ProjectTree {
 	systemPrompt: string;
 	revision: number;
 	contextFiles: ProjectContextFileSummary[];
-	skillIds: string[];
 }
 
 export interface ProjectConfigUpdate {
@@ -97,11 +96,6 @@ export interface ProjectContextFileCreate {
 }
 
 export interface ProjectContextFileUpdate extends ProjectContextFileCreate {
-	revision: number;
-}
-
-export interface ProjectSkillsResponse {
-	skillIds: string[];
 	revision: number;
 }
 

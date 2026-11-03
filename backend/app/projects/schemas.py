@@ -73,16 +73,6 @@ class ProjectContextFileResponse(ProjectContextFileSummary):
     content: str
 
 
-class ProjectSkillsUpdate(SQLModel):
-    skill_ids: list[UUID] = Field(default_factory=list)
-    revision: int = Field(ge=1)
-
-
-class ProjectSkillsResponse(SQLModel):
-    skill_ids: list[UUID] = Field(default_factory=list)
-    revision: int
-
-
 class ProjectFolderCreate(SQLModel):
     name: str = Field(min_length=1, max_length=255)
     parent_id: UUID | None = None
@@ -139,4 +129,3 @@ class ProjectDetailResponse(ProjectTreeResponse):
     system_prompt: str
     revision: int
     context_files: list[ProjectContextFileSummary] = Field(default_factory=list)
-    skill_ids: list[UUID] = Field(default_factory=list)

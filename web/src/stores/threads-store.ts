@@ -16,7 +16,7 @@ interface ThreadsState {
 	/** Fetch the first page, replacing the current list. */
 	fetchThreads: () => Promise<void>;
 	refreshThreads: () => Promise<void>;
-	/** Merge newly-created first-page threads into the current sidebar list. */
+	/** Refresh and reorder the sidebar's first page by latest activity. */
 	pollRecentThreads: () => Promise<void>;
 	/** Append the next page (deduped by id — new threads shift offsets). */
 	loadMoreThreads: () => Promise<void>;
@@ -47,7 +47,11 @@ export const useThreadsStore = create<ThreadsState>((set, get) => ({
 	refreshThreads: async () => {
 		const generation = getWorkspaceGeneration();
 		try {
-			const page = await threadsApi.listThreads({ limit: PAGE_SIZE, offset: 0 });
+			const page = await threadsApi.listThreads({
+				limit: PAGE_SIZE,
+				offset: 0,
+				order: "activity",
+			});
 			if (isCurrentWorkspaceGeneration(generation)) {
 				set({ threads: page.items, total: page.total });
 			}
@@ -58,21 +62,19 @@ export const useThreadsStore = create<ThreadsState>((set, get) => ({
 	pollRecentThreads: async () => {
 		const generation = getWorkspaceGeneration();
 		try {
-			const page = await threadsApi.listThreads({ limit: PAGE_SIZE, offset: 0 });
+			const page = await threadsApi.listThreads({
+				limit: PAGE_SIZE,
+				offset: 0,
+				order: "activity",
+			});
 			if (!isCurrentWorkspaceGeneration(generation)) return;
 			set((state) => {
-				const incoming = new Map(
-					page.items.map((thread) => [thread.id, thread]),
-				);
-				const knownIds = new Set(state.threads.map((thread) => thread.id));
-				const newThreads = page.items.filter(
-					(thread) => !knownIds.has(thread.id),
-				);
+				const refreshedIds = new Set(page.items.map((thread) => thread.id));
 				return {
 					threads: [
-						...newThreads,
-						...state.threads.map(
-							(thread) => incoming.get(thread.id) ?? thread,
+						...page.items,
+						...state.threads.filter(
+							(thread) => !refreshedIds.has(thread.id),
 						),
 					],
 					total: page.total,
@@ -91,6 +93,7 @@ export const useThreadsStore = create<ThreadsState>((set, get) => ({
 			const page = await threadsApi.listThreads({
 				limit: PAGE_SIZE,
 				offset: threads.length,
+				order: "activity",
 			});
 			if (!isCurrentWorkspaceGeneration(generation)) return;
 			set((state) => {

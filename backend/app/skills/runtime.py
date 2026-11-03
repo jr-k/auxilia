@@ -57,7 +57,6 @@ async def resolve_run_skills(
     agent_ids: Iterable[UUID],
     workspace_id: UUID,
     *,
-    project_skill_ids: Iterable[UUID] = (),
     excluded_skill_ids: Iterable[UUID] = (),
 ) -> list[SkillBundle]:
     """The skills this run executes with — read from the library, every time.
@@ -87,13 +86,9 @@ async def resolve_run_skills(
     excluded = set(excluded_skill_ids)
     repository = SkillRepository(db, workspace_id)
     rows = await repository.list_for_agents(agent_ids, excluded)
-    project_rows = await repository.list_by_ids(
-        skill_id for skill_id in project_skill_ids if skill_id not in excluded
-    )
-    by_id = {row.id: row for row in [*rows, *project_rows]}
     bundles = [
         row.to_bundle()
-        for row in sorted(by_id.values(), key=lambda item: (item.name, str(item.id)))
+        for row in sorted(rows, key=lambda item: (item.name, str(item.id)))
     ]
     ensure_unique_names(bundles)
     return bundles

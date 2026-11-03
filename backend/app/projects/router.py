@@ -18,8 +18,6 @@ from app.projects.schemas import (
     ProjectFolderSearchResponse,
     ProjectPatch,
     ProjectResponse,
-    ProjectSkillsResponse,
-    ProjectSkillsUpdate,
     ProjectTreeResponse,
 )
 from app.projects.service import ProjectService, get_project_service
@@ -172,25 +170,6 @@ async def create_project_context_file(
     service: ProjectService = Depends(get_project_service),
 ) -> ProjectContextFileResponse:
     return await service.create_context_file(project_id, data, user)
-
-
-@router.get("/{project_id}/skills", response_model=ProjectSkillsResponse)
-async def list_project_skills(
-    project_id: UUID,
-    user: UserDB = Depends(get_current_user),
-    service: ProjectService = Depends(get_project_service),
-) -> ProjectSkillsResponse:
-    return await service.list_skills(project_id, user)
-
-
-@router.put("/{project_id}/skills", response_model=ProjectSkillsResponse)
-async def replace_project_skills(
-    project_id: UUID,
-    data: ProjectSkillsUpdate,
-    user: UserDB = Depends(get_current_user),
-    service: ProjectService = Depends(get_project_service),
-) -> ProjectSkillsResponse:
-    return await service.set_skills(project_id, data, user)
 
 
 @router.patch("/{project_id}", response_model=ProjectResponse)

@@ -66,6 +66,7 @@ class ThreadPlacementUpdate(SQLModel):
 ThreadPlacementFilter = Literal["all", "assigned", "unassigned"]
 ThreadReadFilter = Literal["all", "read", "unread"]
 ThreadCompletionFilter = Literal["all", "completed", "uncompleted"]
+ThreadOrder = Literal["created", "activity"]
 
 
 class ThreadBulkPlacementUpdate(BaseModel):

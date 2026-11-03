@@ -51,7 +51,6 @@ from app.projects.schemas import (
     ProjectFolderCreate,
     ProjectFolderPatch,
     ProjectPatch,
-    ProjectSkillsUpdate,
 )
 from app.projects.service import ProjectService
 from app.runtime.hitl import load_interrupt_scopes, pending_approval_requests
@@ -543,26 +542,6 @@ def register_management_tools(mcp: MCPServer) -> None:
                 file_id, revision, user
             )
             return {"deleted": True}
-
-    @mcp.tool()
-    async def list_project_skills(project_id: UUID, ctx: Context) -> dict[str, Any]:
-        """List the skill bindings and revision of a visible project."""
-        async with tool_session(ctx) as (db, user, workspace_id):
-            return to_json(
-                await ProjectService(db, workspace_id).list_skills(project_id, user)
-            )
-
-    @mcp.tool()
-    async def set_project_skills(
-        project_id: UUID, data: ProjectSkillsUpdate, ctx: Context
-    ) -> dict[str, Any]:
-        """Replace a managed project's skills at its current revision."""
-        async with tool_session(ctx) as (db, user, workspace_id):
-            return to_json(
-                await ProjectService(db, workspace_id).set_skills(
-                    project_id, data, user
-                )
-            )
 
     @mcp.tool()
     async def search_project_folders(

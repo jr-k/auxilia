@@ -30,6 +30,7 @@ export type ThreadPageParams = PageParams & {
 	source?: ThreadSource;
 	createdFrom?: string;
 	createdBefore?: string;
+	order?: "created" | "activity";
 	includeApi?: boolean;
 };
 

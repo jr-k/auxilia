@@ -1039,9 +1039,6 @@ class Agent:
                 db,
                 spec.all_agent_ids,
                 thread.workspace_id,
-                project_skill_ids=(
-                    project_context.skill_ids if project_context is not None else ()
-                ),
                 excluded_skill_ids=disabled_skill_ids,
             )
         )

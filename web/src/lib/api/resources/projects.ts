@@ -13,7 +13,6 @@ import type {
 	ProjectFolderPatch,
 	ProjectFolderSearchResult,
 	ProjectPatch,
-	ProjectSkillsResponse,
 	ProjectTree,
 	ProjectWrite,
 } from "@/types/projects";
@@ -136,27 +135,6 @@ export async function deleteProjectContextFile(
 	await api.delete(`/projects/context-files/${fileId}`, {
 		params: { revision },
 	});
-}
-
-export async function getProjectSkills(
-	projectId: string,
-): Promise<ProjectSkillsResponse> {
-	const response = await api.get<ProjectSkillsResponse>(
-		`/projects/${projectId}/skills`,
-	);
-	return response.data;
-}
-
-export async function replaceProjectSkills(
-	projectId: string,
-	skillIds: string[],
-	revision: number,
-): Promise<ProjectSkillsResponse> {
-	const response = await api.put<ProjectSkillsResponse>(
-		`/projects/${projectId}/skills`,
-		{ skillIds, revision },
-	);
-	return response.data;
 }
 
 export async function createFolder(
