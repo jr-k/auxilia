@@ -5,6 +5,7 @@ from uuid import UUID
 from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.agents.core.repository import AgentRepository
 from app.database import get_db
 from app.exceptions import DomainValidationError
 from app.notifications.repository import (
@@ -135,6 +136,8 @@ async def stage_run_web_push_deliveries(
     }.get(status)
     if copy is None:
         return
+    agent = await AgentRepository(db, thread.workspace_id).get_scoped(thread.agent_id)
+    agent_name = agent.name if agent is not None else "Agent"
     query = urlencode(
         {
             "workspaceId": str(thread.workspace_id),
@@ -144,7 +147,11 @@ async def stage_run_web_push_deliveries(
     )
     title, body = copy
     payload = {
-        "title": title,
+        "title": (
+            f"{agent_name} answered"
+            if status == "success"
+            else f"{agent_name}: {title}"
+        ),
         "body": body,
         "tag": f"run:{run_id}",
         "icon": "/pwa-icon-192.png",
