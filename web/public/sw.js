@@ -1,5 +1,13 @@
 "use strict";
 
+self.addEventListener("install", (event) => {
+	event.waitUntil(self.skipWaiting());
+});
+
+self.addEventListener("activate", (event) => {
+	event.waitUntil(self.clients.claim());
+});
+
 self.addEventListener("push", (event) => {
 	event.waitUntil(
 		(async () => {
@@ -51,15 +59,35 @@ self.addEventListener("notificationclick", (event) => {
 				type: "window",
 				includeUncontrolled: true,
 			});
-			const existing = windows.find(
-				(client) => new URL(client.url).origin === self.location.origin,
-			);
-			if (existing) {
-				await existing.navigate(targetUrl);
-				await existing.focus();
+			const threadId = event.notification.data?.threadId;
+			const conversation = windows.find((client) => {
+				if (!threadId) return false;
+				const url = new URL(client.url);
+				return decodeURIComponent(url.pathname).endsWith(
+					`/chat/${threadId}`,
+				);
+			});
+			if (conversation) {
+				await conversation.focus();
 				return;
 			}
-			await self.clients.openWindow(targetUrl);
+
+			const existing =
+				windows.find(
+					(client) =>
+						client.focused &&
+						new URL(client.url).origin === self.location.origin,
+				) ??
+				windows.find(
+					(client) => new URL(client.url).origin === self.location.origin,
+				);
+			if (existing) {
+				const navigated = await existing.navigate(targetUrl);
+				await (navigated ?? existing).focus();
+				return;
+			}
+			const opened = await self.clients.openWindow(targetUrl);
+			await opened?.focus();
 		})(),
 	);
 });
