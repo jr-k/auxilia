@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.77](https://github.com/jr-k/auxilia/compare/backend-v0.11.76...backend-v0.11.77) (2026-11-03)
+
+
+### Features
+
+* **notifications:** add web push and refine conversation read state ([ee9d57b](https://github.com/jr-k/auxilia/commit/ee9d57ba423ce991ee11c85cd99819c5b774d616))
+
 ## [0.11.76](https://github.com/jr-k/auxilia/compare/backend-v0.11.75...backend-v0.11.76) (2026-11-03)
 
 

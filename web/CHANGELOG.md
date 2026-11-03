@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.106](https://github.com/jr-k/auxilia/compare/web-v0.12.105...web-v0.12.106) (2026-11-03)
+
+
+### Features
+
+* **notifications:** add web push and refine conversation read state ([ee9d57b](https://github.com/jr-k/auxilia/commit/ee9d57ba423ce991ee11c85cd99819c5b774d616))
+
 ## [0.12.105](https://github.com/jr-k/auxilia/compare/web-v0.12.104...web-v0.12.105) (2026-11-03)
 
 
