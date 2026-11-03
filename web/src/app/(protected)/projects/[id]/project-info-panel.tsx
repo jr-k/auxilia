@@ -162,7 +162,7 @@ function SystemPromptPanel({
 
 	return (
 		<div className="flex min-h-0 flex-1 flex-col">
-			<div className="min-h-0 flex-1 overflow-y-auto p-4">
+			<div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-4">
 				{remote && (
 					<div className="mb-3 rounded-[9px] border border-warning/25 bg-warning-bg px-3 py-2.5">
 						<div className="flex items-start gap-2">
@@ -202,7 +202,7 @@ function SystemPromptPanel({
 					placeholder="Describe the project, its goals, constraints, and working conventions."
 					className={cn(
 						fieldClass,
-						"min-h-[280px] resize-y py-3 font-mono text-[12px] leading-5",
+						"min-h-[280px] flex-1 resize-none py-3 font-mono text-[12px] leading-5",
 					)}
 				/>
 				{!detail.canManage && (
@@ -730,7 +730,10 @@ export function ProjectInfoPanel({ detail }: { detail: ProjectDetail }) {
 				role="tabpanel"
 				aria-labelledby={`project-info-${detail.id}-tab-prompt`}
 				hidden={tab !== "prompt"}
-				className={cn("min-h-0 flex-1", tab !== "prompt" && "hidden")}
+				className={cn(
+					"flex min-h-0 flex-1 flex-col",
+					tab !== "prompt" && "hidden",
+				)}
 			>
 				<SystemPromptPanel
 					detail={detail}
@@ -742,7 +745,10 @@ export function ProjectInfoPanel({ detail }: { detail: ProjectDetail }) {
 				role="tabpanel"
 				aria-labelledby={`project-info-${detail.id}-tab-context`}
 				hidden={tab !== "context"}
-				className={cn("min-h-0 flex-1", tab !== "context" && "hidden")}
+				className={cn(
+					"flex min-h-0 flex-1 flex-col",
+					tab !== "context" && "hidden",
+				)}
 			>
 				<ContextPanel detail={detail} onDirtyChange={setContextDirty} />
 			</div>
