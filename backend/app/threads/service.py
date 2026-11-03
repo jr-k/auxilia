@@ -342,7 +342,6 @@ class ThreadService(BaseService[ThreadDB, ThreadRepository]):
                 if "disabled_subagent_ids" in data.model_fields_set
                 else default_disabled_subagent_ids
             ),
-            project_id=data.project_id,
             tolerated_mcp_ids=(
                 set(data.disabled_mcp_server_ids)
                 if source == ThreadSource.trigger

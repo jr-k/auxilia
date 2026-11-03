@@ -29,7 +29,6 @@ import {
 	Moon,
 	Sun,
 	Monitor,
-	PanelLeftOpen,
 	List,
 	UserRound,
 	Info,
@@ -278,7 +277,7 @@ export function AppSidebar() {
 		theme === "dark" || theme === "light" ? theme : "system";
 	const ThemeIcon =
 		themeMode === "system" ? Monitor : themeMode === "dark" ? Moon : Sun;
-	const { isMobile, setOpenMobile, state, toggleSidebar } = useSidebar();
+	const { isMobile, setOpenMobile } = useSidebar();
 	const [renamingThread, setRenamingThread] = useState<Thread | null>(null);
 	const [openThreadMenuId, setOpenThreadMenuId] = useState<string | null>(null);
 	const [aboutOpen, setAboutOpen] = useState(false);
@@ -401,33 +400,18 @@ export function AppSidebar() {
 			if (navigated && isMobile) setOpenMobile(false);
 		});
 	};
-	const navigateHome = () => {
-		navigateTo("/");
-	};
-	const handleBrandLogoClick = () => {
-		if (!isMobile && state === "collapsed") {
-			toggleSidebar();
-			return;
-		}
-		navigateHome();
-	};
 	return (
 		<>
 			<Sidebar collapsible="icon">
 				<SidebarHeader>
 					<div className="flex h-9 items-center gap-2 pl-2 pr-1">
-						<button
-							onClick={handleBrandLogoClick}
-							title={
-								!isMobile && state === "collapsed" ? "Open sidebar" : "Home"
-							}
-							aria-label={
-								!isMobile && state === "collapsed" ? "Open sidebar" : "Home"
-							}
+						<Link
+							href="/"
+							title="Home"
+							aria-label="Home"
 							className="group/brand relative size-[22px] shrink-0 cursor-pointer"
 						>
-							{/* Logo at rest; fades out on hover only when collapsed. */}
-							<span className="absolute inset-0 grid place-items-center rounded-md transition-opacity duration-[140ms] group-data-[collapsible=icon]:group-hover/brand:opacity-0">
+							<span className="absolute inset-0 grid place-items-center rounded-md">
 								{appearance.logoRevision ? (
 									// Browser-direct request avoids routing a workspace image
 									// through Next's optimizer.
@@ -456,19 +440,14 @@ export function AppSidebar() {
 									</>
 								)}
 							</span>
-							{/* Expand glyph; revealed on hover only when collapsed. */}
-							<span className="absolute inset-0 grid place-items-center rounded-md bg-sidebar-accent text-sidebar-active-icon opacity-0 transition-opacity duration-[140ms] group-data-[collapsible=icon]:group-hover/brand:opacity-100">
-								<PanelLeftOpen className="size-4" />
-							</span>
-						</button>
-						<button
-							type="button"
-							onClick={navigateHome}
+						</Link>
+						<Link
+							href="/"
 							className="cursor-pointer font-display text-[15.5px] font-bold tracking-[-0.02em] text-sidebar-foreground group-data-[collapsible=icon]:hidden animate-in fade-in duration-200"
 							style={{ animationDelay: "100ms", animationFillMode: "both" }}
 						>
 							{appearance.appName}
-						</button>
+						</Link>
 						<SidebarTrigger className="ml-auto cursor-pointer text-sidebar-muted group-data-[collapsible=icon]:hidden" />
 					</div>
 					<WorkspaceSwitcher />
