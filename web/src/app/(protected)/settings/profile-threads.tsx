@@ -2,12 +2,22 @@
 
 import { useDeferredValue, useEffect, useState } from "react";
 import {
+	AlarmClock,
+	Braces,
+	Circle,
+	CircleCheck,
 	Filter,
+	Globe2,
+	Layers3,
+	ListChecks,
 	Mail,
 	MailOpen,
+	MessageSquare,
 	MoreVertical,
+	Phone,
 	RotateCcw,
 	Search,
+	Send,
 	X,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -23,6 +33,10 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import { DropdownMenu } from "@/components/ui/dropdown-menu";
 import { SelectableLeading } from "@/components/ui/selectable-leading";
+import {
+	SearchSelect,
+	type SearchSelectOption,
+} from "@/components/ui/search-select";
 import { ThreadSourceBadge } from "@/components/ui/thread-source-badge";
 import { ThreadUnreadBadge } from "@/components/ui/thread-unread-badge";
 import { useQueryParamState } from "@/hooks/use-query-param-state";
@@ -37,13 +51,96 @@ import type { Thread, ThreadSource } from "@/types/threads";
 const PAGE_SIZE = 20;
 const READ_FILTERS = ["all", "read", "unread"] as const;
 const COMPLETION_FILTERS = ["all", "completed", "uncompleted"] as const;
-const SOURCES: Array<{ value: ThreadSource; label: string }> = [
-	{ value: "web", label: "Web" },
-	{ value: "slack", label: "Slack" },
-	{ value: "telegram", label: "Telegram" },
-	{ value: "whatsapp", label: "WhatsApp" },
-	{ value: "api", label: "API" },
-	{ value: "trigger", label: "Trigger" },
+const READ_OPTIONS: SearchSelectOption[] = [
+	{
+		value: "all",
+		label: "All read states",
+		description: "Read and unread conversations",
+		keywords: "any mixed",
+		icon: <Layers3 />,
+	},
+	{
+		value: "unread",
+		label: "Unread",
+		description: "Needs your attention",
+		keywords: "new unseen",
+		icon: <Mail />,
+	},
+	{
+		value: "read",
+		label: "Read",
+		description: "Already seen",
+		keywords: "seen opened",
+		icon: <MailOpen />,
+	},
+];
+const COMPLETION_OPTIONS: SearchSelectOption[] = [
+	{
+		value: "all",
+		label: "All completion states",
+		description: "Open and completed conversations",
+		keywords: "any mixed",
+		icon: <ListChecks />,
+	},
+	{
+		value: "uncompleted",
+		label: "Uncompleted",
+		description: "Still active",
+		keywords: "open active",
+		icon: <Circle />,
+	},
+	{
+		value: "completed",
+		label: "Completed",
+		description: "Finished conversations",
+		keywords: "done closed",
+		icon: <CircleCheck />,
+	},
+];
+const SOURCE_OPTIONS: SearchSelectOption[] = [
+	{
+		value: "",
+		label: "All sources",
+		description: "Every conversation channel",
+		keywords: "any mixed",
+		icon: <Layers3 />,
+	},
+	{
+		value: "web",
+		label: "Web",
+		description: "Conversations started in auxilia",
+		icon: <Globe2 />,
+	},
+	{
+		value: "slack",
+		label: "Slack",
+		description: "Slack conversations",
+		icon: <MessageSquare />,
+	},
+	{
+		value: "telegram",
+		label: "Telegram",
+		description: "Telegram conversations",
+		icon: <Send />,
+	},
+	{
+		value: "whatsapp",
+		label: "WhatsApp",
+		description: "WhatsApp conversations",
+		icon: <Phone />,
+	},
+	{
+		value: "api",
+		label: "API",
+		description: "Programmatic conversations",
+		icon: <Braces />,
+	},
+	{
+		value: "trigger",
+		label: "Trigger",
+		description: "Scheduled conversations",
+		icon: <AlarmClock />,
+	},
 ];
 
 function localDateBoundary(value: string, nextDay = false): string | undefined {
@@ -105,7 +202,9 @@ export default function ProfileThreads() {
 	)
 		? (completionParam as (typeof COMPLETION_FILTERS)[number])
 		: "all";
-	const source = SOURCES.some((option) => option.value === sourceParam)
+	const source = SOURCE_OPTIONS.some(
+		(option) => option.value !== "" && option.value === sourceParam,
+	)
 		? (sourceParam as ThreadSource)
 		: undefined;
 	const parsedOffset = Number.parseInt(offsetParam, 10);
@@ -406,123 +505,118 @@ export default function ProfileThreads() {
 				</p>
 			</div>
 
-			<div className="flex flex-wrap items-center gap-2 rounded-[11px] border border-border bg-sidebar/55 p-2 dark:border-white/10 dark:bg-white/[0.025]">
-				<div className="flex h-8 shrink-0 items-center gap-1.5 px-1 text-[11px] font-semibold text-subtle">
-					<Filter className="size-3.5" />
-					<span>
-						Filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}
-					</span>
-				</div>
-				<div className="relative min-w-[220px] flex-[1.4]">
-					<Search className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-meta" />
-					<input
-						type="search"
-						value={search}
-						placeholder="Search conversations or agents…"
-						onChange={(event) => {
-							setSearch(event.target.value);
-							resetOffset();
-						}}
-						className="h-8 w-full rounded-[8px] border border-border bg-card pl-9 pr-9 text-[12px] text-foreground outline-none transition-[border-color,box-shadow] placeholder:text-ghost focus:border-petrol/55 focus:shadow-[0_0_0_3px_rgba(38,103,81,0.08)] dark:border-white/10"
-					/>
-					{search && (
-						<button
-							type="button"
-							aria-label="Clear search"
-							onClick={() => {
-								setSearch("");
+			<div className="flex flex-col gap-2 rounded-[11px] border border-border bg-sidebar/55 p-2 dark:border-white/10 dark:bg-white/[0.025]">
+				<div className="flex flex-wrap items-center gap-2">
+					<div className="flex h-8 shrink-0 items-center gap-1.5 px-1 text-[11px] font-semibold text-subtle">
+						<Filter className="size-3.5" />
+						<span>
+							Filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}
+						</span>
+					</div>
+					<div className="relative min-w-[220px] flex-1">
+						<Search className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-meta" />
+						<input
+							type="search"
+							value={search}
+							placeholder="Search conversations or agents…"
+							onChange={(event) => {
+								setSearch(event.target.value);
 								resetOffset();
 							}}
-							className="absolute right-1.5 top-1/2 flex size-6 -translate-y-1/2 cursor-pointer items-center justify-center rounded-[6px] text-meta transition-colors hover:bg-hover hover:text-foreground"
+							className="h-8 w-full rounded-[8px] border border-border bg-card pl-9 pr-9 text-[12px] text-foreground outline-none transition-[border-color,box-shadow] placeholder:text-ghost focus:border-petrol/55 focus:shadow-[0_0_0_3px_rgba(38,103,81,0.08)] dark:border-white/10"
+						/>
+						{search && (
+							<button
+								type="button"
+								aria-label="Clear search"
+								onClick={() => {
+									setSearch("");
+									resetOffset();
+								}}
+								className="absolute right-1.5 top-1/2 flex size-6 -translate-y-1/2 cursor-pointer items-center justify-center rounded-[6px] text-meta transition-colors hover:bg-hover hover:text-foreground"
+							>
+								<X className="size-3.5" />
+							</button>
+						)}
+					</div>
+					<label className="flex h-8 items-center gap-1.5 rounded-[8px] border border-border bg-card px-2.5 text-[10.5px] text-meta dark:border-white/10">
+						<span>From</span>
+						<input
+							type="date"
+							value={createdFrom}
+							onChange={(event) => {
+								setCreatedFrom(event.target.value);
+								resetOffset();
+							}}
+							className="min-w-0 bg-transparent font-mono text-[10.5px] text-foreground outline-none"
+						/>
+					</label>
+					<label className="flex h-8 items-center gap-1.5 rounded-[8px] border border-border bg-card px-2.5 text-[10.5px] text-meta dark:border-white/10">
+						<span>To</span>
+						<input
+							type="date"
+							value={createdTo}
+							onChange={(event) => {
+								setCreatedTo(event.target.value);
+								resetOffset();
+							}}
+							className="min-w-0 bg-transparent font-mono text-[10.5px] text-foreground outline-none"
+						/>
+					</label>
+				</div>
+				<div className="flex flex-wrap items-center gap-2 border-t border-border/70 pt-2 dark:border-white/8">
+					<SearchSelect
+						value={readStatus}
+						options={READ_OPTIONS}
+						ariaLabel="Read status"
+						searchPlaceholder="Search read states…"
+						active={readStatus !== "all"}
+						onChange={(value) => {
+							setReadParam(value);
+							resetOffset();
+						}}
+					/>
+					<SearchSelect
+						value={completion}
+						options={COMPLETION_OPTIONS}
+						ariaLabel="Completion status"
+						searchPlaceholder="Search completion states…"
+						active={completion !== "all"}
+						onChange={(value) => {
+							setCompletionParam(value);
+							resetOffset();
+						}}
+					/>
+					<SearchSelect
+						value={source ?? ""}
+						options={SOURCE_OPTIONS}
+						ariaLabel="Conversation source"
+						searchPlaceholder="Search sources…"
+						active={source !== undefined}
+						onChange={(value) => {
+							setSourceParam(value);
+							resetOffset();
+						}}
+					/>
+					{activeFilterCount > 0 && (
+						<button
+							type="button"
+							onClick={() => {
+								setSearch("");
+								setReadParam("all");
+								setCompletionParam("all");
+								setSourceParam("");
+								setCreatedFrom("");
+								setCreatedTo("");
+								resetOffset();
+							}}
+							className="ml-auto flex h-8 cursor-pointer items-center gap-1.5 rounded-[8px] px-2.5 text-[11.5px] font-semibold text-meta transition-colors hover:bg-hover hover:text-foreground"
 						>
-							<X className="size-3.5" />
+							<RotateCcw className="size-3.5" />
+							Reset
 						</button>
 					)}
 				</div>
-				<select
-					value={readStatus}
-					aria-label="Read status"
-					onChange={(event) => {
-						setReadParam(event.target.value);
-						resetOffset();
-					}}
-					className="h-8 cursor-pointer rounded-[8px] border border-border bg-card px-2.5 text-[11.5px] font-medium text-foreground outline-none focus:border-petrol/55 dark:border-white/10"
-				>
-					<option value="all">All read states</option>
-					<option value="unread">Unread</option>
-					<option value="read">Read</option>
-				</select>
-				<select
-					value={completion}
-					aria-label="Completion status"
-					onChange={(event) => {
-						setCompletionParam(event.target.value);
-						resetOffset();
-					}}
-					className="h-8 cursor-pointer rounded-[8px] border border-border bg-card px-2.5 text-[11.5px] font-medium text-foreground outline-none focus:border-petrol/55 dark:border-white/10"
-				>
-					<option value="all">All completion states</option>
-					<option value="uncompleted">Uncompleted</option>
-					<option value="completed">Completed</option>
-				</select>
-				<select
-					value={source ?? ""}
-					aria-label="Conversation source"
-					onChange={(event) => {
-						setSourceParam(event.target.value);
-						resetOffset();
-					}}
-					className="h-8 cursor-pointer rounded-[8px] border border-border bg-card px-2.5 text-[11.5px] font-medium text-foreground outline-none focus:border-petrol/55 dark:border-white/10"
-				>
-					<option value="">All sources</option>
-					{SOURCES.map((option) => (
-						<option key={option.value} value={option.value}>
-							{option.label}
-						</option>
-					))}
-				</select>
-				<label className="flex h-8 items-center gap-1.5 rounded-[8px] border border-border bg-card px-2.5 text-[10.5px] text-meta dark:border-white/10">
-					<span>From</span>
-					<input
-						type="date"
-						value={createdFrom}
-						onChange={(event) => {
-							setCreatedFrom(event.target.value);
-							resetOffset();
-						}}
-						className="min-w-0 bg-transparent font-mono text-[10.5px] text-foreground outline-none"
-					/>
-				</label>
-				<label className="flex h-8 items-center gap-1.5 rounded-[8px] border border-border bg-card px-2.5 text-[10.5px] text-meta dark:border-white/10">
-					<span>To</span>
-					<input
-						type="date"
-						value={createdTo}
-						onChange={(event) => {
-							setCreatedTo(event.target.value);
-							resetOffset();
-						}}
-						className="min-w-0 bg-transparent font-mono text-[10.5px] text-foreground outline-none"
-					/>
-				</label>
-				{activeFilterCount > 0 && (
-					<button
-						type="button"
-						onClick={() => {
-							setSearch("");
-							setReadParam("all");
-							setCompletionParam("all");
-							setSourceParam("");
-							setCreatedFrom("");
-							setCreatedTo("");
-							resetOffset();
-						}}
-						className="flex h-8 cursor-pointer items-center gap-1.5 rounded-[8px] px-2.5 text-[11.5px] font-semibold text-meta transition-colors hover:bg-hover hover:text-foreground"
-					>
-						<RotateCcw className="size-3.5" />
-						Reset
-					</button>
-				)}
 			</div>
 
 			{loadError && (

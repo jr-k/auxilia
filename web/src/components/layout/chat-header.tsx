@@ -163,6 +163,15 @@ export function ChatHeaderActions({ children }: { children: ReactNode }) {
 	return element ? createPortal(children, element) : null;
 }
 
+export function ChatHeaderLeadingActions({
+	children,
+}: {
+	children: ReactNode;
+}) {
+	const element = useChatHeaderStore((state) => state.leadingActionsEl);
+	return element ? createPortal(children, element) : null;
+}
+
 export function ChatMemoryToggle({
 	enabled,
 	disabled,
@@ -237,6 +246,18 @@ function HeaderActionsSlot() {
 	return <div ref={setActionsEl} className="flex min-w-0 items-center gap-2" />;
 }
 
+function HeaderLeadingActionsSlot() {
+	const setLeadingActionsEl = useChatHeaderStore(
+		(state) => state.setLeadingActionsEl,
+	);
+	return (
+		<div
+			ref={setLeadingActionsEl}
+			className="hidden min-w-0 items-center gap-2 md:flex"
+		/>
+	);
+}
+
 function HeaderBar({
 	children,
 	className,
@@ -247,7 +268,7 @@ function HeaderBar({
 	return (
 		<div className="relative grid h-14 shrink-0 grid-cols-[44px_minmax(0,1fr)_auto] items-center border-b border-border px-3 md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] md:px-5">
 			<MobileSidebarTrigger />
-			<div />
+			<HeaderLeadingActionsSlot />
 			<div
 				className={`flex min-w-0 items-center justify-center gap-2 ${className ?? ""}`}
 			>

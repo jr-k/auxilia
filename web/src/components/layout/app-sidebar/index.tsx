@@ -12,6 +12,7 @@ import {
 	Check,
 	Circle,
 	CircleCheck,
+	CircleDashed,
 	ChevronDown,
 	Loader2,
 	Server,
@@ -35,7 +36,6 @@ import {
 	FolderKanban,
 	MessagesSquare,
 	FolderInput,
-	ListFilter,
 	Mail,
 	MailOpen,
 	type LucideIcon,
@@ -224,7 +224,7 @@ function ThreadCompletionFilterControl({
 					)}
 				>
 					{value === "mixed" ? (
-						<ListFilter className="size-3" />
+						<CircleDashed className="size-3" />
 					) : value === "completed" ? (
 						<CircleCheck className="size-3" />
 					) : (

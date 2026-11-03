@@ -16,9 +16,14 @@ import ChatPromptInput from "../components/prompt-input";
 import {
   AlertTriangle,
   ArchiveIcon,
+  CircleCheck,
   CircleSlash,
+  LoaderCircle,
+  Mail,
+  MailOpen,
   ServerCrash,
   ShieldCheck,
+  Undo2,
 } from "lucide-react";
 import { useParams } from "next/navigation";
 import { toast } from "sonner";
@@ -42,8 +47,14 @@ import { useProjectsStore } from "@/stores/projects-store";
 import { useWorkspaceEventsStore } from "@/stores/workspace-events-store";
 import {
   ChatHeaderActions,
+  ChatHeaderLeadingActions,
   ChatMemoryToggle,
 } from "@/components/layout/chat-header";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 const EMPTY_RESOURCE_SETTINGS: ThreadResourceSettings = {
   toolMode: null,
@@ -97,7 +108,13 @@ const ChatPage = () => {
     threadId: string;
     completed: boolean;
   } | null>(null);
-  const [reopening, setReopening] = useState(false);
+  const [completionSaving, setCompletionSaving] = useState(false);
+  const [readOverride, setReadOverride] = useState<{
+    threadId: string;
+    isUnread: boolean;
+  } | null>(null);
+  const [readSaving, setReadSaving] = useState(false);
+  const manuallyUnreadOnPage = useRef(false);
   const threadsVersion = useWorkspaceEventsStore(
     (state) => state.threadsVersion,
   );
@@ -287,6 +304,13 @@ const ChatPage = () => {
     userMessageCount,
   ]);
   const thread = meta.thread;
+  const isUnread =
+    readOverride?.threadId === threadId
+      ? readOverride.isUnread
+      : thread?.isUnread === true;
+  useEffect(() => {
+    manuallyUnreadOnPage.current = false;
+  }, [threadId]);
   useEffect(() => {
     const completionReady =
       successfulCompletion?.threadId === threadId &&
@@ -298,6 +322,7 @@ const ChatPage = () => {
       responsePendingDisplay === threadId ||
       !pageVisible ||
       readStateInFlight.current ||
+      manuallyUnreadOnPage.current ||
       (!thread?.isUnread && !completionReady)
     ) {
       return;
@@ -308,6 +333,7 @@ const ChatPage = () => {
       : readCompletionSequence.current;
     void setThreadReadState(threadId, false)
       .then(() => {
+        setReadOverride({ threadId, isUnread: false });
         readCompletionSequence.current = Math.max(
           readCompletionSequence.current,
           completionSequenceToRead,
@@ -409,19 +435,51 @@ const ChatPage = () => {
     }
   };
 
-  const reopenConversation = async () => {
-    if (reopening) return;
-    setReopening(true);
+  const updateCompletion = async (nextCompleted: boolean) => {
+    if (completionSaving) return;
+    const previous = completed;
+    setCompletionOverride({ threadId, completed: nextCompleted });
+    setCompletionSaving(true);
     try {
-      await setThreadCompleted(threadId, false);
-      setCompletionOverride({ threadId, completed: false });
+      const updated = await setThreadCompleted(threadId, nextCompleted);
+      setCompletionOverride({
+        threadId,
+        completed: updated.completedAt !== null,
+      });
       await Promise.allSettled([refreshThreads(), refreshProjectTree()]);
     } catch (error) {
+      setCompletionOverride({ threadId, completed: previous });
       toast.error(
-        getApiErrorMessage(error, "The conversation could not be reopened."),
+        getApiErrorMessage(
+          error,
+          `The conversation could not be ${
+            nextCompleted ? "completed" : "reopened"
+          }.`,
+        ),
       );
     } finally {
-      setReopening(false);
+      setCompletionSaving(false);
+    }
+  };
+
+  const updateReadState = async (nextUnread: boolean) => {
+    if (readSaving) return;
+    const previous = isUnread;
+    const previousManualState = manuallyUnreadOnPage.current;
+    manuallyUnreadOnPage.current = nextUnread;
+    setReadOverride({ threadId, isUnread: nextUnread });
+    setReadSaving(true);
+    try {
+      await setThreadReadState(threadId, nextUnread);
+      await recheckThreadMetadata();
+    } catch (error) {
+      manuallyUnreadOnPage.current = previousManualState;
+      setReadOverride({ threadId, isUnread: previous });
+      toast.error(
+        getApiErrorMessage(error, "The read state could not be updated."),
+      );
+    } finally {
+      setReadSaving(false);
     }
   };
 
@@ -495,6 +553,20 @@ const ChatPage = () => {
     };
   }, [threadId, run.isLoading, setCost]);
 
+  const completionActionDisabled =
+    meta.viewerRole !== null ||
+    run.status !== "idle" ||
+    promptQueue.runStarting ||
+    promptQueue.items.length > 0;
+  const completionTooltip =
+    meta.viewerRole !== null
+      ? "Only the conversation owner can change completion"
+      : completionActionDisabled
+        ? "Wait for active and queued prompts to finish"
+        : completed
+          ? "Reopen conversation"
+          : "Mark conversation as completed";
+
   return (
     <ArtifactWorkspace
       key={threadId}
@@ -516,6 +588,76 @@ const ChatPage = () => {
         (toolCall) => toolCall.callId ?? toolCall.id,
       )}
     >
+      {meta.status === "ready" && thread && (
+        <ChatHeaderLeadingActions>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="inline-flex">
+                <button
+                  type="button"
+                  aria-label={completed ? "Reopen conversation" : "Complete conversation"}
+                  aria-pressed={completed}
+                  disabled={completionActionDisabled || completionSaving}
+                  onClick={() => {
+                    void updateCompletion(!completed);
+                  }}
+                  className={`flex h-[30px] cursor-pointer items-center gap-1.5 rounded-full border px-2.5 text-[11.5px] font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-45 ${
+                    completed
+                      ? "border-petrol/25 bg-petrol/8 text-petrol hover:bg-petrol/12 dark:border-panel-terminal/25 dark:bg-panel-terminal/10 dark:text-panel-terminal"
+                      : "border-border bg-card text-meta hover:bg-hover hover:text-foreground dark:bg-white/5"
+                  }`}
+                >
+                  {completionSaving ? (
+                    <LoaderCircle className="size-3.5 animate-spin" />
+                  ) : completed ? (
+                    <Undo2 className="size-3.5" />
+                  ) : (
+                    <CircleCheck className="size-3.5" />
+                  )}
+                  <span className="hidden xl:inline">
+                    {completed ? "Reopen" : "Complete"}
+                  </span>
+                </button>
+              </span>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" sideOffset={7}>
+              {completionTooltip}
+            </TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                aria-label={isUnread ? "Mark as read" : "Mark as unread"}
+                aria-pressed={isUnread}
+                disabled={readSaving}
+                onClick={() => {
+                  void updateReadState(!isUnread);
+                }}
+                className={`flex h-[30px] cursor-pointer items-center gap-1.5 rounded-full border px-2.5 text-[11.5px] font-semibold transition-colors disabled:cursor-wait disabled:opacity-50 ${
+                  isUnread
+                    ? "border-petrol/25 bg-petrol/8 text-petrol hover:bg-petrol/12 dark:border-panel-terminal/25 dark:bg-panel-terminal/10 dark:text-panel-terminal"
+                    : "border-border bg-card text-meta hover:bg-hover hover:text-foreground dark:bg-white/5"
+                }`}
+              >
+                {readSaving ? (
+                  <LoaderCircle className="size-3.5 animate-spin" />
+                ) : isUnread ? (
+                  <MailOpen className="size-3.5" />
+                ) : (
+                  <Mail className="size-3.5" />
+                )}
+                <span className="hidden xl:inline">
+                  {isUnread ? "Mark read" : "Mark unread"}
+                </span>
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" sideOffset={7}>
+              {isUnread ? "Mark conversation as read" : "Mark conversation as unread"}
+            </TooltipContent>
+          </Tooltip>
+        </ChatHeaderLeadingActions>
+      )}
       {meta.status === "ready" && (
         <ChatHeaderActions>
           <ChatMemoryToggle
@@ -732,9 +874,9 @@ const ChatPage = () => {
               !meta.modelAvailable || run.isStopping || memorySaving || completed
             }
             completed={completed}
-            reopening={reopening}
+            reopening={completionSaving}
             onReopen={() => {
-              void reopenConversation();
+              void updateCompletion(false);
             }}
             className="w-full max-w-4xl mx-auto lg:px-10 sm:px-6 px-3 py-4"
             stop={actions.stop}

@@ -19,6 +19,9 @@ interface ChatHeaderState {
   /** Right-hand slot in the header; chat pages portal actions into it. */
   actionsEl: HTMLElement | null;
   setActionsEl: (element: HTMLElement | null) => void;
+  /** Left-hand slot for state controls on an existing conversation. */
+  leadingActionsEl: HTMLElement | null;
+  setLeadingActionsEl: (element: HTMLElement | null) => void;
   setCurrentChat: (data: {
     agentId?: string | null;
     agentName: string | null;
@@ -50,6 +53,10 @@ export const useChatHeaderStore = create<ChatHeaderState>((set) => ({
   actionsEl: null,
   setActionsEl: (actionsEl) => {
     set({ actionsEl });
+  },
+  leadingActionsEl: null,
+  setLeadingActionsEl: (leadingActionsEl) => {
+    set({ leadingActionsEl });
   },
   setCurrentChat: (data) => {
     set({
