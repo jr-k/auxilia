@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.105](https://github.com/jr-k/auxilia/compare/web-v0.12.104...web-v0.12.105) (2026-11-03)
+
+
+### Features
+
+* **threads:** refine filters and conversation controls ([3d953ab](https://github.com/jr-k/auxilia/commit/3d953ab337852ee3db966612de6fe35a54ea9c10))
+
 ## [0.12.104](https://github.com/jr-k/auxilia/compare/web-v0.12.103...web-v0.12.104) (2026-11-03)
 
 
