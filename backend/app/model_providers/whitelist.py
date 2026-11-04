@@ -77,7 +77,6 @@ KNOWN_REASONING_EFFORT_LEVELS: dict[str, frozenset[ReasoningEffort]] = {
     "deepseek-flash": frozenset({"none", "low", "high", "max"}),
     "deepseek-v4-pro": frozenset({"none", "low", "high", "max"}),
     "gemini-3-flash-preview": frozenset({"minimal", "low", "medium", "high"}),
-    "gemini-3-pro-preview": frozenset({"low", "high"}),
     "gemini-3.1-pro-preview": frozenset({"low", "medium", "high"}),
     "gemini-3.5-flash": frozenset({"minimal", "low", "medium", "high"}),
     "gemini-3.5-flash-lite": frozenset({"minimal", "low", "medium", "high"}),
@@ -94,10 +93,12 @@ KNOWN_REASONING_EFFORT_LEVELS: dict[str, frozenset[ReasoningEffort]] = {
     "z-ai/glm-5.3-prime": frozenset({"low", "high", "max"}),
     "z-ai/glm-5.3-flashx": frozenset({"low", "high", "max"}),
     "z-ai/glm-5.3-flashx-legal": frozenset({"low", "high", "max"}),
-    "qwen/qwen3.8-max": frozenset({"low", "xhigh"}),
-    "qwen/qwen3.8-27b": frozenset({"low", "xhigh"}),
-    "qwen/qwen3.8-flash": frozenset({"low", "xhigh"}),
-    "qwen/qwen3.8-2.4t-a95b": frozenset({"low", "xhigh"}),
+    "qwen/qwen3.8-max-0902": frozenset({"low", "medium", "xhigh"}),
+    "qwen/qwen3.8-max-prime": frozenset({"low", "medium", "xhigh"}),
+    "qwen/qwen3.8-27b": frozenset({"low", "medium", "xhigh"}),
+    "qwen/qwen3.8-flash": frozenset({"low", "medium", "xhigh"}),
+    "qwen/qwen3.8-omni-flash": frozenset({"low", "medium", "xhigh"}),
+    "qwen/qwen3.8-2.4t-a95b": frozenset({"low", "medium", "xhigh"}),
 }
 
 # The single copy of the whitelist: bundled into the image as the offline
