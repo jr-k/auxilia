@@ -5,6 +5,7 @@ Auxilia so the bucket need not be browser-accessible or configured for CORS.
 """
 
 from functools import lru_cache
+from pathlib import Path
 from typing import Protocol
 
 import boto3
@@ -29,6 +30,39 @@ class ObjectMissingError(Exception):
 
 class ObjectTooLargeError(Exception):
     pass
+
+
+class LocalObjectStore:
+    def __init__(self, settings: ArtifactSettings):
+        self.root = Path(settings.local_path).expanduser().resolve()
+
+    def _path(self, key: str) -> Path:
+        path = (self.root / key).resolve()
+        if not path.is_relative_to(self.root):
+            raise ValueError("Object key escapes the local artifact directory")
+        return path
+
+    def put(self, key: str, data: bytes, mime_type: str) -> None:
+        del mime_type
+        path = self._path(key)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(data)
+
+    def delete(self, key: str) -> None:
+        self._path(key).unlink(missing_ok=True)
+
+    def get(self, key: str, limit: int) -> bytes:
+        try:
+            path = self._path(key)
+            if path.stat().st_size > limit:
+                raise ObjectTooLargeError(key)
+            with path.open("rb") as file:
+                data = file.read(limit + 1)
+        except FileNotFoundError as exc:
+            raise ObjectMissingError from exc
+        if len(data) > limit:
+            raise ObjectTooLargeError(key)
+        return data
 
 
 class S3ObjectStore:
@@ -125,4 +159,6 @@ class GCSObjectStore:
 def build_store(settings: ArtifactSettings) -> ObjectStore:
     if settings.provider == "gcs":
         return GCSObjectStore(settings)
+    if settings.provider == "local":
+        return LocalObjectStore(settings)
     return S3ObjectStore(settings)

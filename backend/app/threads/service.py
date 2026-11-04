@@ -518,6 +518,10 @@ class ThreadService(BaseService[ThreadDB, ThreadRepository]):
                 elif not is_text and not (
                     data.include_images and mime_type.startswith("image/")
                 ):
+                    if artifact_settings.provider and not data.store_files:
+                        raise DomainValidationError(
+                            "Binary attachments need an enabled sandbox"
+                        )
                     raise DomainValidationError(
                         "Binary attachments need a configured object store"
                     )

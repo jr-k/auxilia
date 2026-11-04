@@ -70,8 +70,8 @@ ENV PYTHONDONTWRITEBYTECODE=1
 # `/app` if something ever needs to. A single directory is cheap to chown,
 # unlike the old recursive copy-up of the whole tree.
 RUN chmod +x /app/entrypoint.sh && \
-    mkdir -p /var/lib/auxilia/dbhub /var/lib/auxilia/databases && \
-    chown appuser:appgroup /app /var/lib/auxilia/dbhub /var/lib/auxilia/databases
+    mkdir -p /var/lib/auxilia/dbhub /var/lib/auxilia/databases /var/lib/auxilia/artifacts && \
+    chown appuser:appgroup /app /var/lib/auxilia/dbhub /var/lib/auxilia/databases /var/lib/auxilia/artifacts
 
 USER appuser
 

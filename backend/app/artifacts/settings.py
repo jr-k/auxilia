@@ -1,10 +1,11 @@
 import re
+from pathlib import Path
 from typing import Literal
 
 from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings
 
-from app.settings import settings_config
+from app.settings import BACKEND_DIR, settings_config
 
 
 # An explicit HTTPS CSP host-source, optionally with a port and path.
@@ -19,6 +20,9 @@ CSP_SOURCE = re.compile(
 class ArtifactSettings(BaseSettings):
     # gs://name → native GCS with ADC (keyless); a bare name or s3://name → S3 API.
     bucket: str = ""
+    # Zero-config persistence for local development. Deployments can mount this
+    # directory or configure a bucket instead.
+    local_path: str = str(BACKEND_DIR / ".runtime/artifacts")
     s3_endpoint_url: str | None = None
     s3_region: str = "us-east-1"
     s3_access_key_id: str | None = None
@@ -37,14 +41,20 @@ class ArtifactSettings(BaseSettings):
     model_config = settings_config(env_prefix="ARTIFACT_", env_ignore_empty=True)
 
     @property
-    def provider(self) -> Literal["gcs", "s3"] | None:
-        if not self.bucket:
-            return None
-        return "gcs" if self.bucket.startswith("gs://") else "s3"
+    def provider(self) -> Literal["gcs", "s3", "local"] | None:
+        if self.bucket:
+            return "gcs" if self.bucket.startswith("gs://") else "s3"
+        return "local" if self.local_path else None
 
     @property
     def bucket_name(self) -> str:
         return self.bucket.removeprefix("gs://").removeprefix("s3://")
+
+    @property
+    def storage_name(self) -> str | None:
+        if self.provider == "local":
+            return str(Path(self.local_path).expanduser().resolve())
+        return self.bucket_name or None
 
     @property
     def endpoint(self) -> str | None:

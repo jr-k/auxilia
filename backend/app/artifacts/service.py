@@ -281,7 +281,7 @@ class ArtifactService(BaseService[ArtifactDB, ArtifactRepository]):
             await self.repository.list_stored_in(
                 thread_id,
                 cfg.provider,
-                cfg.bucket_name or None,
+                cfg.storage_name,
                 cfg.endpoint,
             )
             if cfg.provider
@@ -300,7 +300,7 @@ class ArtifactService(BaseService[ArtifactDB, ArtifactRepository]):
                 raise DomainValidationError(
                     "An attachment does not belong to this conversation"
                 )
-            location = (cfg.provider, cfg.bucket_name or None, cfg.endpoint)
+            location = (cfg.provider, cfg.storage_name, cfg.endpoint)
             if any(
                 (row.storage_kind, row.storage_bucket, row.storage_endpoint) != location
                 for row in current_rows
@@ -403,7 +403,7 @@ class ArtifactService(BaseService[ArtifactDB, ArtifactRepository]):
         cfg = artifact_settings
         digest = hashlib.sha256(data).hexdigest()
         kind = cfg.provider or "sandbox"
-        location = (cfg.provider, cfg.bucket_name or None, cfg.endpoint)
+        location = (cfg.provider, cfg.storage_name, cfg.endpoint)
         in_bucket = (
             row.storage_kind not in ("", "sandbox")
             and (row.storage_kind, row.storage_bucket, row.storage_endpoint) == location
@@ -445,7 +445,7 @@ class ArtifactService(BaseService[ArtifactDB, ArtifactRepository]):
         row.sha256 = digest
         row.storage_kind = kind
         row.storage_key = key
-        row.storage_bucket = cfg.bucket_name or None
+        row.storage_bucket = cfg.storage_name
         row.storage_endpoint = cfg.endpoint
 
     async def purge_replaced(self) -> None:
@@ -492,7 +492,7 @@ class ArtifactService(BaseService[ArtifactDB, ArtifactRepository]):
         if row.storage_kind != "sandbox":
             if (row.storage_kind, row.storage_bucket, row.storage_endpoint) != (
                 cfg.provider,
-                cfg.bucket_name,
+                cfg.storage_name,
                 cfg.endpoint,
             ):
                 raise DomainValidationError(
