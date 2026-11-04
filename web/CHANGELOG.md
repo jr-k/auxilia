@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.121](https://github.com/jr-k/auxilia/compare/web-v0.12.120...web-v0.12.121) (2026-11-04)
+
+
+### Bug Fixes
+
+* **projects:** restore resource overflow menus ([387c17c](https://github.com/jr-k/auxilia/commit/387c17c3ba22b338a62432d760adb2e979213c4b))
+
 ## [0.12.120](https://github.com/jr-k/auxilia/compare/web-v0.12.119...web-v0.12.120) (2026-11-04)
 
 
