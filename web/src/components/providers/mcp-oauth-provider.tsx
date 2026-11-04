@@ -43,7 +43,8 @@ interface OAuthAuthorizationRequest {
 	onSuccess?: (result: OAuthManualCallbackResponse) => void | Promise<void>;
 }
 
-interface ManualAttempt extends OAuthAuthorizationRequest {
+interface ManualAttempt extends Omit<OAuthAuthorizationRequest, "signInUrl"> {
+	signInUrl: string;
 	popup: Window | null;
 }
 
@@ -97,9 +98,11 @@ export function McpOAuthProvider({ children }: { children: React.ReactNode }) {
 				const signInUrl = request.signInUrl
 					? safeAuthorizationUrl(request.signInUrl)
 					: null;
-				if (request.signInUrl && !signInUrl) {
+				if (!signInUrl) {
 					request.popup?.close();
-					toast.error("The service sign-in URL is invalid.");
+					toast.error(
+						"This server is missing the separate sign-in page required for manual OAuth.",
+					);
 					return false;
 				}
 				request.popup?.close();
@@ -130,10 +133,6 @@ export function McpOAuthProvider({ children }: { children: React.ReactNode }) {
 
 	const openServiceSignIn = useCallback(() => {
 		if (!manualAttempt) return;
-		if (!manualAttempt.signInUrl) {
-			setManualStep(1);
-			return;
-		}
 		const popup = window.open(manualAttempt.signInUrl, "_blank");
 		if (!popup) {
 			setError("Allow pop-ups for this site, then try again.");
@@ -229,7 +228,7 @@ export function McpOAuthProvider({ children }: { children: React.ReactNode }) {
 					if (!open && !submitting) closeManualAttempt();
 				}}
 			>
-				<DialogContent className="gap-0 overflow-hidden p-0 sm:max-w-[960px]">
+				<DialogContent className="gap-0 overflow-hidden p-0 sm:max-w-[880px]">
 					<DialogHeader className="border-b border-border px-7 py-6 pr-14 dark:border-white/10">
 						<DialogTitle>
 							Connect {manualAttempt?.serverName ?? "the MCP server"}
@@ -304,7 +303,7 @@ export function McpOAuthProvider({ children }: { children: React.ReactNode }) {
 											does not start OAuth and will not redirect you to
 											127.0.0.1.
 										</p>
-										{manualAttempt?.signInUrl ? (
+										{manualAttempt && (
 											<DialogButton
 												variant="outline"
 												onClick={openServiceSignIn}
@@ -313,11 +312,6 @@ export function McpOAuthProvider({ children }: { children: React.ReactNode }) {
 												<ExternalLink className="size-3.5" />
 												Open {manualAttempt.serverName ?? "the service"}
 											</DialogButton>
-										) : (
-											<p className="rounded-[8px] border border-border bg-hover/60 px-3 py-2.5 text-[12px] leading-[1.5] text-meta dark:border-white/10 dark:bg-white/5">
-												A separate service sign-in page is not available.
-												Continue when you are already signed in.
-											</p>
 										)}
 									</div>
 								)}
@@ -388,7 +382,7 @@ export function McpOAuthProvider({ children }: { children: React.ReactNode }) {
 												spellCheck={false}
 												disabled={submitting}
 												aria-invalid={Boolean(error)}
-												className="mt-1.5 min-h-24 resize-y font-mono text-[12px] leading-[1.5]"
+												className="mt-1.5 min-h-24 resize-y font-mono text-[11px] leading-[1.5] md:text-[11px]"
 											/>
 										</div>
 										<div className="flex gap-2.5 text-[11.5px] leading-[1.5] text-meta dark:text-panel-dim">

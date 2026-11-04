@@ -40,6 +40,10 @@ class OAuthRedirectStrategy(BaseModel):
             _absolute_http_url(self.sign_in_url, field="OAuth sign-in URL")
         parsed = urlparse(self.redirect_uri)
         if self.mode is OAuthRedirectMode.loopback_manual:
+            if self.sign_in_url is None:
+                raise ValueError(
+                    "manual loopback OAuth requires a separate service sign-in URL"
+                )
             if (
                 parsed.scheme != "http"
                 or parsed.hostname != "127.0.0.1"
