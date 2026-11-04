@@ -13,6 +13,7 @@ from app.database import get_db
 from app.mcp.client.auth import (
     build_oauth_client_metadata_document,
     oauth_callback_url,
+    oauth_client_metadata_document_url,
 )
 from app.mcp.client.connectivity import is_authorized, probe_candidate, test_connection
 from app.mcp.servers.models import MCPServerDB
@@ -100,14 +101,24 @@ async def get_oauth_callback_info(
     return OAuthCallbackInfo(callback_url=oauth_callback_url())
 
 
-@router.get("/oauth/client-metadata.json", include_in_schema=False)
-async def get_oauth_client_metadata() -> JSONResponse:
-    """Public OAuth Client ID Metadata Document used by CIMD-capable servers."""
-    metadata = build_oauth_client_metadata_document()
+def _oauth_client_metadata_response(*, legacy: bool = False) -> JSONResponse:
+    client_id = oauth_client_metadata_document_url(legacy=legacy)
     return JSONResponse(
-        content=metadata.model_dump(by_alias=True, mode="json", exclude_none=True),
+        content=build_oauth_client_metadata_document(client_id),
         headers={"Cache-Control": "public, max-age=3600"},
     )
+
+
+@router.get("/oauth/client-metadata-v2.json", include_in_schema=False)
+async def get_oauth_client_metadata() -> JSONResponse:
+    """Public OAuth Client ID Metadata Document used by CIMD-capable servers."""
+    return _oauth_client_metadata_response()
+
+
+@router.get("/oauth/client-metadata.json", include_in_schema=False)
+async def get_legacy_oauth_client_metadata() -> JSONResponse:
+    """Keep the original CIMD URL valid for authorization flows already open."""
+    return _oauth_client_metadata_response(legacy=True)
 
 
 @router.get("/{server_id}", response_model=MCPServerResponse)

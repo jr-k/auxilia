@@ -282,6 +282,17 @@ def oauth_callback_url() -> str:
     return f"{frontend_url}/api/backend/mcp-servers/oauth/callback"
 
 
+def oauth_client_metadata_document_url(*, legacy: bool = False) -> str:
+    """Public URL serving auxilia's Client ID Metadata Document.
+
+    The versioned path prevents authorization servers from reusing the invalid
+    pre-v2 document, which omitted its required ``client_id`` property.
+    """
+    frontend_url = auth_settings.FRONTEND_URL.rstrip("/")
+    filename = "client-metadata.json" if legacy else "client-metadata-v2.json"
+    return f"{frontend_url}/api/backend/mcp-servers/oauth/{filename}"
+
+
 def oauth_client_metadata_url() -> str | None:
     """Public CIMD URL, or ``None`` when the deployment is not on HTTPS.
 
@@ -289,10 +300,10 @@ def oauth_client_metadata_url() -> str | None:
     The SDK therefore requires an HTTPS URL with a non-root path. Local
     development keeps falling back to DCR or static credentials.
     """
-    frontend_url = auth_settings.FRONTEND_URL.rstrip("/")
-    if not frontend_url.startswith("https://"):
+    metadata_url = oauth_client_metadata_document_url()
+    if not metadata_url.startswith("https://"):
         return None
-    return f"{frontend_url}/api/backend/mcp-servers/oauth/client-metadata.json"
+    return metadata_url
 
 
 def build_oauth_client_metadata(
@@ -324,11 +335,13 @@ def build_oauth_client_metadata(
     )
 
 
-def build_oauth_client_metadata_document() -> OAuthClientMetadata:
+def build_oauth_client_metadata_document(client_id: str) -> dict[str, object]:
     """Public-client metadata served at :func:`oauth_client_metadata_url`."""
     metadata = build_oauth_client_metadata(hosted_oauth_redirect_strategy())
     metadata.token_endpoint_auth_method = AUTH_METHOD_NONE
-    return metadata
+    document = metadata.model_dump(by_alias=True, mode="json", exclude_none=True)
+    document["client_id"] = client_id
+    return document
 
 
 class _DropIntentionalAuthorizationErrors(logging.Filter):
