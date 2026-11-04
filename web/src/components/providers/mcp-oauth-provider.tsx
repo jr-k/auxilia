@@ -182,6 +182,10 @@ export function McpOAuthProvider({ children }: { children: React.ReactNode }) {
 										Copy the complete address currently shown in your
 										browser&apos;s address bar, then paste it below.
 									</p>
+									<p>
+										If Adobe redirects immediately, it reused your existing
+										session. Copy the final 127.0.0.1 address as usual.
+									</p>
 									<p>You do not need to install or run anything.</p>
 								</div>
 							</div>

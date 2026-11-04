@@ -183,7 +183,7 @@ class OAuthCallbackInfo(SQLModel):
 
 
 class OAuthManualCallbackRequest(SQLModel):
-    callback_url: str = Field(min_length=1, max_length=4096)
+    callback_url: str = Field(min_length=1, max_length=65536)
 
 
 class OAuthManualCallbackResponse(SQLModel):
