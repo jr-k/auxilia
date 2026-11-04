@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.85](https://github.com/jr-k/auxilia/compare/backend-v0.11.84...backend-v0.11.85) (2026-11-04)
+
+
+### Bug Fixes
+
+* **mcp:** accept long Frame.io callbacks ([0f063ea](https://github.com/jr-k/auxilia/commit/0f063ea90125111ba79ed7a21c628eb09ab2c423))
+
 ## [0.11.84](https://github.com/jr-k/auxilia/compare/backend-v0.11.83...backend-v0.11.84) (2026-11-04)
 
 

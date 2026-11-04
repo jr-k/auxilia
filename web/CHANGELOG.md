@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.114](https://github.com/jr-k/auxilia/compare/web-v0.12.113...web-v0.12.114) (2026-11-04)
+
+
+### Bug Fixes
+
+* **mcp:** accept long Frame.io callbacks ([0f063ea](https://github.com/jr-k/auxilia/commit/0f063ea90125111ba79ed7a21c628eb09ab2c423))
+
 ## [0.12.113](https://github.com/jr-k/auxilia/compare/web-v0.12.112...web-v0.12.113) (2026-11-04)
 
 
