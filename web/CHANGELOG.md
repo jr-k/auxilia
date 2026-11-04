@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.117](https://github.com/jr-k/auxilia/compare/web-v0.12.116...web-v0.12.117) (2026-11-04)
+
+
+### Bug Fixes
+
+* **agents:** sort capability tabs alphabetically ([e0bc9f6](https://github.com/jr-k/auxilia/commit/e0bc9f62a63256fb8b14ee1b056e6305ee404bb6))
+
 ## [0.12.116](https://github.com/jr-k/auxilia/compare/web-v0.12.115...web-v0.12.116) (2026-11-04)
 
 
