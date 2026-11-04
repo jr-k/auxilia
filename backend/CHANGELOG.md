@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.86](https://github.com/jr-k/auxilia/compare/backend-v0.11.85...backend-v0.11.86) (2026-11-04)
+
+
+### Features
+
+* **artifacts:** support local binary attachments ([4a7ae7b](https://github.com/jr-k/auxilia/commit/4a7ae7bce15957b8c7d5e5946b0096cbfe621f6e))
+
 ## [0.11.85](https://github.com/jr-k/auxilia/compare/backend-v0.11.84...backend-v0.11.85) (2026-11-04)
 
 
