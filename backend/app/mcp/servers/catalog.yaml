@@ -2205,6 +2205,15 @@ servers:
       Searches current Vuetify component APIs, guides, release notes, and
       migration documentation.
 
+  - name: "Webflow"
+    url: "https://mcp.webflow.com/mcp"
+    auth_type: oauth2
+    icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/webflow.png"
+    supports_dcr: true
+    description: >-
+      Manages authorized Webflow sites, CMS content, pages, assets, components,
+      styles, and Designer workflows.
+
   - name: "Webdock"
     url: "https://mcp.webdock.io"
     auth_type: oauth2
