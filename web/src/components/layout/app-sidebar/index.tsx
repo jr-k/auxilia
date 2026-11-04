@@ -191,6 +191,35 @@ function shortTimeAgo(dateStr: string): string {
 	return `${Math.floor(days / 7)}w`;
 }
 
+function sortRecentThreads(
+	threads: Thread[],
+	activeRunThreadIds: Set<string>,
+): Thread[] {
+	return [...threads].sort((left, right) => {
+		const leftPriority = activeRunThreadIds.has(left.id)
+			? 0
+			: left.isUnread
+				? 1
+				: 2;
+		const rightPriority = activeRunThreadIds.has(right.id)
+			? 0
+			: right.isUnread
+				? 1
+				: 2;
+		if (leftPriority !== rightPriority) {
+			return leftPriority - rightPriority;
+		}
+
+		const leftActivityAt = new Date(
+			left.updatedAt ?? left.createdAt,
+		).getTime();
+		const rightActivityAt = new Date(
+			right.updatedAt ?? right.createdAt,
+		).getTime();
+		return rightActivityAt - leftActivityAt;
+	});
+}
+
 /** 22px leading-icon slot — the fixed column that keeps icons anchored
  * at the same x position whether the sidebar is open or collapsed. */
 function IconSlot({ children }: { children: React.ReactNode }) {
@@ -289,14 +318,18 @@ export function AppSidebar() {
 		useState<ThreadCompletionFilter>("mixed");
 	const [movingThread, setMovingThread] =
 		useState<ThreadPlacementTarget | null>(null);
-	const visibleThreads = threads.filter((thread) => {
+	const filteredThreads = threads.filter((thread) => {
 		if (threadCompletionFilter === "mixed") return true;
 		if (threadCompletionFilter === "completed") {
 			return thread.completedAt != null;
 		}
 		return thread.completedAt == null;
 	});
-	const activeRunThreadIds = useActiveRunThreadIds(visibleThreads);
+	const activeRunThreadIds = useActiveRunThreadIds(filteredThreads);
+	const visibleThreads = sortRecentThreads(
+		filteredThreads,
+		activeRunThreadIds,
+	);
 	const appearance = useAppearanceStore((state) => state.appearance);
 	const showShortcutsInMenu = useShowShortcutsInMenu();
 	const selection = useRowSelection({
