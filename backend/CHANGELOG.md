@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.81](https://github.com/jr-k/auxilia/compare/backend-v0.11.80...backend-v0.11.81) (2026-11-04)
+
+
+### Features
+
+* **models:** add latest flagship models ([96b578f](https://github.com/jr-k/auxilia/commit/96b578f524b9bd55abe3ef45428d2926bc03ea10))
+
 ## [0.11.80](https://github.com/jr-k/auxilia/compare/backend-v0.11.79...backend-v0.11.80) (2026-11-03)
 
 
