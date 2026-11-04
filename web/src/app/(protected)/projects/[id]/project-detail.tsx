@@ -1,6 +1,8 @@
 "use client";
 
 import {
+	forwardRef,
+	type ComponentPropsWithoutRef,
 	useEffect,
 	useMemo,
 	useRef,
@@ -526,17 +528,25 @@ function ProjectViewToggle({
 	);
 }
 
-function ResourceMenuButton({ label }: { label: string }) {
+const ResourceMenuButton = forwardRef<
+	HTMLButtonElement,
+	{ label: string } & ComponentPropsWithoutRef<"button">
+>(function ResourceMenuButton({ label, className, ...props }, ref) {
 	return (
 		<button
+			ref={ref}
 			type="button"
 			aria-label={`More options for ${label}`}
-			className="flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-[7px] text-meta transition-colors hover:bg-hover hover:text-foreground data-[state=open]:bg-hover dark:hover:bg-white/10 dark:data-[state=open]:bg-white/10"
+			className={cn(
+				"flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-[7px] text-meta transition-colors hover:bg-hover hover:text-foreground data-[state=open]:bg-hover dark:hover:bg-white/10 dark:data-[state=open]:bg-white/10",
+				className,
+			)}
+			{...props}
 		>
 			<MoreVertical className="size-4" />
 		</button>
 	);
-}
+});
 
 function FolderRow({
 	folder,
