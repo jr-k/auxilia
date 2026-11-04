@@ -77,7 +77,9 @@ export default function AgentSkillList({
 			imageRevision: null,
 			scriptCount: 0,
 		};
-	const enabled = skillIds.map(resolve);
+	const enabled = skillIds
+		.map(resolve)
+		.sort((a, b) => a.name.localeCompare(b.name));
 
 	const candidates = useMemo(() => {
 		const taken = new Set(skillIds);

@@ -112,7 +112,9 @@ export default function AgentToolList({
 
 	const enabledServers = useMemo(() => {
 		const enabledIds = new Set(mcpServers.map((s) => s.mcpServerId));
-		return allMCPServers.filter((server) => enabledIds.has(server.id));
+		return allMCPServers
+			.filter((server) => enabledIds.has(server.id))
+			.sort((a, b) => a.name.localeCompare(b.name));
 	}, [allMCPServers, mcpServers]);
 	const allServersExpanded =
 		enabledServers.length > 0 &&
@@ -132,7 +134,9 @@ export default function AgentToolList({
 
 	const enabledSandboxes = useMemo(() => {
 		const enabledIds = new Set(sandboxes.map((s) => s.sandboxId));
-		return allSandboxes.filter((sandbox) => enabledIds.has(sandbox.id));
+		return allSandboxes
+			.filter((sandbox) => enabledIds.has(sandbox.id))
+			.sort((a, b) => a.name.localeCompare(b.name));
 	}, [allSandboxes, sandboxes]);
 
 	const bindingFor = (serverId: string): AgentMCPServerForm =>

@@ -562,7 +562,12 @@ export default function AgentEditor({
 		count?: number;
 	}[] = [
 		{ key: "mcp", label: "MCP servers", count: form.mcpServers.length },
-		{ key: "sandbox", label: "Sandbox", count: form.sandboxes.length },
+		{ key: "skills", label: "Skills", count: form.skillIds.length },
+		{
+			key: "subagents",
+			label: "Subagents",
+			count: form.subagentIds.length,
+		},
 		...(agent
 			? [
 					{
@@ -572,12 +577,7 @@ export default function AgentEditor({
 					},
 				]
 			: []),
-		{ key: "skills", label: "Skills", count: form.skillIds.length },
-		{
-			key: "subagents",
-			label: "Subagents",
-			count: form.subagentIds.length,
-		},
+		{ key: "sandbox", label: "Sandbox", count: form.sandboxes.length },
 	];
 	const activeCapabilityTab = capabilityTabs.some(
 		(candidate) => candidate.key === capabilityTab,

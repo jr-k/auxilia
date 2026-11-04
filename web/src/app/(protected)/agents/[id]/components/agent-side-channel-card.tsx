@@ -36,6 +36,23 @@ interface Props {
 	onCountChange?: (count: number) => void;
 }
 
+type SideChannelConnection =
+	| {
+			kind: "slack";
+			name: string;
+			connection: AgentSlackBotSettings;
+	  }
+	| {
+			kind: "telegram";
+			name: string;
+			connection: AgentTelegramBotSettings;
+	  }
+	| {
+			kind: "whatsapp";
+			name: string;
+			connection: AgentWhatsAppSettings;
+	  };
+
 export default function AgentSideChannelCard({
 	agentId,
 	canManage,
@@ -334,6 +351,23 @@ export default function AgentSideChannelCard({
 		slackConnections.length +
 		telegramConnections.length +
 		whatsAppConnections.length;
+	const sortedConnections: SideChannelConnection[] = [
+		...slackConnections.map((connection) => ({
+			kind: "slack" as const,
+			name: connection.slackTeamName ?? "Slack workspace",
+			connection,
+		})),
+		...telegramConnections.map((connection) => ({
+			kind: "telegram" as const,
+			name: connection.botUsername ?? "Telegram bot",
+			connection,
+		})),
+		...whatsAppConnections.map((connection) => ({
+			kind: "whatsapp" as const,
+			name: connection.verifiedName ?? "WhatsApp",
+			connection,
+		})),
+	].sort((a, b) => a.name.localeCompare(b.name));
 
 	useEffect(() => {
 		onCountChange?.(totalConnections);
@@ -394,119 +428,64 @@ export default function AgentSideChannelCard({
 					</div>
 				) : (
 					<>
-						{slackConnections.map((connection, index) => (
-							<div
-								key={connection.id}
-								className={`flex items-center gap-3 px-3.5 py-3 ${
-									index > 0 ? "border-t border-hairline" : ""
-								}`}
-							>
-								<SlackLogo className="size-8 shadow-none" />
-								<div className="min-w-0 flex-1">
-									<p className="truncate text-[12.5px] font-semibold text-foreground">
-										{connection.slackTeamName ?? "Slack workspace"}
-									</p>
-									{connection.botName && (
-										<p className="truncate text-[10.5px] text-meta">
-											{connection.botName}
+						{sortedConnections.map((item, index) => {
+							const secondaryLabel =
+								item.kind === "whatsapp"
+									? item.connection.displayPhoneNumber
+									: item.connection.botName;
+							const { connection } = item;
+							return (
+								<div
+									key={`${item.kind}-${connection.id}`}
+									className={`flex items-center gap-3 px-3.5 py-3 ${
+										index > 0 ? "border-t border-hairline" : ""
+									}`}
+								>
+									{item.kind === "slack" ? (
+										<SlackLogo className="size-8 shadow-none" />
+									) : (
+										<span className="flex size-8 shrink-0 items-center justify-center rounded-[8px] border border-border bg-background">
+											{item.kind === "telegram" ? (
+												<TelegramLogo className="size-[62%]" />
+											) : (
+												<WhatsAppLogo className="size-[62%]" />
+											)}
+										</span>
+									)}
+									<div className="min-w-0 flex-1">
+										<p className="truncate text-[12.5px] font-semibold text-foreground">
+											{item.kind === "telegram" ? `@${item.name}` : item.name}
 										</p>
+										{secondaryLabel && (
+											<p className="truncate text-[10.5px] text-meta">
+												{secondaryLabel}
+											</p>
+										)}
+									</div>
+									<span className="shrink-0 whitespace-nowrap rounded-[4px] bg-success-bg px-2 py-0.5 text-[9.5px] font-semibold text-success dark:bg-emerald-950 dark:text-emerald-300">
+										{statusLabel(connection)}
+									</span>
+									{canManage && !readOnly && (
+										<button
+											type="button"
+											onClick={() => {
+												if (item.kind === "slack") {
+													openSlack(item.connection);
+												} else if (item.kind === "telegram") {
+													openTelegram(item.connection);
+												} else {
+													openWhatsApp(item.connection);
+												}
+											}}
+											className="flex shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-[6px] border border-input bg-background px-2.5 py-1.5 text-[11px] font-semibold text-foreground transition-colors hover:border-border-hover"
+										>
+											<Settings2 className="size-3" />
+											Configure
+										</button>
 									)}
 								</div>
-								<span className="shrink-0 whitespace-nowrap rounded-[4px] bg-success-bg px-2 py-0.5 text-[9.5px] font-semibold text-success dark:bg-emerald-950 dark:text-emerald-300">
-									{statusLabel(connection)}
-								</span>
-								{canManage && !readOnly && (
-									<button
-										type="button"
-										onClick={() => {
-											openSlack(connection);
-										}}
-										className="flex shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-[6px] border border-input bg-background px-2.5 py-1.5 text-[11px] font-semibold text-foreground transition-colors hover:border-border-hover"
-									>
-										<Settings2 className="size-3" />
-										Configure
-									</button>
-								)}
-							</div>
-						))}
-						{telegramConnections.map((connection, index) => (
-							<div
-								key={connection.id}
-								className={`flex items-center gap-3 border-hairline px-3.5 py-3 ${
-									slackConnections.length > 0 || index > 0 ? "border-t" : ""
-								}`}
-							>
-								<span className="flex size-8 shrink-0 items-center justify-center rounded-[8px] border border-border bg-background">
-									<TelegramLogo className="size-[62%]" />
-								</span>
-								<div className="min-w-0 flex-1">
-									<p className="truncate text-[12.5px] font-semibold text-foreground">
-										@{connection.botUsername ?? "Telegram bot"}
-									</p>
-									{connection.botName && (
-										<p className="truncate text-[10.5px] text-meta">
-											{connection.botName}
-										</p>
-									)}
-								</div>
-								<span className="shrink-0 whitespace-nowrap rounded-[4px] bg-success-bg px-2 py-0.5 text-[9.5px] font-semibold text-success dark:bg-emerald-950 dark:text-emerald-300">
-									{statusLabel(connection)}
-								</span>
-								{canManage && !readOnly && (
-									<button
-										type="button"
-										onClick={() => {
-											openTelegram(connection);
-										}}
-										className="flex shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-[6px] border border-input bg-background px-2.5 py-1.5 text-[11px] font-semibold text-foreground transition-colors hover:border-border-hover"
-									>
-										<Settings2 className="size-3" />
-										Configure
-									</button>
-								)}
-							</div>
-						))}
-						{whatsAppConnections.map((connection, index) => (
-							<div
-								key={connection.id}
-								className={`flex items-center gap-3 border-hairline px-3.5 py-3 ${
-									slackConnections.length > 0 ||
-									telegramConnections.length > 0 ||
-									index > 0
-										? "border-t"
-										: ""
-								}`}
-							>
-								<span className="flex size-8 shrink-0 items-center justify-center rounded-[8px] border border-border bg-background">
-									<WhatsAppLogo className="size-[62%]" />
-								</span>
-								<div className="min-w-0 flex-1">
-									<p className="truncate text-[12.5px] font-semibold text-foreground">
-										{connection.verifiedName ?? "WhatsApp"}
-									</p>
-									{connection.displayPhoneNumber && (
-										<p className="truncate text-[10.5px] text-meta">
-											{connection.displayPhoneNumber}
-										</p>
-									)}
-								</div>
-								<span className="shrink-0 whitespace-nowrap rounded-[4px] bg-success-bg px-2 py-0.5 text-[9.5px] font-semibold text-success dark:bg-emerald-950 dark:text-emerald-300">
-									{statusLabel(connection)}
-								</span>
-								{canManage && !readOnly && (
-									<button
-										type="button"
-										onClick={() => {
-											openWhatsApp(connection);
-										}}
-										className="flex shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-[6px] border border-input bg-background px-2.5 py-1.5 text-[11px] font-semibold text-foreground transition-colors hover:border-border-hover"
-									>
-										<Settings2 className="size-3" />
-										Configure
-									</button>
-								)}
-							</div>
-						))}
+							);
+						})}
 					</>
 				)}
 				{loadError && (

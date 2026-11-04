@@ -130,16 +130,18 @@ function SandboxSection({
 				Sandboxes
 			</h3>
 			<div className="content-start grid md:grid-cols-2 grid-cols-1 gap-x-2.5 gap-y-2">
-				{sandboxes.map((sandbox) => (
-					<AvailableSandboxCard
-						key={sandbox.id}
-						sandbox={sandbox}
-						onAdd={(sandboxId) => {
-							onAddSandbox(sandboxId);
-							onOpenChange(false);
-						}}
-					/>
-				))}
+				{[...sandboxes]
+					.sort((a, b) => a.name.localeCompare(b.name))
+					.map((sandbox) => (
+						<AvailableSandboxCard
+							key={sandbox.id}
+							sandbox={sandbox}
+							onAdd={(sandboxId) => {
+								onAddSandbox(sandboxId);
+								onOpenChange(false);
+							}}
+						/>
+					))}
 			</div>
 		</div>
 	);
@@ -179,7 +181,9 @@ function MCPServerSection({
 
 	const availableServers = useMemo(() => {
 		const enabledIds = new Set(attachedServerIds);
-		return allServers.filter((server) => !enabledIds.has(server.id));
+		return allServers
+			.filter((server) => !enabledIds.has(server.id))
+			.sort((a, b) => a.name.localeCompare(b.name));
 	}, [allServers, attachedServerIds]);
 
 	const handleServerAdded = (addedServerId: string) => {

@@ -69,7 +69,9 @@ export default function AgentSubagentList({
 		);
 	};
 
-	const subagents = subagentIds.map(resolve);
+	const subagents = subagentIds
+		.map(resolve)
+		.sort((a, b) => a.name.localeCompare(b.name));
 
 	const handleRemove = (subagentId: string) => {
 		onChange?.(subagentIds.filter((id) => id !== subagentId));
