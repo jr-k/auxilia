@@ -905,6 +905,7 @@ class WebOAuthClientProvider(OAuthClientProvider):
             f"{auth_endpoint}?{urlencode(auth_params)}",
             server_name=self._server_name,
             redirect_mode=self.redirect_strategy.mode,
+            sign_in_url=self.redirect_strategy.sign_in_url,
         )
 
     async def manual_exchange(

@@ -245,6 +245,7 @@ class AuthorizationRequired(SQLModel):
     status: Literal["auth_required"] = "auth_required"
     auth_url: str
     oauth_redirect_mode: OAuthRedirectMode = OAuthRedirectMode.hosted_callback
+    oauth_sign_in_url: str | None = None
 
 
 ListToolsResult = Annotated[
@@ -262,4 +263,5 @@ class ConnectionTestResult(SQLModel):
     oauth_required: bool = False
     auth_url: str | None = None
     oauth_redirect_mode: OAuthRedirectMode = OAuthRedirectMode.hosted_callback
+    oauth_sign_in_url: str | None = None
     error: str | None = None

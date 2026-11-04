@@ -17,10 +17,12 @@ class OAuthAuthorizationRequired(Exception):
         *,
         server_name: str | None = None,
         redirect_mode: OAuthRedirectMode = OAuthRedirectMode.hosted_callback,
+        sign_in_url: str | None = None,
     ):
         self.url = url
         self.server_name = server_name
         self.redirect_mode = redirect_mode
+        self.sign_in_url = sign_in_url
         # Never put the authorization URL in the exception message: it carries
         # the one-time state and can otherwise leak through a wrapper traceback.
         super().__init__("OAuth authorization required")

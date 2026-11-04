@@ -26,6 +26,7 @@ class OAuthRedirectStrategy(BaseModel):
 
     mode: OAuthRedirectMode
     redirect_uri: str
+    sign_in_url: str | None = None
     application_type: Literal["web", "native"]
     token_endpoint_auth_method: Literal[
         "client_secret_post", "client_secret_basic", "none"
@@ -35,6 +36,8 @@ class OAuthRedirectStrategy(BaseModel):
     @model_validator(mode="after")
     def validate_strategy(self) -> OAuthRedirectStrategy:
         _absolute_http_url(self.redirect_uri, field="OAuth redirect URI")
+        if self.sign_in_url is not None:
+            _absolute_http_url(self.sign_in_url, field="OAuth sign-in URL")
         parsed = urlparse(self.redirect_uri)
         if self.mode is OAuthRedirectMode.loopback_manual:
             if (

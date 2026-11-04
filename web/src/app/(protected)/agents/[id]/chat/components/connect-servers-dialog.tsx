@@ -300,6 +300,7 @@ export function ConnectServersDialog({
 					!startAuthorization({
 						authUrl: result.authUrl,
 						redirectMode: result.oauthRedirectMode,
+						signInUrl: result.oauthSignInUrl,
 						serverId: server.id,
 						serverName: server.name,
 						popup,

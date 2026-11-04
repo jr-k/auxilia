@@ -543,6 +543,7 @@ async def test_connection(
                 oauth_required=True,
                 auth_url=e.url,
                 oauth_redirect_mode=e.redirect_mode,
+                oauth_sign_in_url=e.sign_in_url,
             )
         except Exception as e:  # noqa: BLE001 — any failure is reported as unreachable
             return ConnectionTestResult(reachable=False, error=str(e))
@@ -563,6 +564,7 @@ async def test_connection(
             oauth_required=True,
             auth_url=e.url,
             oauth_redirect_mode=e.redirect_mode,
+            oauth_sign_in_url=e.sign_in_url,
         )
     except Exception as e:  # noqa: BLE001 — any failure is reported as unreachable
         return ConnectionTestResult(reachable=False, error=str(e))

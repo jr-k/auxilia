@@ -103,6 +103,7 @@ export type ListToolsResult =
 			status: "auth_required";
 			authUrl: string;
 			oauthRedirectMode: OAuthRedirectMode;
+			oauthSignInUrl?: string | null;
 	  };
 
 export interface ConnectionTestResult {
@@ -112,6 +113,7 @@ export interface ConnectionTestResult {
 	oauthRequired: boolean;
 	authUrl?: string | null;
 	oauthRedirectMode: OAuthRedirectMode;
+	oauthSignInUrl?: string | null;
 	error?: string | null;
 }
 

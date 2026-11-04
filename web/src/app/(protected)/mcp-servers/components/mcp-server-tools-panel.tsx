@@ -30,6 +30,7 @@ export function MCPServerToolsPanel({
 	const [isLoading, setIsLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 	const [authUrl, setAuthUrl] = useState<string | null>(null);
+	const [authSignInUrl, setAuthSignInUrl] = useState<string | null>(null);
 	const [authRedirectMode, setAuthRedirectMode] =
 		useState<OAuthRedirectMode>("hosted_callback");
 
@@ -41,10 +42,12 @@ export function MCPServerToolsPanel({
 			if (result.status === "auth_required") {
 				setTools([]);
 				setAuthUrl(result.authUrl);
+				setAuthSignInUrl(result.oauthSignInUrl ?? null);
 				setAuthRedirectMode(result.oauthRedirectMode);
 				return;
 			}
 			setAuthUrl(null);
+			setAuthSignInUrl(null);
 			setTools(result.tools);
 		} catch (loadError: unknown) {
 			setError(getApiErrorMessage(loadError, "Failed to load tools."));
@@ -129,6 +132,7 @@ export function MCPServerToolsPanel({
 									startAuthorization({
 										authUrl,
 										redirectMode: authRedirectMode,
+										signInUrl: authSignInUrl,
 										serverId,
 										onSuccess: async () => {
 											await loadTools();

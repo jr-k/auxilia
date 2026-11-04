@@ -134,6 +134,7 @@ export function useConnectionTest() {
 					const started = startAuthorization({
 						authUrl: data.authUrl,
 						redirectMode: data.oauthRedirectMode,
+						signInUrl: data.oauthSignInUrl,
 						serverId: server.id,
 						serverName: server.name,
 						popup,

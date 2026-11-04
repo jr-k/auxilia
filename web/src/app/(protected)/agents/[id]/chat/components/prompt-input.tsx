@@ -628,6 +628,7 @@ const ChatPromptInput = ({
 							: null;
 					const authUrl = safeHttpUrl(body?.auth_url);
 					if (authUrl) {
+						const signInUrl = safeHttpUrl(body?.oauth_sign_in_url);
 						const redirectMode =
 							body?.oauth_redirect_mode === "loopback_manual"
 								? "loopback_manual"
@@ -641,6 +642,7 @@ const ChatPromptInput = ({
 										startAuthorization({
 											authUrl,
 											redirectMode,
+											signInUrl,
 										});
 									},
 								},

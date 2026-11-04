@@ -973,6 +973,7 @@ class MCPServerService(BaseService[MCPServerDB, MCPServerRepository]):
             return AuthorizationRequired(
                 auth_url=exc.url,
                 oauth_redirect_mode=exc.redirect_mode,
+                oauth_sign_in_url=exc.sign_in_url,
             )
         except Exception:
             logger.exception(

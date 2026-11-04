@@ -670,6 +670,7 @@ servers:
           redirect_strategy:
             mode: loopback_manual
             redirect_uri: "http://127.0.0.1:4789/oauth/callback"
+            sign_in_url: "https://accounts.frame.io/"
             application_type: native
             token_endpoint_auth_method: none
             manual_completion_required: true

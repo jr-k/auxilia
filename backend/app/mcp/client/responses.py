@@ -18,6 +18,7 @@ from app.mcp.compatibility import OAuthRedirectMode
 def oauth_required_response(
     auth_url: str,
     redirect_mode: OAuthRedirectMode = OAuthRedirectMode.hosted_callback,
+    sign_in_url: str | None = None,
 ) -> JSONResponse:
     """401 telling the client which authorize URL to open."""
     return JSONResponse(
@@ -26,5 +27,6 @@ def oauth_required_response(
             "error": "oauth_required",
             "auth_url": auth_url,
             "oauth_redirect_mode": redirect_mode.value,
+            "oauth_sign_in_url": sign_in_url,
         },
     )
