@@ -17,7 +17,11 @@ from typing import Any
 from uuid import UUID
 
 from langchain_core.tools import BaseTool, tool
+from redis.exceptions import RedisError
 from slack_sdk.errors import SlackApiError
+from slack_sdk.http_retry.builtin_async_handlers import (
+    AsyncRateLimitErrorRetryHandler,
+)
 from slack_sdk.web.async_client import AsyncWebClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -25,6 +29,7 @@ from app.integrations.slack.service import (
     AgentSlackBotService,
     AgentSlackRuntimeConfig,
 )
+from app.redis_client import get_redis
 
 
 logger = logging.getLogger(__name__)
@@ -35,6 +40,8 @@ _MAX_SCANNED_MESSAGES = 1_000
 _MAX_RESULT_TEXT_CHARS = 1_500
 _CHANNEL_MATCH_THRESHOLD = 0.72
 _CHANNEL_MATCH_MARGIN = 0.08
+_CHANNEL_CACHE_TTL_SECONDS = 300
+_CHANNEL_CACHE_PREFIX = "slack:channel-index:"
 
 
 @dataclass(frozen=True)
@@ -43,6 +50,7 @@ class SlackTarget:
 
     client: AsyncWebClient
     team_id: str
+    bot_id: UUID
 
 
 @dataclass(frozen=True)
@@ -133,70 +141,146 @@ async def _readable_channel(
     return None
 
 
+def _channel_cache_key(target: SlackTarget) -> str:
+    return f"{_CHANNEL_CACHE_PREFIX}{target.bot_id}"
+
+
+async def _cached_channels(target: SlackTarget) -> list[SlackChannel] | None:
+    try:
+        raw = await get_redis().get(_channel_cache_key(target))
+    except RedisError:
+        logger.warning("Could not read Slack channel cache", exc_info=True)
+        return None
+    if not raw:
+        return None
+    try:
+        decoded = json.loads(raw)
+    except json.JSONDecodeError:
+        return None
+    if not isinstance(decoded, list):
+        return None
+    channels: list[SlackChannel] = []
+    for item in decoded:
+        if not isinstance(item, dict):
+            continue
+        channel_id = item.get("id")
+        name = item.get("name")
+        if isinstance(channel_id, str) and isinstance(name, str):
+            channels.append(SlackChannel(target, channel_id, name))
+    return channels
+
+
+async def _list_target_channels(
+    target: SlackTarget,
+    *,
+    refresh: bool = False,
+) -> list[SlackChannel]:
+    if not refresh:
+        cached = await _cached_channels(target)
+        if cached is not None:
+            return cached
+
+    channels: list[SlackChannel] = []
+    cursor: str | None = None
+    while True:
+        response = await target.client.conversations_list(
+            types="public_channel,private_channel",
+            exclude_archived=True,
+            limit=200,
+            cursor=cursor,
+        )
+        raw_channels = response.get("channels")
+        page_channels = raw_channels if isinstance(raw_channels, list) else []
+        for item in page_channels:
+            if not isinstance(item, dict) or item.get("is_member") is False:
+                continue
+            channel_id = item.get("id")
+            name = item.get("name")
+            if isinstance(channel_id, str) and isinstance(name, str):
+                channels.append(SlackChannel(target, channel_id, name))
+
+        metadata = response.get("response_metadata")
+        next_cursor = (
+            metadata.get("next_cursor") if isinstance(metadata, dict) else None
+        )
+        cursor = (
+            next_cursor
+            if isinstance(next_cursor, str) and next_cursor.strip()
+            else None
+        )
+        if cursor is None:
+            break
+
+    payload = json.dumps(
+        [{"id": item.channel_id, "name": item.name} for item in channels],
+        ensure_ascii=False,
+    )
+    try:
+        await get_redis().set(
+            _channel_cache_key(target),
+            payload,
+            ex=_CHANNEL_CACHE_TTL_SECONDS,
+        )
+    except RedisError:
+        logger.warning("Could not update Slack channel cache", exc_info=True)
+    return channels
+
+
+async def _available_channels(
+    targets: Sequence[SlackTarget],
+    *,
+    refresh: bool = False,
+) -> list[SlackChannel]:
+    channels: list[SlackChannel] = []
+    for target in targets:
+        channels.extend(await _list_target_channels(target, refresh=refresh))
+    return channels
+
+
 async def _resolve_channel(
     targets: Sequence[SlackTarget],
     channel: str,
+    *,
+    require_read: bool,
 ) -> SlackChannel:
     requested = _channel_name(channel)
     possible_id = requested.upper()
     if _CHANNEL_ID.fullmatch(possible_id):
-        target = await _readable_channel(targets, possible_id)
+        target = (
+            await _readable_channel(targets, possible_id)
+            if require_read or len(targets) > 1
+            else targets[0]
+        )
         if target is None:
             raise ValueError(
-                "No connected Slack bot can read the requested channel ID"
+                "No connected Slack bot can access the requested channel ID"
             )
         return SlackChannel(target, possible_id, possible_id)
 
-    available_channels: list[SlackChannel] = []
-    for target in targets:
-        cursor: str | None = None
-        while True:
-            response = await target.client.conversations_list(
-                types="public_channel,private_channel",
-                exclude_archived=True,
-                limit=200,
-                cursor=cursor,
-            )
-            raw_channels = response.get("channels")
-            page_channels = raw_channels if isinstance(raw_channels, list) else []
-            for item in page_channels:
-                if not isinstance(item, dict):
-                    continue
-                channel_id = item.get("id")
-                name = item.get("name")
-                if not isinstance(channel_id, str) or not isinstance(name, str):
-                    continue
-                if item.get("is_member") is False:
-                    continue
-                available_channels.append(SlackChannel(target, channel_id, name))
-
-            metadata = response.get("response_metadata")
-            next_cursor = (
-                metadata.get("next_cursor") if isinstance(metadata, dict) else None
-            )
-            cursor = (
-                next_cursor
-                if isinstance(next_cursor, str) and next_cursor.strip()
-                else None
-            )
-            if cursor is None:
-                break
+    available_channels = await _available_channels(targets)
 
     normalized_requested = _normalized_channel_name(requested)
-    ranked = sorted(
-        (
+
+    def rank(channels: Sequence[SlackChannel]) -> list[tuple[float, SlackChannel]]:
+        return sorted(
             (
-                _channel_match_score(
-                    normalized_requested,
-                    _normalized_channel_name(candidate.name),
-                ),
-                candidate,
-            )
-            for candidate in available_channels
-        ),
-        key=lambda item: item[0],
-        reverse=True,
-    )
+                (
+                    _channel_match_score(
+                        normalized_requested,
+                        _normalized_channel_name(candidate.name),
+                    ),
+                    candidate,
+                )
+                for candidate in channels
+            ),
+            key=lambda item: item[0],
+            reverse=True,
+        )
+
+    ranked = rank(available_channels)
+    if not ranked or ranked[0][0] < _CHANNEL_MATCH_THRESHOLD:
+        available_channels = await _available_channels(targets, refresh=True)
+        ranked = rank(available_channels)
     suggestions = ", ".join(f"#{candidate.name}" for _, candidate in ranked[:5])
     if not ranked or ranked[0][0] < _CHANNEL_MATCH_THRESHOLD:
         detail = f" Closest channels: {suggestions}." if suggestions else ""
@@ -209,7 +293,10 @@ async def _resolve_channel(
             f"Several Slack channels could match #{requested}: {suggestions}. "
             "Use a more specific name or the channel ID."
         )
-    if await _readable_channel((best.target,), best.channel_id) is None:
+    if (
+        require_read
+        and await _readable_channel((best.target,), best.channel_id) is None
+    ):
         raise ValueError(
             f"The Slack bot cannot read the best match, #{best.name}. "
             "Check that the bot belongs to the channel."
@@ -233,7 +320,7 @@ def _bound_slack_tools(targets: Sequence[SlackTarget]) -> tuple[BaseTool, ...]:
         identifies a message by text rather than by Slack timestamp. Returns
         JSON containing each matching message's `ts` and reply-ready `thread_ts`.
         """
-        resolved = await _resolve_channel(targets, channel)
+        resolved = await _resolve_channel(targets, channel, require_read=True)
         needle = query.strip().casefold()
         if not 2 <= len(needle) <= 300:
             raise ValueError("query must contain between 2 and 300 characters")
@@ -305,7 +392,7 @@ def _bound_slack_tools(targets: Sequence[SlackTarget]) -> tuple[BaseTool, ...]:
         below an existing message, pass the `thread_ts` returned by
         `slack_search_channel_messages`.
         """
-        resolved = await _resolve_channel(targets, channel)
+        resolved = await _resolve_channel(targets, channel, require_read=False)
         resolved_thread = _thread_ts(thread_ts)
         cleaned_text = text.strip()
         if not cleaned_text:
@@ -339,9 +426,12 @@ def _bound_slack_tools(targets: Sequence[SlackTarget]) -> tuple[BaseTool, ...]:
 
 
 def _target(config: AgentSlackRuntimeConfig) -> SlackTarget:
+    client = AsyncWebClient(token=config.bot_token)
+    client.retry_handlers.append(AsyncRateLimitErrorRetryHandler(max_retry_count=1))
     return SlackTarget(
-        client=AsyncWebClient(token=config.bot_token),
+        client=client,
         team_id=config.slack_team_id,
+        bot_id=config.id,
     )
 
 

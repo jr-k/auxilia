@@ -186,6 +186,12 @@ function AgentSlackSetupGuide({
 							multiline
 						/>
 					</div>
+					<p className="mt-3">
+						The manifest intentionally grants permissions through{" "}
+						<strong>Bot Token Scopes</strong> only. This side channel uses the{" "}
+						<code className={badgeClass}>xoxb-</code> bot token and does not
+						use <strong>User Token Scopes</strong>.
+					</p>
 				</div>
 			),
 		},
@@ -311,6 +317,11 @@ function AgentSlackSetupGuide({
 					<p>
 						In <strong>OAuth &amp; Permissions</strong>, add these{" "}
 						<strong>Bot Token Scopes</strong>:
+					</p>
+					<p className="mt-2">
+						Do not add them under <strong>User Token Scopes</strong>. Auxilia
+						uses the <code className={badgeClass}>xoxb-</code> bot token, not
+						an <code className={badgeClass}>xoxp-</code> user token.
 					</p>
 					<div className="mt-2 flex flex-wrap gap-1.5">
 						{scopes.map((scope) => (
