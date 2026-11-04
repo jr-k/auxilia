@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.84](https://github.com/jr-k/auxilia/compare/backend-v0.11.83...backend-v0.11.84) (2026-11-04)
+
+
+### Features
+
+* **mcp:** add Webflow catalog server ([e80f539](https://github.com/jr-k/auxilia/commit/e80f539f69b0f7002d41b024abd458cd6061c691))
+
 ## [0.11.83](https://github.com/jr-k/auxilia/compare/backend-v0.11.82...backend-v0.11.83) (2026-11-04)
 
 
