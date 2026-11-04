@@ -226,6 +226,21 @@ models:
     supports_tool_search: true
     reasoning_effort_levels: [low, medium, high, xhigh, max]
     reasoning_effort_default: medium
+  - provider: openai
+    model_id: gpt-6-astra
+    display_name: GPT-6 Astra
+    # <=272K-input tier; above it 2x input/cache and 1.5x output.
+    prices:
+      input: "1e-5"
+      input_cache_read: "1e-6"
+      output: "5e-5"
+    chef: OpenAI
+    chef_slug: openai
+    multimodal: true
+    supports_structured_output: true
+    supports_tool_search: true
+    reasoning_effort_levels: [low, medium, high, xhigh, max]
+    reasoning_effort_default: medium
 
   # --- Anthropic (native endpoint) ---
   - provider: anthropic
@@ -370,6 +385,21 @@ models:
     supports_tool_search: true
     reasoning_effort_levels: [low, medium, high, xhigh, max]
     reasoning_effort_default: medium
+  - provider: anthropic
+    model_id: claude-fable-5-1
+    display_name: Claude Fable 5.1
+    prices:
+      input: "1e-5"
+      input_cache_read: "2.5e-7"
+      output: "5e-5"
+      input_cache_creation: "1.25e-5"
+    chef: Anthropic
+    chef_slug: anthropic
+    multimodal: true
+    supports_structured_output: true
+    supports_tool_search: true
+    reasoning_effort_levels: [low, medium, high, xhigh, max]
+    reasoning_effort_default: high
 
   # --- DeepSeek (native endpoint: json_object only, no schema guarantee) ---
   # The two V4 aliases are retained for pinned threads and currently serve
@@ -700,17 +730,29 @@ models:
     supports_structured_output: false
     reasoning_effort_levels: [low, high, max]
     reasoning_effort_default: max
+  - provider: openrouter
+    model_id: z-ai/glm-5.3-flashx-legal
+    display_name: GLM 5.3 FlashX Legal
+    prices:
+      input: "3.7e-7"
+      input_cache_read: "7.5e-8"
+      output: "1.25e-6"
+    chef: Z.ai
+    chef_slug: z-ai
+    multimodal: true
+    supports_structured_output: true
+    reasoning_effort_levels: [low, high, max]
+    reasoning_effort_default: max
 
   # --- Qwen 3.8 via OpenRouter (added 2026-08-26) ---
-  # There is NO qwen3.8-flash (on OpenRouter or Alibaba); the 3.8 lineup is
-  # Max (hosted, multimodal), 27B (open-weight dense VL) and 2.4T-A95B (the
-  # open-weight MoE flagship, text-only). Effort ladder is low|xhigh with
+  # The curated lineup is Max and Flash (hosted, multimodal), 27B
+  # (open-weight dense VL), and 2.4T-A95B (the open-weight MoE flagship,
+  # text-only). Effort ladder is low|xhigh with
   # xhigh the native default — Qwen's `medium` is a silent no-op alias for
   # the default, so per the header rule it is not declared. Whether hosted
   # endpoints accept disabling thinking is unverified — no `none` until
   # probed. SO flags follow the endpoints' supported_parameters: Max
-  # (Alibaba, sole host) and 27B (all 10 hosts) list structured_outputs;
-  # 2.4T-A95B is host-dependent (absent on Alibaba's own endpoint) → false.
+  # (Alibaba, sole host), 27B and 2.4T-A95B list structured_outputs.
   - provider: openrouter
     model_id: qwen/qwen3.8-max
     display_name: Qwen3.8 Max
@@ -745,6 +787,19 @@ models:
     chef_slug: qwen
     multimodal: false
     supports_structured_output: false
+    reasoning_effort_levels: [low, xhigh]
+    reasoning_effort_default: xhigh
+  - provider: openrouter
+    model_id: qwen/qwen3.8-2.4t-a95b
+    display_name: Qwen3.8 2.4T A95B
+    prices:
+      input: "2e-6"
+      input_cache_read: "2.5e-7"
+      output: "6e-6"
+    chef: Qwen
+    chef_slug: qwen
+    multimodal: false
+    supports_structured_output: true
     reasoning_effort_levels: [low, xhigh]
     reasoning_effort_default: xhigh
   - provider: openrouter

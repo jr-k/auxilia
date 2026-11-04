@@ -61,6 +61,8 @@ KNOWN_REASONING_EFFORT_LEVELS: dict[str, frozenset[ReasoningEffort]] = {
     "gpt-6-luna": frozenset({"none", "low", "medium", "high", "xhigh", "max"}),
     "gpt-6-sol": frozenset({"none", "low", "medium", "high", "xhigh", "max"}),
     "gpt-6.1-sol": frozenset({"low", "medium", "high", "xhigh", "max"}),
+    "gpt-6-astra": frozenset({"low", "medium", "high", "xhigh", "max"}),
+    "claude-fable-5-1": frozenset({"low", "medium", "high", "xhigh", "max"}),
     "claude-haiku-5-5": frozenset({"low", "medium", "high", "xhigh", "max"}),
     "claude-sonnet-4-6": frozenset({"low", "medium", "high", "max"}),
     "claude-sonnet-5": frozenset({"low", "medium", "high", "xhigh", "max"}),
@@ -90,9 +92,11 @@ KNOWN_REASONING_EFFORT_LEVELS: dict[str, frozenset[ReasoningEffort]] = {
     "z-ai/glm-5.3-flash": frozenset({"low", "high", "max"}),
     "z-ai/glm-5.3-prime": frozenset({"low", "high", "max"}),
     "z-ai/glm-5.3-flashx": frozenset({"low", "high", "max"}),
+    "z-ai/glm-5.3-flashx-legal": frozenset({"low", "high", "max"}),
     "qwen/qwen3.8-max": frozenset({"low", "xhigh"}),
     "qwen/qwen3.8-27b": frozenset({"low", "xhigh"}),
     "qwen/qwen3.8-flash": frozenset({"low", "xhigh"}),
+    "qwen/qwen3.8-2.4t-a95b": frozenset({"low", "xhigh"}),
 }
 
 # The single copy of the whitelist: bundled into the image as the offline
