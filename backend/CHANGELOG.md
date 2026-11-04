@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.88](https://github.com/jr-k/auxilia/compare/backend-v0.11.87...backend-v0.11.88) (2026-11-04)
+
+
+### Bug Fixes
+
+* **lists:** sort workspace resources alphabetically ([656099c](https://github.com/jr-k/auxilia/commit/656099c79c08cdcf31058a4a1405a55069104d34))
+
 ## [0.11.87](https://github.com/jr-k/auxilia/compare/backend-v0.11.86...backend-v0.11.87) (2026-11-04)
 
 
