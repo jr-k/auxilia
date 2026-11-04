@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.11.82](https://github.com/jr-k/auxilia/compare/backend-v0.11.81...backend-v0.11.82) (2026-11-04)
+
+
+### Features
+
+* **models:** add GPT-6.1 Terra ([0519f0e](https://github.com/jr-k/auxilia/commit/0519f0ed2414e4c60610d3a975ab6066d288d422))
+
+
+### Bug Fixes
+
+* **models:** refresh provider catalog ([c28e5e9](https://github.com/jr-k/auxilia/commit/c28e5e9e2a734810950fa6faff7573eb616110a9))
+
 ## [0.11.81](https://github.com/jr-k/auxilia/compare/backend-v0.11.80...backend-v0.11.81) (2026-11-04)
 
 
