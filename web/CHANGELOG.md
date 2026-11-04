@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.115](https://github.com/jr-k/auxilia/compare/web-v0.12.114...web-v0.12.115) (2026-11-04)
+
+
+### Bug Fixes
+
+* **mcp:** guide manual OAuth in two steps ([43df86a](https://github.com/jr-k/auxilia/commit/43df86abae8ff15a8b1e66d9c0d6a4de863dd7a0))
+
 ## [0.12.114](https://github.com/jr-k/auxilia/compare/web-v0.12.113...web-v0.12.114) (2026-11-04)
 
 
