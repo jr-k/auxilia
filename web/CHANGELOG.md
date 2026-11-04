@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.113](https://github.com/jr-k/auxilia/compare/web-v0.12.112...web-v0.12.113) (2026-11-04)
+
+
+### Features
+
+* **tables:** add JSON export ([b39d512](https://github.com/jr-k/auxilia/commit/b39d512296391079cdd3f7703f910ee27fd53efb))
+
 ## [0.12.112](https://github.com/jr-k/auxilia/compare/web-v0.12.111...web-v0.12.112) (2026-11-04)
 
 
