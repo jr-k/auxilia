@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.83](https://github.com/jr-k/auxilia/compare/backend-v0.11.82...backend-v0.11.83) (2026-11-04)
+
+
+### Bug Fixes
+
+* **mcp:** publish valid OAuth client metadata ([1f87f08](https://github.com/jr-k/auxilia/commit/1f87f08d5a304bf02427b7494c33325d13f89979))
+
 ## [0.11.82](https://github.com/jr-k/auxilia/compare/backend-v0.11.81...backend-v0.11.82) (2026-11-04)
 
 
