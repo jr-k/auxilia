@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.112](https://github.com/jr-k/auxilia/compare/web-v0.12.111...web-v0.12.112) (2026-11-04)
+
+
+### Bug Fixes
+
+* **threads:** prioritize running and unread threads ([d4854d3](https://github.com/jr-k/auxilia/commit/d4854d316f0e197bc6a6e169f902fb5da1d43bed))
+
 ## [0.12.111](https://github.com/jr-k/auxilia/compare/web-v0.12.110...web-v0.12.111) (2026-11-03)
 
 
