@@ -8,7 +8,12 @@ import {
 	useRef,
 	useState,
 } from "react";
-import { AlertTriangle, Loader2, LockKeyhole } from "lucide-react";
+import {
+	ClipboardPaste,
+	ExternalLink,
+	Loader2,
+	LockKeyhole,
+} from "lucide-react";
 import { toast } from "sonner";
 import {
 	Dialog,
@@ -37,7 +42,7 @@ interface OAuthAuthorizationRequest {
 }
 
 interface ManualAttempt extends OAuthAuthorizationRequest {
-	popup: Window;
+	popup: Window | null;
 }
 
 interface McpOAuthContextValue {
@@ -84,35 +89,62 @@ export function McpOAuthProvider({ children }: { children: React.ReactNode }) {
 				return false;
 			}
 
+			if (request.redirectMode === "loopback_manual") {
+				request.popup?.close();
+				if (manualPopupRef.current && !manualPopupRef.current.closed) {
+					manualPopupRef.current.close();
+				}
+				manualPopupRef.current = null;
+				setCallbackUrl("");
+				setError(null);
+				setSubmitting(false);
+				setManualAttempt({ ...request, authUrl, popup: null });
+				return true;
+			}
+
 			const popup =
 				request.popup ??
-				window.open(
-					"",
-					"_blank",
-					request.redirectMode === "loopback_manual"
-						? undefined
-						: "width=600,height=700",
-				);
+				window.open("", "_blank", "width=600,height=700");
 			if (!popup) {
 				toast.error("Allow pop-ups for this site, then try again.");
 				return false;
 			}
 			popup.location.href = authUrl;
-
-			if (request.redirectMode === "loopback_manual") {
-				if (manualPopupRef.current && !manualPopupRef.current.closed) {
-					manualPopupRef.current.close();
-				}
-				manualPopupRef.current = popup;
-				setCallbackUrl("");
-				setError(null);
-				setSubmitting(false);
-				setManualAttempt({ ...request, popup });
-			}
 			return true;
 		},
 		[],
 	);
+
+	const openManualAuthorization = useCallback(() => {
+		if (!manualAttempt) return;
+		const popup = window.open(manualAttempt.authUrl, "_blank");
+		if (!popup) {
+			setError("Allow pop-ups for this site, then try again.");
+			return;
+		}
+		if (manualPopupRef.current && !manualPopupRef.current.closed) {
+			manualPopupRef.current.close();
+		}
+		manualPopupRef.current = popup;
+		setManualAttempt((current) => (current ? { ...current, popup } : null));
+		setError(null);
+	}, [manualAttempt]);
+
+	const pasteManualCallback = useCallback(async () => {
+		try {
+			const value = (await navigator.clipboard.readText()).trim();
+			if (!value) {
+				setError("The clipboard is empty.");
+				return;
+			}
+			setCallbackUrl(value);
+			setError(null);
+		} catch {
+			setError(
+				"Could not read the clipboard. Paste the complete address into the field instead.",
+			);
+		}
+	}, []);
 
 	const finishManualConnection = useCallback(async () => {
 		if (!manualAttempt || submitting) return;
@@ -137,7 +169,9 @@ export function McpOAuthProvider({ children }: { children: React.ReactNode }) {
 			return;
 		}
 		const onSuccess = manualAttempt.onSuccess;
-		if (!manualAttempt.popup.closed) manualAttempt.popup.close();
+		if (manualAttempt.popup && !manualAttempt.popup.closed) {
+			manualAttempt.popup.close();
+		}
 		manualPopupRef.current = null;
 		setManualAttempt(null);
 		setCallbackUrl("");
@@ -166,60 +200,101 @@ export function McpOAuthProvider({ children }: { children: React.ReactNode }) {
 			>
 				<DialogContent>
 					<DialogHeader>
-						<DialogTitle>Authentication is almost complete</DialogTitle>
+						<DialogTitle>
+							Connect {manualAttempt?.serverName ?? "the MCP server"}
+						</DialogTitle>
 						<DialogDescription>
-							Complete authentication in the new browser tab. The browser may
-							say it cannot connect to 127.0.0.1. This is expected.
+							Complete these two steps to finish the secure connection.
 						</DialogDescription>
 					</DialogHeader>
 
 					<div className="space-y-4">
-						<div className="rounded-[10px] border border-border bg-hover/60 p-3.5 dark:bg-white/5">
-							<div className="flex gap-3">
-								<LockKeyhole className="mt-0.5 size-4 shrink-0 text-petrol dark:text-panel-terminal" />
-								<div className="space-y-1.5 text-[12.5px] leading-[1.55] text-subtle dark:text-panel-body">
-									<p>
-										Copy the complete address currently shown in your
-										browser&apos;s address bar, then paste it below.
-									</p>
-									<p>
-										If Adobe redirects immediately, it reused your existing
-										session. Copy the final 127.0.0.1 address as usual.
-									</p>
-									<p>You do not need to install or run anything.</p>
+						<div className="rounded-[10px] border border-border bg-hover/60 p-4 dark:bg-white/5">
+							<div className="flex gap-3.5">
+								<div className="flex size-6 shrink-0 items-center justify-center rounded-full bg-petrol text-[12px] font-semibold text-white">
+									1
+								</div>
+								<div className="min-w-0 flex-1 space-y-2.5">
+									<div>
+										<p className="text-[13px] font-semibold text-foreground">
+											Sign in with Adobe
+										</p>
+										<p className="mt-1 text-[12px] leading-[1.5] text-meta dark:text-panel-dim">
+											Open the authorization page and sign in with the Adobe
+											account connected to Frame.io.
+										</p>
+									</div>
+									<DialogButton
+										variant="outline"
+										className="w-full sm:w-auto"
+										onClick={openManualAuthorization}
+									>
+										<ExternalLink className="size-3.5" />
+										Open {manualAttempt?.serverName ?? "service"} sign-in
+									</DialogButton>
 								</div>
 							</div>
 						</div>
 
-						<div>
-							<label
-								htmlFor="manual-oauth-callback-url"
-								className="text-[12px] font-semibold text-foreground"
-							>
-								Browser address
-							</label>
-							<Textarea
-								id="manual-oauth-callback-url"
-								value={callbackUrl}
-								onChange={(event) => {
-									setCallbackUrl(event.target.value);
-									if (error) setError(null);
-								}}
-								placeholder="http://127.0.0.1:4789/oauth/callback?code=…&state=…"
-								autoComplete="off"
-								autoCapitalize="none"
-								spellCheck={false}
-								disabled={submitting}
-								aria-invalid={Boolean(error)}
-								className="mt-1.5 min-h-24 resize-y font-mono text-[12px] leading-[1.5]"
-							/>
+						<div className="rounded-[10px] border border-border p-4">
+							<div className="flex gap-3.5">
+								<div className="flex size-6 shrink-0 items-center justify-center rounded-full border border-petrol/30 bg-petrol/8 text-[12px] font-semibold text-petrol dark:text-panel-terminal">
+									2
+								</div>
+								<div className="min-w-0 flex-1 space-y-3">
+									<div>
+										<p className="text-[13px] font-semibold text-foreground">
+											Retrieve the callback address
+										</p>
+										<p className="mt-1 text-[12px] leading-[1.5] text-meta dark:text-panel-dim">
+											After authorization, Adobe redirects to 127.0.0.1. The
+											browser may report that it cannot connect. Copy the
+											complete address from its address bar.
+										</p>
+									</div>
+									<DialogButton
+										variant="outline"
+										className="w-full sm:w-auto"
+										onClick={() => {
+											void pasteManualCallback();
+										}}
+										disabled={submitting}
+									>
+										<ClipboardPaste className="size-3.5" />
+										Paste address from clipboard
+									</DialogButton>
+									<div>
+										<label
+											htmlFor="manual-oauth-callback-url"
+											className="text-[12px] font-semibold text-foreground"
+										>
+											Callback address
+										</label>
+										<Textarea
+											id="manual-oauth-callback-url"
+											value={callbackUrl}
+											onChange={(event) => {
+												setCallbackUrl(event.target.value);
+												if (error) setError(null);
+											}}
+											placeholder="http://127.0.0.1:4789/oauth/callback?code=…&state=…"
+											autoComplete="off"
+											autoCapitalize="none"
+											spellCheck={false}
+											disabled={submitting}
+											aria-invalid={Boolean(error)}
+											className="mt-1.5 min-h-24 resize-y font-mono text-[12px] leading-[1.5]"
+										/>
+									</div>
+								</div>
+							</div>
 						</div>
 
 						<div className="flex gap-2.5 text-[11.5px] leading-[1.5] text-meta dark:text-panel-dim">
-							<AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
+							<LockKeyhole className="mt-0.5 size-3.5 shrink-0" />
 							<p>
-								This address is sensitive and temporary. Do not share it with
-								anyone.
+								Nothing needs to be installed or run. The callback address is
+								sensitive and temporary, so do not share it.
 							</p>
 						</div>
 
