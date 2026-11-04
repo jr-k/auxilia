@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.120](https://github.com/jr-k/auxilia/compare/web-v0.12.119...web-v0.12.120) (2026-11-04)
+
+
+### Bug Fixes
+
+* **mcp:** refine manual OAuth dialog ([6740092](https://github.com/jr-k/auxilia/commit/674009255e61c53b14fb6df50baa65ee69dc2af8))
+
 ## [0.12.119](https://github.com/jr-k/auxilia/compare/web-v0.12.118...web-v0.12.119) (2026-11-04)
 
 

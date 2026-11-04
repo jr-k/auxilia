@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.89](https://github.com/jr-k/auxilia/compare/backend-v0.11.88...backend-v0.11.89) (2026-11-04)
+
+
+### Bug Fixes
+
+* **mcp:** refine manual OAuth dialog ([6740092](https://github.com/jr-k/auxilia/commit/674009255e61c53b14fb6df50baa65ee69dc2af8))
+
 ## [0.11.88](https://github.com/jr-k/auxilia/compare/backend-v0.11.87...backend-v0.11.88) (2026-11-04)
 
 
