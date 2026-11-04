@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.12.119](https://github.com/jr-k/auxilia/compare/web-v0.12.118...web-v0.12.119) (2026-11-04)
+
+
+### Bug Fixes
+
+* **lists:** sort workspace resources alphabetically ([656099c](https://github.com/jr-k/auxilia/commit/656099c79c08cdcf31058a4a1405a55069104d34))
+* **mcp:** refine manual OAuth dialog actions ([efcdd93](https://github.com/jr-k/auxilia/commit/efcdd93c0ba3253810c4e57a5a284644caf33121))
+
 ## [0.12.118](https://github.com/jr-k/auxilia/compare/web-v0.12.117...web-v0.12.118) (2026-11-04)
 
 
