@@ -234,7 +234,11 @@ export default function UsersPage() {
 
 	const fetchTeams = useCallback(async () => {
 		try {
-			setTeams(await teamsApi.listTeams());
+			setTeams(
+				(await teamsApi.listTeams()).sort((a, b) =>
+					a.name.localeCompare(b.name),
+				),
+			);
 		} catch (error) {
 			console.error("Error fetching teams:", error);
 		}
@@ -279,7 +283,11 @@ export default function UsersPage() {
 		void fetchTeams();
 		const fetchInvites = async () => {
 			try {
-				setInvites(await invitesApi.listInvites());
+				setInvites(
+					(await invitesApi.listInvites()).sort((a, b) =>
+						a.email.localeCompare(b.email),
+					),
+				);
 			} catch (error) {
 				console.error("Error fetching invites:", error);
 			}
@@ -996,7 +1004,11 @@ export default function UsersPage() {
 					onOpenChange={setInviteDialogOpen}
 					onInviteCreated={(invite) => {
 						if (invite.workspaceId === activeWorkspaceId) {
-							setInvites((prev) => [...prev, invite]);
+							setInvites((prev) =>
+								[...prev, invite].sort((a, b) =>
+									a.email.localeCompare(b.email),
+								),
+							);
 						}
 					}}
 				/>

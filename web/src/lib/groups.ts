@@ -2,6 +2,10 @@ export interface GroupedResource {
 	group?: string | null;
 }
 
+interface NamedGroupedResource extends GroupedResource {
+	name: string;
+}
+
 export interface GroupNode<T> {
 	name: string;
 	path: string;
@@ -49,12 +53,15 @@ export function groupOptions(resources: GroupedResource[]): string[] {
 	].sort((a, b) => a.localeCompare(b));
 }
 
-const finalize = <T>(node: MutableGroupNode<T>): GroupNode<T> => {
+const finalize = <T extends NamedGroupedResource>(
+	node: MutableGroupNode<T>,
+): GroupNode<T> => {
 	const children = [...node.children.values()]
 		.sort((a, b) => a.name.localeCompare(b.name))
 		.map(finalize);
 	return {
 		...node,
+		items: [...node.items].sort((a, b) => a.name.localeCompare(b.name)),
 		children,
 		count:
 			node.items.length +
@@ -62,7 +69,7 @@ const finalize = <T>(node: MutableGroupNode<T>): GroupNode<T> => {
 	};
 };
 
-export function buildGroupTree<T extends GroupedResource>(
+export function buildGroupTree<T extends NamedGroupedResource>(
 	resources: T[],
 ): GroupTree<T> {
 	const roots = new Map<string, MutableGroupNode<T>>();
@@ -103,6 +110,6 @@ export function buildGroupTree<T extends GroupedResource>(
 		groups: [...roots.values()]
 			.sort((a, b) => a.name.localeCompare(b.name))
 			.map(finalize),
-		ungrouped,
+		ungrouped: ungrouped.sort((a, b) => a.name.localeCompare(b.name)),
 	};
 }

@@ -166,7 +166,11 @@ class UserRepository(BaseRepository[UserDB]):
                 WorkspaceMembershipDB.user_id == UserDB.id,
             )
             .where(WorkspaceMembershipDB.workspace_id == workspace_id)
-            .order_by(UserDB.created_at.desc(), UserDB.id)
+            .order_by(
+                func.lower(func.coalesce(func.nullif(UserDB.name, ""), "Unnamed")),
+                func.lower(func.coalesce(UserDB.email, "")),
+                UserDB.id,
+            )
         )
         if role is not None:
             stmt = stmt.where(WorkspaceMembershipDB.role == role)
@@ -225,7 +229,11 @@ class UserRepository(BaseRepository[UserDB]):
         search: str | None = None,
         team_id: UUID | None = None,
     ) -> tuple[list[UserDB], int]:
-        stmt = select(UserDB).order_by(UserDB.created_at.desc(), UserDB.id)
+        stmt = select(UserDB).order_by(
+            func.lower(func.coalesce(func.nullif(UserDB.name, ""), "Unnamed")),
+            func.lower(func.coalesce(UserDB.email, "")),
+            UserDB.id,
+        )
         if role is not None or team_id is not None:
             membership_filter = select(WorkspaceMembershipDB.user_id).where(
                 WorkspaceMembershipDB.user_id == UserDB.id,

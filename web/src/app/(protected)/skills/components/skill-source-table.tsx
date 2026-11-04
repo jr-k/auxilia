@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { RefreshCw, Unplug } from "lucide-react";
 import {
 	BulkConfirmDialog,
@@ -281,11 +281,17 @@ export default function SkillSourceTable({ sources, isLoading, canManage, onErro
 	const deleteSources = useSkillsStore((state) => state.deleteSources);
 	const [toDisconnect, setToDisconnect] = useState<SkillSource | null>(null);
 	const [bulkOpen, setBulkOpen] = useState(false);
+	const orderedSources = useMemo(
+		() => [...sources].sort((a, b) => a.name.localeCompare(b.name)),
+		[sources],
+	);
 	const selection = useRowSelection({
-		orderedIds: sources.map((source) => source.id),
-		eligibleIds: canManage ? sources.map((source) => source.id) : [],
+		orderedIds: orderedSources.map((source) => source.id),
+		eligibleIds: canManage
+			? orderedSources.map((source) => source.id)
+			: [],
 	});
-	const selectedSources = sources.filter((source) =>
+	const selectedSources = orderedSources.filter((source) =>
 		selection.selectedIds.has(source.id),
 	);
 
@@ -499,7 +505,7 @@ export default function SkillSourceTable({ sources, isLoading, canManage, onErro
 			/>
 			<DataTable
 				columns={columns}
-				rows={sources}
+				rows={orderedSources}
 				rowKey={(source) => source.id}
 				isRowSelected={(source) => selection.isSelected(source.id)}
 				selectionMode={selection.selectionMode}

@@ -288,43 +288,9 @@ export default function AgentList({
 		[filterTeamIds, matches, view],
 	);
 
-	const defaultAgent = useMemo(
-		() => (!archived ? visible.find((agent) => agent.isDefault) : undefined),
-		[archived, visible],
-	);
-	const remainingVisible = useMemo(
-		() =>
-			defaultAgent
-				? visible.filter((agent) => agent.id !== defaultAgent.id)
-				: visible,
-		[defaultAgent, visible],
-	);
-	const pinnedVisible = useMemo(
-		() =>
-			defaultAgent ? [defaultAgent, ...remainingVisible] : remainingVisible,
-		[defaultAgent, remainingVisible],
-	);
-	const groupTree = useMemo(
-		() => buildGroupTree(remainingVisible),
-		[remainingVisible],
-	);
-	const ungroupedAgents = useMemo(
-		() =>
-			defaultAgent
-				? [defaultAgent, ...groupTree.ungrouped]
-				: groupTree.ungrouped,
-		[defaultAgent, groupTree.ungrouped],
-	);
-	const orderedAgents = useMemo(
-		() =>
-			mode === "table"
-				? pinnedVisible
-				: [
-						...(defaultAgent ? [defaultAgent] : []),
-						...flattenGroupTree(groupTree),
-					],
-		[defaultAgent, groupTree, mode, pinnedVisible],
-	);
+	const groupTree = useMemo(() => buildGroupTree(visible), [visible]);
+	const ungroupedAgents = groupTree.ungrouped;
+	const orderedAgents = useMemo(() => flattenGroupTree(groupTree), [groupTree]);
 	const manageableAgentIds = useMemo(
 		() =>
 			orderedAgents
