@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.122](https://github.com/jr-k/auxilia/compare/web-v0.12.121...web-v0.12.122) (2026-11-04)
+
+
+### Bug Fixes
+
+* **slack:** avoid channel lookup rate limits ([b64fa3d](https://github.com/jr-k/auxilia/commit/b64fa3dbd3f8c53629cc279864bbb93d99af5b50))
+
 ## [0.12.121](https://github.com/jr-k/auxilia/compare/web-v0.12.120...web-v0.12.121) (2026-11-04)
 
 
