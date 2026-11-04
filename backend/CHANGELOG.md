@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.87](https://github.com/jr-k/auxilia/compare/backend-v0.11.86...backend-v0.11.87) (2026-11-04)
+
+
+### Bug Fixes
+
+* **mcp:** separate manual OAuth connection steps ([237b440](https://github.com/jr-k/auxilia/commit/237b4409c7753f86a90f362312cecef9c7e43539))
+
 ## [0.11.86](https://github.com/jr-k/auxilia/compare/backend-v0.11.85...backend-v0.11.86) (2026-11-04)
 
 
