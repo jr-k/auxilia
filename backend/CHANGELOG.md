@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.90](https://github.com/jr-k/auxilia/compare/backend-v0.11.89...backend-v0.11.90) (2026-11-04)
+
+
+### Bug Fixes
+
+* **slack:** avoid channel lookup rate limits ([b64fa3d](https://github.com/jr-k/auxilia/commit/b64fa3dbd3f8c53629cc279864bbb93d99af5b50))
+
 ## [0.11.89](https://github.com/jr-k/auxilia/compare/backend-v0.11.88...backend-v0.11.89) (2026-11-04)
 
 
