@@ -12,6 +12,7 @@ import {
 	STREAMDOWN_PLUGINS,
 	STREAMDOWN_SHIKI_THEME,
 } from "@/lib/streamdown";
+import { MarkdownTable } from "@/components/ai-elements/markdown-table";
 import { useConfirmExternalLinks } from "@/lib/user-preferences";
 import { cn } from "@/lib/utils";
 import type { ComponentProps, HTMLAttributes } from "react";
@@ -244,7 +245,7 @@ export const MessageResponse = memo(
 					"size-full [&>*:first-child]:mt-0 [&>*:last-child]:mb-0",
 					className,
 				)}
-				components={{ ...components, a: MessageLink }}
+				components={{ table: MarkdownTable, ...components, a: MessageLink }}
 				plugins={STREAMDOWN_PLUGINS}
 				shikiTheme={STREAMDOWN_SHIKI_THEME}
 				linkSafety={{

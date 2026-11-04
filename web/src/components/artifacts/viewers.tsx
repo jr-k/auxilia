@@ -11,6 +11,7 @@ import {
   CodeBlock,
   SHIKI_MAX_CHARS,
 } from "@/components/ai-elements/code-block";
+import { MarkdownTable } from "@/components/ai-elements/markdown-table";
 import {
   STREAMDOWN_PLUGINS,
   STREAMDOWN_SHIKI_THEME,
@@ -194,7 +195,10 @@ function MarkdownViewer({ bytes }: ViewerProps) {
         <Streamdown
           mode="static"
           allowedTags={{}}
-          components={{ img: () => <span>[Image omitted]</span> }}
+          components={{
+            img: () => <span>[Image omitted]</span>,
+            table: MarkdownTable,
+          }}
           plugins={STREAMDOWN_PLUGINS}
           shikiTheme={STREAMDOWN_SHIKI_THEME}
         >
