@@ -131,7 +131,7 @@ function DialogDescription({
 }
 
 const dialogButtonVariants = cva(
-	"inline-flex cursor-pointer items-center justify-center gap-2 rounded-[7px] px-[18px] py-2 text-[13px] font-semibold outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50",
+	"inline-flex cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-[7px] px-[18px] py-2 text-[13px] font-semibold outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50",
 	{
 		variants: {
 			variant: {

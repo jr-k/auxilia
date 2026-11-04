@@ -144,7 +144,6 @@ export function McpOAuthProvider({ children }: { children: React.ReactNode }) {
 		}
 		manualPopupRef.current = popup;
 		setError(null);
-		setManualStep(1);
 	}, [manualAttempt]);
 
 	const openManualAuthorization = useCallback(() => {
@@ -160,7 +159,6 @@ export function McpOAuthProvider({ children }: { children: React.ReactNode }) {
 		manualPopupRef.current = popup;
 		setManualAttempt((current) => (current ? { ...current, popup } : null));
 		setError(null);
-		setManualStep(2);
 	}, [manualAttempt]);
 
 	const pasteManualCallback = useCallback(async () => {
@@ -231,8 +229,8 @@ export function McpOAuthProvider({ children }: { children: React.ReactNode }) {
 					if (!open && !submitting) closeManualAttempt();
 				}}
 			>
-				<DialogContent className="max-w-[760px] overflow-hidden p-0">
-					<DialogHeader className="border-b border-border px-6 py-5 dark:border-white/10">
+				<DialogContent className="gap-0 overflow-hidden p-0 sm:max-w-[960px]">
+					<DialogHeader className="border-b border-border px-7 py-6 pr-14 dark:border-white/10">
 						<DialogTitle>
 							Connect {manualAttempt?.serverName ?? "the MCP server"}
 						</DialogTitle>
@@ -242,7 +240,7 @@ export function McpOAuthProvider({ children }: { children: React.ReactNode }) {
 						</DialogDescription>
 					</DialogHeader>
 
-					<div className="grid min-h-[390px] grid-cols-[150px_minmax(0,1fr)] sm:grid-cols-[210px_minmax(0,1fr)]">
+					<div className="grid min-h-[420px] grid-cols-[160px_minmax(0,1fr)] sm:grid-cols-[220px_minmax(0,1fr)]">
 						<nav
 							aria-label="OAuth connection steps"
 							className="border-r border-border bg-card/45 py-4 dark:border-white/10 dark:bg-white/[0.025]"
@@ -306,7 +304,16 @@ export function McpOAuthProvider({ children }: { children: React.ReactNode }) {
 											does not start OAuth and will not redirect you to
 											127.0.0.1.
 										</p>
-										{!manualAttempt?.signInUrl && (
+										{manualAttempt?.signInUrl ? (
+											<DialogButton
+												variant="outline"
+												onClick={openServiceSignIn}
+												disabled={submitting}
+											>
+												<ExternalLink className="size-3.5" />
+												Open {manualAttempt.serverName ?? "the service"}
+											</DialogButton>
+										) : (
 											<p className="rounded-[8px] border border-border bg-hover/60 px-3 py-2.5 text-[12px] leading-[1.5] text-meta dark:border-white/10 dark:bg-white/5">
 												A separate service sign-in page is not available.
 												Continue when you are already signed in.
@@ -329,6 +336,14 @@ export function McpOAuthProvider({ children }: { children: React.ReactNode }) {
 											expected. Keep that page open so you can copy its
 											complete address.
 										</p>
+										<DialogButton
+											variant="outline"
+											onClick={openManualAuthorization}
+											disabled={submitting}
+										>
+											<ExternalLink className="size-3.5" />
+											Get redirect address
+										</DialogButton>
 									</div>
 								)}
 
@@ -396,7 +411,7 @@ export function McpOAuthProvider({ children }: { children: React.ReactNode }) {
 								)}
 							</div>
 
-							<DialogFooter className="border-t border-border px-6 py-4 dark:border-white/10">
+							<DialogFooter className="flex-nowrap border-t border-border px-7 py-5 dark:border-white/10">
 								<DialogButton
 									variant="outline"
 									onClick={closeManualAttempt}
@@ -404,45 +419,26 @@ export function McpOAuthProvider({ children }: { children: React.ReactNode }) {
 								>
 									Cancel
 								</DialogButton>
-								{manualStep === 0 && (
-									<DialogButton
-										onClick={openServiceSignIn}
-										disabled={submitting}
-									>
-										{manualAttempt?.signInUrl && (
-											<ExternalLink className="size-3.5" />
-										)}
-										{manualAttempt?.signInUrl
-											? `Open ${manualAttempt.serverName ?? "service"} sign-in`
-											: "Continue"}
-									</DialogButton>
-								)}
-								{manualStep === 1 && (
-									<DialogButton
-										onClick={openManualAuthorization}
-										disabled={submitting}
-									>
-										<ExternalLink className="size-3.5" />
-										Get redirect address
-									</DialogButton>
-								)}
-								{manualStep === 2 && (
-									<DialogButton
-										onClick={() => {
-											void finishManualConnection();
-										}}
-										disabled={submitting || !callbackUrl.trim()}
-									>
-										{submitting ? (
-											<Loader2 className="size-3.5 animate-spin" />
-										) : (
-											<ArrowRight className="size-3.5" />
-										)}
-										{submitting
-											? "Finishing connection…"
-											: "Finish connection"}
-									</DialogButton>
-								)}
+								<DialogButton
+									onClick={() => {
+										if (manualStep < 2) {
+											setManualStep((current) => current + 1);
+											setError(null);
+											return;
+										}
+										void finishManualConnection();
+									}}
+									disabled={
+										submitting || (manualStep === 2 && !callbackUrl.trim())
+									}
+								>
+									{submitting ? (
+										<Loader2 className="size-3.5 animate-spin" />
+									) : (
+										<ArrowRight className="size-3.5" />
+									)}
+									Continue
+								</DialogButton>
 							</DialogFooter>
 						</section>
 					</div>
