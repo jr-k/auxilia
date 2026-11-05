@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.124](https://github.com/jr-k/auxilia/compare/web-v0.12.123...web-v0.12.124) (2026-11-05)
+
+
+### Bug Fixes
+
+* **web:** refine responsive navigation and branding ([2ba996f](https://github.com/jr-k/auxilia/commit/2ba996f13ac199f991d938bb94deb7dc3079d03e))
+
 ## [0.12.123](https://github.com/jr-k/auxilia/compare/web-v0.12.122...web-v0.12.123) (2026-11-05)
 
 
