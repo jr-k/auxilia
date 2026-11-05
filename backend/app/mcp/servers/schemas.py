@@ -126,6 +126,12 @@ class MCPServerResponse(SQLModel):
         return "database" if value == "dbhub" else value
 
 
+class MCPServerURLOption(SQLModel):
+    label: str
+    url: str
+    description: str | None = None
+
+
 class OfficialMCPServerResponse(SQLModel):
     """One catalog entry (see mcp/servers/catalog.py). Deliberately NOT an
     MCPServerResponse: catalog entries come from a file, so they have no id and
@@ -142,6 +148,7 @@ class OfficialMCPServerResponse(SQLModel):
     supports_dcr: bool | None = Field(default=None)
     supports_cimd: bool | None = Field(default=None)
     requires_url_configuration: bool = Field(default=False)
+    url_options: list[MCPServerURLOption] = Field(default_factory=list)
     custom_http_headers: list[str] = Field(default_factory=list)
     service_credential_providers: list[ServiceCredentialProvider] = Field(
         default_factory=list
@@ -248,8 +255,20 @@ class AuthorizationRequired(SQLModel):
     oauth_sign_in_url: str | None = None
 
 
+class ToolsUnavailable(SQLModel):
+    """A connection failure the tools panel can explain and help resolve."""
+
+    status: Literal["error"] = "error"
+    code: str
+    title: str
+    detail: str
+    action: str | None = None
+    retryable: bool = False
+
+
 ListToolsResult = Annotated[
-    ToolsListed | AuthorizationRequired, Field(discriminator="status")
+    ToolsListed | AuthorizationRequired | ToolsUnavailable,
+    Field(discriminator="status"),
 ]
 
 

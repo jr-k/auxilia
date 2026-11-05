@@ -37,6 +37,34 @@ _HTTP_HEADER_NAME = re.compile(r"^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$")
 _AUXILIA_TEMPLATE_URL = "https://your-auxilia.example.com/mcp"
 
 
+def _validate_http_url(value: str, field: str = "url") -> None:
+    bad_url = ValueError(f"{field} {value!r} must be an absolute http(s) URL")
+    if any(character.isspace() for character in value):
+        raise bad_url
+    parsed = urlparse(value)
+    try:
+        hostname, _ = parsed.hostname, parsed.port
+    except ValueError:
+        raise bad_url from None
+    if parsed.scheme not in ("http", "https") or not hostname:
+        raise bad_url
+
+
+class ServerURLOption(BaseModel):
+    """One named endpoint offered by a multi-region catalog entry."""
+
+    label: str
+    url: str
+    description: str | None = None
+
+    @model_validator(mode="after")
+    def validate_option(self) -> "ServerURLOption":
+        if not self.label.strip():
+            raise ValueError("URL option label must not be empty")
+        _validate_http_url(self.url, "URL option")
+        return self
+
+
 class OfficialServer(BaseModel):
     """One catalog entry. Mirrors the columns the create form prefills."""
 
@@ -49,6 +77,9 @@ class OfficialServer(BaseModel):
     # catalog URL is an example that the admin must replace before creating the
     # workspace server.
     requires_url_configuration: bool = False
+    # Named endpoints for products that host separate MCP servers by region.
+    # The primary ``url`` must be one of them and remains the catalog identity.
+    url_options: list[ServerURLOption] = Field(default_factory=list)
     # OAuth servers only: False means no dynamic client registration, so the
     # admin installing it must supply a static client_id/secret. Must be None
     # for non-OAuth servers (not applicable).
@@ -71,18 +102,17 @@ class OfficialServer(BaseModel):
     def validate_entry(self) -> "OfficialServer":
         if not self.name.strip():
             raise ValueError("server name must not be empty")
-        bad_url = ValueError(f"url {self.url!r} must be an absolute http(s) URL")
-        if any(c.isspace() for c in self.url):
-            raise bad_url
-        parsed = urlparse(self.url)
-        try:
-            # .port raises on a non-numeric or out-of-range port; .netloc alone
-            # also accepts hostless authorities like "https://:443".
-            hostname, _ = parsed.hostname, parsed.port
-        except ValueError:
-            raise bad_url from None
-        if parsed.scheme not in ("http", "https") or not hostname:
-            raise bad_url
+        _validate_http_url(self.url)
+        option_urls = [option.url for option in self.url_options]
+        option_labels = [option.label.casefold() for option in self.url_options]
+        if len(set(option_urls)) != len(option_urls):
+            raise ValueError(f"{self.name!r} has duplicate URL options")
+        if len(set(option_labels)) != len(option_labels):
+            raise ValueError(f"{self.name!r} has duplicate URL option labels")
+        if self.url_options and self.url not in option_urls:
+            raise ValueError(
+                f"{self.name!r} primary url must be included in url_options"
+            )
         if self.auth_type is MCPAuthType.oauth2:
             # A missing flag would silently read as "DCR works", and the admin
             # would only discover otherwise when authorization fails.
@@ -147,11 +177,12 @@ class CatalogDocument(BaseModel):
         seen_urls: set[str] = set()
         seen_names: set[str] = set()
         for server in self.servers:
-            if server.url in seen_urls:
-                raise ValueError(f"duplicate url {server.url!r}")
             if server.name in seen_names:
                 raise ValueError(f"duplicate name {server.name!r}")
-            seen_urls.add(server.url)
+            for url in {server.url, *(option.url for option in server.url_options)}:
+                if url in seen_urls:
+                    raise ValueError(f"duplicate url {url!r}")
+                seen_urls.add(url)
             seen_names.add(server.name)
         return self
 
@@ -175,8 +206,9 @@ def _server_quirks(
     servers: list[OfficialServer],
 ) -> list[MCPCompatibilityQuirk]:
     return [
-        bind_quirk_to_server(quirk, server.url)
+        bind_quirk_to_server(quirk, url)
         for server in servers
+        for url in {server.url, *(option.url for option in server.url_options)}
         for quirk in server.quirks
     ]
 

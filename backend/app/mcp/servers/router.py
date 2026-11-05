@@ -34,6 +34,7 @@ from app.mcp.servers.schemas import (
     OAuthSecretHint,
     OfficialMCPServerResponse,
     ToolsListed,
+    ToolsUnavailable,
 )
 from app.mcp.servers.service import MCPServerService, get_mcp_server_service
 from app.users.models import UserDB
@@ -315,14 +316,13 @@ async def list_tools(
     mcp_server: MCPServerDB = Depends(get_mcp_server_dependency),
     current_user: UserDB = Depends(get_current_user),
     service: MCPServerService = Depends(get_mcp_server_service),
-) -> ToolsListed | AuthorizationRequired:
+) -> ToolsListed | AuthorizationRequired | ToolsUnavailable:
     """List available tools from an MCP server.
 
-    Returns a discriminated union on `status`: `ok` with the tools, or
-    `auth_required` with the URL the user must open first — a 200 either way.
-    An unconnected OAuth server is an expected answer here, not an error, and
-    this is one of the few endpoints allowed to start an OAuth flow at all
-    (design review §2.4).
+    Returns a discriminated union on `status`: `ok` with the tools,
+    `auth_required` with the URL the user must open, or `error` with a safe,
+    actionable connection diagnostic. All are 200 responses because this
+    endpoint's job includes discovering the connection state.
 
     Goes through the MCP SDK transport (`ClientSession`). The raw-HTTP bypass
     this docstring used to describe was removed; the upstream GET-SSE deadlock it

@@ -19,6 +19,8 @@
 #                   supply a static client_id/secret (no dynamic registration)
 #   requires_url_configuration - true when the URL is an example that must be
 #                   replaced with the customer's instance endpoint
+#   url_options   - optional named endpoints for regional or multi-host services;
+#                   the primary url must also appear in this list
 #   service_credential_providers - optional machine identities confirmed to
 #                   work with this exact endpoint
 #   quirks        - optional runtime OAuth/transport compatibility policies;
@@ -983,6 +985,13 @@ servers:
     auth_type: oauth2
     icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/intercom.png"
     supports_dcr: true
+    url_options:
+      - label: "US"
+        url: "https://mcp.intercom.com/mcp"
+        description: "United States hosted workspaces"
+      - label: "EU"
+        url: "https://mcp.eu.intercom.com/mcp"
+        description: "European Union hosted workspaces"
     description: >-
       Intercom's MCP is a secure, standardized protocol that allows AI models to
       access, interact with, and maintain context around Intercom data and tools

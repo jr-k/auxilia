@@ -295,6 +295,16 @@ export function ConnectServersDialog({
 					markConnected(server.id);
 					return;
 				}
+				if (result.status === "error") {
+					if (popup && !popup.closed) popup.close();
+					setConnectingId(null);
+					toast.error(result.title, {
+						description: [result.detail, result.action]
+							.filter(Boolean)
+							.join(" "),
+					});
+					return;
+				}
 
 				if (
 					!startAuthorization({

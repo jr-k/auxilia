@@ -10,6 +10,7 @@ import {
 import {
 	MCPServer,
 	MCPServerTool,
+	MCPToolLoadError,
 } from "@/types/mcp-servers";
 import { ToolStatus } from "@/types/agents";
 import { ChevronRight } from "lucide-react";
@@ -219,6 +220,7 @@ export default function AgentMCPServer({
 	const [isConnected, setIsConnected] = useState(false);
 	const [isCheckingConnection, setIsCheckingConnection] = useState(true);
 	const [toolsUnavailable, setToolsUnavailable] = useState(false);
+	const [toolsError, setToolsError] = useState<MCPToolLoadError | null>(null);
 	const [detailsOpen, setDetailsOpen] = useState(false);
 	const managedDatabaseUnavailable =
 		server.managedBy === "database" &&
@@ -340,8 +342,18 @@ export default function AgentMCPServer({
 	const fetchTools = useCallback(async (oauthPopup?: Window | null) => {
 		setIsLoading(true);
 		setToolsUnavailable(false);
+		setToolsError(null);
 		try {
 			const result = await mcpServersApi.listMcpServerTools(server.id);
+
+			if (result.status === "error") {
+				if (oauthPopup && !oauthPopup.closed) oauthPopup.close();
+				setTools([]);
+				setToolsError(result);
+				setToolsUnavailable(true);
+				expandedChangeRef.current(true);
+				return;
+			}
 
 			// `auth_required` is an answer, not an error: the server simply is
 			// not connected for this user yet, and the backend hands back the
@@ -390,6 +402,7 @@ export default function AgentMCPServer({
 								// sync-tools persists the map server-side immediately.
 								const retry = await mcpServersApi.listMcpServerTools(server.id);
 								if (retry.status !== "ok") {
+									if (retry.status === "error") setToolsError(retry);
 									throw new Error("still not authorized after connect");
 								}
 								const fetchedTools = retry.tools;
@@ -436,12 +449,21 @@ export default function AgentMCPServer({
 
 			if (oauthPopup && !oauthPopup.closed) oauthPopup.close();
 			setTools(result.tools);
+			setToolsError(null);
 			seedRef.current(result.tools);
 			await persistRef.current(result.tools);
 		} catch (error: unknown) {
 			if (oauthPopup && !oauthPopup.closed) oauthPopup.close();
 			console.error("Failed to fetch tools:", error);
 			setTools([]);
+			setToolsError({
+				status: "error",
+				code: "request_failed",
+				title: "Tools could not be loaded",
+				detail: "Auxilia could not complete the tools request.",
+				action: "Check the server status and try again.",
+				retryable: true,
+			});
 			setToolsUnavailable(true);
 			expandedChangeRef.current(true);
 		} finally {
@@ -553,7 +575,29 @@ export default function AgentMCPServer({
 						mode={mode}
 						onDefaultEnabledChange={onDefaultEnabledChange}
 					/>
-					{mode === "trigger" && binding.enabledByDefault === false ? null : !isConnected &&
+					{mode === "trigger" && binding.enabledByDefault === false ? null : toolsError ? (
+						<div className="p-6 text-center">
+							<p className="mb-1 text-[13.5px] font-semibold text-foreground">
+								{toolsError.title}
+							</p>
+							<p className="text-xs leading-[1.5] text-muted-foreground">
+								{toolsError.detail}
+							</p>
+							{toolsError.action && (
+								<p className="mt-2 text-xs font-medium leading-[1.5] text-foreground">
+									{toolsError.action}
+								</p>
+							)}
+							<button
+								className="mt-4 cursor-pointer rounded-[7px] border border-input bg-background px-4 py-2 text-[13px] font-semibold text-foreground transition-colors hover:border-border-hover"
+								onClick={() => {
+									void fetchTools();
+								}}
+							>
+								{toolsError.retryable ? "Try again" : "Check again"}
+							</button>
+						</div>
+					) : !isConnected &&
 					  !isCheckingConnection ? (
 						<div className="p-6 text-center">
 							<p className="mb-1 text-[13.5px] font-semibold text-foreground">

@@ -1,13 +1,17 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { ExternalLink, RefreshCw, Wrench } from "lucide-react";
+import { CircleAlert, ExternalLink, RefreshCw, Wrench } from "lucide-react";
 import { useMcpOAuth } from "@/components/providers/mcp-oauth-provider";
 import { Switch } from "@/components/ui/switch";
 import { humanizeToolName } from "@/components/ai-elements/chain-of-thought";
 import * as mcpServersApi from "@/lib/api/resources/mcp-servers";
 import { getApiErrorMessage } from "@/lib/api/errors";
-import type { MCPServerTool, OAuthRedirectMode } from "@/types/mcp-servers";
+import type {
+	MCPServerTool,
+	MCPToolLoadError,
+	OAuthRedirectMode,
+} from "@/types/mcp-servers";
 import { cn } from "@/lib/utils";
 
 interface MCPServerToolsPanelProps {
@@ -28,7 +32,7 @@ export function MCPServerToolsPanel({
 	const { startAuthorization } = useMcpOAuth();
 	const [tools, setTools] = useState<MCPServerTool[]>([]);
 	const [isLoading, setIsLoading] = useState(true);
-	const [error, setError] = useState<string | null>(null);
+	const [error, setError] = useState<MCPToolLoadError | null>(null);
 	const [authUrl, setAuthUrl] = useState<string | null>(null);
 	const [authSignInUrl, setAuthSignInUrl] = useState<string | null>(null);
 	const [authRedirectMode, setAuthRedirectMode] =
@@ -39,6 +43,13 @@ export function MCPServerToolsPanel({
 		setError(null);
 		try {
 			const result = await mcpServersApi.listMcpServerTools(serverId);
+			if (result.status === "error") {
+				setTools([]);
+				setAuthUrl(null);
+				setAuthSignInUrl(null);
+				setError(result);
+				return;
+			}
 			if (result.status === "auth_required") {
 				setTools([]);
 				setAuthUrl(result.authUrl);
@@ -50,7 +61,17 @@ export function MCPServerToolsPanel({
 			setAuthSignInUrl(null);
 			setTools(result.tools);
 		} catch (loadError: unknown) {
-			setError(getApiErrorMessage(loadError, "Failed to load tools."));
+			setError({
+				status: "error",
+				code: "request_failed",
+				title: "Tools could not be loaded",
+				detail: getApiErrorMessage(
+					loadError,
+					"Auxilia could not reach the MCP server.",
+				),
+				action: "Check your connection and try again.",
+				retryable: true,
+			});
 		} finally {
 			setIsLoading(false);
 		}
@@ -105,7 +126,22 @@ export function MCPServerToolsPanel({
 					</div>
 				) : error ? (
 					<div className="rounded-[10px] border border-destructive/20 bg-destructive/5 p-4">
-						<p className="text-[12.5px] text-destructive">{error}</p>
+						<div className="flex items-start gap-2.5">
+							<CircleAlert className="mt-0.5 size-4 shrink-0 text-destructive" />
+							<div className="min-w-0">
+								<p className="text-[13px] font-semibold text-foreground">
+									{error.title}
+								</p>
+								<p className="mt-1 text-[12.5px] leading-[1.5] text-meta dark:text-panel-dim">
+									{error.detail}
+								</p>
+								{error.action && (
+									<p className="mt-2 text-[12.5px] font-medium leading-[1.5] text-foreground">
+										{error.action}
+									</p>
+								)}
+							</div>
+						</div>
 						<button
 							type="button"
 							onClick={() => {
@@ -114,7 +150,7 @@ export function MCPServerToolsPanel({
 							className="mt-3 inline-flex cursor-pointer items-center gap-1.5 text-[12px] font-semibold text-petrol hover:opacity-80 dark:text-panel-terminal"
 						>
 							<RefreshCw className="size-3" />
-							Try again
+							{error.retryable ? "Try again" : "Check again"}
 						</button>
 					</div>
 				) : authUrl ? (

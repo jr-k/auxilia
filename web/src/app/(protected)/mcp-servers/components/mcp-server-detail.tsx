@@ -33,6 +33,7 @@ import type { ResourceVisibility } from "@/types/visibility";
 import { ConnectedUsersPanel } from "./connected-users-panel";
 import { ConnectionTestDialog } from "./connection-test-dialog";
 import { MCPServerToolsPanel } from "./mcp-server-tools-panel";
+import { MCPServerUrlField } from "./mcp-server-url-field";
 import { OAuthCallbackUrl } from "./oauth-callback-url";
 import { OAuthConnectionFollowUpDialog } from "./oauth-connection-follow-up-dialog";
 import { ServerIconTile } from "./server-icon-tile";
@@ -222,13 +223,17 @@ export default function MCPServerDetail({
 	} = useConnectionTest();
 
 	useEffect(() => {
-		if (server.authType !== "service_identity") return;
 		const controller = new AbortController();
 		void mcpServersApi
 			.listOfficialMcpServers({ signal: controller.signal })
 			.then((catalog) => {
 				setCatalogEntry(
-					catalog.find((entry) => entry.url === server.url) ?? null,
+					catalog.find(
+						(entry) =>
+							entry.url === server.url ||
+							entry.urlOptions?.some((option) => option.url === server.url) ||
+							(Boolean(server.iconUrl) && entry.iconUrl === server.iconUrl),
+					) ?? null,
 				);
 			})
 			.catch(() => {
@@ -237,7 +242,7 @@ export default function MCPServerDetail({
 		return () => {
 			controller.abort();
 		};
-	}, [server.authType, server.url]);
+	}, [server.iconUrl, server.url]);
 
 	// Admin-only secret hint for OAuth servers (403 for non-admins is expected).
 	useEffect(() => {
@@ -954,14 +959,16 @@ export default function MCPServerDetail({
 									Remote server address{" "}
 									<span className="text-destructive">*</span>
 								</label>
-								<input
+								<MCPServerUrlField
 									id="mcp-edit-url"
 									value={form.url}
-									onChange={(e) => {
-										handleFormChange("url", e.target.value);
+									options={catalogEntry?.urlOptions ?? []}
+									onChange={(value) => {
+										handleFormChange("url", value);
 									}}
-									aria-invalid={!!fieldErrors.url}
-									className={MONO_INPUT_CLASS}
+									placeholder="https://mcp.example.com/mcp"
+									invalid={Boolean(fieldErrors.url)}
+									inputClassName={MONO_INPUT_CLASS}
 								/>
 								{fieldErrors.url && (
 									<span className="text-[12.5px] text-destructive">

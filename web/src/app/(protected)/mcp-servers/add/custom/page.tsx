@@ -17,6 +17,7 @@ import { useMcpServersStore } from "@/stores/mcp-servers-store";
 import { MCPAuthType, OfficialMCPServer } from "@/types/mcp-servers";
 import { groupOptions } from "@/lib/groups";
 import { ConnectionTestDialog } from "../../components/connection-test-dialog";
+import { MCPServerUrlField } from "../../components/mcp-server-url-field";
 import { ServiceIdentityFields } from "../../components/service-identity-fields";
 import { OAuthCallbackUrl } from "../../components/oauth-callback-url";
 import {
@@ -390,7 +391,9 @@ export default function CustomMCPServerPage() {
 					<p className="mt-2 text-[14px] leading-[1.6] text-body dark:text-panel-body text-pretty">
 						{/* Gate on the ACTIVE auth method — the catalog hint must not
 						    outlive a switch to another method. */}
-						{selectedOfficial?.requiresUrlConfiguration
+						{(selectedOfficial?.urlOptions?.length ?? 0) > 0
+							? `Choose the ${selectedOfficial?.name} region that hosts your workspace, or enter a custom URL.`
+							: selectedOfficial?.requiresUrlConfiguration
 							? `Paste the MCP Server URL for your ${selectedOfficial.name} instance.`
 							: isNonDcrOAuth && form.authType === "oauth2"
 								? "This server requires OAuth credentials from the provider's developer console."
@@ -407,17 +410,16 @@ export default function CustomMCPServerPage() {
 								Remote server address{" "}
 								<span className="text-destructive">*</span>
 							</label>
-							<input
+							<MCPServerUrlField
 								id="mcp-url"
 								placeholder="https://mcp.example.com/v1"
 								value={form.url}
-								onChange={(e) => {
-									handleFormChange("url", e.target.value);
+								options={selectedOfficial?.urlOptions ?? []}
+								onChange={(value) => {
+									handleFormChange("url", value);
 								}}
-								aria-required="true"
-								aria-invalid={!!errors.url}
-								aria-describedby={errors.url ? "mcp-url-error" : undefined}
-								className={MONO_INPUT_CLASS}
+								invalid={Boolean(errors.url)}
+								inputClassName={MONO_INPUT_CLASS}
 							/>
 							{errors.url ? (
 								<span id="mcp-url-error" className={ERROR_CLASS}>

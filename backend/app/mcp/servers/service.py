@@ -28,6 +28,7 @@ from app.mcp.client.connectivity import (
     is_authorized,
 )
 from app.mcp.client.exceptions import OAuthAuthorizationRequired
+from app.mcp.client.failures import classify_mcp_failure
 from app.mcp.client.service_credentials import validate_service_credential
 from app.mcp.client.storage import TokenStorageFactory
 from app.mcp.compatibility import OAuthRedirectMode, OAuthRedirectStrategy
@@ -50,6 +51,7 @@ from app.mcp.servers.schemas import (
     OAuthSecretHint,
     OfficialMCPServerResponse,
     ToolsListed,
+    ToolsUnavailable,
 )
 from app.realtime.schemas import WorkspaceEventKind
 from app.realtime.service import stage_workspace_event
@@ -706,14 +708,18 @@ class MCPServerService(BaseService[MCPServerDB, MCPServerRepository]):
         """Return catalog templates with their workspace instance counts."""
         catalog = await mcp_catalog.get_catalog()
         installed_counts = await self.repository.count_by_url()
-        return [
-            OfficialMCPServerResponse(
-                **entry.model_dump(),
-                is_installed=installed_counts.get(entry.url, 0) > 0,
-                installed_count=installed_counts.get(entry.url, 0),
+        responses: list[OfficialMCPServerResponse] = []
+        for entry in catalog:
+            urls = {entry.url, *(option.url for option in entry.url_options)}
+            installed_count = sum(installed_counts.get(url, 0) for url in urls)
+            responses.append(
+                OfficialMCPServerResponse(
+                    **entry.model_dump(),
+                    is_installed=installed_count > 0,
+                    installed_count=installed_count,
+                )
             )
-            for entry in catalog
-        ]
+        return responses
 
     @staticmethod
     async def sync_catalog() -> MCPCatalogSyncResponse:
@@ -936,7 +942,7 @@ class MCPServerService(BaseService[MCPServerDB, MCPServerRepository]):
 
     async def list_tools(
         self, server: MCPServerDB, user_id: str
-    ) -> ToolsListed | AuthorizationRequired:
+    ) -> ToolsListed | AuthorizationRequired | ToolsUnavailable:
         """This user's tools for `server`, or the authorize URL they need first.
 
         Both are ordinary answers, so both are ordinary return values: needing
@@ -975,13 +981,21 @@ class MCPServerService(BaseService[MCPServerDB, MCPServerRepository]):
                 oauth_redirect_mode=exc.redirect_mode,
                 oauth_sign_in_url=exc.sign_in_url,
             )
-        except Exception:
-            logger.exception(
+        except Exception as exc:  # noqa: BLE001 — converted to a safe diagnostic result
+            logger.warning(
                 "Failed to list tools for MCP server %s (%s)",
                 server.id,
                 server.name,
+                exc_info=True,
             )
-            raise
+            failure = classify_mcp_failure(exc)
+            return ToolsUnavailable(
+                code=failure.code,
+                title=failure.title,
+                detail=failure.detail,
+                action=failure.action,
+                retryable=failure.retryable,
+            )
 
 
 def get_mcp_server_service(

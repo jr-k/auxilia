@@ -90,6 +90,15 @@ export interface MCPServerTool {
 	description?: string | null;
 }
 
+export interface MCPToolLoadError {
+	status: "error";
+	code: string;
+	title: string;
+	detail: string;
+	action?: string | null;
+	retryable: boolean;
+}
+
 /**
  * GET /mcp-servers/{id}/list-tools — a discriminated union, always 200.
  *
@@ -104,7 +113,8 @@ export type ListToolsResult =
 			authUrl: string;
 			oauthRedirectMode: OAuthRedirectMode;
 			oauthSignInUrl?: string | null;
-	  };
+	  }
+	| MCPToolLoadError;
 
 export interface ConnectionTestResult {
 	reachable: boolean;
@@ -125,6 +135,12 @@ export interface OAuthManualCallbackResponse {
 
 // A reusable template in the official catalog (a CDN-hosted file, not a DB
 // row). Each installation copies these fields into a new workspace MCPServer.
+export interface MCPServerUrlOption {
+	label: string;
+	url: string;
+	description?: string | null;
+}
+
 export interface OfficialMCPServer {
 	name: string;
 	url: string;
@@ -136,6 +152,7 @@ export interface OfficialMCPServer {
 	supportsDcr: boolean | null;
 	supportsCimd?: boolean | null;
 	requiresUrlConfiguration?: boolean;
+	urlOptions?: MCPServerUrlOption[];
 	customHttpHeaders?: string[];
 	serviceCredentialProviders?: ServiceCredentialProvider[];
 }
