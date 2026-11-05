@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.123](https://github.com/jr-k/auxilia/compare/web-v0.12.122...web-v0.12.123) (2026-11-05)
+
+
+### Features
+
+* **mcp:** improve connection setup and diagnostics ([54b0374](https://github.com/jr-k/auxilia/commit/54b037465c7d98994bc0571b2f7babc0aaf656fe))
+
 ## [0.12.122](https://github.com/jr-k/auxilia/compare/web-v0.12.121...web-v0.12.122) (2026-11-04)
 
 
