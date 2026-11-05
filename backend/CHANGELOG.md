@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.91](https://github.com/jr-k/auxilia/compare/backend-v0.11.90...backend-v0.11.91) (2026-11-05)
+
+
+### Features
+
+* **mcp:** improve connection setup and diagnostics ([54b0374](https://github.com/jr-k/auxilia/commit/54b037465c7d98994bc0571b2f7babc0aaf656fe))
+
 ## [0.11.90](https://github.com/jr-k/auxilia/compare/backend-v0.11.89...backend-v0.11.90) (2026-11-04)
 
 
