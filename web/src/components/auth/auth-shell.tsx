@@ -38,7 +38,7 @@ export function AuthShell({
 						<img
 							src={appearanceLogoUrl(appearance.logoRevision)}
 							alt=""
-							className="size-[25px] rounded-[6px] object-cover"
+							className="size-[25px] rounded-[6px] object-cover dark:brightness-0 dark:invert"
 						/>
 					) : (
 						<span aria-hidden="true" className="relative size-[25px] shrink-0">

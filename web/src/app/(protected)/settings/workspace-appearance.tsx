@@ -95,13 +95,16 @@ function AppearanceForm({
 					<div className="mt-3 flex h-14 items-center gap-3 rounded-[9px] border border-border bg-background px-3.5 dark:border-white/10">
 						<div className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-[7px] bg-petrol">
 							{logoFile ? (
-								<ImageFilePreview file={logoFile} />
+								<ImageFilePreview
+									file={logoFile}
+									className="dark:brightness-0 dark:invert"
+								/>
 							) : currentLogoUrl && !logoRemoved ? (
 								// eslint-disable-next-line @next/next/no-img-element
 								<img
 									src={currentLogoUrl}
 									alt=""
-									className="size-full object-cover"
+									className="size-full object-cover dark:brightness-0 dark:invert"
 								/>
 							) : (
 								// eslint-disable-next-line @next/next/no-img-element

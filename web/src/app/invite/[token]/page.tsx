@@ -90,7 +90,11 @@ export default function InviteAcceptPage({
 							alt={`${appearance.appName} logo`}
 							width={48}
 							height={48}
-							className="mb-2 size-12 object-contain"
+							className={`mb-2 size-12 object-contain ${
+								appearance.logoRevision
+									? "dark:brightness-0 dark:invert"
+									: ""
+							}`}
 						/>
 						<span className="text-2xl">Invalid invite</span>
 					</CardTitle>
@@ -127,7 +131,9 @@ export default function InviteAcceptPage({
 						alt={`${appearance.appName} logo`}
 						width={48}
 						height={48}
-						className="mb-2 size-12 object-contain"
+						className={`mb-2 size-12 object-contain ${
+							appearance.logoRevision ? "dark:brightness-0 dark:invert" : ""
+						}`}
 					/>
 					<span className="text-2xl">Join {appearance.appName}</span>
 				</CardTitle>

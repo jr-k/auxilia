@@ -59,7 +59,7 @@ export function AboutDialog({ open, onOpenChange }: AboutDialogProps) {
 								alt={appearance.appName}
 								width={34}
 								height={34}
-								className="size-[34px] rounded-[7px] object-cover"
+								className="size-[34px] rounded-[7px] object-cover dark:brightness-0 dark:invert"
 							/>
 						) : (
 							<>

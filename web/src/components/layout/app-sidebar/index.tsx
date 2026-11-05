@@ -14,6 +14,7 @@ import {
 	CircleCheck,
 	CircleDashed,
 	ChevronDown,
+	ChevronRight,
 	Loader2,
 	Server,
 	ScrollText,
@@ -306,7 +307,7 @@ export function AppSidebar() {
 		theme === "dark" || theme === "light" ? theme : "system";
 	const ThemeIcon =
 		themeMode === "system" ? Monitor : themeMode === "dark" ? Moon : Sun;
-	const { isMobile, setOpenMobile } = useSidebar();
+	const { isMobile, setOpen, setOpenMobile, state: sidebarState } = useSidebar();
 	const [renamingThread, setRenamingThread] = useState<Thread | null>(null);
 	const [openThreadMenuId, setOpenThreadMenuId] = useState<string | null>(null);
 	const [aboutOpen, setAboutOpen] = useState(false);
@@ -436,6 +437,19 @@ export function AppSidebar() {
 	return (
 		<>
 			<Sidebar collapsible="icon">
+				{!isMobile && sidebarState === "collapsed" && (
+					<button
+						type="button"
+						onClick={() => {
+							setOpen(true);
+						}}
+						title="Expand sidebar"
+						aria-label="Expand sidebar"
+						className="absolute -right-3 top-3 z-30 flex size-6 cursor-pointer items-center justify-center rounded-full border border-sidebar-border bg-sidebar text-sidebar-muted shadow-raised transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
+					>
+						<ChevronRight className="size-3.5" strokeWidth={2.25} />
+					</button>
+				)}
 				<SidebarHeader>
 					<div className="flex h-9 items-center gap-2 pl-2 pr-1">
 						<Link
@@ -452,7 +466,7 @@ export function AppSidebar() {
 									<img
 										src={appearanceLogoUrl(appearance.logoRevision)}
 										alt={appearance.appName}
-										className="size-[22px] rounded-[5px] object-cover"
+										className="size-[22px] rounded-[5px] object-cover dark:brightness-0 dark:invert"
 									/>
 								) : (
 									<>
@@ -753,7 +767,7 @@ export function AppSidebar() {
 															selection.toggle(thread.id, shiftKey);
 														}}
 														hoverOnSelf
-														className="absolute left-[5px] top-1/2 z-10 size-7 -translate-y-1/2 group-data-[collapsible=icon]:hidden"
+														className="absolute left-[5px] top-1/2 z-10 size-7 -translate-y-1/2"
 													>
 														{isTriggerThread ? (
 															<span

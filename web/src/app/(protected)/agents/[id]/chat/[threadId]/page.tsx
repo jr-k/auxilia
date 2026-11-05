@@ -13,6 +13,8 @@ import ChatPromptInput from "../components/prompt-input";
 import {
   AlertTriangle,
   ArchiveIcon,
+  Brain,
+  ChevronRight,
   CircleCheck,
   CircleSlash,
   LoaderCircle,
@@ -23,6 +25,7 @@ import {
   Undo2,
 } from "lucide-react";
 import { useParams } from "next/navigation";
+import Link from "next/link";
 import { toast } from "sonner";
 import { useAgentReadiness } from "@/hooks/use-agent-readiness";
 import { useChatHeaderStore } from "@/stores/chat-header-store";
@@ -46,12 +49,14 @@ import {
   ChatHeaderActions,
   ChatHeaderLeadingActions,
   ChatMemoryToggle,
+  ChatMobileActionsSheet,
 } from "@/components/layout/chat-header";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { Switch } from "@/components/ui/switch";
 
 const EMPTY_RESOURCE_SETTINGS: ThreadResourceSettings = {
   toolMode: null,
@@ -572,6 +577,13 @@ const ChatPage = () => {
     run.status !== "idle" ||
     promptQueue.runStarting ||
     promptQueue.items.length > 0;
+  const memoryActionDisabled =
+    meta.viewerRole !== null ||
+    completed ||
+    meta.agentArchived ||
+    run.status !== "idle" ||
+    promptQueue.runStarting ||
+    promptQueue.items.length > 0;
   const completionTooltip =
     meta.viewerRole !== null
       ? "Only the conversation owner can change completion"
@@ -680,14 +692,7 @@ const ChatPage = () => {
           <ChatMemoryToggle
             enabled={memoriesEnabled}
             saving={memorySaving}
-            disabled={
-              meta.viewerRole !== null ||
-              completed ||
-              meta.agentArchived ||
-              run.status !== "idle" ||
-              promptQueue.runStarting ||
-              promptQueue.items.length > 0
-            }
+            disabled={memoryActionDisabled}
             onChange={(enabled) => {
               void updateMemoriesEnabled(enabled);
             }}
@@ -703,6 +708,154 @@ const ChatPage = () => {
             transcript.messages.length === 0
           }
         />
+      )}
+      {meta.status === "ready" && thread && (
+        <ChatMobileActionsSheet>
+          <section>
+            <div className="mb-2 px-1">
+              <h2 className="font-display text-[15px] font-semibold text-sidebar-foreground">
+                Conversation state
+              </h2>
+            </div>
+            <div className="overflow-hidden rounded-[12px] border border-sidebar-border bg-card">
+              <div className="flex min-h-14 w-full items-center justify-between gap-4 px-4 py-2.5">
+                <span className="flex min-w-0 items-center gap-2.5 text-[15px] font-semibold text-sidebar-foreground">
+                  {completed ? (
+                    <CircleCheck className="size-[18px] shrink-0 text-emerald-600" />
+                  ) : (
+                    <CircleCheck className="size-[18px] shrink-0 text-sidebar-muted" />
+                  )}
+                  {completed ? "Complete" : "In progress"}
+                </span>
+                <button
+                  type="button"
+                  aria-pressed={completed}
+                  aria-label={completed ? "Reopen conversation" : "Complete conversation"}
+                  title={completed ? "Reopen conversation" : "Complete conversation"}
+                  disabled={completionActionDisabled || completionSaving}
+                  onClick={() => {
+                    void updateCompletion(!completed);
+                  }}
+                  className="flex size-10 shrink-0 touch-manipulation cursor-pointer items-center justify-center rounded-[8px] bg-petrol text-white shadow-raised transition-[background-color,transform] hover:bg-petrol/90 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-45 dark:bg-white dark:text-ink dark:hover:bg-white/90"
+                >
+                  {completionSaving ? (
+                    <LoaderCircle className="size-4 animate-spin" />
+                  ) : completed ? (
+                    <Undo2 className="size-4" />
+                  ) : (
+                    <CircleCheck className="size-4" />
+                  )}
+                </button>
+              </div>
+
+              {!completed && (
+                <div className="border-t border-sidebar-border p-2">
+                  <div className="grid grid-cols-2 gap-1 rounded-[9px] bg-sidebar-accent/55 p-1">
+                    <button
+                      type="button"
+                      aria-pressed={!isUnread}
+                      disabled={readSaving}
+                      onClick={() => {
+                        if (isUnread) void updateReadState(false);
+                      }}
+                      className={`flex h-11 touch-manipulation cursor-pointer items-center justify-center gap-2 rounded-[7px] text-[14px] font-semibold transition-[background-color,color,box-shadow,transform] active:scale-[0.98] disabled:cursor-wait disabled:opacity-45 ${
+                        !isUnread
+                          ? "bg-petrol text-white shadow-raised dark:bg-white dark:text-ink"
+                          : "text-sidebar-muted hover:bg-card/70 hover:text-sidebar-foreground"
+                      }`}
+                    >
+                      {readSaving && isUnread ? (
+                        <LoaderCircle className="size-4 animate-spin" />
+                      ) : (
+                        <MailOpen className="size-4" />
+                      )}
+                      Read
+                    </button>
+                    <button
+                      type="button"
+                      aria-pressed={isUnread}
+                      disabled={readSaving}
+                      onClick={() => {
+                        if (!isUnread) void updateReadState(true);
+                      }}
+                      className={`flex h-11 touch-manipulation cursor-pointer items-center justify-center gap-2 rounded-[7px] text-[14px] font-semibold transition-[background-color,color,box-shadow,transform] active:scale-[0.98] disabled:cursor-wait disabled:opacity-45 ${
+                        isUnread
+                          ? "bg-petrol text-white shadow-raised dark:bg-white dark:text-ink"
+                          : "text-sidebar-muted hover:bg-card/70 hover:text-sidebar-foreground"
+                      }`}
+                    >
+                      {readSaving && !isUnread ? (
+                        <LoaderCircle className="size-4 animate-spin" />
+                      ) : (
+                        <Mail className="size-4" />
+                      )}
+                      Unread
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </section>
+
+          <section className="mt-6">
+            <div className="mb-2 px-1">
+              <h2 className="font-display text-[15px] font-semibold text-sidebar-foreground">
+                Context
+              </h2>
+            </div>
+            <div className="rounded-[12px] border border-sidebar-border bg-card px-4 py-4">
+              <div className="flex min-h-7 items-center gap-2.5">
+                {memorySaving ? (
+                  <LoaderCircle className="size-[18px] shrink-0 animate-spin text-sidebar-active-icon" />
+                ) : (
+                  <Brain className="size-[18px] shrink-0 text-sidebar-active-icon" />
+                )}
+                <span className="min-w-0 flex-1 text-[15px] font-semibold text-sidebar-foreground">
+                  Memories
+                </span>
+                <Switch
+                  className="h-6 w-11 [&_[data-slot=switch-thumb]]:size-5 [&[data-state=checked]_[data-slot=switch-thumb]]:translate-x-5"
+                  checked={memoriesEnabled}
+                  disabled={memoryActionDisabled || memorySaving}
+                  aria-label={
+                    memoriesEnabled
+                      ? "Disable memories for this conversation"
+                      : "Enable memories for this conversation"
+                  }
+                  onCheckedChange={(enabled) => {
+                    void updateMemoriesEnabled(enabled);
+                  }}
+                />
+              </div>
+              <p className="mt-3 text-[13.5px] leading-5 text-sidebar-muted">
+                {memoriesEnabled
+                  ? "This agent can use your saved context in this conversation."
+                  : "Saved context is not used in this conversation."}
+              </p>
+              <Link
+                href="/settings?tab=profile&section=memories"
+                className="mt-4 flex min-h-11 touch-manipulation items-center justify-between border-t border-sidebar-border pt-3 text-[14px] font-semibold text-sidebar-foreground transition-colors hover:text-sidebar-active-icon"
+              >
+                Manage saved memories
+                <ChevronRight className="size-4" />
+              </Link>
+            </div>
+          </section>
+
+          {meta.viewerRole === null && (
+            <section className="mt-6">
+              <ShareConversation
+                threadId={threadId}
+                variant="menu"
+                disabled={
+                  run.status !== "idle" ||
+                  promptQueue.runStarting ||
+                  transcript.messages.length === 0
+                }
+              />
+            </section>
+          )}
+        </ChatMobileActionsSheet>
       )}
       <div className="h-full flex flex-col w-full overflow-hidden">
         <div className="h-full relative flex flex-1 flex-col min-h-0 w-full">

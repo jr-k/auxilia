@@ -1,7 +1,13 @@
 "use client";
 
-import { AlarmClock, Brain, LoaderCircle, Settings2 } from "lucide-react";
-import type { ReactNode } from "react";
+import {
+	AlarmClock,
+	Brain,
+	LoaderCircle,
+	MoreHorizontal,
+	Settings2,
+} from "lucide-react";
+import { useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -27,6 +33,13 @@ import {
 	AGENT_EDITOR_FORBIDDEN_MESSAGE,
 	useOpenAgentEditor,
 } from "@/hooks/use-open-agent-editor";
+import {
+	Sheet,
+	SheetContent,
+	SheetDescription,
+	SheetHeader,
+	SheetTitle,
+} from "@/components/ui/sheet";
 
 /** Pill amount: two decimals, or less than one cent. */
 export function formatPillCost(amount: string): string {
@@ -158,9 +171,22 @@ function MobileSidebarTrigger() {
 	);
 }
 
-export function ChatHeaderActions({ children }: { children: ReactNode }) {
+export function ChatHeaderActions({
+	children,
+	mobileOnly = false,
+}: {
+	children: ReactNode;
+	mobileOnly?: boolean;
+}) {
 	const element = useChatHeaderStore((state) => state.actionsEl);
-	return element ? createPortal(children, element) : null;
+	return element
+		? createPortal(
+				<div className={mobileOnly ? "contents md:hidden" : "hidden md:contents"}>
+					{children}
+				</div>,
+				element,
+			)
+		: null;
 }
 
 export function ChatHeaderLeadingActions({
@@ -170,6 +196,43 @@ export function ChatHeaderLeadingActions({
 }) {
 	const element = useChatHeaderStore((state) => state.leadingActionsEl);
 	return element ? createPortal(children, element) : null;
+}
+
+export function ChatMobileActionsSheet({
+	children,
+}: {
+	children: ReactNode;
+}) {
+	const [open, setOpen] = useState(false);
+
+	return (
+		<Sheet open={open} onOpenChange={setOpen}>
+			<ChatHeaderActions mobileOnly>
+				<button
+					type="button"
+					onClick={() => {
+						setOpen(true);
+					}}
+					aria-label="Open conversation options"
+					className="flex size-9 cursor-pointer items-center justify-center rounded-lg border border-sidebar-border bg-sidebar text-sidebar-muted shadow-raised transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
+				>
+					<MoreHorizontal className="size-4.5" />
+				</button>
+			</ChatHeaderActions>
+			<SheetContent
+				side="right"
+				className="w-[92vw] max-w-[390px] gap-0 border-sidebar-border bg-sidebar p-0"
+			>
+				<SheetHeader className="border-b border-sidebar-border px-5 py-5 pr-12">
+					<SheetTitle className="text-[18px]">Conversation options</SheetTitle>
+					<SheetDescription className="text-[14px] leading-5">
+						Manage this conversation and its sharing settings.
+					</SheetDescription>
+				</SheetHeader>
+				<div className="overflow-y-auto p-5">{children}</div>
+			</SheetContent>
+		</Sheet>
+	);
 }
 
 export function ChatMemoryToggle({
@@ -253,7 +316,7 @@ function HeaderLeadingActionsSlot() {
 	return (
 		<div
 			ref={setLeadingActionsEl}
-			className="hidden min-w-0 items-center gap-2 md:flex"
+			className="col-start-1 hidden min-w-0 items-center gap-2 md:flex"
 		/>
 	);
 }
@@ -270,11 +333,11 @@ function HeaderBar({
 			<MobileSidebarTrigger />
 			<HeaderLeadingActionsSlot />
 			<div
-				className={`flex min-w-0 items-center justify-center gap-2 ${className ?? ""}`}
+				className={`col-start-2 flex min-w-0 items-center justify-center gap-2 ${className ?? ""}`}
 			>
 				{children}
 			</div>
-			<div className="flex min-w-0 items-center gap-1 justify-self-end md:gap-2">
+			<div className="col-start-3 flex min-w-0 items-center gap-1 justify-self-end md:gap-2">
 				<ModelCostPill />
 				<HeaderActionsSlot />
 			</div>
