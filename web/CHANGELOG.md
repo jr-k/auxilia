@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.12.127](https://github.com/jr-k/auxilia/compare/web-v0.12.126...web-v0.12.127) (2026-11-08)
+
+
+### Bug Fixes
+
+* **runtime:** keep prompts available when resources fail ([623a7e8](https://github.com/jr-k/auxilia/commit/623a7e8632aab54cde5b36f906602e9359e8b580))
+* **web:** make mobile drawers follow touch gestures ([17c09e5](https://github.com/jr-k/auxilia/commit/17c09e5edc7002d6a6bc47b8227f3a7ebb2302a7))
+
 ## [0.12.126](https://github.com/jr-k/auxilia/compare/web-v0.12.125...web-v0.12.126) (2026-11-08)
 
 

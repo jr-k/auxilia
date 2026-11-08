@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.94](https://github.com/jr-k/auxilia/compare/backend-v0.11.93...backend-v0.11.94) (2026-11-08)
+
+
+### Bug Fixes
+
+* **runtime:** keep prompts available when resources fail ([623a7e8](https://github.com/jr-k/auxilia/commit/623a7e8632aab54cde5b36f906602e9359e8b580))
+
 ## [0.11.93](https://github.com/jr-k/auxilia/compare/backend-v0.11.92...backend-v0.11.93) (2026-11-08)
 
 
