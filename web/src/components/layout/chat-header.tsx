@@ -210,14 +210,21 @@ export function ChatMobileActionsSheet({
 		setOpen(true);
 	}, []);
 
-	useEdgeSwipe({
+	const {
+		contentRef,
+		contentStyle,
+		gestureControlled,
+		handleSheetOpenChange,
+		overlayStyle,
+	} = useEdgeSwipe({
 		edge: "right",
-		enabled: isMobile && !open,
-		onSwipe: openMobileActions,
+		enabled: isMobile,
+		open,
+		onOpenChange: setOpen,
 	});
 
 	return (
-		<Sheet open={open} onOpenChange={setOpen}>
+		<Sheet open={open} onOpenChange={handleSheetOpenChange}>
 			<ChatHeaderActions mobileOnly>
 				<button
 					type="button"
@@ -229,8 +236,12 @@ export function ChatMobileActionsSheet({
 				</button>
 			</ChatHeaderActions>
 			<SheetContent
+				ref={contentRef}
 				side="right"
-				className="w-[92vw] max-w-[390px] gap-0 border-sidebar-border bg-sidebar p-0"
+				data-gesture-controlled={gestureControlled || undefined}
+				className="w-72 max-w-72 gap-0 border-sidebar-border bg-sidebar p-0 sm:max-w-72"
+				overlayStyle={overlayStyle}
+				style={contentStyle}
 			>
 				<SheetHeader className="border-b border-sidebar-border px-5 py-5 pr-12">
 					<SheetTitle className="text-[18px]">Conversation options</SheetTitle>

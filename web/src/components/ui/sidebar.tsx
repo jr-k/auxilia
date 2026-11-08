@@ -5,6 +5,7 @@ import { Slot } from "@radix-ui/react-slot";
 import { cva, type VariantProps } from "class-variance-authority";
 import { MenuIcon, PanelLeftIcon, XIcon } from "lucide-react";
 
+import { useEdgeSwipe } from "@/hooks/use-edge-swipe";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -270,6 +271,18 @@ function Sidebar({
 		setResizing,
 	} = useSidebar();
 	const resizeStart = React.useRef<{ x: number; width: number } | null>(null);
+	const {
+		contentRef,
+		contentStyle,
+		gestureControlled,
+		handleSheetOpenChange,
+		overlayStyle,
+	} = useEdgeSwipe({
+		edge: side,
+		enabled: isMobile,
+		open: openMobile,
+		onOpenChange: setOpenMobile,
+	});
 
 	if (collapsible === "none") {
 		return (
@@ -288,15 +301,23 @@ function Sidebar({
 
 	if (isMobile) {
 		return (
-			<Sheet open={openMobile} onOpenChange={setOpenMobile} {...props}>
+			<Sheet
+				open={openMobile}
+				onOpenChange={handleSheetOpenChange}
+				{...props}
+			>
 				<SheetContent
+					ref={contentRef}
 					data-sidebar="sidebar"
 					data-slot="sidebar"
 					data-mobile="true"
+					data-gesture-controlled={gestureControlled || undefined}
 					className="bg-sidebar text-sidebar-foreground w-(--sidebar-width) p-0 [&>button]:hidden"
+					overlayStyle={overlayStyle}
 					style={
 						{
 							"--sidebar-width": SIDEBAR_WIDTH_MOBILE,
+							...contentStyle,
 						} as React.CSSProperties
 					}
 					side={side}
