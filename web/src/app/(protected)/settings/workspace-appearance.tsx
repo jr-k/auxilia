@@ -121,16 +121,13 @@ function AppearanceForm({
 					<div className="mt-3 flex h-14 items-center gap-3 rounded-[9px] border border-border bg-background px-3.5 dark:border-white/10">
 						<div className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-[7px] bg-petrol">
 							{logoFile ? (
-								<ImageFilePreview
-									file={logoFile}
-									className="dark:brightness-0 dark:invert"
-								/>
+								<ImageFilePreview file={logoFile} />
 							) : currentLogoUrl && !logoRemoved ? (
 								// eslint-disable-next-line @next/next/no-img-element
 								<img
 									src={currentLogoUrl}
 									alt=""
-									className="size-full object-cover dark:brightness-0 dark:invert"
+									className="size-full object-cover"
 								/>
 							) : (
 								// eslint-disable-next-line @next/next/no-img-element
@@ -186,10 +183,10 @@ function AppearanceForm({
 							removed={notificationBadgeRemoved}
 							disabled={isSaving}
 							label="Android notification badge"
-							accept="image/png,image/webp"
-							hint="Transparent PNG or WebP. Color is converted to a white 96×96 silhouette."
+							accept="image/jpeg,image/png,image/webp"
+							hint="JPEG, PNG or WebP. The icon is converted to a white 96×96 silhouette."
 							previewContainerClassName="bg-[#0c1318] dark:bg-[#0c1318]"
-							previewImageClassName="object-contain p-2 brightness-0 invert"
+							previewImageClassName="object-contain p-1 brightness-0 invert"
 							onFileChange={(file) => {
 								setNotificationBadgeFile(file);
 								setNotificationBadgeRemoved(false);

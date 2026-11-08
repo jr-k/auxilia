@@ -165,8 +165,8 @@ async def stage_run_web_push_deliveries(
     }
     if appearance is not None and appearance.notification_badge_revision is not None:
         payload["badge"] = (
-            "/api/backend/appearance/notification-badge"
-            f"?revision={appearance.notification_badge_revision}"
+            "/api/backend/appearance/notification-badge/"
+            f"{appearance.notification_badge_revision}"
         )
     await WebPushDeliveryRepository(db).enqueue_for_user(
         user_id=user_id,

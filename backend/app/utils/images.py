@@ -4,9 +4,11 @@ import asyncio
 from dataclasses import dataclass
 from hashlib import sha256
 from io import BytesIO
+from statistics import median
+from typing import cast
 
 from fastapi import Response, UploadFile
-from PIL import Image, ImageOps, UnidentifiedImageError
+from PIL import Image, ImageChops, ImageOps, UnidentifiedImageError
 
 from app.exceptions import DomainValidationError
 
@@ -16,7 +18,6 @@ MAX_SOURCE_PIXELS = 25_000_000
 OUTPUT_SIZE = (512, 512)
 OUTPUT_MEDIA_TYPE = "image/webp"
 NOTIFICATION_BADGE_SIZE = (96, 96)
-NOTIFICATION_BADGE_CONTENT_SIZE = (72, 72)
 NOTIFICATION_BADGE_MEDIA_TYPE = "image/png"
 
 
@@ -86,13 +87,10 @@ def _process_image(raw: bytes) -> ProcessedImage:
 
 
 def _process_notification_badge(raw: bytes) -> ProcessedImage:
-    error = (
-        "Notification badge must be a PNG or WebP with a transparent background"
-    )
     try:
         with Image.open(BytesIO(raw)) as source:
-            if source.format not in {"PNG", "WEBP"}:
-                raise DomainValidationError(error)
+            if source.format not in {"JPEG", "PNG", "WEBP"}:
+                raise DomainValidationError("Image must be JPEG, PNG, or WebP")
             if getattr(source, "n_frames", 1) != 1:
                 raise DomainValidationError("Animated images are not supported")
             if source.width * source.height > MAX_SOURCE_PIXELS:
@@ -103,20 +101,51 @@ def _process_notification_badge(raw: bytes) -> ProcessedImage:
             has_alpha = normalized.mode in {"RGBA", "LA"} or (
                 "transparency" in normalized.info
             )
-            if not has_alpha:
-                raise DomainValidationError(error)
-
-            alpha = normalized.convert("RGBA").getchannel("A")
+            normalized = normalized.convert("RGBA")
+            alpha = normalized.getchannel("A")
             alpha_min, alpha_max = alpha.getextrema()
-            if alpha_min == 255 or alpha_max == 0:
-                raise DomainValidationError(error)
+            if alpha_max == 0:
+                raise DomainValidationError(
+                    "Notification badge must contain a visible icon"
+                )
+            if not has_alpha or alpha_min == 255:
+                rgb = normalized.convert("RGB")
+                width, height = rgb.size
+                samples = tuple(
+                    cast(tuple[int, int, int], rgb.getpixel(coordinates))
+                    for coordinates in (
+                        (0, 0),
+                        (width - 1, 0),
+                        (0, height - 1),
+                        (width - 1, height - 1),
+                    )
+                )
+                background = tuple(
+                    int(median(sample[channel] for sample in samples))
+                    for channel in range(3)
+                )
+                difference = ImageChops.difference(
+                    rgb,
+                    Image.new("RGB", rgb.size, background),
+                )
+                red, green, blue = difference.split()
+                alpha = ImageChops.lighter(ImageChops.lighter(red, green), blue)
+                alpha = alpha.point(
+                    lambda value: min(255, max(0, (value - 8) * 3))
+                )
+                if alpha.getextrema()[1] == 0:
+                    raise DomainValidationError(
+                        "Notification badge must contain a visible icon"
+                    )
             bounds = alpha.getbbox()
             if bounds is None:
-                raise DomainValidationError(error)
+                raise DomainValidationError(
+                    "Notification badge must contain a visible icon"
+                )
 
             content = ImageOps.contain(
-                alpha.crop(bounds),
-                NOTIFICATION_BADGE_CONTENT_SIZE,
+                alpha,
+                NOTIFICATION_BADGE_SIZE,
                 method=Image.Resampling.LANCZOS,
             )
             badge_alpha = Image.new("L", NOTIFICATION_BADGE_SIZE, 0)

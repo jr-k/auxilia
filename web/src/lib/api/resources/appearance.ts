@@ -53,5 +53,5 @@ export async function deleteNotificationBadge(): Promise<InstanceAppearance> {
 export function appearanceNotificationBadgeUrl(
 	revision: string,
 ): string {
-	return `/api/backend/appearance/notification-badge?revision=${encodeURIComponent(revision)}`;
+	return `/api/backend/appearance/notification-badge/${encodeURIComponent(revision)}`;
 }

@@ -466,7 +466,7 @@ export function AppSidebar() {
 									<img
 										src={appearanceLogoUrl(appearance.logoRevision)}
 										alt={appearance.appName}
-										className="size-[22px] rounded-[5px] object-cover dark:brightness-0 dark:invert"
+										className="size-[22px] rounded-[5px] object-cover"
 									/>
 								) : (
 									<>

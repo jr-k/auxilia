@@ -80,6 +80,7 @@ export function ImageUpload({
 					// Browser-direct request keeps the session cookie; Next's optimizer does not.
 					// eslint-disable-next-line @next/next/no-img-element
 					<img
+						key={source}
 						src={source}
 						alt=""
 						className={cn(
