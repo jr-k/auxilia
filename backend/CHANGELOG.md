@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.92](https://github.com/jr-k/auxilia/compare/backend-v0.11.91...backend-v0.11.92) (2026-11-08)
+
+
+### Features
+
+* **pwa:** improve mobile app experience ([4093b4d](https://github.com/jr-k/auxilia/commit/4093b4d47c31171a202ffedde4915eaa366b8ba1))
+
 ## [0.11.91](https://github.com/jr-k/auxilia/compare/backend-v0.11.90...backend-v0.11.91) (2026-11-05)
 
 
