@@ -1673,18 +1673,16 @@ class AgentService(BaseService[AgentDB, AgentRepository]):
             else []
         )
         accepts_files = bool(artifact_settings.provider and enabled_sandbox_rows)
-        # The sandbox first: an outage blocks the agent outright, and there is
-        # nothing the user can click to fix it (unlike an MCP reconnect).
+        sandbox_error: str | None = None
+        # A sandbox is an optional capability. Keep probing it for the resource
+        # indicator, but never let its outage make the LLM itself unavailable.
         try:
             await ensure_sandboxes_available(enabled_sandbox_rows)
         except SandboxUnavailableError as exc:
-            return {
-                "ready": False,
-                "accepts_files": accepts_files,
-                "disconnected_servers": [],
-                "status": "sandbox_unavailable",
-                "detail": exc.detail,
-            }
+            sandbox_error = exc.detail
+            # Attachments need the sandbox filesystem, so hide file upload while
+            # text-only prompts continue to work.
+            accepts_files = False
         # Includes subagents' servers so the UI can offer every optional OAuth
         # connection. Missing per-user OAuth no longer blocks a run: the
         # runtime omits those servers from that user's toolset.
@@ -1704,7 +1702,8 @@ class AgentService(BaseService[AgentDB, AgentRepository]):
                 "ready": True,
                 "accepts_files": accepts_files,
                 "disconnected_servers": [],
-                "status": "ready",
+                "status": "sandbox_unavailable" if sandbox_error else "ready",
+                **({"detail": sandbox_error} if sandbox_error else {}),
             }
 
         is_configured = all(binding.tools is not None for binding in bindings)
@@ -1721,17 +1720,27 @@ class AgentService(BaseService[AgentDB, AgentRepository]):
 
         if not is_configured:
             return {
-                "ready": False,
+                "ready": True,
                 "accepts_files": accepts_files,
                 "disconnected_servers": disconnected,
-                "status": "not_configured",
+                "status": (
+                    "sandbox_unavailable" if sandbox_error else "not_configured"
+                ),
+                **({"detail": sandbox_error} if sandbox_error else {}),
             }
 
         return {
             "ready": True,
             "accepts_files": accepts_files,
             "disconnected_servers": disconnected,
-            "status": "disconnected" if disconnected else "ready",
+            "status": (
+                "sandbox_unavailable"
+                if sandbox_error
+                else "disconnected"
+                if disconnected
+                else "ready"
+            ),
+            **({"detail": sandbox_error} if sandbox_error else {}),
         }
 
 

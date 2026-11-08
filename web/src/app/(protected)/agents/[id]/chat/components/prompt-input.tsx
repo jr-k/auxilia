@@ -117,6 +117,7 @@ interface ChatPromptInputProps {
 	onEffortChange?: (effort: string | null) => void | Promise<void>;
 	acceptsFiles?: boolean | null;
 	disconnectedServers?: MCPServer[];
+	resourceWarning?: string | null;
 	onAllConnected?: () => void;
 	resourceSettings: ThreadResourceSettings;
 	onResourceSettingsChange: (settings: ThreadResourceSettings) => void;
@@ -184,6 +185,7 @@ const ChatPromptInput = ({
 	onEffortChange,
 	acceptsFiles = null,
 	disconnectedServers = [],
+	resourceWarning = null,
 	onAllConnected,
 	resourceSettings,
 	onResourceSettingsChange,
@@ -1134,7 +1136,10 @@ const ChatPromptInput = ({
 							</Dialog>
 						)}
 						<ConnectButton
-							needsConnection={enabledDisconnectedServers.length > 0}
+							needsAttention={
+								enabledDisconnectedServers.length > 0 ||
+								resourceWarning !== null
+							}
 							onClick={() => {
 								setConnectDialogOpen(true);
 							}}
@@ -1449,6 +1454,7 @@ const ChatPromptInput = ({
 				resourceSettingsSaving={
 					resourceSettingsSaving || preparingSubmission
 				}
+				resourceWarning={resourceWarning}
 			/>
 		</>
 	);
@@ -1614,10 +1620,10 @@ const StopButton = ({
 );
 
 const ConnectButton = ({
-	needsConnection,
+	needsAttention,
 	onClick,
 }: {
-	needsConnection: boolean;
+	needsAttention: boolean;
 	onClick: () => void;
 }) => {
 	return (
@@ -1625,19 +1631,21 @@ const ConnectButton = ({
 			type="button"
 			onClick={onClick}
 			aria-label={
-				needsConnection ? "Connect agent resources" : "View connected resources"
+				needsAttention
+					? "Review unavailable agent resources"
+					: "View connected resources"
 			}
-			title={needsConnection ? undefined : "View agent resources"}
+			title={needsAttention ? "Some agent resources are unavailable" : "View agent resources"}
 			className={cn(
 				composerPillClass,
 				"flex shrink-0 cursor-pointer items-center justify-center whitespace-nowrap",
-				needsConnection
+				needsAttention
 					? "bg-petrol text-white shadow-submit hover:bg-petrol hover:opacity-90 dark:bg-petrol dark:hover:bg-petrol"
 					: "w-[34px] px-0 text-subtle dark:text-panel-body",
 			)}
 		>
 			<PlugIcon className="size-3.5" />
-			{needsConnection && <span>Connect</span>}
+			{needsAttention && <span>Connect</span>}
 		</button>
 	);
 };

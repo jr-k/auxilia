@@ -299,14 +299,21 @@ class MCPResolutionScope:
         scope = cls(db, user_id, workspace_id)
         await scope.load([b.mcp_server_id for b in bindings])
         if authorized_only:
-            authorization = await probe_authorization(
-                scope._rows.values(), user_id, workspace_id
-            )
-            scope._rows = {
-                server_id: server
-                for server_id, server in scope._rows.items()
-                if authorization.get(server_id, True)
-            }
+            try:
+                authorization = await probe_authorization(
+                    scope._rows.values(), user_id, workspace_id
+                )
+            except Exception:  # noqa: BLE001 — optional MCP auth must not block the LLM
+                logger.warning(
+                    "Could not probe MCP authorization; resolving servers individually",
+                    exc_info=True,
+                )
+            else:
+                scope._rows = {
+                    server_id: server
+                    for server_id, server in scope._rows.items()
+                    if authorization.get(server_id, True)
+                }
         return scope
 
     async def load(self, server_ids: Collection[UUID]) -> None:
@@ -394,9 +401,18 @@ class Toolset:
         # 2. Resolve each server's connection (auth to Redis/header values — no
         #    live SQL handle is retained, so the specs are safe to use later
         #    during streaming, after the request DB session has closed).
-        connections = {
-            server.name: await scope.connection(server) for server in mcp_servers
-        }
+        connections: dict[str, ConnectionSpec] = {}
+        for server in mcp_servers:
+            try:
+                connections[server.name] = await scope.connection(server)
+            except Exception:  # noqa: BLE001 — one MCP server is an optional capability
+                logger.warning(
+                    "Omitting MCP server %s while resolving its connection",
+                    server.name,
+                    exc_info=True,
+                )
+
+        mcp_servers = [server for server in mcp_servers if server.name in connections]
 
         # 3. Build tool settings map
         server_name_by_id = {server.id: server.name for server in mcp_servers}

@@ -65,13 +65,13 @@ export type AgentReadyStatus =
 	| "disconnected"
 	| "sandbox_unavailable";
 
-/** `GET /agents/{id}/is-ready` — can the agent run right now? */
+/** `GET /agents/{id}/is-ready` reports LLM usability and optional resource health. */
 export interface AgentReadiness {
 	ready: boolean;
 	acceptsFiles: boolean;
 	disconnectedServers: string[];
 	status: AgentReadyStatus;
-	/** Human-readable reason, set with `sandbox_unavailable`. */
+	/** Human-readable reason for a resource warning, when available. */
 	detail?: string | null;
 }
 

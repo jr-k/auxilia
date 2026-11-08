@@ -107,6 +107,15 @@ const StarterChatPage = () => {
 		disconnectedMcpServers,
 		refetch: refetchReady,
 	} = useAgentReadiness(agentId, resourceSettings);
+	const resourceWarning =
+		status === "sandbox_unavailable"
+			? (statusDetail ?? "This agent's sandbox is not available right now.")
+			: status === "not_configured"
+				? "Some MCP tools are not configured."
+				: status === "disconnected" &&
+						disconnectedMcpServers.length === 0
+					? statusDetail
+			: null;
 
 	const switchAgent = useCallback(
 		(step: -1 | 1) => {
@@ -433,57 +442,38 @@ const StarterChatPage = () => {
 							/>
 						</div>
 					)}
-					{status !== "sandbox_unavailable" && (
-						<p className="text-lg text-muted-foreground">
-							Ask me anything to begin
-						</p>
-					)}
+					<p className="text-lg text-muted-foreground">
+						Ask me anything to begin
+					</p>
 				</div>
 
 				<div className="w-full">
-					{status === "sandbox_unavailable" ? (
-						<div className="flex items-center gap-3 rounded-lg border border-border bg-muted/50 px-4 py-3">
-							<p className="flex-1 text-sm text-muted-foreground">
-								{statusDetail ?? "This agent's sandbox is not available right now."}{" "}
-								Try again in a moment, or ask a workspace admin.
-							</p>
-							<button
-								type="button"
-								className="shrink-0 cursor-pointer rounded-[7px] border border-input bg-card px-3 py-1.5 text-[12.5px] font-semibold text-foreground transition-colors hover:border-border-hover"
-								onClick={() => {
-									refetchReady();
-								}}
-							>
-								Check again
-							</button>
-						</div>
-					) : (
-						<ChatPromptInput
-							agentId={agentId}
-							draftKey={`new:${agentId}`}
-							onSubmit={handleSubmit}
-							status={isCreating ? "streaming" : "ready"}
-							className="w-full"
-							selectedModel={selectedModel}
-							onModelChange={(modelId) => {
-								setSelectedModel(modelId);
-								// Levels differ per model — a carried-over choice could be
-								// one the new model rejects.
-								setReasoningEffort(null);
-							}}
-							selectedEffort={reasoningEffort}
-							onEffortChange={setReasoningEffort}
-							acceptsFiles={acceptsFiles}
-							disconnectedServers={disconnectedMcpServers}
-							onAllConnected={() => {
-								refetchReady();
-							}}
-							resourceSettings={resourceSettings}
-							onResourceSettingsChange={(settings) => {
-								setResourceSettingsState({ agentId, settings });
-							}}
-						/>
-					)}
+					<ChatPromptInput
+						agentId={agentId}
+						draftKey={`new:${agentId}`}
+						onSubmit={handleSubmit}
+						status={isCreating ? "streaming" : "ready"}
+						className="w-full"
+						selectedModel={selectedModel}
+						onModelChange={(modelId) => {
+							setSelectedModel(modelId);
+							// Levels differ per model. A carried-over choice could be
+							// one the new model rejects.
+							setReasoningEffort(null);
+						}}
+						selectedEffort={reasoningEffort}
+						onEffortChange={setReasoningEffort}
+						acceptsFiles={acceptsFiles}
+						disconnectedServers={disconnectedMcpServers}
+						resourceWarning={resourceWarning}
+						onAllConnected={() => {
+							refetchReady();
+						}}
+						resourceSettings={resourceSettings}
+						onResourceSettingsChange={(settings) => {
+							setResourceSettingsState({ agentId, settings });
+						}}
+					/>
 				</div>
 
 				<SelectAgentDialog

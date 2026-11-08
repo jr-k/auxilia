@@ -186,13 +186,11 @@ def open_sandbox(
 
 
 async def ensure_sandboxes_available(rows: Iterable[SandboxDB]) -> None:
-    """Pre-flight for a run: every sandbox the agent graph is bound to must
-    answer a cheap probe, else `SandboxUnavailableError`.
+    """Probe the sandbox bindings used by the readiness indicator.
 
-    Sits behind `RunService.create` (like the model gate) and `is-ready`, so
-    an outage blocks the composer and 409s a launch instead of failing a run
-    the model would then see. Rows are deduped by id; probes are sync SDK
-    calls, run off the loop.
+    An outage is reported to the client but is not a run gate: the runtime
+    opens sandboxes lazily and tool failures are returned to the model. Rows
+    are deduped by id; probes are sync SDK calls, run off the loop.
     """
     seen: set = set()
     for row in rows:

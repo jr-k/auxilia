@@ -20,7 +20,6 @@ import {
   LoaderCircle,
   Mail,
   MailOpen,
-  ServerCrash,
   ShieldCheck,
   Undo2,
 } from "lucide-react";
@@ -603,14 +602,18 @@ const ChatPage = () => {
     meta.agentArchived ? undefined : agentId,
     resourceSettings,
   );
-  // Two ways the sandbox can be down: readiness said so when the page opened,
-  // or a command 409'd mid-session after the provider fell over. One notice
-  // either way, cleared by "Check again".
-  const sandboxDown =
+  // Resource failures stay visible on the plug button without replacing or
+  // disabling the composer.
+  const resourceWarning =
     meta.sandboxUnavailable ??
     (agentStatus === "sandbox_unavailable"
       ? (agentStatusDetail ??
         "This agent's sandbox is not available right now.")
+      : agentStatus === "not_configured"
+        ? "Some MCP tools are not configured."
+        : agentStatus === "disconnected" &&
+            disconnectedMcpServers.length === 0
+          ? agentStatusDetail
       : null);
 
   const { setCurrentChat, clearCurrentChat, setCost } = useChatHeaderStore();
@@ -1076,26 +1079,6 @@ const ChatPage = () => {
               className="w-full max-w-4xl mx-auto lg:px-10 sm:px-6 px-3 py-4"
               aria-busy="false"
             />
-          ) : sandboxDown ? (
-            <div className="w-full max-w-4xl mx-auto lg:px-10 sm:px-6 px-3 py-6">
-              <div className="flex items-center gap-3 rounded-lg border border-border bg-muted/50 px-4 py-3">
-                <ServerCrash className="size-5 shrink-0 text-muted-foreground" />
-                <p className="flex-1 text-sm text-muted-foreground">
-                  {sandboxDown} Try again in a moment, or ask a workspace admin.
-                </p>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="shrink-0 cursor-pointer"
-                  onClick={() => {
-                    actions.recheckSandbox();
-                    refetchReady();
-                  }}
-                >
-                  Check again
-                </Button>
-              </div>
-            </div>
           ) : (
             <ChatPromptInput
               key={threadId}
@@ -1132,7 +1115,11 @@ const ChatPage = () => {
               onEffortChange={actions.changeReasoningEffort}
               acceptsFiles={acceptsFiles}
               disconnectedServers={disconnectedMcpServers}
-              onAllConnected={refetchReady}
+              resourceWarning={resourceWarning}
+              onAllConnected={() => {
+                actions.recheckSandbox();
+                refetchReady();
+              }}
               resourceSettings={resourceSettings}
               onResourceSettingsChange={(settings) => {
                 void updateResourceSettings(settings);

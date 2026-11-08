@@ -10,7 +10,7 @@ interface AgentReadyState {
 	acceptsFiles: boolean | null;
 	disconnectedServers: string[];
 	status: AgentReadyStatus;
-	/** Human-readable reason, set with `sandbox_unavailable`. */
+	/** Human-readable reason for a resource warning, when available. */
 	detail: string | null;
 	refetch: () => void;
 }
@@ -61,7 +61,7 @@ export function useAgentConnectionStatus(
 				setAcceptsFiles(false);
 				setDisconnectedServers([]);
 				setStatus("disconnected");
-				setDetail(null);
+				setDetail("Agent resource status could not be checked.");
 				setResolvedRequestKey(requestedKey);
 			});
 	}, [agentId, requestKey, resources]);

@@ -40,7 +40,12 @@ from app.artifacts.models import ArtifactDB
 from app.artifacts.service import ATTACHMENTS_ROOT, ArtifactService
 from app.artifacts.tool import present_files_tool
 from app.database import AsyncSessionLocal, get_checkpointer
-from app.exceptions import DomainValidationError, NotFoundError, PermissionDeniedError
+from app.exceptions import (
+    DomainValidationError,
+    NotFoundError,
+    PermissionDeniedError,
+    SandboxUnavailableError,
+)
 from app.integrations.tracing import NoOpTracing, RunTracing, get_tracing
 from app.memories.constants import MEMORY_STATE_KEY
 from app.memories.middleware import MemoryMiddleware
@@ -619,11 +624,15 @@ class ResolvedAgent:
     def _resolve_sandbox(spec: AgentSpec) -> ResolvedSandbox | None:
         if spec.sandbox is None:
             return None
-        # A row that no longer validates (e.g. secret cleared) raises
-        # `SandboxUnavailableError` and fails the run — the pre-run gate
-        # reports the same, so this only covers a change made in between.
-        # Silently running without code execution would be worse.
-        provider = build_provider(spec.sandbox.row)
+        try:
+            provider = build_provider(spec.sandbox.row)
+        except SandboxUnavailableError as exc:
+            logger.warning(
+                "Omitting unavailable sandbox %s from run: %s",
+                spec.sandbox.row.id,
+                exc.detail,
+            )
+            return None
         return ResolvedSandbox(
             provider=provider,
             tools=spec.sandbox.tools,
@@ -1032,16 +1041,23 @@ class Agent:
         # One skill set per graph: every agent lists, reads and runs the union
         # of what the supervisor and its subagents have enabled.
         disabled_skill_ids = {UUID(skill_id) for skill_id in thread.disabled_skill_ids}
-        skills = (
-            []
-            if force_no_tools
-            else await resolve_run_skills(
-                db,
-                spec.all_agent_ids,
-                thread.workspace_id,
-                excluded_skill_ids=disabled_skill_ids,
+        try:
+            skills = (
+                []
+                if force_no_tools
+                else await resolve_run_skills(
+                    db,
+                    spec.all_agent_ids,
+                    thread.workspace_id,
+                    excluded_skill_ids=disabled_skill_ids,
+                )
             )
-        )
+        except Exception:  # noqa: BLE001 — optional skills must never block the LLM
+            logger.warning(
+                "Could not resolve skills; continuing without them",
+                exc_info=True,
+            )
+            skills = []
         try:
             observability = await WorkspaceObservabilityService(db).get_runtime_config(
                 thread.workspace_id

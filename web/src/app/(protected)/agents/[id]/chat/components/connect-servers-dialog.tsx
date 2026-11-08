@@ -33,6 +33,7 @@ import {
 	PlugIcon,
 	SearchIcon,
 	SparklesIcon,
+	TriangleAlertIcon,
 	XIcon,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -56,6 +57,7 @@ interface ConnectServersDialogProps {
 	resourceSettings: ThreadResourceSettings;
 	onResourceSettingsChange: (settings: ThreadResourceSettings) => void;
 	resourceSettingsSaving?: boolean;
+	resourceWarning?: string | null;
 }
 
 type ResourceTab = "servers" | "skills" | "sandboxes" | "subagents";
@@ -70,6 +72,7 @@ export function ConnectServersDialog({
 	resourceSettings,
 	onResourceSettingsChange,
 	resourceSettingsSaving = false,
+	resourceWarning = null,
 }: ConnectServersDialogProps) {
 	const { startAuthorization } = useMcpOAuth();
 	const [activeTab, setActiveTab] = useState<ResourceTab>("servers");
@@ -445,6 +448,22 @@ export function ConnectServersDialog({
 						Choose which MCP servers, skills, sandboxes and subagents are
 						available in this conversation.
 					</DialogDescription>
+					{resourceWarning && (
+						<div className="mt-2 flex items-start gap-2.5 rounded-[9px] border border-warning/25 bg-warning-bg px-3 py-2.5 text-left dark:bg-amber-950/30">
+							<TriangleAlertIcon className="mt-0.5 size-3.5 shrink-0 text-warning dark:text-amber-400" />
+							<p className="min-w-0 flex-1 text-[11.5px] leading-[1.5] text-warning dark:text-amber-400">
+								{resourceWarning} The agent can still answer without this
+								resource.
+							</p>
+							<button
+								type="button"
+								onClick={onConnectionChange}
+								className="shrink-0 cursor-pointer text-[11.5px] font-semibold text-warning underline-offset-2 hover:underline dark:text-amber-400"
+							>
+								Check again
+							</button>
+						</div>
+					)}
 					{modeNotice && (
 						<div className="mt-2 flex items-start gap-2.5 rounded-[9px] border border-petrol/20 bg-petrol/5 px-3 py-2.5 text-left dark:border-panel-terminal/20 dark:bg-panel-terminal/8">
 							<InfoIcon className="mt-0.5 size-3.5 shrink-0 text-petrol dark:text-panel-terminal" />
