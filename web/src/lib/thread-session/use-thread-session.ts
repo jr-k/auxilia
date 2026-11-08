@@ -180,6 +180,9 @@ export type ThreadSession = {
     recheckSandbox: () => void;
     /** Retry the protocol snapshot after its initial hydration failed. */
     rehydrate: () => Promise<void>;
+    /** Reconcile the durable snapshot, metadata and run state after the page
+     * resumes from the background. */
+    syncLatest: () => Promise<void>;
     /** Replay the durable input of the latest failed run. */
     retryInitial: () => Promise<void>;
     /** Run the open sequence again after `meta.status === "error"`. A parked
@@ -851,6 +854,41 @@ export function useThreadSession({
     }
   }, [streamController, threadId]);
 
+  const syncLatest = useCallback(async () => {
+    const forThread = threadId;
+    const [hydrationResult, readResult, runsResult] = await Promise.allSettled([
+      rehydrate(),
+      transport.readThread(forThread),
+      transport.listThreadRuns(forThread),
+    ]);
+    if (currentThreadId.current !== forThread) return;
+
+    if (readResult.status === "fulfilled") {
+      dispatch({
+        type: "thread-updated",
+        threadId: forThread,
+        thread: readResult.value.thread,
+      });
+    }
+    if (runsResult.status === "fulfilled") {
+      const runs = runsResult.value;
+      const latest = runs[0];
+      runActivityGeneration.current += 1;
+      setRunHistory({ threadId: forThread, runs });
+      setDurableRunActivity({
+        threadId: forThread,
+        active: latest?.status === "pending" || latest?.status === "running",
+        retryable:
+          latest?.status === "error" || latest?.status === "timeout",
+      });
+    }
+    useActiveRunsStore.getState().requestPoll();
+
+    if (hydrationResult.status === "rejected") {
+      throw hydrationResult.reason;
+    }
+  }, [rehydrate, threadId, transport]);
+
   const retryInitial = useCallback(async () => {
     userActed();
     retryStartingThread.current = threadId;
@@ -1098,6 +1136,7 @@ export function useThreadSession({
       recheckModel,
       recheckSandbox,
       rehydrate,
+      syncLatest,
       retryInitial,
       reopen,
     },

@@ -27,6 +27,7 @@ class InstanceAppearanceService(
         return InstanceAppearanceResponse(
             app_name=row.app_name,
             logo_revision=row.logo_revision,
+            notification_badge_revision=row.notification_badge_revision,
         )
 
     async def get_settings(self) -> InstanceAppearanceResponse:
@@ -70,6 +71,41 @@ class InstanceAppearanceService(
     async def get_logo(self) -> InstanceAppearanceDB | None:
         row = await self.repository.get_settings()
         return row if row is not None and row.logo_data is not None else None
+
+    async def set_notification_badge(
+        self,
+        image: ProcessedImage,
+    ) -> InstanceAppearanceResponse:
+        row = await self.repository.get_or_create()
+        row.notification_badge_data = image.data
+        row.notification_badge_media_type = image.media_type
+        row.notification_badge_sha256 = image.sha256
+        row.notification_badge_revision = uuid4()
+        self.db.add(row)
+        await self.db.flush()
+        await self.db.refresh(row)
+        return self.to_response(row)
+
+    async def delete_notification_badge(self) -> InstanceAppearanceResponse:
+        row = await self.repository.get_settings()
+        if row is None:
+            return self.to_response(None)
+        row.notification_badge_data = None
+        row.notification_badge_media_type = None
+        row.notification_badge_sha256 = None
+        row.notification_badge_revision = None
+        self.db.add(row)
+        await self.db.flush()
+        await self.db.refresh(row)
+        return self.to_response(row)
+
+    async def get_notification_badge(self) -> InstanceAppearanceDB | None:
+        row = await self.repository.get_settings()
+        return (
+            row
+            if row is not None and row.notification_badge_data is not None
+            else None
+        )
 
 
 def get_instance_appearance_service(

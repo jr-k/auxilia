@@ -18,3 +18,10 @@ class InstanceAppearanceDB(BaseDBModel, table=True):
     logo_media_type: str | None = Field(default=None, max_length=50)
     logo_sha256: str | None = Field(default=None, max_length=64)
     logo_revision: UUID | None = Field(default=None, nullable=True)
+    notification_badge_data: bytes | None = Field(
+        default=None,
+        sa_column=Column(LargeBinary, nullable=True),
+    )
+    notification_badge_media_type: str | None = Field(default=None, max_length=50)
+    notification_badge_sha256: str | None = Field(default=None, max_length=64)
+    notification_badge_revision: UUID | None = Field(default=None, nullable=True)

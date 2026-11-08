@@ -197,6 +197,7 @@ const ChatPage = () => {
     },
   });
   const recheckThreadMetadata = actions.recheckModel;
+  const syncLatestThread = actions.syncLatest;
   useEffect(() => {
     if (
       (threadsVersion === 0 && projectsVersion === 0) ||
@@ -207,17 +208,84 @@ const ChatPage = () => {
     void recheckThreadMetadata();
   }, [meta.status, projectsVersion, recheckThreadMetadata, threadsVersion]);
   useEffect(() => {
-    const updateVisibility = () => {
-      setPageVisible(document.visibilityState === "visible");
+    let wasAway = document.visibilityState === "hidden";
+    let syncing = false;
+    let cancelled = false;
+    let retryUsed = false;
+    let retryTimer: ReturnType<typeof setTimeout> | undefined;
+
+    const synchronize = () => {
+      if (
+        cancelled ||
+        syncing ||
+        !wasAway ||
+        document.visibilityState !== "visible"
+      ) {
+        return;
+      }
+      wasAway = false;
+      syncing = true;
+      void syncLatestThread()
+        .then(() => {
+          retryUsed = false;
+        })
+        .catch((error: unknown) => {
+          console.error("Could not synchronize the resumed thread:", error);
+          if (!cancelled && !retryUsed) {
+            retryUsed = true;
+            retryTimer = setTimeout(() => {
+              wasAway = true;
+              synchronize();
+            }, 1_500);
+          }
+        })
+        .finally(() => {
+          syncing = false;
+        });
     };
+
+    const updateVisibility = () => {
+      const visible = document.visibilityState === "visible";
+      setPageVisible(visible);
+      if (!visible) {
+        wasAway = true;
+        retryUsed = false;
+        return;
+      }
+      synchronize();
+    };
+    const markAway = () => {
+      wasAway = true;
+      retryUsed = false;
+    };
+    const handlePageShow = (event: PageTransitionEvent) => {
+      if (event.persisted) wasAway = true;
+      synchronize();
+    };
+    const handleOnline = () => {
+      wasAway = true;
+      retryUsed = false;
+      synchronize();
+    };
+
     updateVisibility();
     document.addEventListener("visibilitychange", updateVisibility);
-    window.addEventListener("focus", updateVisibility);
+    window.addEventListener("focus", synchronize);
+    window.addEventListener("blur", markAway);
+    window.addEventListener("pagehide", markAway);
+    window.addEventListener("pageshow", handlePageShow);
+    window.addEventListener("online", handleOnline);
     return () => {
+      cancelled = true;
+      clearTimeout(retryTimer);
       document.removeEventListener("visibilitychange", updateVisibility);
-      window.removeEventListener("focus", updateVisibility);
+      window.removeEventListener("focus", synchronize);
+      window.removeEventListener("blur", markAway);
+      window.removeEventListener("pagehide", markAway);
+      window.removeEventListener("pageshow", handlePageShow);
+      window.removeEventListener("online", handleOnline);
     };
-  }, []);
+  }, [syncLatestThread, threadId]);
   useEffect(() => {
     transcriptMessages.current = transcript.messages;
   }, [transcript.messages]);

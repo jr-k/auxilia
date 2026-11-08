@@ -6,6 +6,7 @@ from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.core.repository import AgentRepository
+from app.appearance.service import InstanceAppearanceService
 from app.database import get_db
 from app.exceptions import DomainValidationError
 from app.notifications.repository import (
@@ -146,6 +147,7 @@ async def stage_run_web_push_deliveries(
         }
     )
     title, body = copy
+    appearance = await InstanceAppearanceService(db).get_settings()
     payload = {
         "title": (
             f"{agent_name} answered"
@@ -155,13 +157,17 @@ async def stage_run_web_push_deliveries(
         "body": body,
         "tag": f"run:{run_id}",
         "icon": "/pwa-icon-192.png",
-        "badge": "/pwa-icon-192.png",
         "data": {
             "runId": run_id,
             "threadId": thread.id,
             "url": f"/notifications/open?{query}",
         },
     }
+    if appearance is not None and appearance.notification_badge_revision is not None:
+        payload["badge"] = (
+            "/api/backend/appearance/notification-badge"
+            f"?revision={appearance.notification_badge_revision}"
+        )
     await WebPushDeliveryRepository(db).enqueue_for_user(
         user_id=user_id,
         run_id=run_id,

@@ -7,7 +7,7 @@ import {
 	MoreHorizontal,
 	Settings2,
 } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { useCallback, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -27,7 +27,7 @@ import {
 import type { ThreadCost } from "@/lib/api/resources/thread-costs";
 import { formatRunAt } from "@/lib/triggers/schedule";
 import { AgentAvatar } from "@/components/ui/agent-avatar";
-import { SidebarTrigger } from "@/components/ui/sidebar";
+import { SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
 import ForbiddenErrorDialog from "@/components/forbidden-error-dialog";
 import {
 	AGENT_EDITOR_FORBIDDEN_MESSAGE,
@@ -40,6 +40,7 @@ import {
 	SheetHeader,
 	SheetTitle,
 } from "@/components/ui/sheet";
+import { useEdgeSwipe } from "@/hooks/use-edge-swipe";
 
 /** Pill amount: two decimals, or less than one cent. */
 export function formatPillCost(amount: string): string {
@@ -204,15 +205,23 @@ export function ChatMobileActionsSheet({
 	children: ReactNode;
 }) {
 	const [open, setOpen] = useState(false);
+	const { isMobile } = useSidebar();
+	const openMobileActions = useCallback(() => {
+		setOpen(true);
+	}, []);
+
+	useEdgeSwipe({
+		edge: "right",
+		enabled: isMobile && !open,
+		onSwipe: openMobileActions,
+	});
 
 	return (
 		<Sheet open={open} onOpenChange={setOpen}>
 			<ChatHeaderActions mobileOnly>
 				<button
 					type="button"
-					onClick={() => {
-						setOpen(true);
-					}}
+					onClick={openMobileActions}
 					aria-label="Open conversation options"
 					className="flex size-9 cursor-pointer items-center justify-center rounded-lg border border-sidebar-border bg-sidebar text-sidebar-muted shadow-raised transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
 				>

@@ -1,12 +1,14 @@
 "use client";
 
 import { usePathname } from "next/navigation";
+import { useCallback } from "react";
 
 import { ChatHeader } from "@/components/layout/chat-header";
 import { SupervisionBanner } from "@/components/layout/supervision-banner";
-import { SidebarTrigger } from "@/components/ui/sidebar";
+import { SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
 import { useUserStore } from "@/stores/user-store";
 import { cn } from "@/lib/utils";
+import { useEdgeSwipe } from "@/hooks/use-edge-swipe";
 
 // Chat is the only surface that keeps the floating card; workspace list
 // pages own their full-height chrome (top bar + scroll) via WorkspacePage,
@@ -23,6 +25,7 @@ const SETTINGS_ROUTE = /^\/settings(\/|$)/;
 
 export function PageShell({ children }: { children: React.ReactNode }) {
 	const pathname = usePathname();
+	const { isMobile, openMobile, setOpenMobile } = useSidebar();
 	const isSupervising = useUserStore(
 		(state) => Boolean(state.user?.supervision),
 	);
@@ -34,6 +37,15 @@ export function PageShell({ children }: { children: React.ReactNode }) {
 		TRIGGERS_ROUTE.test(pathname) ||
 		PROJECTS_ROUTE.test(pathname) ||
 		SETTINGS_ROUTE.test(pathname);
+	const openMobileSidebar = useCallback(() => {
+		setOpenMobile(true);
+	}, [setOpenMobile]);
+
+	useEdgeSwipe({
+		edge: "left",
+		enabled: isMobile && !openMobile,
+		onSwipe: openMobileSidebar,
+	});
 
 	return (
 		<>

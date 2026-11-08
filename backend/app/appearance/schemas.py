@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 class InstanceAppearanceResponse(BaseModel):
     app_name: str
     logo_revision: UUID | None = None
+    notification_badge_revision: UUID | None = None
 
 
 class InstanceAppearancePatch(BaseModel):

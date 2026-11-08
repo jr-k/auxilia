@@ -15,6 +15,9 @@ MAX_UPLOAD_BYTES = 5 * 1024 * 1024
 MAX_SOURCE_PIXELS = 25_000_000
 OUTPUT_SIZE = (512, 512)
 OUTPUT_MEDIA_TYPE = "image/webp"
+NOTIFICATION_BADGE_SIZE = (96, 96)
+NOTIFICATION_BADGE_CONTENT_SIZE = (72, 72)
+NOTIFICATION_BADGE_MEDIA_TYPE = "image/png"
 
 
 @dataclass(frozen=True)
@@ -32,6 +35,16 @@ async def process_uploaded_image(upload: UploadFile) -> ProcessedImage:
     if not raw:
         raise DomainValidationError("Image file is empty")
     return await asyncio.to_thread(_process_image, raw)
+
+
+async def process_notification_badge(upload: UploadFile) -> ProcessedImage:
+    """Produce Android's white-on-transparent monochrome notification badge."""
+    raw = await upload.read(MAX_UPLOAD_BYTES + 1)
+    if len(raw) > MAX_UPLOAD_BYTES:
+        raise DomainValidationError("Image must be 5 MB or smaller")
+    if not raw:
+        raise DomainValidationError("Image file is empty")
+    return await asyncio.to_thread(_process_notification_badge, raw)
 
 
 def _process_image(raw: bytes) -> ProcessedImage:
@@ -68,6 +81,64 @@ def _process_image(raw: bytes) -> ProcessedImage:
     return ProcessedImage(
         data=data,
         media_type=OUTPUT_MEDIA_TYPE,
+        sha256=sha256(data).hexdigest(),
+    )
+
+
+def _process_notification_badge(raw: bytes) -> ProcessedImage:
+    error = (
+        "Notification badge must be a PNG or WebP with a transparent background"
+    )
+    try:
+        with Image.open(BytesIO(raw)) as source:
+            if source.format not in {"PNG", "WEBP"}:
+                raise DomainValidationError(error)
+            if getattr(source, "n_frames", 1) != 1:
+                raise DomainValidationError("Animated images are not supported")
+            if source.width * source.height > MAX_SOURCE_PIXELS:
+                raise DomainValidationError("Image dimensions are too large")
+
+            source.load()
+            normalized = ImageOps.exif_transpose(source)
+            has_alpha = normalized.mode in {"RGBA", "LA"} or (
+                "transparency" in normalized.info
+            )
+            if not has_alpha:
+                raise DomainValidationError(error)
+
+            alpha = normalized.convert("RGBA").getchannel("A")
+            alpha_min, alpha_max = alpha.getextrema()
+            if alpha_min == 255 or alpha_max == 0:
+                raise DomainValidationError(error)
+            bounds = alpha.getbbox()
+            if bounds is None:
+                raise DomainValidationError(error)
+
+            content = ImageOps.contain(
+                alpha.crop(bounds),
+                NOTIFICATION_BADGE_CONTENT_SIZE,
+                method=Image.Resampling.LANCZOS,
+            )
+            badge_alpha = Image.new("L", NOTIFICATION_BADGE_SIZE, 0)
+            offset = (
+                (NOTIFICATION_BADGE_SIZE[0] - content.width) // 2,
+                (NOTIFICATION_BADGE_SIZE[1] - content.height) // 2,
+            )
+            badge_alpha.paste(content, offset)
+            badge = Image.new("RGBA", NOTIFICATION_BADGE_SIZE, (255, 255, 255, 0))
+            badge.putalpha(badge_alpha)
+
+            output = BytesIO()
+            badge.save(output, format="PNG", optimize=True)
+    except DomainValidationError:
+        raise
+    except (Image.DecompressionBombError, UnidentifiedImageError, OSError, ValueError):
+        raise DomainValidationError("Invalid or corrupted image") from None
+
+    data = output.getvalue()
+    return ProcessedImage(
+        data=data,
+        media_type=NOTIFICATION_BADGE_MEDIA_TYPE,
         sha256=sha256(data).hexdigest(),
     )
 

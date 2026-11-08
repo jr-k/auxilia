@@ -13,6 +13,7 @@ interface AppearanceState {
 const DEFAULT_APPEARANCE: InstanceAppearance = {
 	appName: "auxilia",
 	logoRevision: null,
+	notificationBadgeRevision: null,
 };
 
 export const useAppearanceStore = create<AppearanceState>((set, get) => {

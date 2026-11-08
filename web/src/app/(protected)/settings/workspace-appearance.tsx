@@ -21,6 +21,10 @@ function AppearanceForm({
 	const [appName, setAppName] = useState(appearance.appName);
 	const [logoFile, setLogoFile] = useState<File | null>(null);
 	const [logoRemoved, setLogoRemoved] = useState(false);
+	const [notificationBadgeFile, setNotificationBadgeFile] =
+		useState<File | null>(null);
+	const [notificationBadgeRemoved, setNotificationBadgeRemoved] =
+		useState(false);
 	const [isSaving, setIsSaving] = useState(false);
 	const [status, setStatus] = useState<{
 		kind: "success" | "error";
@@ -30,11 +34,19 @@ function AppearanceForm({
 	const currentLogoUrl = appearance.logoRevision
 		? appearanceApi.appearanceLogoUrl(appearance.logoRevision)
 		: null;
+	const currentNotificationBadgeUrl = appearance.notificationBadgeRevision
+		? appearanceApi.appearanceNotificationBadgeUrl(
+				appearance.notificationBadgeRevision,
+			)
+		: null;
 	const canSave =
 		appName.trim().length > 0 &&
 		(appName.trim() !== appearance.appName ||
 			logoFile !== null ||
-			(logoRemoved && appearance.logoRevision !== null));
+			(logoRemoved && appearance.logoRevision !== null) ||
+			notificationBadgeFile !== null ||
+			(notificationBadgeRemoved &&
+				appearance.notificationBadgeRevision !== null));
 
 	const handleSave = async () => {
 		setIsSaving(true);
@@ -52,9 +64,22 @@ function AppearanceForm({
 				updated = await appearanceApi.deleteLogo();
 				setAppearance(updated);
 			}
+			if (notificationBadgeFile) {
+				updated =
+					await appearanceApi.uploadNotificationBadge(notificationBadgeFile);
+				setAppearance(updated);
+			} else if (
+				notificationBadgeRemoved &&
+				appearance.notificationBadgeRevision
+			) {
+				updated = await appearanceApi.deleteNotificationBadge();
+				setAppearance(updated);
+			}
 			setAppName(updated.appName);
 			setLogoFile(null);
 			setLogoRemoved(false);
+			setNotificationBadgeFile(null);
+			setNotificationBadgeRemoved(false);
 			setStatus({ kind: "success", text: "Appearance saved." });
 		} catch (error: unknown) {
 			if (isApiError(error) && error.status === 403) {
@@ -84,7 +109,8 @@ function AppearanceForm({
 				</span>
 			</div>
 			<p className="mb-3.5 max-w-[620px] text-[13px] leading-[1.55] text-subtle dark:text-panel-body">
-				Customize the name and logo used throughout this instance.
+				Customize the name, logo and Android notification badge used by this
+				instance.
 			</p>
 
 			<div className="overflow-hidden rounded-[10px] border border-border bg-card dark:border-white/10">
@@ -152,6 +178,28 @@ function AppearanceForm({
 							setLogoRemoved(true);
 						}}
 					/>
+
+					<div className="border-t border-hairline pt-5 dark:border-white/5">
+						<ImageUpload
+							currentUrl={currentNotificationBadgeUrl}
+							file={notificationBadgeFile}
+							removed={notificationBadgeRemoved}
+							disabled={isSaving}
+							label="Android notification badge"
+							accept="image/png,image/webp"
+							hint="Transparent PNG or WebP. Color is converted to a white 96×96 silhouette."
+							previewContainerClassName="bg-[#0c1318] dark:bg-[#0c1318]"
+							previewImageClassName="object-contain p-2 brightness-0 invert"
+							onFileChange={(file) => {
+								setNotificationBadgeFile(file);
+								setNotificationBadgeRemoved(false);
+							}}
+							onRemove={() => {
+								setNotificationBadgeFile(null);
+								setNotificationBadgeRemoved(true);
+							}}
+						/>
+					</div>
 				</div>
 
 				<div className="flex items-center gap-3 border-t border-hairline px-4 py-3 dark:border-white/5">

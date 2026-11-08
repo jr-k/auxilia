@@ -1,7 +1,7 @@
 "use client";
 
 import { ImagePlus, Trash2 } from "lucide-react";
-import { useEffect, useId, useMemo } from "react";
+import { useEffect, useId, useMemo, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 export function ImageFilePreview({
@@ -33,6 +33,10 @@ interface ImageUploadProps {
 	disabled?: boolean;
 	removable?: boolean;
 	previewShape?: "circle" | "rounded";
+	accept?: string;
+	hint?: ReactNode;
+	previewContainerClassName?: string;
+	previewImageClassName?: string;
 	className?: string;
 }
 
@@ -46,6 +50,10 @@ export function ImageUpload({
 	disabled = false,
 	removable = true,
 	previewShape = "rounded",
+	accept = "image/jpeg,image/png,image/webp",
+	hint = "JPEG, PNG or WebP, cropped to 512×512",
+	previewContainerClassName,
+	previewImageClassName,
 	className,
 }: ImageUploadProps) {
 	const inputId = useId();
@@ -57,12 +65,16 @@ export function ImageUpload({
 				className={cn(
 					"flex size-16 shrink-0 items-center justify-center overflow-hidden border border-input bg-hover dark:bg-white/5",
 					previewShape === "circle" ? "rounded-full" : "rounded-[14px]",
+					previewContainerClassName,
 				)}
 			>
 				{file ? (
 					<ImageFilePreview
 						file={file}
-						className={previewShape === "circle" ? "rounded-full" : undefined}
+						className={cn(
+							previewShape === "circle" && "rounded-full",
+							previewImageClassName,
+						)}
 					/>
 				) : source ? (
 					// Browser-direct request keeps the session cookie; Next's optimizer does not.
@@ -73,6 +85,7 @@ export function ImageUpload({
 						className={cn(
 							"size-full object-cover",
 							previewShape === "circle" && "rounded-full",
+							previewImageClassName,
 						)}
 					/>
 				) : (
@@ -82,7 +95,7 @@ export function ImageUpload({
 			<div className="flex min-w-0 flex-col gap-1.5">
 				<span className="text-[13px] font-semibold text-foreground">{label}</span>
 				<span className="text-[11.5px] text-meta dark:text-panel-dim">
-					JPEG, PNG or WebP, cropped to 512×512
+					{hint}
 				</span>
 				<div className="flex items-center gap-2">
 					<label
@@ -97,7 +110,7 @@ export function ImageUpload({
 					<input
 						id={inputId}
 						type="file"
-						accept="image/jpeg,image/png,image/webp"
+						accept={accept}
 						disabled={disabled}
 						className="sr-only"
 						onChange={(event) => {

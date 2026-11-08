@@ -12,7 +12,11 @@ from app.appearance.service import (
 from app.auth.dependencies import require_admin
 from app.exceptions import NotFoundError
 from app.users.models import UserDB
-from app.utils.images import image_response, process_uploaded_image
+from app.utils.images import (
+    image_response,
+    process_notification_badge,
+    process_uploaded_image,
+)
 
 
 router = APIRouter(prefix="/appearance", tags=["appearance"])
@@ -70,3 +74,43 @@ async def delete_instance_logo(
     service: InstanceAppearanceService = Depends(get_instance_appearance_service),
 ) -> InstanceAppearanceResponse:
     return await service.delete_logo()
+
+
+@router.get("/notification-badge")
+async def get_notification_badge(
+    if_none_match: str | None = Header(default=None),
+    service: InstanceAppearanceService = Depends(get_instance_appearance_service),
+) -> Response:
+    row = await service.get_notification_badge()
+    if (
+        row is None
+        or row.notification_badge_data is None
+        or row.notification_badge_media_type is None
+        or row.notification_badge_sha256 is None
+    ):
+        raise NotFoundError("Notification badge not found")
+    return image_response(
+        data=row.notification_badge_data,
+        media_type=row.notification_badge_media_type,
+        digest=row.notification_badge_sha256,
+        if_none_match=if_none_match,
+    )
+
+
+@router.put("/notification-badge", response_model=InstanceAppearanceResponse)
+async def upload_notification_badge(
+    image: UploadFile = File(...),
+    _: UserDB = Depends(require_admin),
+    service: InstanceAppearanceService = Depends(get_instance_appearance_service),
+) -> InstanceAppearanceResponse:
+    return await service.set_notification_badge(
+        await process_notification_badge(image)
+    )
+
+
+@router.delete("/notification-badge", response_model=InstanceAppearanceResponse)
+async def delete_notification_badge(
+    _: UserDB = Depends(require_admin),
+    service: InstanceAppearanceService = Depends(get_instance_appearance_service),
+) -> InstanceAppearanceResponse:
+    return await service.delete_notification_badge()
