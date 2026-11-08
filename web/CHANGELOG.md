@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.125](https://github.com/jr-k/auxilia/compare/web-v0.12.124...web-v0.12.125) (2026-11-08)
+
+
+### Features
+
+* **pwa:** improve mobile app experience ([4093b4d](https://github.com/jr-k/auxilia/commit/4093b4d47c31171a202ffedde4915eaa366b8ba1))
+
 ## [0.12.124](https://github.com/jr-k/auxilia/compare/web-v0.12.123...web-v0.12.124) (2026-11-05)
 
 
