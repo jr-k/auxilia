@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.126](https://github.com/jr-k/auxilia/compare/web-v0.12.125...web-v0.12.126) (2026-11-08)
+
+
+### Bug Fixes
+
+* **appearance:** preserve custom logo rendering ([a63839a](https://github.com/jr-k/auxilia/commit/a63839a4bda7d17cc7c697952e88bc6a58f142a3))
+
 ## [0.12.125](https://github.com/jr-k/auxilia/compare/web-v0.12.124...web-v0.12.125) (2026-11-08)
 
 

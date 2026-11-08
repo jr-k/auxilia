@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.93](https://github.com/jr-k/auxilia/compare/backend-v0.11.92...backend-v0.11.93) (2026-11-08)
+
+
+### Bug Fixes
+
+* **appearance:** preserve custom logo rendering ([a63839a](https://github.com/jr-k/auxilia/commit/a63839a4bda7d17cc7c697952e88bc6a58f142a3))
+
 ## [0.11.92](https://github.com/jr-k/auxilia/compare/backend-v0.11.91...backend-v0.11.92) (2026-11-08)
 
 
