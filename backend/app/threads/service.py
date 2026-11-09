@@ -477,6 +477,7 @@ class ThreadService(BaseService[ThreadDB, ThreadRepository]):
             update={"first_message_content": text or None, **placement}
         )
         artifacts = ArtifactService(self.db, self.workspace_id)
+        committed = False
         try:
             thread = await self.create(
                 thread_data,
@@ -589,7 +590,8 @@ class ThreadService(BaseService[ThreadDB, ThreadRepository]):
             }
             if additional_kwargs:
                 message["additional_kwargs"] = additional_kwargs
-            await RunService().create_in_session(
+            runs = RunService()
+            record = await runs.create_in_session(
                 self.db,
                 thread_id=thread.id,
                 user_id=str(user_id),
@@ -597,9 +599,15 @@ class ThreadService(BaseService[ThreadDB, ThreadRepository]):
                 multitask_strategy="enqueue",
                 text_only_when_queued=True,
             )
+            # Commit before waking a dispatcher: the worker opens its own
+            # session and must never observe a half-created thread.
+            await self.db.commit()
+            committed = True
+            await runs.signal_created(record)
             return thread
         except BaseException:
-            await artifacts.discard_uploads()
+            if not committed:
+                await artifacts.discard_uploads()
             raise
 
     async def update(self, thread_id: str, data: ThreadPatch) -> ThreadResponse:

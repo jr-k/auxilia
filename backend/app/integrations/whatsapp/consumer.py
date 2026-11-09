@@ -23,6 +23,7 @@ from app.integrations.whatsapp.repository import (
 from app.integrations.whatsapp.service import WhatsAppConnectionService
 from app.runtime.checkpoints import checkpoint_thread_id
 from app.runtime.hitl import load_interrupt_scope, pending_approval_requests
+from app.runtime.protocol.events import is_elicitation
 from app.runtime.protocol.wire import decode_event
 from app.runtime.runs.delivery import DeliveryConsumer
 from app.runtime.runs.models import RunDB
@@ -242,7 +243,17 @@ class WhatsAppRunConsumer(DeliveryConsumer):
                 checkpointer,
                 checkpoint_thread_id(self.record.workspace_id, self.record.thread_id),
             )
-        if scope is None or scope.interrupt.id is None:
+        if scope is None:
+            return
+        if is_elicitation(scope.interrupt.value):
+            tool_name = scope.interrupt.value.get("tool_name") or "An MCP tool"
+            await self._send_text(
+                config,
+                f"{tool_name} needs more information. Answer in Auxilia.",
+            )
+            await self._post_auxilia_link(config, elicitation=True)
+            return
+        if scope.interrupt.id is None:
             return
         requests = pending_approval_requests(
             scope.root, scope.state, interrupt_id=scope.interrupt.id
@@ -296,8 +307,14 @@ class WhatsAppRunConsumer(DeliveryConsumer):
                 db.add(row)
                 await db.commit()
 
-    async def _post_auxilia_link(self, config, *, approval: bool = False) -> None:
-        if not self.show_auxilia_link and not approval:
+    async def _post_auxilia_link(
+        self,
+        config,
+        *,
+        approval: bool = False,
+        elicitation: bool = False,
+    ) -> None:
+        if not self.show_auxilia_link and not approval and not elicitation:
             return
         async with AsyncSessionLocal() as db:
             thread = await ThreadRepository(db, self.record.workspace_id).get(
@@ -305,7 +322,13 @@ class WhatsAppRunConsumer(DeliveryConsumer):
             )
         if thread is None:
             return
-        prefix = "Approve in Auxilia" if approval else "View in Auxilia"
+        prefix = (
+            "Approve in Auxilia"
+            if approval
+            else "Answer in Auxilia"
+            if elicitation
+            else "View in Auxilia"
+        )
         await self._send_text(
             config,
             f"{prefix}: {auth_settings.FRONTEND_URL}/agents/"

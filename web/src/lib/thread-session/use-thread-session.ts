@@ -36,6 +36,7 @@ import {
   getToolStepState,
   pairToolCalls,
   splitInterrupts,
+  type ElicitationResponse,
   type ToolCallView,
 } from "@/lib/transcript";
 import { useActiveRunsStore } from "@/stores/active-runs-store";
@@ -166,7 +167,7 @@ export type ThreadSession = {
     regenerate: () => void;
     stop: () => void;
     respond: (
-      response: HitlResponse,
+      response: HitlResponse | ElicitationResponse,
       interruptId: string | null,
     ) => Promise<void>;
     loadLatestMessages: () => Promise<BaseMessage[]>;
@@ -811,7 +812,10 @@ export function useThreadSession({
   }, [streamController, threadId, transport]);
 
   const respond = useCallback(
-    async (response: HitlResponse, addressedId: string | null) => {
+    async (
+      response: HitlResponse | ElicitationResponse,
+      addressedId: string | null,
+    ) => {
       if (stoppingRef.current === threadId) return;
       userActed();
       await streamController.respond(

@@ -22,6 +22,7 @@ from app.integrations.telegram.repository import (
 from app.integrations.telegram.service import TelegramBotService
 from app.runtime.checkpoints import checkpoint_thread_id
 from app.runtime.hitl import load_interrupt_scope, pending_approval_requests
+from app.runtime.protocol.events import is_elicitation
 from app.runtime.protocol.wire import decode_event
 from app.runtime.runs.delivery import DeliveryConsumer
 from app.runtime.runs.models import RunDB
@@ -270,6 +271,15 @@ class TelegramRunConsumer(DeliveryConsumer):
             )
         if scope is None:
             return
+        if is_elicitation(scope.interrupt.value):
+            tool_name = scope.interrupt.value.get("tool_name") or "An MCP tool"
+            await client.send_message(
+                self.delivery["chat_id"],
+                f"{tool_name} needs more information. Answer in Auxilia.",
+                message_thread_id=self.delivery["message_thread_id"],
+            )
+            await self._post_auxilia_link(client, force=True)
+            return
         requests = pending_approval_requests(
             scope.root, scope.state, interrupt_id=scope.interrupt.id
         )
@@ -315,8 +325,10 @@ class TelegramRunConsumer(DeliveryConsumer):
                 db.add(row)
                 await db.commit()
 
-    async def _post_auxilia_link(self, client: TelegramClient) -> None:
-        if not self.show_auxilia_link:
+    async def _post_auxilia_link(
+        self, client: TelegramClient, *, force: bool = False
+    ) -> None:
+        if not self.show_auxilia_link and not force:
             return
         async with AsyncSessionLocal() as db:
             thread = await ThreadRepository(db, self.record.workspace_id).get(

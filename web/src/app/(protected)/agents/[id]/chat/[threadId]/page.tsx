@@ -41,6 +41,7 @@ import { ShareConversation } from "./share-conversation";
 import type { ThreadResourceSettings } from "@/types/threads";
 import type { QueuedPrompt } from "@/types/runs";
 import { ArtifactWorkspace } from "@/components/artifacts/workspace";
+import { isElicitation } from "@/lib/transcript";
 import { useThreadsStore } from "@/stores/threads-store";
 import { useProjectsStore } from "@/stores/projects-store";
 import { useWorkspaceEventsStore } from "@/stores/workspace-events-store";
@@ -948,9 +949,18 @@ const ChatPage = () => {
                 decisions={hitl.decisions}
                 recordDecision={hitl.recordDecision}
                 nestedInterrupts={hitl.nestedInterrupts}
+                elicitation={
+                  isElicitation(hitl.interrupt?.value)
+                    ? hitl.interrupt
+                    : null
+                }
                 respond={actions.respond}
                 modelUnavailable={!meta.modelAvailable}
-                readOnly={completed}
+                readOnly={
+                  completed ||
+                  meta.viewerRole !== null ||
+                  meta.agentArchived
+                }
                 onRegenerate={() => {
                   acknowledgeCurrentResponse();
                   actions.regenerate();

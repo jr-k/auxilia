@@ -530,6 +530,12 @@ export const NeedsApprovalBadge = () => (
 	</span>
 );
 
+export const NeedsInputBadge = () => (
+	<span className="rounded-[4px] bg-warning-bg px-2 py-0.5 text-[9.5px] font-semibold text-warning">
+		Needs input
+	</span>
+);
+
 /** The model's reasoning as a step on the rail: open while it streams, folded
  *  behind its first line once done. */
 export const ChainReasoningStep = ({

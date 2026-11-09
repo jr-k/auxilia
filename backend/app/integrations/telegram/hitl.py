@@ -145,7 +145,8 @@ async def handle_approval_callback(
         ),
         "tool_discovery_mode": config.tool_discovery_mode.runtime_mode.value,
     }
-    await RunService().create_in_session(
+    runs = RunService()
+    record = await runs.create_in_session(
         db,
         thread_id=initial.thread_id,
         user_id=str(identity.user_id),
@@ -154,5 +155,6 @@ async def handle_approval_callback(
         multitask_strategy="enqueue",
     )
     await db.commit()
+    await runs.signal_created(record)
     await _clear_buttons(client, chat_id, batch)
     await client.answer_callback(callback_id, "Decisions saved. Resuming.")

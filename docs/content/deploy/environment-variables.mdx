@@ -87,3 +87,6 @@ agent-specific Slack bots under **Settings → Messaging**. Details:
 | `LOG_LEVEL`        | `INFO`   | Set to `DEBUG` for verbose logs (MCP traces, etc.)    |
 | `AGENT_RECURSION_LIMIT` | `100` | Max LangGraph steps per agent invocation             |
 | `INVOKE_PROFILING` | `false`  | Emit per-step timing on each agent invocation         |
+| `RUN_WAKE_POLL_SECONDS` | `0.5` | Redis wake-token polling cadence for idle dispatchers |
+| `RUN_CLAIM_FALLBACK_SECONDS` | `10` | Postgres safety polling cadence when a wake is lost |
+| `RUN_CLAIM_INTERVAL_SECONDS` | `0.5` | Deprecated compatibility setting; no longer used |

@@ -69,6 +69,7 @@ from app.runtime.harness import (
     harness_system_prompt,
     harness_trailing_middleware,
 )
+from app.runtime.hitl import address_input_requested, next_elicitation_rounds
 from app.runtime.middleware.current_date import CurrentDateMiddleware
 from app.runtime.middleware.incomplete_response import IncompleteResponseMiddleware
 from app.runtime.middleware.mcp_content import MCPContentCompatibilityMiddleware
@@ -1516,9 +1517,16 @@ class Agent:
                 transformers=[UpdatesTransformer],
             )
             emitter = ProtocolEmitter()
+            rounds = await next_elicitation_rounds(
+                agent.checkpointer,
+                config["configurable"]["thread_id"],
+                command,
+            )
             try:
                 async with run:
                     async for event in emitter.stream(run):
+                        if event["method"] == "input.requested":
+                            event = address_input_requested(event, rounds)
                         yield event
             except (asyncio.CancelledError, GeneratorExit):
                 # Cancellation can arrive in this generator directly or as

@@ -126,7 +126,8 @@ async def handle_approval_reply(
         ),
         "tool_discovery_mode": config.tool_discovery_mode.runtime_mode.value,
     }
-    await RunService().create_in_session(
+    runs = RunService()
+    record = await runs.create_in_session(
         db,
         thread_id=initial.thread_id,
         user_id=str(identity.user_id),
@@ -135,4 +136,5 @@ async def handle_approval_reply(
         multitask_strategy="enqueue",
     )
     await db.commit()
+    await runs.signal_created(record)
     await gateway.send_text("Decisions saved. Resuming.")

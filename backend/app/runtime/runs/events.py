@@ -123,6 +123,15 @@ class RunEventStream:
         """Whether the log has any entries (False once the key TTLs away)."""
         return bool(await self.redis.exists(self._key))
 
+    async def read_recent(self, limit: int = 100) -> list[str]:
+        """Newest encoded events first, for state hydration metadata."""
+        entries = await self.redis.xrevrange(self._key, count=limit)
+        return [
+            data
+            for _entry_id, fields in entries
+            if (data := fields.get(_DATA)) is not None
+        ]
+
     async def read_batch(
         self, cursor: str, *, block_ms: int = 15000
     ) -> tuple[str, list[str], bool] | None:

@@ -13,6 +13,7 @@ import {
   ChainReasoningLine,
   ChainStep,
   NeedsApprovalBadge,
+  NeedsInputBadge,
   StepCode,
   StepSection,
 } from "@/components/ai-elements/chain-of-thought";
@@ -31,13 +32,18 @@ import { TodoList } from "@/components/ai-elements/todo-list";
 import type { Todo } from "@/components/ai-elements/todo-list";
 import { cn } from "@/lib/utils";
 import {
+  type ElicitationInterrupt,
+  type ElicitationResponse,
   type ToolCallView,
   extractHitlToolNames,
+  findElicitedCallId,
   findSubagentInterrupt,
   getToolStepState,
+  isElicitation,
   pairToolCalls,
 } from "@/lib/transcript";
 import { type DescribeTool, ToolStep } from "./tool-step";
+import { ElicitationForm } from "./elicitation-form";
 
 const formatElapsed = (ms: number) => {
   if (ms < 1000) return `${Math.round(ms)}ms`;
@@ -58,6 +64,10 @@ const SubAgentConversation = memo(function SubAgentConversation({
   decisions,
   recordDecision,
   approvalsDisabled,
+  elicitation,
+  elicitationId,
+  respond,
+  inputDisabled,
 }: {
   messages: BaseMessage[];
   toolCalls: ToolCallView[];
@@ -69,7 +79,15 @@ const SubAgentConversation = memo(function SubAgentConversation({
   decisions: Partial<Record<string, HitlDecision>>;
   recordDecision: (toolCallId: string, decision: HitlDecision) => void;
   approvalsDisabled: boolean;
+  elicitation: ElicitationInterrupt | null;
+  elicitationId: string | null;
+  respond: (
+    response: ElicitationResponse,
+    interruptId: string | null,
+  ) => Promise<void>;
+  inputDisabled: boolean;
 }) {
+  const elicitedCallId = findElicitedCallId(toolCalls, elicitation);
   const byMessage = new Map<string, ToolCallView[]>();
   for (const tc of toolCalls) {
     if (!tc.messageId) continue;
@@ -92,7 +110,12 @@ const SubAgentConversation = memo(function SubAgentConversation({
               />
             )}
             {calls.map((tc) => {
-              const state = getToolStepState(tc, isInterrupted, hitlToolNames);
+              const state = getToolStepState(
+                tc,
+                isInterrupted,
+                hitlToolNames,
+                elicitedCallId,
+              );
               return (
                 <ToolStep
                   key={tc.id}
@@ -110,6 +133,19 @@ const SubAgentConversation = memo(function SubAgentConversation({
                           },
                         }
                       : undefined
+                  }
+                  input={
+                    state === "awaiting-input" &&
+                    elicitation &&
+                    elicitationId ? (
+                      <ElicitationForm
+                        key={elicitationId}
+                        interrupt={elicitation}
+                        interruptId={elicitationId}
+                        respond={respond}
+                        disabled={inputDisabled}
+                      />
+                    ) : undefined
                   }
                 />
               );
@@ -135,12 +171,13 @@ export type SubAgentCardProps = {
   interrupts: readonly Interrupt[];
   /** Resume — `stream.respond(response, { interruptId })`. */
   respond: (
-    response: HitlResponse,
+    response: HitlResponse | ElicitationResponse,
     interruptId: string | null,
   ) => Promise<void>;
   /** A run is executing; approvals are held until it settles. */
   resumeInFlight: boolean;
   modelUnavailable: boolean;
+  readOnly: boolean;
 };
 
 export const SubAgentCard = memo(function SubAgentCard({
@@ -152,6 +189,7 @@ export const SubAgentCard = memo(function SubAgentCard({
   respond,
   resumeInFlight,
   modelUnavailable,
+  readOnly,
 }: SubAgentCardProps) {
   const { status, startedAt, completedAt } = subagent;
   // Scoped projections that keep flowing across a HITL pause (the SDK's own
@@ -198,7 +236,11 @@ export const SubAgentCard = memo(function SubAgentCard({
     respond,
     enabled: !resumeInFlight,
   });
-  const awaitingDecision = pendingToolCalls.some((tc) => !decisions[tc.id]);
+  const elicitation = isElicitation(interrupt?.value)
+    ? interrupt.value
+    : null;
+  const awaitingDecision =
+    elicitation != null || pendingToolCalls.some((tc) => !decisions[tc.id]);
 
   const isStreaming = status === "running" && !isInterrupted;
   const isError = status === "error";
@@ -239,7 +281,9 @@ export const SubAgentCard = memo(function SubAgentCard({
         setAutoOpen(false);
       }}
       meta={
-        isInterrupted ? (
+        elicitation ? (
+          <NeedsInputBadge />
+        ) : isInterrupted ? (
           <NeedsApprovalBadge />
         ) : isStreaming ? (
           <Loader2 className="size-3 animate-spin text-petrol" />
@@ -264,6 +308,10 @@ export const SubAgentCard = memo(function SubAgentCard({
           decisions={decisions}
           recordDecision={recordDecision}
           approvalsDisabled={modelUnavailable}
+          elicitation={elicitation}
+          elicitationId={interrupt?.id ?? null}
+          respond={respond}
+          inputDisabled={resumeInFlight || modelUnavailable || readOnly}
         />
         {isError && subagent.error != null && (
           <StepSection label="Error" error className="mt-2">

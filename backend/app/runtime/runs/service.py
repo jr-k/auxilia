@@ -59,6 +59,7 @@ from app.threads.repository import ThreadRepository
 logger = logging.getLogger(__name__)
 
 QUEUE_EDIT_LEASE_SECONDS = 30
+WAKE_LIST_CAP = 32
 
 
 def _is_plain_text_input(agent_input: dict) -> bool:
@@ -163,6 +164,7 @@ class RunService:
                     "This approval request is already being handled."
                 ) from exc
             raise
+        await self.signal_created(run)
         return run
 
     async def create_in_session(
@@ -365,7 +367,8 @@ class RunService:
                 output_schema=deepcopy(failed.output_schema),
             )
             await db.commit()
-            return record
+        await self.signal_created(record)
+        return record
 
     async def next_for_thread(
         self, thread_id: str, workspace_id: UUID, after: RunDB | None = None
@@ -739,6 +742,10 @@ class RunService:
             await RunEventStream(
                 run_id, self.redis, workspace_id=record.workspace_id
             ).publish_end(status, error)
+            # A terminal run frees its thread, so an enqueued run may now be
+            # claimable. Publish the end first so the next run cannot overtake
+            # the terminal event observed by thread-scoped stream sessions.
+            await self._signal_dispatch()
         # `thread_id is None` means the guarded UPDATE matched nothing, which
         # covers three different situations and only two of them are finished:
         #   1. the run was already terminal — expire, it is over;
@@ -771,6 +778,54 @@ class RunService:
             count = await RunRepository(db).prune_terminal(older_than)
             await db.commit()
         return count
+
+    async def pop_wake(self) -> bool:
+        """Take one dispatch wake token, if any."""
+        return await self.redis.lpop(keys.dispatch_wake_key()) is not None
+
+    async def latest_run_marker(self, workspace_id: UUID, thread_id: str) -> str | None:
+        """Return the newest run id last signalled for a workspace thread."""
+        return await self.redis.get(keys.thread_latest_run_key(workspace_id, thread_id))
+
+    async def signal_created(self, record: RunDB) -> None:
+        """Signal a committed run created through ``create_in_session``.
+
+        The caller must commit first. The wake and marker are best effort; the
+        dispatcher and stream-session fallback polls preserve correctness.
+        """
+        await self._signal_dispatch(
+            workspace_id=record.workspace_id,
+            thread_id=record.thread_id,
+            run_id=record.id,
+        )
+
+    async def _signal_dispatch(
+        self,
+        *,
+        workspace_id: UUID | None = None,
+        thread_id: str | None = None,
+        run_id: str | None = None,
+    ) -> None:
+        """Push a bounded wake token and optionally stamp a latest-run marker."""
+        wake = keys.dispatch_wake_key()
+        try:
+            async with self.redis.pipeline(transaction=True) as pipe:
+                pipe.rpush(wake, "1")
+                pipe.ltrim(wake, -WAKE_LIST_CAP, -1)
+                pipe.expire(wake, run_settings.ttl_seconds)
+                if (
+                    workspace_id is not None
+                    and thread_id is not None
+                    and run_id is not None
+                ):
+                    pipe.set(
+                        keys.thread_latest_run_key(workspace_id, thread_id),
+                        run_id,
+                        ex=run_settings.ttl_seconds,
+                    )
+                await pipe.execute()
+        except Exception:  # fallback polling covers a lost signal
+            logger.exception("Could not signal dispatch (run %s)", run_id)
 
     async def _expire_ephemera(self, run_id: str, workspace_id: UUID | None) -> None:
         """TTL the finished run's event log + control key (the reattach/replay

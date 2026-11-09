@@ -34,14 +34,24 @@ from app.redis_client import get_redis
 from app.runtime.api.protocol_repository import CheckpointWriteRepository
 from app.runtime.api.protocol_schemas import EventStreamBody, ProtocolCommand
 from app.runtime.checkpoints import checkpoint_thread_id, get_checkpoint_state
-from app.runtime.hitl import InterruptScope, load_interrupt_scopes
-from app.runtime.protocol.events import terminal_lifecycle
+from app.runtime.hitl import (
+    InterruptScope,
+    elicitation_tool_call_id,
+    load_interrupt_scopes,
+    scope_wire_id,
+)
+from app.runtime.protocol.events import (
+    base_interrupt_id,
+    is_elicitation,
+    terminal_lifecycle,
+)
 from app.runtime.protocol.filter import StreamFilter
 from app.runtime.protocol.messages import serialize_message, serialize_message_preview
 from app.runtime.protocol.wire import decode_event, frame, seq_for_entry
 from app.runtime.runs.events import RunEventStream
 from app.runtime.runs.models import RunDB
 from app.runtime.runs.service import RunService
+from app.runtime.runs.settings import run_settings
 from app.runtime.runs.state import RunStatus, is_terminal
 
 
@@ -56,6 +66,7 @@ class ProtocolService:
     def __init__(self, redis: Redis | None = None):
         self.redis: Redis = redis or get_redis()
         self.runs = RunService(self.redis)
+        self._marker_failing = False
 
     # --- commands -------------------------------------------------------------
 
@@ -130,8 +141,9 @@ class ProtocolService:
         batched form carries `responses: [...]` — auxilia threads pause on at
         most one interrupt, so the batch must have exactly one entry. The
         `response` payload is the HITL decisions object the web client already
-        builds (`{"decisions": [...]}`); `RunService.create` canonicalizes and
-        stale-checks it against the checkpoint (409 on a stale approval).
+        builds (`{"decisions": [...]}`), or MCP elicitation answers
+        (`{"responses": {...}}`); `RunService.create` canonicalizes and
+        stale-checks it against the checkpoint.
         """
         responses = params.get("responses")
         if responses is not None:
@@ -152,10 +164,15 @@ class ProtocolService:
             isinstance(interrupt_id, str)
             and interrupt_id
             and response_map is not None
-            and isinstance(decisions, list)
-            and all(
-                isinstance(d, dict) and isinstance(d.get("tool_call_id"), str)
-                for d in decisions
+            and (
+                isinstance(response_map.get("responses"), dict)
+                or (
+                    isinstance(decisions, list)
+                    and all(
+                        isinstance(d, dict) and isinstance(d.get("tool_call_id"), str)
+                        for d in decisions
+                    )
+                )
             )
         ):
             resume: Any = {"interrupt_id": interrupt_id, **response_map}
@@ -181,21 +198,49 @@ class ProtocolService:
         runs as they appear, until the client disconnects."""
         sink = StreamFilter.from_request(body.channels, body.namespaces, body.depth)
         current: RunDB | None = None
+        loop = asyncio.get_running_loop()
         while True:
+            # Read before Postgres: a run created between these two reads will
+            # still change the marker observed by the idle loop below.
+            marker = await self._latest_run_marker(workspace_id, thread_id)
             run = await self._next_run(workspace_id, thread_id, after=current)
-            if run is None:
+            checked_at = loop.time()
+            if run is not None:
+                current = run
+                if run.workspace_id != workspace_id:
+                    raise NotFoundError("Run not found")
+                async for sse in self._stream_run(run, sink, since=body.since):
+                    yield sse
+                # The run may have been selected while pending. Refresh its
+                # execution timestamp before choosing the following generation
+                # so ordering uses the post-claim record.
+                current = await self.runs.get(run.id, workspace_id)
+                continue
+
+            # Idle sessions ask Postgres again only after a marker change or
+            # the fallback interval. Redis failure returns a fresh sentinel on
+            # every read, degrading to the previous one-second DB polling.
+            while True:
                 yield _KEEP_ALIVE
                 await asyncio.sleep(_IDLE_POLL_SECONDS)
-                continue
-            current = run
-            if run.workspace_id != workspace_id:
-                raise NotFoundError("Run not found")
-            async for sse in self._stream_run(run, sink, since=body.since):
-                yield sse
-            # `run` may have been selected while pending. Refresh its
-            # execution timestamp before choosing the following generation,
-            # otherwise queue ordering would use the stale pre-claim record.
-            current = await self.runs.get(run.id, workspace_id)
+                seen = await self._latest_run_marker(workspace_id, thread_id)
+                if (
+                    seen != marker
+                    or loop.time() - checked_at >= run_settings.claim_fallback_seconds
+                ):
+                    break
+
+    async def _latest_run_marker(self, workspace_id, thread_id: str) -> object:
+        """Read the latest-run marker, falling back safely on Redis failure."""
+        try:
+            marker = await self.runs.latest_run_marker(workspace_id, thread_id)
+        except Exception:  # noqa: BLE001 — Redis outage costs queries, not runs
+            if not self._marker_failing:
+                logger.warning("Latest-run marker read failed", exc_info=True)
+            self._marker_failing = True
+            return object()
+        self._marker_failing = False
+        return marker
 
     async def _next_run(
         self, workspace_id, thread_id: str, after: RunDB | None
@@ -366,6 +411,22 @@ class ProtocolService:
             if state.structured_response is not None:
                 values["structured_response"] = state.structured_response
 
+        hydration_run = latest
+        if scopes and (
+            hydration_run is None or hydration_run.status is not RunStatus.interrupted
+        ):
+            hydration_run = next(
+                (
+                    record
+                    for record in await self.runs.list_for_thread(
+                        public_thread_id, workspace_id
+                    )
+                    if record.status is RunStatus.interrupted
+                ),
+                None,
+            )
+        elicitation_calls = await self._elicitation_tool_calls(hydration_run, scopes)
+
         # `next` non-empty ⇔ a run is executing or a resume is awaited — the
         # client's activity gate opens its live pumps only then.
         next_nodes = ["agent"] if active is not None or scopes or force_pump else []
@@ -377,8 +438,10 @@ class ProtocolService:
                 "name": "agent",
                 "interrupts": [
                     {
-                        "id": scope.interrupt.id,
-                        "value": scope.interrupt.value,
+                        "id": scope_wire_id(scope),
+                        "value": _hydrated_interrupt_value(
+                            scope, elicitation_calls.get(scope.interrupt.id or "")
+                        ),
                         "namespace": _hydration_namespace(scope),
                     }
                 ],
@@ -386,6 +449,39 @@ class ProtocolService:
             for scope in scopes
         ]
         return {"values": values, "next": next_nodes, "tasks": tasks}
+
+    async def _elicitation_tool_calls(
+        self, run: RunDB | None, scopes: list[InterruptScope]
+    ) -> dict[str, str]:
+        """Exact live associations when retained, then checkpoint fallback."""
+        found = {
+            scope.interrupt.id: call_id
+            for scope in scopes
+            if scope.interrupt.id is not None
+            and (call_id := elicitation_tool_call_id(scope)) is not None
+        }
+        if run is None:
+            return found
+        events = RunEventStream(run.id, self.redis, workspace_id=run.workspace_id)
+        logged: set[str] = set()
+        for raw in await events.read_recent():
+            event = decode_event(raw)
+            if event is None or event.get("method") != "input.requested":
+                continue
+            data = (event.get("params") or {}).get("data")
+            if not isinstance(data, dict):
+                continue
+            interrupt_id = data.get("interrupt_id")
+            payload = data.get("payload")
+            tool_call_id = data.get("tool_call_id")
+            if not isinstance(tool_call_id, str) and isinstance(payload, dict):
+                tool_call_id = payload.get("tool_call_id")
+            if isinstance(interrupt_id, str) and isinstance(tool_call_id, str):
+                canonical_id = base_interrupt_id(interrupt_id)
+                if canonical_id not in logged:
+                    found[canonical_id] = tool_call_id
+                    logged.add(canonical_id)
+        return found
 
     async def thread_history(
         self, workspace_id, thread_id: str, checkpoint_ns: str | None
@@ -487,6 +583,14 @@ def _append_missing_run_input(messages: list, run: RunDB) -> list:
 
 
 _TOOLS_NS_PREFIX = "tools:"
+
+
+def _hydrated_interrupt_value(scope: InterruptScope, tool_call_id: str | None) -> Any:
+    """Mirror the exact live elicitation association in `/state`."""
+    value = scope.interrupt.value
+    if tool_call_id is None or not is_elicitation(value):
+        return value
+    return {**value, "tool_call_id": tool_call_id}
 
 
 def _hydration_namespace(scope: InterruptScope) -> list[str]:

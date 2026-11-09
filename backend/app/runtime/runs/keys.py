@@ -1,8 +1,10 @@
 """The Redis key schema for the durable runtime, in one place.
 
-Run *records* live in Postgres (`RunDB`); Redis holds only per-run ephemera —
-the event log, the cancel channel, and the liveness key. Every key the runs
-module touches is built here so the layout is auditable from a single file.
+Run *records* live in Postgres (`RunDB`); Redis holds per-run ephemera — the
+event log, the cancel channel, and the liveness key — plus the wake-up signals
+that keep idle loops off Postgres: the global dispatch wake list and the
+workspace-scoped per-thread latest-run marker. Every key the runs module
+touches is built here so the layout is auditable from a single file.
 """
 
 
@@ -39,3 +41,13 @@ def dispatchers_alive_key() -> str:
     means the check is one EXISTS instead of a SCAN.
     """
     return "run:dispatchers:alive"
+
+
+def dispatch_wake_key() -> str:
+    """Global list of tokens for events that may make a run claimable."""
+    return "run:dispatch:wake"
+
+
+def thread_latest_run_key(workspace_id: object, thread_id: str) -> str:
+    """Id of a workspace thread's most recently created run."""
+    return f"workspace:{workspace_id}:thread:{thread_id}:latest_run"

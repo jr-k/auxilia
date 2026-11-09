@@ -1,6 +1,7 @@
 "use client";
 
 import { memo, useEffect, useMemo, useState } from "react";
+import type { ReactNode } from "react";
 import { useParams } from "next/navigation";
 import { BanIcon, Globe2, Loader2, XCircleIcon } from "lucide-react";
 import { parseToolPayload } from "@langchain/langgraph-sdk/stream";
@@ -8,6 +9,7 @@ import {
   ChainStep,
   ChainStepIcon,
   NeedsApprovalBadge,
+  NeedsInputBadge,
   StepCode,
   StepSection,
   humanizeToolName,
@@ -111,6 +113,8 @@ export type ToolStepProps = {
   nested?: boolean;
   /** Approve / deny footer — root chains only. */
   approval?: ToolStepApproval;
+  /** MCP elicitation controls rendered inside the paused tool step. */
+  input?: ReactNode;
 };
 
 /** One tool call on the chain rail, at the root or nested in a subagent. */
@@ -120,16 +124,21 @@ export const ToolStep = memo(function ToolStep({
   describe,
   nested = false,
   approval,
+  input,
 }: ToolStepProps) {
   const { serverName, toolName, icon, iconKind } = describe(tc.name);
   const awaiting = state === "awaiting-approval";
+  const awaitingInput = state === "awaiting-input";
   const showResult =
     state === "rejected" || state === "error" || tc.output !== undefined;
   const showApproval = awaiting && approval != null;
-  const hasDetails = tc.args !== undefined || showResult || showApproval;
+  const hasDetails =
+    tc.args !== undefined || showResult || showApproval || input != null;
 
   const meta =
-    state === "awaiting-approval" ? (
+    awaitingInput ? (
+      <NeedsInputBadge />
+    ) : state === "awaiting-approval" ? (
       <NeedsApprovalBadge />
     ) : state === "running" ? (
       <Loader2 className="size-3 animate-spin text-petrol" />
@@ -156,7 +165,9 @@ export const ToolStep = memo(function ToolStep({
       title={humanizeToolName(toolName)}
       summary={summarizeToolArgs(tc.args)}
       meta={meta}
-      lockOpen={awaiting && approval?.decided == null}
+      lockOpen={
+        awaitingInput || (awaiting && approval?.decided == null)
+      }
     >
       {hasDetails && (
         <>
@@ -181,23 +192,24 @@ export const ToolStep = memo(function ToolStep({
             )
           )}
           {showApproval && (
-        <div className="flex items-center gap-2 pt-1">
-          <ApprovalButton
-            approval={approval}
-            decision="approve"
-            className="bg-petrol text-white transition-opacity hover:opacity-90"
-          >
-            Approve
-          </ApprovalButton>
-          <ApprovalButton
-            approval={approval}
-            decision="reject"
-            className="border border-input bg-card text-foreground transition-colors hover:border-border-hover"
-          >
-            Deny
-          </ApprovalButton>
-        </div>
+            <div className="flex items-center gap-2 pt-1">
+              <ApprovalButton
+                approval={approval}
+                decision="approve"
+                className="bg-petrol text-white transition-opacity hover:opacity-90"
+              >
+                Approve
+              </ApprovalButton>
+              <ApprovalButton
+                approval={approval}
+                decision="reject"
+                className="border border-input bg-card text-foreground transition-colors hover:border-border-hover"
+              >
+                Deny
+              </ApprovalButton>
+            </div>
           )}
+          {input}
         </>
       )}
     </ChainStep>
@@ -319,7 +331,7 @@ const ApprovalButton = ({
       approval.onDecide(decision);
     }}
     className={cn(
-      "cursor-pointer rounded-[7px] px-4 py-1.5 text-[12.5px] font-semibold disabled:cursor-not-allowed",
+      "shrink-0 cursor-pointer whitespace-nowrap rounded-[7px] px-4 py-1.5 text-[12.5px] font-semibold disabled:cursor-not-allowed",
       className,
       approval.decided != null && approval.decided !== decision && "opacity-40",
     )}

@@ -82,6 +82,7 @@ import {
 import { contentUrl } from "@/lib/api/resources/artifacts";
 import {
   type ChainStepData,
+  type ElicitationResponse,
   type ToolCallView,
   type ToolStepState,
   getAttachmentIds,
@@ -91,6 +92,8 @@ import {
   getStructuredContent,
   getToolStepState,
   groupChains,
+  findElicitedCallId,
+  isElicitation,
   sanitizeToolIdentifier,
   claimsInterrupt,
 } from "@/lib/transcript";
@@ -105,6 +108,7 @@ import {
 } from "./subagent-card";
 import { threadMapAnchor } from "@/components/ai-elements/thread-map";
 import { type DescribeTool, ToolStep, useDescribeTool } from "./tool-step";
+import { ElicitationForm } from "./elicitation-form";
 
 export type ConversationBodyProps = {
   agentId: string;
@@ -129,9 +133,11 @@ export type ConversationBodyProps = {
   /** Interrupts raised inside subagents (`stream.interrupts` minus the root
    *  one); each card claims its own and approves it itself. */
   nestedInterrupts: Interrupt[];
+  /** Root MCP elicitation, when the supervisor tool is awaiting input. */
+  elicitation: Interrupt | null;
   /** Resume an interrupt — `stream.respond(response, { interruptId })`. */
   respond: (
-    response: HitlResponse,
+    response: HitlResponse | ElicitationResponse,
     interruptId: string | null,
   ) => Promise<void>;
   modelUnavailable: boolean;
@@ -182,6 +188,7 @@ export const ConversationBody = memo(function ConversationBody({
   decisions,
   recordDecision,
   nestedInterrupts,
+  elicitation,
   respond,
   modelUnavailable,
   readOnly,
@@ -242,6 +249,10 @@ export const ConversationBody = memo(function ConversationBody({
   const chains = useMemo(
     () => groupChains(messages, toolCalls),
     [messages, toolCalls],
+  );
+  const elicitedCallId = useMemo(
+    () => findElicitedCallId(toolCalls, elicitation?.value),
+    [toolCalls, elicitation],
   );
   const todosByUserTurn = useMemo(
     () => mapTodosToUserTurns(messages, toolCalls, supervisorTodos),
@@ -348,9 +359,12 @@ export const ConversationBody = memo(function ConversationBody({
                 decisions={decisions}
                 recordDecision={recordDecision}
                 nestedInterrupts={nestedInterrupts}
+                elicitation={elicitation}
+                elicitedCallId={elicitedCallId}
                 respond={respond}
                 resumeInFlight={isLoading}
                 modelUnavailable={modelUnavailable}
+                readOnly={readOnly}
                 coordinatorStreaming={assistantStreaming && isLast}
               />
             )}
@@ -1045,13 +1059,16 @@ type ChainProps = {
   decisions: Partial<Record<string, HitlDecision>>;
   recordDecision: (toolCallId: string, decision: HitlDecision) => void;
   nestedInterrupts: Interrupt[];
+  elicitation: Interrupt | null;
+  elicitedCallId: string | null;
   respond: (
-    response: HitlResponse,
+    response: HitlResponse | ElicitationResponse,
     interruptId: string | null,
   ) => Promise<void>;
   /** A run is executing: a card's approval waits for it to settle. */
   resumeInFlight: boolean;
   modelUnavailable: boolean;
+  readOnly: boolean;
   coordinatorStreaming: boolean;
 };
 
@@ -1082,9 +1099,12 @@ const Chain = ({
   decisions,
   recordDecision,
   nestedInterrupts,
+  elicitation,
+  elicitedCallId,
   respond,
   resumeInFlight,
   modelUnavailable,
+  readOnly,
   coordinatorStreaming,
 }: ChainProps) => {
   const rows: ChainRow[] = steps.map((step) =>
@@ -1094,7 +1114,12 @@ const Chain = ({
           kind: "tool",
           tc: step.tc,
           sub: step.tc.name === "task" ? subagents.get(step.tc.id) : undefined,
-          state: getToolStepState(step.tc, isInterrupted, hitlToolNames),
+          state: getToolStepState(
+            step.tc,
+            isInterrupted,
+            hitlToolNames,
+            elicitedCallId,
+          ),
         },
   );
   const tools = rows.filter((r): r is ToolRow => r.kind === "tool");
@@ -1127,7 +1152,9 @@ const Chain = ({
           pausedSubagents.length > 0 ||
           tools.some(
             (r) =>
-              !r.sub && r.state === "awaiting-approval" && !decisions[r.tc.id],
+              !r.sub &&
+              (r.state === "awaiting-input" ||
+                (r.state === "awaiting-approval" && !decisions[r.tc.id])),
           )
         }
         toolCount={tools.length - chainSubagents.length}
@@ -1155,6 +1182,7 @@ const Chain = ({
               respond={respond}
               resumeInFlight={resumeInFlight}
               modelUnavailable={modelUnavailable}
+              readOnly={readOnly}
             />
           ) : (
             <ToolStep
@@ -1172,6 +1200,19 @@ const Chain = ({
                       },
                     }
                   : undefined
+              }
+              input={
+                state === "awaiting-input" &&
+                elicitation?.id != null &&
+                isElicitation(elicitation.value) ? (
+                  <ElicitationForm
+                    key={elicitation.id}
+                    interrupt={elicitation.value}
+                    interruptId={elicitation.id}
+                    respond={respond}
+                    disabled={resumeInFlight || modelUnavailable || readOnly}
+                  />
+                ) : undefined
               }
             />
           );

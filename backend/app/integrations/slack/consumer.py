@@ -33,6 +33,7 @@ from app.integrations.slack.db_models import SlackToolDiscoveryMode
 from app.integrations.slack.service import AgentSlackBotService
 from app.runtime.checkpoints import checkpoint_thread_id
 from app.runtime.hitl import load_interrupt_scope, pending_approval_requests
+from app.runtime.protocol.events import is_elicitation
 from app.runtime.protocol.wire import decode_event
 from app.runtime.runs.delivery import DeliveryConsumer
 from app.runtime.runs.models import RunDB
@@ -559,6 +560,27 @@ class SlackRunConsumer(DeliveryConsumer):
                 checkpoint_thread_id(self.record.workspace_id, self.record.thread_id),
             )
         if scope is None:
+            return
+        if is_elicitation(scope.interrupt.value):
+            async with AsyncSessionLocal() as db:
+                thread = await ThreadRepository(db, self.record.workspace_id).get(
+                    self.record.thread_id
+                )
+            link = (
+                f"{auth_settings.FRONTEND_URL}/agents/{thread.agent_id}/chat/"
+                f"{thread.id}"
+                if thread is not None
+                else auth_settings.FRONTEND_URL
+            )
+            tool_name = scope.interrupt.value.get("tool_name") or "An MCP tool"
+            await self.slack_client.chat_postMessage(
+                channel=channel_id,
+                thread_ts=thread_ts,
+                text=(
+                    f"{tool_name} needs more information. "
+                    f"Answer in {self.app_name}: {link}"
+                ),
+            )
             return
         # A subagent's gated calls live in its own checkpoint; the card says
         # which subagent asked, since the tool name alone is ambiguous.

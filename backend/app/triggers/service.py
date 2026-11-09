@@ -778,7 +778,8 @@ class TriggerService(BaseService[TriggerDB, TriggerRepository]):
             model_id=model_id,
             reasoning_effort=reasoning_effort,
         )
-        record = await RunService().create_in_session(
+        runs = RunService()
+        record = await runs.create_in_session(
             self.db,
             thread_id=thread.id,
             user_id=str(trigger.owner_id),
@@ -787,6 +788,10 @@ class TriggerService(BaseService[TriggerDB, TriggerRepository]):
         trigger.last_run_at = datetime.now(UTC)
         self.db.add(trigger)
         await self.db.flush()
+        # The run and its webhook metadata must be durable before a dispatcher
+        # can claim it from another session.
+        await self.db.commit()
+        await runs.signal_created(record)
         return TriggerRunResponse(thread_id=thread.id, run_id=record.id)
 
     async def _create_fire_thread(

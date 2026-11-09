@@ -13,6 +13,8 @@ and the client's per-subscription narrowing can never disagree.
 import time
 from typing import Any
 
+from langchain.mcp.elicitation import ELICITATION_INTERRUPT_TYPE
+
 
 Namespace = list[str]
 
@@ -198,8 +200,34 @@ def values_event(namespace: Namespace, data: dict) -> dict:
     return {"method": "values", "params": _params(namespace, data)}
 
 
-def input_requested(namespace: Namespace, *, interrupt_id: str, payload: Any) -> dict:
+def is_elicitation(value: Any) -> bool:
+    """Whether an interrupt is an MCP server asking the user for input."""
+    return isinstance(value, dict) and value.get("type") == ELICITATION_INTERRUPT_TYPE
+
+
+def wire_interrupt_id(interrupt_id: str, value: Any, round_: int) -> str:
+    """Give each round of an elicitation a distinct client-visible id."""
+    return f"{interrupt_id}-{round_}" if is_elicitation(value) else interrupt_id
+
+
+def base_interrupt_id(wire_id: str) -> str:
+    """Return the canonical checkpoint id inside a round-aware wire id."""
+    base, separator, round_ = wire_id.rpartition("-")
+    return base if separator and round_.isdigit() else wire_id
+
+
+def input_requested(
+    namespace: Namespace,
+    *,
+    interrupt_id: str,
+    payload: Any,
+    tool_call_id: str | None = None,
+) -> dict:
+    if tool_call_id is not None and is_elicitation(payload):
+        payload = {**payload, "tool_call_id": tool_call_id}
     data = {"interrupt_id": interrupt_id, "payload": payload}
+    if tool_call_id is not None:
+        data["tool_call_id"] = tool_call_id
     return {"method": "input.requested", "params": _params(namespace, data)}
 
 

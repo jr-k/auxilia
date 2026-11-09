@@ -101,6 +101,12 @@ _SUBGRAPH_STATUS = {
 #: `str(GraphInterrupt(...))` — the shape a bubbling interrupt takes on the
 #: `tools` channel's `tool-error` message.
 _INTERRUPT_REPR = re.compile(r"^\(?Interrupt\(")
+# The top-level elicitation discriminator is the first key written by
+# langchain.mcp. Do not suppress unrelated errors that merely mention it.
+_ELICITATION_REPR = re.compile(
+    r"^\(?Interrupt\(value=\{"
+    + re.escape(repr("type") + ": " + repr(ev.ELICITATION_INTERRUPT_TYPE))
+)
 #: The ``id='<xxh3-128 hex>'`` field(s) inside that repr.
 _INTERRUPT_ID_IN_REPR = re.compile(r"\bid='([0-9a-f]{32})'")
 
@@ -132,6 +138,9 @@ class ProtocolEmitter:
         #: tool-call id -> tool name, from `tool-started`; a bubbling
         #: interrupt is only ever reported against the `task` tool.
         self._tool_names: dict[str, str] = {}
+        #: interrupt id -> exact MCP tool-call id, captured from the temporary
+        #: tool error before `input.requested` is emitted.
+        self._elicitation_tool_calls: dict[str, str] = {}
         self._tool_finished_ids: set[str] = set()
         #: The root AI message streaming last: its id and text blocks by
         #: index (see `streamed_answer`).
@@ -376,7 +385,12 @@ class ProtocolEmitter:
                 continue
             self._interrupt_ids.add(interrupt_id)
             out.append(
-                ev.input_requested(namespace, interrupt_id=interrupt_id, payload=value)
+                ev.input_requested(
+                    namespace,
+                    interrupt_id=interrupt_id,
+                    payload=value,
+                    tool_call_id=self._elicitation_tool_calls.get(interrupt_id),
+                )
             )
         return out
 
@@ -484,7 +498,17 @@ class ProtocolEmitter:
         if kind == "tool-error":
             if not tool_call_id or tool_call_id in self._tool_finished_ids:
                 return []
-            if self._is_bubbling_interrupt(str(tool_call_id), data.get("message")):
+            message = data.get("message")
+            if (
+                isinstance(message, str)
+                and _ELICITATION_REPR.match(message)
+                and self._tool_names.get(str(tool_call_id)) != "task"
+            ):
+                for interrupt_id in _INTERRUPT_ID_IN_REPR.findall(message):
+                    self._elicitation_tool_calls.setdefault(
+                        interrupt_id, str(tool_call_id)
+                    )
+            if self._is_bubbling_interrupt(str(tool_call_id), message):
                 # A subagent's approval interrupt bubbles up through the
                 # `task` tool, and langgraph reports that to the parent's
                 # tool callbacks as a failure. It is not one: the call is
@@ -520,14 +544,18 @@ class ProtocolEmitter:
         every one of which the subagent's own `values` envelope announced
         just before.
         """
-        if self._tool_names.get(tool_call_id) != "task":
-            return False
         if not isinstance(message, str) or _INTERRUPT_REPR.match(message) is None:
             return False
         named = _INTERRUPT_ID_IN_REPR.findall(message)
         if not named:
             # langgraph's repr always names the id; a shape without one is
             # some other failure and must reach the client.
+            return False
+        if _ELICITATION_REPR.match(message):
+            # The MCP tool raises before its interrupt reaches `values`; the
+            # payload discriminator is the proof that this is a pause.
+            return True
+        if self._tool_names.get(tool_call_id) != "task":
             return False
         return all(interrupt_id in self._interrupt_ids for interrupt_id in named)
 
