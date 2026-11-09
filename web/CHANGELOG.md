@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.12.128](https://github.com/jr-k/auxilia/compare/web-v0.12.127...web-v0.12.128) (2026-11-09)
+
+
+### Features
+
+* **preferences:** add guided preferences onboarding ([2a72984](https://github.com/jr-k/auxilia/commit/2a729841bde13d23f55ae42d2b2291f137a8ad2c))
+
+
+### Bug Fixes
+
+* **web:** settle interrupted drawer gestures ([a9c6789](https://github.com/jr-k/auxilia/commit/a9c6789e9ae9d0b9f90d237fd1dcb12ba2359a6a))
+
 ## [0.12.127](https://github.com/jr-k/auxilia/compare/web-v0.12.126...web-v0.12.127) (2026-11-08)
 
 
