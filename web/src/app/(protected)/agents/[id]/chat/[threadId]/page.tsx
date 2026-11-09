@@ -254,10 +254,6 @@ const ChatPage = () => {
       }
       synchronize();
     };
-    const markAway = () => {
-      wasAway = true;
-      retryUsed = false;
-    };
     const handlePageShow = (event: PageTransitionEvent) => {
       if (event.persisted) wasAway = true;
       synchronize();
@@ -270,18 +266,12 @@ const ChatPage = () => {
 
     updateVisibility();
     document.addEventListener("visibilitychange", updateVisibility);
-    window.addEventListener("focus", synchronize);
-    window.addEventListener("blur", markAway);
-    window.addEventListener("pagehide", markAway);
     window.addEventListener("pageshow", handlePageShow);
     window.addEventListener("online", handleOnline);
     return () => {
       cancelled = true;
       clearTimeout(retryTimer);
       document.removeEventListener("visibilitychange", updateVisibility);
-      window.removeEventListener("focus", synchronize);
-      window.removeEventListener("blur", markAway);
-      window.removeEventListener("pagehide", markAway);
       window.removeEventListener("pageshow", handlePageShow);
       window.removeEventListener("online", handleOnline);
     };
