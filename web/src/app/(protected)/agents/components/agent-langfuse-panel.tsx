@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { ChevronDown, Info, Loader2, TriangleAlert } from "lucide-react";
 import ConfirmDialog from "@/components/ui/confirm-dialog";
@@ -9,6 +9,7 @@ import { getApiErrorMessage } from "@/lib/api/errors";
 import * as langfuseApi from "@/lib/api/resources/langfuse";
 import { cn } from "@/lib/utils";
 import { relativeTime } from "../../skills/lib/relative-time";
+import LangfusePublishDialog from "./langfuse-publish-dialog";
 
 type PromptVersion = langfuseApi.LangfusePromptVersion;
 
@@ -85,47 +86,42 @@ export default function AgentLangfusePanel({
 }: AgentLangfusePanelProps) {
 	const [prompt, setPrompt] = useState<langfuseApi.LangfusePrompt | null>(null);
 	const [versions, setVersions] = useState<PromptVersion[] | null>(null);
-	const [commitMessage, setCommitMessage] = useState("");
-	const [isPublishing, setIsPublishing] = useState(false);
+	const [publishOpen, setPublishOpen] = useState(false);
+	const [publishNotice, setPublishNotice] = useState<string | null>(null);
 	const [error, setError] = useState<string | null>(null);
 	const [pending, setPending] = useState<PromptVersion | null>(null);
+	const loadRequest = useRef(0);
 
-	useEffect(() => {
-		let active = true;
-		setError(null);
-		const load = readOnly
-			? langfuseApi.getLangfusePrompt(agentId).then((value) => {
-					if (active) setPrompt(value);
-				})
-			: langfuseApi.listLangfuseVersions(agentId).then((value) => {
-					if (active) setVersions(value);
-				});
-		void load.catch((err: unknown) => {
-			if (active) {
+	const refresh = useCallback(() => {
+		const request = ++loadRequest.current;
+		const onError = (err: unknown) => {
+			if (loadRequest.current === request) {
 				setError(getApiErrorMessage(err, "Failed to reach Langfuse"));
 			}
-		});
-		return () => {
-			active = false;
 		};
+		if (readOnly) {
+			void langfuseApi.getLangfusePrompt(agentId).then((value) => {
+				if (loadRequest.current === request) {
+					setPrompt(value);
+					setError(null);
+				}
+			}, onError);
+		} else {
+			void langfuseApi.listLangfuseVersions(agentId).then((value) => {
+				if (loadRequest.current === request) {
+					setVersions(value);
+					setError(null);
+				}
+			}, onError);
+		}
 	}, [agentId, readOnly]);
 
-	const publish = async () => {
-		setIsPublishing(true);
-		setError(null);
-		try {
-			const production = await langfuseApi.publishLangfusePrompt(
-				agentId,
-				commitMessage.trim() || null,
-			);
-			setCommitMessage("");
-			setPrompt({ production, diverged: false });
-		} catch (err) {
-			setError(getApiErrorMessage(err, "Failed to publish to Langfuse"));
-		} finally {
-			setIsPublishing(false);
-		}
-	};
+	useEffect(() => {
+		refresh();
+		return () => {
+			loadRequest.current += 1;
+		};
+	}, [refresh]);
 
 	const errorBox = error && (
 		<div className="rounded-md bg-destructive/10 px-4 py-2.5 text-[13px] text-destructive">
@@ -133,29 +129,42 @@ export default function AgentLangfusePanel({
 		</div>
 	);
 
+	const noticeBox = publishNotice && (
+		<div className="rounded-md bg-petrol-tint px-4 py-2.5 text-[13px] text-petrol dark:bg-white/10 dark:text-panel-body">
+			{publishNotice}
+		</div>
+	);
+
 	const publishForm = (placeholder: string) =>
 		isWorkspaceAdmin ? (
-			<div className="flex flex-col gap-2 sm:flex-row">
-				<input
-					type="text"
-					value={commitMessage}
-					onChange={(event) => {
-						setCommitMessage(event.target.value);
-					}}
-					placeholder={placeholder}
-					className="min-w-0 flex-1 rounded-lg border border-input bg-card px-3 py-[7px] text-[13px] outline-none transition-[border-color,box-shadow] placeholder:text-meta focus:border-petrol focus:shadow-[0_0_0_3px_rgba(22,96,110,0.10)] dark:placeholder:text-panel-dim"
-				/>
+			<>
 				<button
 					type="button"
-					disabled={isPublishing}
 					onClick={() => {
-						void publish();
+						setPublishNotice(null);
+						setPublishOpen(true);
 					}}
-					className="shrink-0 cursor-pointer rounded-[7px] bg-petrol px-4 py-2 text-[13px] font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+					className="shrink-0 cursor-pointer self-start whitespace-nowrap rounded-[7px] bg-petrol px-4 py-2 text-[13px] font-semibold text-white transition-opacity hover:opacity-90"
 				>
-					{isPublishing ? "Publishing…" : "Publish to Langfuse"}
+					Publish to Langfuse
 				</button>
-			</div>
+				<LangfusePublishDialog
+					agentId={agentId}
+					open={publishOpen}
+					onOpenChange={setPublishOpen}
+					messagePlaceholder={placeholder}
+					onPublished={(version, label) => {
+						if (label === "production") {
+							setPublishNotice(null);
+						} else {
+							setPublishNotice(
+								`Published v${version.version} with the ${label} label. The production version shown here is unchanged.`,
+							);
+						}
+						refresh();
+					}}
+				/>
+			</>
 		) : (
 			<p className="text-[12.5px] text-meta dark:text-panel-dim">
 				Only workspace admins can publish to Langfuse.
@@ -279,6 +288,7 @@ export default function AgentLangfusePanel({
 		return (
 			<div className="flex flex-col gap-3 rounded-[10px] border border-dashed border-input px-5 py-6">
 				{errorBox}
+				{noticeBox}
 				<p className="flex items-center gap-2 text-[14px] font-semibold text-foreground">
 					<LangfuseLogo />
 					Manage agent instructions with Langfuse
@@ -296,6 +306,7 @@ export default function AgentLangfusePanel({
 	return (
 		<div className="flex flex-col gap-3">
 			{errorBox}
+			{noticeBox}
 			{prompt.diverged && (
 				<div className="flex items-start gap-2.5 rounded-[10px] bg-warning-bg px-4 py-3 text-[13px] font-medium text-warning dark:bg-amber-950/30 dark:text-amber-400">
 					<TriangleAlert className="mt-0.5 size-4 shrink-0" />
@@ -314,7 +325,7 @@ export default function AgentLangfusePanel({
 					<VersionMeta version={production} />
 				</span>
 			</div>
-			{prompt.diverged && publishForm("Commit message (optional)")}
+			{publishForm("Commit message (optional)")}
 		</div>
 	);
 }

@@ -41,13 +41,34 @@ export async function listLangfuseVersions(
 	return response.data;
 }
 
+export interface LangfusePublishDraft {
+	configJson: string;
+	labels: string[];
+}
+
+export interface LangfusePublishInput {
+	commitMessage: string | null;
+	label: string;
+	/** Text keeps arbitrary config keys out of the API client's case conversion. */
+	configJson: string;
+}
+
+export async function getLangfusePublishDraft(
+	agentId: string,
+): Promise<LangfusePublishDraft> {
+	const response = await api.get<LangfusePublishDraft>(
+		`/agents/${agentId}/langfuse-prompt/draft`,
+	);
+	return response.data;
+}
+
 export async function publishLangfusePrompt(
 	agentId: string,
-	commitMessage: string | null,
+	input: LangfusePublishInput,
 ): Promise<LangfusePromptVersion> {
 	const response = await api.post<LangfusePromptVersion>(
 		`/agents/${agentId}/langfuse-prompt/publish`,
-		{ commitMessage },
+		input,
 	);
 	return response.data;
 }

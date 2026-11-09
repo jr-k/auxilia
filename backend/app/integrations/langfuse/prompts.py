@@ -34,6 +34,7 @@ def _to_version(prompt: object) -> LangfusePromptVersion:
         text=prompt.prompt,
         author=config.get(AUTHOR_KEY) or (created_by if created_by != "API" else None),
         created_at=extra.get("createdAt"),
+        public_config={key: value for key, value in config.items() if key != AUTHOR_KEY},
     )
 
 
@@ -76,6 +77,21 @@ async def list_versions(client: Langfuse, name: str) -> list[LangfusePromptVersi
     ]
 
 
+async def list_labels(client: Langfuse, name: str) -> list[str]:
+    """Return prompt labels except Langfuse's reserved `latest` label."""
+    try:
+        page = await client.async_api.prompts.list(name=name)
+    except ApiError as err:
+        raise _failed(err) from err
+    labels = {
+        label
+        for item in page.data
+        if item.name == name
+        for label in item.labels
+    }
+    return sorted(labels - {"latest"})
+
+
 async def get_version(
     client: Langfuse, name: str, version: int
 ) -> LangfusePromptVersion:
@@ -88,11 +104,12 @@ async def get_version(
     return _to_version(prompt)
 
 
-async def create_production(
+async def create_version(
     client: Langfuse,
     name: str,
     *,
     text: str,
+    label: str,
     tags: list[str],
     commit_message: str,
     config: dict,
@@ -101,7 +118,7 @@ async def create_production(
         name=name,
         prompt=text,
         type="text",
-        labels=[PRODUCTION],
+        labels=[label],
         tags=tags,
         commit_message=commit_message,
         config=config,

@@ -1,6 +1,8 @@
+import json
 from collections import Counter
 from collections.abc import AsyncIterator, Sequence
 from contextlib import asynccontextmanager
+from typing import NoReturn
 from urllib.parse import urlsplit
 from uuid import UUID
 
@@ -17,6 +19,8 @@ from app.integrations.langfuse.callback import acquire_langfuse_callback_handler
 from app.integrations.langfuse.schemas import (
     LangfusePromptResponse,
     LangfusePromptVersion,
+    LangfusePublishDraft,
+    LangfusePublishRequest,
 )
 from app.mcp.servers.models import MCPServerDB
 from app.observability.service import WorkspaceObservabilityService
@@ -25,6 +29,7 @@ from app.workspaces.dependencies import get_active_workspace_id
 
 
 STATUS_META_KEY = "io.auxilia/tool_status"
+MAX_CONFIG_DEPTH = 50
 
 
 def _same(a: str, b: str) -> bool:
@@ -84,6 +89,61 @@ def _mcp_servers(
     }
 
 
+def _reject_json_constant(name: str) -> NoReturn:
+    raise ValueError(f"{name} is not valid JSON")
+
+
+def _validate_config_depth(config: dict) -> None:
+    stack: list[tuple[object, int]] = [(config, 1)]
+    while stack:
+        value, depth = stack.pop()
+        if depth > MAX_CONFIG_DEPTH:
+            raise DomainValidationError(
+                f"Config must not exceed {MAX_CONFIG_DEPTH} levels of nesting"
+            )
+        if isinstance(value, dict):
+            stack.extend((child, depth + 1) for child in value.values())
+        elif isinstance(value, list):
+            stack.extend((child, depth + 1) for child in value)
+
+
+def _validate_config_urls(config: dict) -> None:
+    servers = config.get("mcpServers")
+    if not isinstance(servers, dict):
+        return
+    for server in servers.values():
+        url = server.get("url") if isinstance(server, dict) else None
+        if not isinstance(url, str):
+            continue
+        try:
+            parts = urlsplit(url)
+        except ValueError as err:
+            raise DomainValidationError("Config contains an invalid URL") from err
+        if "@" in parts.netloc or parts.query or parts.fragment:
+            raise DomainValidationError(
+                "Config URLs must not contain credentials, query parameters, or "
+                "fragments because the config is visible to Langfuse users"
+            )
+
+
+def _public_config(config: dict) -> dict:
+    return {
+        key: value for key, value in config.items() if key != prompts.AUTHOR_KEY
+    }
+
+
+def _parse_config(text: str) -> dict:
+    try:
+        parsed: object = json.loads(text, parse_constant=_reject_json_constant)
+    except (ValueError, RecursionError) as err:
+        raise DomainValidationError(f"Config is not valid JSON: {err}") from err
+    if not isinstance(parsed, dict):
+        raise DomainValidationError("Config must be a JSON object")
+    _validate_config_depth(parsed)
+    _validate_config_urls(parsed)
+    return _public_config(parsed)
+
+
 class LangfusePromptService:
     """Version an agent's saved instructions in its workspace's Langfuse project."""
 
@@ -126,38 +186,64 @@ class LangfusePromptService:
         async with self._client() as client:
             return await prompts.list_versions(client, str(agent_id))
 
+    async def _config(self, agent_id: UUID) -> dict:
+        bindings = await self.agents.mcp_server_repository.list_for_agent(agent_id)
+        servers = await self.agents.mcp_servers.list_by_ids(
+            [binding.mcp_server_id for binding in bindings]
+        )
+        return {"mcpServers": _mcp_servers(bindings, servers)}
+
+    async def draft(self, agent_id: UUID) -> LangfusePublishDraft:
+        await self._agent(agent_id)
+        config = await self._config(agent_id)
+        async with self._client() as client:
+            labels = await prompts.list_labels(client, str(agent_id))
+        return LangfusePublishDraft(
+            config_json=json.dumps(config, indent=2),
+            labels=sorted({*labels, prompts.PRODUCTION}),
+        )
+
     async def publish(
         self,
         agent_id: UUID,
-        commit_message: str | None,
+        data: LangfusePublishRequest,
         publisher: UserDB,
     ) -> LangfusePromptVersion:
+        if data.label == "latest":
+            raise DomainValidationError("The label `latest` is reserved by Langfuse")
         agent = await self._agent(agent_id)
         name = str(agent_id)
+        public_config = (
+            await self._config(agent_id)
+            if data.config_json is None
+            else _parse_config(data.config_json)
+        )
         async with self._client() as client:
             production = await prompts.get_production(client, name)
-            if production is not None and _same(production.text, agent.instructions):
+            if (
+                data.label == prompts.PRODUCTION
+                and production is not None
+                and _same(production.text, agent.instructions)
+                and production.public_config == public_config
+            ):
                 return production
 
-            message = (commit_message or "").strip() or (
+            message = (data.commit_message or "").strip() or (
                 f"Publish first version of {agent.name}"
                 if production is None
                 else f"Publish {agent.name}"
             )
-            bindings = await self.agents.mcp_server_repository.list_for_agent(agent_id)
-            servers = await self.agents.mcp_servers.list_by_ids(
-                [binding.mcp_server_id for binding in bindings]
-            )
             published_by = publisher.email or publisher.name or str(publisher.id)
-            return await prompts.create_production(
+            return await prompts.create_version(
                 client,
                 name,
                 text=agent.instructions,
+                label=data.label,
                 tags=[agent.name],
                 commit_message=f"{message} - Synced from auxilia",
                 config={
+                    **public_config,
                     prompts.AUTHOR_KEY: published_by,
-                    "mcpServers": _mcp_servers(bindings, servers),
                 },
             )
 
