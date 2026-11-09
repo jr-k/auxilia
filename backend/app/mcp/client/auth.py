@@ -915,6 +915,7 @@ class WebOAuthClientProvider(OAuthClientProvider):
         *,
         verifier: str | None = None,
         consume_state: bool = True,
+        expected_generation: str | None = None,
     ) -> None:
         """Finish the authorization-code exchange started by
         :meth:`_perform_authorization_code_grant`, from the ``/callback``
@@ -944,6 +945,16 @@ class WebOAuthClientProvider(OAuthClientProvider):
         if lock is not None and not await lock.acquire():
             raise OAuthFlowError("Timed out waiting to store OAuth credentials")
         try:
+            if expected_generation is not None:
+                generation_matches = getattr(
+                    self.context.storage, "generation_matches", None
+                )
+                if generation_matches is not None and not await generation_matches(
+                    expected_generation
+                ):
+                    raise OAuthFlowError(
+                        "This authorization flow was invalidated by a disconnect"
+                    )
             async with httpx2.AsyncClient() as client:
                 response = await client.send(token_request)
                 await self._handle_token_response(response)

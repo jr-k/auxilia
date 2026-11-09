@@ -19,11 +19,25 @@ class _FakeRedis:
     async def get(self, key: str) -> str | None:
         return self.store.get(key)
 
-    async def set(self, key: str, value: str, ex: int | None = None) -> None:
+    async def set(
+        self,
+        key: str,
+        value: str,
+        ex: int | None = None,
+        nx: bool = False,
+    ) -> bool:
+        if nx and key in self.store:
+            return False
         self.store[key] = value
+        return True
 
-    async def delete(self, key: str) -> None:
-        self.store.pop(key, None)
+    async def delete(self, *keys: str) -> int:
+        deleted = 0
+        for key in keys:
+            if key in self.store:
+                deleted += 1
+                self.store.pop(key)
+        return deleted
 
     async def scan_iter(self, match: str):
         for key in list(self.store):
@@ -206,6 +220,7 @@ async def test_oauth_state_is_encrypted_scoped_and_expires(fake_shared_redis):
     assert state_data.user_id == "u1"
     assert state_data.mcp_server_id == "s1"
     assert state_data.redirect_strategy == strategy
+    assert state_data.connection_generation is not None
 
     await fake_shared_redis.expire(storage._state_key("state-1"), 0)
     assert (
@@ -245,6 +260,25 @@ async def test_consumed_oauth_state_is_deleted_and_marked_used(fake_shared_redis
 
     assert await factory.get_state_data("used-state") is None
     assert await factory.state_was_used("used-state") is True
+
+
+@pytest.mark.asyncio
+async def test_disconnect_rotation_invalidates_state_and_keeps_lifecycle_keys():
+    storage = _storage()
+    await storage.set_tokens(OAuthToken(access_token="AT1", refresh_token="RT1"))
+    generation = await storage.get_connection_generation()
+    storage.redis.store[storage._authorization_probe_key()] = "1"
+    storage.redis.store[storage._refresh_lock_key()] = "lock-owner"
+
+    await storage.rotate_connection_generation()
+    deleted = await storage.clear_connection_data()
+
+    assert deleted == 2
+    assert await storage.generation_matches(generation) is False
+    assert storage._generation_key() in storage.redis.store
+    assert storage._refresh_lock_key() in storage.redis.store
+    assert storage._tokens_key() not in storage.redis.store
+    assert storage._authorization_probe_key() not in storage.redis.store
 
 
 @pytest.mark.asyncio

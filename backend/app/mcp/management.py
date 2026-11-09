@@ -34,7 +34,7 @@ from app.invites.schemas import InviteCreate
 from app.invites.service import InviteService
 from app.mcp.client.connectivity import test_connection
 from app.mcp.client.storage import TokenStorageFactory
-from app.mcp.context import to_json, tool_session
+from app.mcp.context import current_mcp_client_id, to_json, tool_session
 from app.mcp.servers.schemas import MCPServerCreate, MCPServerPatch
 from app.mcp.servers.service import MCPServerService
 from app.model_providers.service import ModelService
@@ -877,7 +877,10 @@ def register_management_tools(mcp: MCPServer) -> None:
         async with tool_session(ctx) as (db, user, workspace_id):
             result = await MCPServerService(
                 db, workspace_id
-            ).disconnect_all_my_connections(user)
+            ).disconnect_all_my_connections(
+                user,
+                current_client_id=current_mcp_client_id(),
+            )
             return to_json(result)
 
     @mcp.tool()

@@ -841,21 +841,26 @@ class MCPServerService(BaseService[MCPServerDB, MCPServerRepository]):
         metadata = None
         client_info = None
         snapshot_failed = False
+        lock = storage.refresh_lock()
+        if not await lock.acquire():
+            return MCPConnectionDisconnectSummary(
+                failed=[
+                    MCPConnectionDisconnectFailure(
+                        **reference.model_dump(),
+                        detail="Auxilia could not lock the local connection for removal.",
+                    )
+                ]
+            )
         try:
-            stored = await storage.get_stored_token()
-            if stored is not None:
-                try:
+            try:
+                stored = await storage.get_stored_token()
+                if stored is not None:
                     metadata = await storage.get_oauth_metadata()
                     client_info = await storage.get_client_info()
-                except Exception:  # noqa: BLE001 - local deletion still has priority
-                    snapshot_failed = True
-        except Exception:  # noqa: BLE001 - clear corrupt or unreadable local state
-            snapshot_failed = True
-
-        try:
-            deleted = await factory.clear_user_server_data(
-                str(self.workspace_id), str(user_id), str(server_id)
-            )
+            except Exception:  # noqa: BLE001 - clear corrupt or unreadable local state
+                snapshot_failed = True
+            await storage.rotate_connection_generation()
+            deleted = await storage.clear_connection_data()
         except Exception as exc:  # noqa: BLE001 - one failure must not stop bulk work
             logger.warning(
                 "Personal MCP disconnect failed for workspace %s user %s server %s (%s)",
@@ -872,6 +877,9 @@ class MCPServerService(BaseService[MCPServerDB, MCPServerRepository]):
                     )
                 ]
             )
+        finally:
+            with contextlib.suppress(LockError):
+                await lock.release()
 
         if stored is None and not snapshot_failed:
             logger.info(
@@ -934,7 +942,10 @@ class MCPServerService(BaseService[MCPServerDB, MCPServerRepository]):
         )
 
     async def disconnect_all_my_connections(
-        self, user: UserDB
+        self,
+        user: UserDB,
+        *,
+        current_client_id: str | None = None,
     ) -> MCPConnectionDisconnectSummary:
         """Disconnect this user from every personal OAuth account in the workspace."""
         if self.workspace_id is None:
@@ -985,9 +996,30 @@ class MCPServerService(BaseService[MCPServerDB, MCPServerRepository]):
                 if row is not None
                 else "Unavailable MCP server"
             )
+            matches_current_client = False
+            if current_client_id is not None:
+                try:
+                    client_info = await factory.get_storage(
+                        str(self.workspace_id), str(user.id), str(server_id)
+                    ).get_client_info()
+                    matches_current_client = (
+                        client_info is not None
+                        and client_info.client_id == current_client_id
+                    )
+                except Exception:  # noqa: BLE001 - URL fallback remains available
+                    logger.warning(
+                        "Could not compare MCP client identity for workspace %s "
+                        "user %s server %s",
+                        self.workspace_id,
+                        user.id,
+                        server_id,
+                    )
             is_auxilia = (
-                row is not None
-                and row.url.rstrip("/") == resource_url().rstrip("/")
+                matches_current_client
+                or (
+                    row is not None
+                    and row.url.rstrip("/") == resource_url().rstrip("/")
+                )
             )
             candidates.append((server_id, name, is_auxilia))
 
@@ -1090,13 +1122,18 @@ class MCPServerService(BaseService[MCPServerDB, MCPServerRepository]):
             # provider responses can contain credentials or authorization codes.
             try:
                 if verifier is None:
-                    await provider.manual_exchange(code, state)
+                    await provider.manual_exchange(
+                        code,
+                        state,
+                        expected_generation=state_data.connection_generation,
+                    )
                 else:
                     await provider.manual_exchange(
                         code,
                         state,
                         verifier=verifier,
                         consume_state=False,
+                        expected_generation=state_data.connection_generation,
                     )
             except Exception as exc:  # noqa: BLE001 - sanitize every OAuth dependency failure
                 logger.warning(

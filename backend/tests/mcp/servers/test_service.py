@@ -230,11 +230,14 @@ async def test_manual_oauth_callback_accepts_exact_loopback_url(
     )
     mock_repo.get_scoped.return_value = server
 
-    async def exchange(code, state, *, verifier, consume_state):
+    async def exchange(
+        code, state, *, verifier, consume_state, expected_generation
+    ):
         assert code == "authorization-code"
         assert state == "state-123"
         assert verifier == "verifier-secret"
         assert consume_state is False
+        assert expected_generation is not None
 
     provider = MagicMock(manual_exchange=AsyncMock(side_effect=exchange))
     build = AsyncMock(return_value=provider)
@@ -411,7 +414,8 @@ async def test_hosted_callback_keeps_existing_flow(
     server = make_mcp_server(id=server_id, name="Notion")
     mock_repo.get_scoped.return_value = server
 
-    async def exchange(_code, state):
+    async def exchange(_code, state, *, expected_generation):
+        assert expected_generation is not None
         await storage.delete_verifier(state)
 
     provider = MagicMock(manual_exchange=AsyncMock(side_effect=exchange))
@@ -752,9 +756,14 @@ async def test_disconnect_my_connection_is_idempotent_and_user_scoped(
     )
     storage.get_oauth_metadata = AsyncMock(return_value=None)
     storage.get_client_info = AsyncMock(return_value=None)
+    lock = MagicMock()
+    lock.acquire = AsyncMock(return_value=True)
+    lock.release = AsyncMock()
+    storage.refresh_lock.return_value = lock
+    storage.rotate_connection_generation = AsyncMock()
+    storage.clear_connection_data = AsyncMock(return_value=4)
     factory = MagicMock()
     factory.get_storage.return_value = storage
-    factory.clear_user_server_data = AsyncMock(return_value=4)
     monkeypatch.setattr(service_module, "TokenStorageFactory", lambda: factory)
     monkeypatch.setattr(
         service_module, "revoke_oauth_tokens", AsyncMock(return_value="unsupported")
@@ -765,9 +774,8 @@ async def test_disconnect_my_connection_is_idempotent_and_user_scoped(
 
     assert [item.server_id for item in first.disconnected] == [server.id]
     assert [item.server_id for item in second.already_absent] == [server.id]
-    factory.clear_user_server_data.assert_awaited_with(
-        str(TEST_WORKSPACE_ID), str(user.id), str(server.id)
-    )
+    assert storage.rotate_connection_generation.await_count == 2
+    assert storage.clear_connection_data.await_count == 2
 
 
 async def test_disconnect_provider_failure_does_not_block_local_removal(
@@ -783,9 +791,14 @@ async def test_disconnect_provider_failure_does_not_block_local_removal(
     )
     storage.get_oauth_metadata = AsyncMock(return_value=MagicMock())
     storage.get_client_info = AsyncMock(return_value=MagicMock())
+    lock = MagicMock()
+    lock.acquire = AsyncMock(return_value=True)
+    lock.release = AsyncMock()
+    storage.refresh_lock.return_value = lock
+    storage.rotate_connection_generation = AsyncMock()
+    storage.clear_connection_data = AsyncMock(return_value=5)
     factory = MagicMock()
     factory.get_storage.return_value = storage
-    factory.clear_user_server_data = AsyncMock(return_value=5)
     monkeypatch.setattr(service_module, "TokenStorageFactory", lambda: factory)
     monkeypatch.setattr(
         service_module, "revoke_oauth_tokens", AsyncMock(return_value="failed")
@@ -838,7 +851,7 @@ async def test_disconnect_all_processes_auxilia_last(service, mock_repo, monkeyp
     )
     regular.auth_type = MCPAuthType.oauth2
     auxilia = make_mcp_server(
-        id=auxilia_id, name="Auxilia", url="https://auxilia.example.com/mcp"
+        id=auxilia_id, name="Auxilia", url="https://proxy.example.com/internal-mcp"
     )
     auxilia.auth_type = MCPAuthType.oauth2
     mock_repo.list_by_ids = AsyncMock(return_value=[regular, auxilia])
@@ -846,6 +859,21 @@ async def test_disconnect_all_processes_auxilia_last(service, mock_repo, monkeyp
     factory.list_connected_server_ids = AsyncMock(
         return_value=[str(regular_id), str(auxilia_id)]
     )
+
+    def storage_for(_workspace_id, _user_id, server_id):
+        storage = MagicMock()
+        storage.get_client_info = AsyncMock(
+            return_value=SimpleNamespace(
+                client_id=(
+                    "current-auxilia-client"
+                    if server_id == str(auxilia_id)
+                    else "other-client"
+                )
+            )
+        )
+        return storage
+
+    factory.get_storage.side_effect = storage_for
     monkeypatch.setattr(service_module, "TokenStorageFactory", lambda: factory)
     monkeypatch.setattr(
         service_module, "resource_url", lambda: "https://auxilia.example.com/mcp"
@@ -866,7 +894,9 @@ async def test_disconnect_all_processes_auxilia_last(service, mock_repo, monkeyp
 
     service._disconnect_personal_connection = AsyncMock(side_effect=disconnect)
 
-    result = await service.disconnect_all_my_connections(user)
+    result = await service.disconnect_all_my_connections(
+        user, current_client_id="current-auxilia-client"
+    )
 
     assert calls[-1] == auxilia_id
     assert {item.server_id for item in result.disconnected} == {

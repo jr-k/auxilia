@@ -21,6 +21,13 @@ from app.users.models import UserDB, WorkspaceRole
 from app.workspaces.repository import WorkspaceRepository
 
 
+def current_mcp_client_id() -> str | None:
+    """OAuth client carrying the current internal MCP tool call, when present."""
+    access_token = get_access_token()
+    client_id = getattr(access_token, "client_id", None)
+    return client_id if isinstance(client_id, str) else None
+
+
 @asynccontextmanager
 async def tool_session(
     _ctx: Context,

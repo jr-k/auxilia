@@ -578,6 +578,35 @@ async def test_manual_exchange_rejects_an_unknown_state():
         await provider.manual_exchange("the-code", "stale")
 
 
+async def test_manual_exchange_rejects_generation_invalidated_by_disconnect():
+    storage = _FakeStorage()
+    storage.oauth_metadata = OAuthMetadata(
+        issuer=GOOGLE_ISSUER,
+        authorization_endpoint=GOOGLE_AUTH_ENDPOINT,
+        token_endpoint="https://oauth2.googleapis.com/token",
+    )
+    storage.client_info = OAuthClientInformationFull(
+        client_id="client-123",
+        client_secret="secret-xyz",
+        redirect_uris=build_oauth_client_metadata().redirect_uris,
+        token_endpoint_auth_method="client_secret_post",
+    )
+    storage.get_verifier = lambda state: _resolve("verifier-abc")  # type: ignore[attr-defined]
+    storage.generation_matches = lambda expected: _resolve(False)  # type: ignore[attr-defined]
+    provider = WebOAuthClientProvider(
+        server_url=BIGQUERY_URL,
+        client_metadata=build_oauth_client_metadata(),
+        storage=storage,
+    )
+
+    with pytest.raises(OAuthFlowError, match="invalidated by a disconnect"):
+        await provider.manual_exchange(
+            "the-code",
+            "stale-flow",
+            expected_generation="old-generation",
+        )
+
+
 async def _resolve(value):
     return value
 

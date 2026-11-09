@@ -41,6 +41,7 @@ class OAuthStateData(BaseModel):
     mcp_server_id: str
     verifier: str
     redirect_strategy: OAuthRedirectStrategy | None = None
+    connection_generation: str | None = None
 
 
 def _decrypt_or_legacy_json(raw: str | bytes) -> str:
@@ -83,6 +84,9 @@ class RedisTokenStorage(TokenStorage):
     def _refresh_lock_key(self) -> str:
         return f"{self._base()}:refresh_lock"
 
+    def _generation_key(self) -> str:
+        return f"{self._base()}:generation"
+
     def _client_info_key(self) -> str:
         return f"{self._base()}:client_info"
 
@@ -94,6 +98,9 @@ class RedisTokenStorage(TokenStorage):
 
     def _protected_resource_metadata_key(self) -> str:
         return f"{self._base()}:protected_resource_metadata"
+
+    def _authorization_probe_key(self) -> str:
+        return f"{self._base()}:authprobe"
 
     @staticmethod
     def _state_key(state: str, prefix: str = "mcp") -> str:
@@ -165,6 +172,49 @@ class RedisTokenStorage(TokenStorage):
         """Forget the token pair, keeping client and discovery metadata so the
         next authorization skips dynamic registration."""
         await self.redis.delete(self._tokens_key())
+
+    async def get_connection_generation(self) -> str:
+        """Stable generation used to reject callbacks opened before disconnect."""
+        key = self._generation_key()
+        current = await self.redis.get(key)
+        if current:
+            return current.decode() if isinstance(current, bytes) else current
+
+        generated = secrets.token_urlsafe(24)
+        created = await self.redis.set(key, generated, nx=True)
+        if created:
+            return generated
+        current = await self.redis.get(key)
+        if not current:
+            raise RuntimeError("Could not initialize MCP connection generation")
+        return current.decode() if isinstance(current, bytes) else current
+
+    async def rotate_connection_generation(self) -> str:
+        """Invalidate every authorization flow created under the old generation."""
+        generated = secrets.token_urlsafe(24)
+        await self.redis.set(self._generation_key(), generated)
+        return generated
+
+    async def generation_matches(self, expected: str) -> bool:
+        current = await self.get_connection_generation()
+        return secrets.compare_digest(current, expected)
+
+    async def clear_connection_data(self) -> int:
+        """Atomically clear reusable connection state without deleting its lock.
+
+        The caller holds ``refresh_lock``. Keeping that lock and the rotated
+        generation prevents an in-flight refresh or callback from restoring
+        credentials after this deletion.
+        """
+        keys = (
+            self._tokens_key(),
+            self._client_info_key(),
+            self._client_redirect_strategy_key(),
+            self._oauth_metadata_key(),
+            self._protected_resource_metadata_key(),
+            self._authorization_probe_key(),
+        )
+        return int(await self.redis.delete(*keys))
 
     def refresh_lock(self) -> Lock:
         """Serialize refresh-token rotation across every backend instance."""
@@ -282,6 +332,7 @@ class RedisTokenStorage(TokenStorage):
             mcp_server_id=self.mcp_server_id,
             verifier=verifier,
             redirect_strategy=redirect_strategy,
+            connection_generation=await self.get_connection_generation(),
         )
 
         stored = await self.redis.set(
