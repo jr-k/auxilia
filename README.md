@@ -1,187 +1,214 @@
 <div align="center">
-  <img src="docs/public/logo.svg#gh-light-mode-only" alt="auxilia" height="72" />
-  <img src="docs/public/logo-dark.svg#gh-dark-mode-only" alt="auxilia" height="72" />
+  <img src="docs/public/logo.svg#gh-light-mode-only" alt="auxilia" width="112" />
+  <img src="docs/public/logo-dark.svg#gh-dark-mode-only" alt="auxilia" width="112" />
 
   <h1>auxilia</h1>
-  <h3>The open-source, self-hosted web client for MCP-powered AI agents — built for teams.</h3>
-
+  <p><strong>A self-hosted home for team AI agents.</strong></p>
   <p>
-    <a href="https://github.com/jr-k/auxilia/blob/main/LICENSE"><img alt="License" src="https://img.shields.io/github/license/jr-k/auxilia?color=blue"></a>
-    <a href="https://github.com/jr-k/auxilia/stargazers"><img alt="Stars" src="https://img.shields.io/github/stars/jr-k/auxilia?style=flat"></a>
-    <a href="https://github.com/jr-k/auxilia/issues"><img alt="Issues" src="https://img.shields.io/github/issues/jr-k/auxilia"></a>
-    <a href="https://github.com/jr-k/auxilia/pulls"><img alt="PRs welcome" src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg"></a>
+    Build once, then use your agents from the browser, an installable mobile app,
+    Slack, Telegram, WhatsApp, webhooks, or your own products.
   </p>
 
   <p>
-    <a href="#-quick-start"><b>Quick start</b></a> ·
-    <a href="#-why-this-fork"><b>Why this fork</b></a> ·
-    <a href="#-why-auxilia"><b>Why auxilia</b></a> ·
-    <a href="#-what-this-fork-adds"><b>Fork additions</b></a> ·
-    <a href="#-integrations"><b>Integrations</b></a> ·
-    <a href="https://auxilia-docs.vercel.app/"><b>Docs</b></a>
+    <a href="https://github.com/jr-k/auxilia/releases"><img alt="Latest release" src="https://img.shields.io/github/v/release/jr-k/auxilia?display_name=tag&sort=semver"></a>
+    <a href="https://github.com/jr-k/auxilia/commits/main"><img alt="Last commit" src="https://img.shields.io/github/last-commit/jr-k/auxilia"></a>
+    <a href="https://github.com/jr-k/auxilia/stargazers"><img alt="GitHub stars" src="https://img.shields.io/github/stars/jr-k/auxilia?style=flat"></a>
+    <a href="https://github.com/jr-k/auxilia/pkgs/container/auxilia-web"><img alt="Container images" src="https://img.shields.io/badge/images-GHCR-181717?logo=github"></a>
+    <a href="./LICENSE"><img alt="AGPL-3.0 license" src="https://img.shields.io/github/license/jr-k/auxilia"></a>
+  </p>
+
+  <p>
+    <a href="#quick-start"><strong>Quick start</strong></a>
+    &nbsp;/&nbsp;
+    <a href="#what-this-fork-adds"><strong>Fork additions</strong></a>
+    &nbsp;/&nbsp;
+    <a href="#the-agent-platform-underneath"><strong>Platform</strong></a>
+    &nbsp;/&nbsp;
+    <a href="https://auxilia-docs.vercel.app/"><strong>Documentation</strong></a>
   </p>
 </div>
 
 ---
 
-[https://github.com/user-attachments/assets/3236f9da-28c5-44c8-8c2c-4c68199f187c](https://github.com/user-attachments/assets/868f36cc-9c45-4003-9687-0494ca86d2a2
-)
+auxilia gives a team one place to create, run, share, and govern AI agents. Connect
+remote MCP servers, choose an LLM, add skills and context, then let people use the
+result without asking everyone to configure their own stack.
 
-**auxilia is a web platform for running AI agents as a team.** An admin sets up [MCP](https://modelcontextprotocol.io/) servers and agents once, and the whole workspace shares them — no more everyone configuring their own assistant with their own prompts and credentials. Anyone can create an agent and experiment, zero technical skills required: agents chat in the browser or in Slack, use your internal tools, ask a human for approval before sensitive actions, and run on schedules or in the background. An agent is only as good as the environment you give it. That's where auxilia comes in: iterating quickly is how you find what's missing — a tool it needed, a doc that's outdated, data that isn't as clean as you thought. The more gaps you close, the more reliable your agents become; when one proves itself, plug it into your own products through the API. You pick the LLM provider (Anthropic, OpenAI, Google, DeepSeek) and can switch anytime — and because it's self-hosted, conversations, credentials, and usage data never leave your infrastructure. Everything that matters — the documentation, the data models, the MCP servers you build to make your agents work — is yours, and it follows you to any other agentic platform.
+It is open source, self-hosted, and provider-independent. Conversations,
+credentials, permissions, and usage data stay in infrastructure you control.
 
-## 🍴 Why this fork
+## Why this fork
 
-This fork builds on the [original auxilia project](https://github.com/keurcien/auxilia) with a shorter development cycle. The goal is to turn feedback from real agent deployments into small, production-ready releases quickly, then harden the capabilities that prove useful. That faster loop has expanded auxilia from a shared MCP client into a complete platform for building, operating, and governing agents as a team.
+This repository builds on the
+[original auxilia project](https://github.com/keurcien/auxilia) and focuses on
+the parts that turn an agent playground into a product people can use every day:
+mobile access, notifications, projects, collaboration, administration,
+integrations, and operational resilience.
 
-## ✨ What this fork adds
+The fork follows a short release cycle. Features proven in real deployments are
+shipped in small increments, then hardened as usage grows.
 
-This list covers only capabilities introduced by this fork. Existing upstream features such as scheduled triggers, sandboxes, skills, subagents, and durable runs are intentionally not repeated.
+## What this fork adds
 
-**Workspace and administration**
+The highlights below focus on capabilities added by this fork.
 
-- 🏷️ **White-label instances**: customize the application name and logo throughout the product, including authentication screens, invitations, browser metadata, and the generated PWA manifest.
-- 🏢 **Multi-workspace administration**: create, switch, edit, and delete isolated workspaces, each with its own members, resources, branding, integrations, and credentials.
-- ⚙️ **In-app instance configuration**: manage model provider credentials, Google authentication, Slack, Langfuse, OAuth callbacks, and other deployment settings without editing environment variables.
-- 🗂️ **Resource organization and visibility**: hierarchical groups, personal or workspace visibility scopes, team filters, bulk actions, and clearer ownership across agents, skills, triggers, and MCP servers.
-- 👤 **Richer user management**: profile pictures, password management, TOTP two-factor authentication, navigation and response preferences, a user grid, and detailed usage statistics.
+### Use auxilia anywhere
 
-**Chat and product experience**
+- **Installable PWA**: add auxilia to iOS, Android, or desktop with instance
+  branding, app icons, and a standalone experience.
+- **Web Push notifications**: receive agent completion alerts outside the app,
+  open the right conversation directly, and customize the Android monochrome
+  notification badge.
+- **Mobile-native navigation**: responsive chat and administration views,
+  touch-driven drawers that follow the finger, safe-area support, and layouts
+  designed for narrow screens.
+- **Personal preferences**: browser notifications, response sounds, external
+  link confirmation, navigation shortcuts, and a guided preferences onboarding.
 
-- ⏭️ **Prompt queue**: send follow-up prompts while an agent is running, preserve pending submissions, and play an optional sound when the queue completes.
-- 🎛️ **Conversation-level resources**: inspect and change the MCP servers and other resources enabled for an individual conversation.
-- 📊 **Runtime and usage insights**: live run controls and statistics, per-conversation usage, user-level analytics, profile thread management, and bulk conversation deletion.
-- 📱 **Responsive UX overhaul**: improved mobile layouts, resource pickers, related-resource navigation, OAuth and destructive flows, bulk management, and state preservation across the app.
-- 🔄 **Realtime workspace sync**: propagate workspace and resource changes across tabs and active sessions over SSE without requiring a refresh.
+### Keep work and context together
 
-**Automation and integrations**
+- **Projects**: group conversations and triggers in nested folders, attach
+  project instructions and context files, control visibility, and manage
+  projects through MCP.
+- **Better conversations**: queue prompts while a run is active, track unread
+  replies, filter and organize threads, manage conversation resources, and
+  preserve work across long-running jobs.
+- **Memories**: let agents retain useful user context automatically, with
+  controls for reviewing and managing what was remembered.
+- **Artifacts and sharing**: persist generated files locally or in object
+  storage, preview common formats, download results, and publish rich,
+  read-only conversation snapshots.
 
-- 🔗 **Webhook triggers**: start agents from external systems through a unique POST endpoint, with optional per-call agent, model, and instruction overrides.
-- 🗄️ **Managed databases**: connect PostgreSQL, MySQL, MariaDB, SQL Server, and Oracle as managed MCP data sources, with encrypted credentials, read-only controls, query limits, and connection health.
-- 📄 **SQLite file uploads**: upload SQLite databases directly, expose them as managed data sources, and safely maintain their files and sidecars.
-- 💬 **Advanced Slack agents**: dedicated bots per agent, private messages, thread context, configurable tool callouts, multiple side channels, progress updates, and MCP error reporting.
-- 📧 **Gmail and native web search**: give agents first-class Gmail tools and provider-native web search with relevant MCP context.
+### Connect agents to the rest of the company
 
-**MCP and models**
+- **Side channels**: assign agents to Slack, Telegram, and WhatsApp. Conversations
+  keep their runtime settings, tool approvals, context, and progress updates.
+- **Managed databases**: connect PostgreSQL, MySQL, MariaDB, SQL Server, and
+  Oracle, or upload SQLite files. Credentials are encrypted, writes can be
+  disabled, and query limits stay under workspace control.
+- **Automation**: trigger agents on a schedule or through a webhook, override
+  selected run inputs, and follow execution in the same durable runtime as web
+  conversations.
+- **Native data access**: add Gmail and provider-native web search alongside
+  remote MCP tools.
 
-- 🔐 **Enterprise MCP authentication**: shared service identities, provider-specific credentials such as Google Compute service accounts, CIMD support, provider quirks, and workspace-managed OAuth configuration.
-- 🧰 **Expanded MCP management**: server-level tool controls, instance-specific servers, a dedicated connection test dialog, richer deletion flows, and a much larger official catalog with hosted icons.
-- 🔁 **Auxilia as an MCP server**: expose authenticated workspace administration tools through MCP and connect clients through auxilia's OAuth authorization server.
-- 🧠 **More model control**: Ollama support, guided model onboarding, agent-level defaults, configurable tool discovery, and improved model-aware chat flows.
+### Run a real multi-user instance
 
-## 🤔 Why auxilia
+- **Multiple workspaces**: isolate members, agents, projects, MCP servers,
+  integrations, and credentials while keeping workspace switching simple.
+- **Teams and permissions**: combine workspace roles, teams, resource
+  visibility, and per-agent grants for precise access control.
+- **Administration**: supervise user sessions, inspect usage and costs, manage
+  conversations, configure integrations, and propagate workspace changes in
+  real time.
+- **Security and identity**: password recovery, TOTP two-factor authentication,
+  Google sign-in, personal access tokens, encrypted secrets, and configurable
+  authentication policies.
+- **White-label appearance**: change the instance name, logos, PWA identity,
+  browser metadata, notification badge, and authentication branding from the
+  application.
 
-Most MCP clients are desktop apps tied to a single user: every teammate reinvents the same agent, alone, in their own tool. auxilia is the middle ground between "everyone has their own ChatGPT tab" and building a custom AI platform:
+### Operate MCP and models without the rough edges
 
-- 🧪 **A playground for the whole company** — business users build and test agents themselves, no code. Not every experiment is a keeper — that's the point: everyone gets hands-on intuition for what agents can (and can't) do, cheaply.
-- 👥 **One place, shared agents** — register MCP servers and agents once; the whole team reuses them, with workspace roles and per-agent permissions.
-- 🏠 **Your infra, your data** — self-hosted; conversations, API keys (AES-GCM encrypted at rest) and per-user OAuth tokens stay in your own database and Redis.
-- 🔓 **No provider lock-in** — swap Anthropic, OpenAI, Google, or DeepSeek per agent as pricing and quality shift.
-- ✅ **Guardrails built in** — each tool can be always-allowed, require human approval (in chat or Slack), or be disabled.
-- 🔌 **Remote MCP native** — any remote (Streamable HTTP) MCP server becomes a tool: internal services or one-click Notion, Linear, GitHub, HubSpot, BigQuery, Slack, Sentry.
+- **Expanded MCP management**: a large remote-server catalog, richer connection
+  diagnostics, manual OAuth flows, shared service identities, custom
+  credentials, provider quirks, and per-tool controls.
+- **auxilia as an MCP server**: expose authenticated workspace operations to
+  other MCP clients through OAuth.
+- **More model choice**: configure Anthropic, OpenAI, Google, DeepSeek,
+  OpenRouter, Ollama, Xiaomi, and Meta models from the administration UI.
+- **Graceful degradation**: a broken sandbox, unavailable MCP server, skill
+  failure, or subagent issue is surfaced as a warning without blocking a prompt
+  that the LLM can still answer.
 
-## 🚀 Quick start
+## The agent platform underneath
 
-All you need is [Docker](https://docs.docker.com/get-docker/) and **one LLM API key** (Anthropic, OpenAI, Google, or DeepSeek).
+The original auxilia foundations remain at the center of the product:
+
+- reusable agents with instructions, models, and individually governed tools
+- remote MCP servers with API key, OAuth, and service authentication
+- human approval before sensitive tool calls
+- skills, subagents, structured output, and sandboxed code execution
+- durable background runs with streaming, resume, cancellation, and recovery
+- scheduled triggers and an API for embedding agents in other products
+- Langfuse observability and detailed usage accounting
+
+## Quick start
+
+You need Docker and Docker Compose.
 
 ```bash
 git clone https://github.com/jr-k/auxilia.git
 cd auxilia
-cp .env.example .env      # paste at least one LLM API key
-make build && make up
+cp .env.example .env
+make build
+make up
 ```
 
-Open **http://localhost:3000** — the first account you create becomes the workspace **admin**. Add an MCP server, create an agent, and start chatting.
+Open [http://localhost:3000](http://localhost:3000). The first account becomes
+the administrator. Add an LLM provider in the settings, create an agent, and
+start a conversation.
 
-PostgreSQL and Redis are started and wired up by Docker Compose; every other setting has a working dev default. The `.env` at a glance:
+PostgreSQL, Redis, the optional database gateway, and the local sandbox service
+are included in the Compose stack.
 
-| Variable(s)                                                                    | When you need it                                                                                                                                          |
-| ------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` / `GOOGLE_API_KEY` / `DEEPSEEK_API_KEY` / `OPENROUTER_API_KEY` / `XIAOMI_API_KEY` / `METAAI_API_KEY` | **At least one.** Each key unlocks that provider's models in the model picker.                                                                            |
-| `BACKEND_ENCRYPTION_SALT`, `BACKEND_JWT_SECRET_KEY`, `BACKEND_COOKIE_SECURE`   | **Before production.** Encryption secret for stored credentials, session signing secret, and secure cookies behind HTTPS. Dev defaults work locally. |
-| `RUN_*`                                                                        | Tuning for the background run worker (concurrency, timeouts). Defaults are fine.                                                                          |
+### Before a production deployment
 
-Google OAuth, Slack and Langfuse are configured by workspace admins from
-**Settings → Authentication**, **Notifications**, and **Observability**. Their
-credentials are encrypted in PostgreSQL.
+At minimum, replace these development values in `.env`:
 
-> Upgrading an existing deployment? Rename `SALT` or
-> `MCP_API_KEY_ENCRYPTION_SALT` to `BACKEND_ENCRYPTION_SALT` without changing
-> its value. Rotating it without re-encrypting stored secrets makes existing
-> credentials and TOTP secrets unreadable.
+```dotenv
+BACKEND_JWT_SECRET_KEY=replace-with-a-long-random-secret
+BACKEND_ENCRYPTION_SALT=replace-with-a-stable-random-secret
+BACKEND_COOKIE_SECURE=true
+```
 
-Developing? `make dev` runs PostgreSQL, Redis, the FastAPI backend (migrations applied) and the Next.js frontend in parallel, all with hot reload. Full walkthrough in the [Get Started guide](https://auxilia-docs.vercel.app/get-started).
+Keep `BACKEND_ENCRYPTION_SALT` stable after credentials have been saved. Changing
+it without re-encrypting existing data makes those secrets unreadable.
 
-## 🤝 Integrations
+Optional features use their own settings:
 
-**LLM providers**
+- `WEB_PUSH_VAPID_*` for browser and PWA notifications
+- `SMTP_*` for password recovery email
+- artifact storage variables for S3-compatible storage or Google Cloud Storage
+- side-channel credentials for Slack, Telegram, and WhatsApp
 
-| Provider  | Models                                       |
-| --------- | -------------------------------------------- |
-| Anthropic | Claude Haiku 4.5, Sonnet 4.6, Sonnet 5       |
-| OpenAI    | GPT-4o mini                                  |
-| Google    | Gemini 3 Flash Preview, Gemini 3 Pro Preview |
-| DeepSeek  | DeepSeek v4 Flash, v4 Pro                    |
-| Meta      | Muse Spark 1.2                               |
-| Xiaomi    | MiMo-V2.5-Pro, MiMo-V2.5                     |
-| OpenRouter | GLM 5.2 (Max), GLM 5.2 (High)              |
+See the [deployment documentation](https://auxilia-docs.vercel.app/deploy) for
+the complete configuration.
 
-**MCP servers — one-click install**: Notion · Linear · GitHub · HubSpot · BigQuery · Slack · Sentry — or paste the URL of any custom remote MCP server with its OAuth credentials or API key.
+## Development
 
-**Workspace tools**: Slack, Langfuse, Google OAuth SSO.
+The local development command starts PostgreSQL, Redis, the backend, and the
+frontend with hot reload:
 
-## 💡 From playground to production
+```bash
+make dev
+```
 
-A few agents we run ourselves:
+The main stack is:
 
-**📊 A data analyst that answers with dashboards, not spreadsheets.** Plugged into our BigQuery warehouse, with a custom MCP server that renders interactive charts and dashboards _inside the chat_. "How did sales move after the price change?" used to be a ticket for the data team; now it's a question anyone types and gets answered — with a graph — in seconds.
+- **Frontend**: Next.js 16, React 19, Tailwind CSS, and Zustand
+- **Backend**: FastAPI, SQLModel, PostgreSQL, and Redis
+- **Agent runtime**: LangGraph, deepagents, and the Agent Streaming Protocol
+- **Tools**: remote MCP over Streamable HTTP
+- **Sandbox**: OpenSandbox locally, with pluggable hosted providers
 
-**🎧 A super agent behind our customer support.** One orchestrator dispatches specialized subagents — orders, refunds, logistics — and delivers ready-to-send suggestions straight into our support tool through the invoke API. It was built and tuned like any other workspace agent, then wired into the product without changing a line of it.
+Architecture and contribution conventions live in
+[`CLAUDE.md`](./CLAUDE.md) and [`CONTRIBUTING.md`](./CONTRIBUTING.md).
 
-**💶 A pricing analyst that does the work nobody wants twice.** Hand it a spreadsheet with thousands of messy, wildly inconsistent rows, and it writes and runs its own code in an isolated sandbox to clean, cross-check, and price every one of them. The same sandbox trick stretches surprisingly far — we've used it to train and deploy small ML models.
+## Documentation and help
 
-## 📚 Documentation
+- [Documentation](https://auxilia-docs.vercel.app/)
+- [Releases](https://github.com/jr-k/auxilia/releases)
+- [Issues](https://github.com/jr-k/auxilia/issues)
+- [Original project](https://github.com/keurcien/auxilia)
 
-Full docs at **[auxilia-docs.vercel.app](https://auxilia-docs.vercel.app/)**:
+## License
 
-- [Get Started](https://auxilia-docs.vercel.app/get-started) — run auxilia locally
-- [Agents](https://auxilia-docs.vercel.app/agents) — configuration, permissions, subagents
-- [Skills](https://auxilia-docs.vercel.app/agents/skills) — reusable procedures, in-app or synced from a repository
-- [Triggers](https://auxilia-docs.vercel.app/agents/triggers) — scheduled agent runs
-- [MCP Servers](https://auxilia-docs.vercel.app/deploy/mcp-servers) — registration, auth, examples
-- [Tools](https://auxilia-docs.vercel.app/agents/tools) — per-tool approval rules
-- [Sandbox](https://auxilia-docs.vercel.app/agents/sandbox) — code execution for an agent
-- [Deployment](https://auxilia-docs.vercel.app/deploy) — environment, Google Cloud Run, sandboxes
-- [Integrations](https://auxilia-docs.vercel.app/deploy/slack) — Slack, [Langfuse](https://auxilia-docs.vercel.app/deploy/langfuse)
-- [Tutorials](https://auxilia-docs.vercel.app/tutorials) — HTTP, Slack, n8n & schedulers, embedding
-- [Case Studies](https://auxilia-docs.vercel.app/case-studies) — Google Sheets from a sandbox, slide decks from a GitHub skill
-
-## 🗺 Roadmap
-
-- [x] Scheduled triggers
-- [x] Skills
-- [x] Support for more sandboxes (Daytona, Cloud Run)
-- [ ] Deployment guides
-- [ ] More SSO providers (Okta, Entra ID)
-
-Have an idea? [Open an issue](https://github.com/jr-k/auxilia/issues/new) or start a discussion.
-
-## 🤝 Contributing
-
-Contributions are very welcome — bug reports, agent ideas, MCP server recipes, UI fixes:
-
-1. Fork the repo and create a branch (`git checkout -b feature/my-change`)
-2. Enable the git hooks once per clone: `pre-commit install` — they run ruff on changed Python and a stricter type-aware ESLint config on changed `web/` files
-3. Run `make dev` and make sure tests pass (`cd backend && uv run pytest`)
-4. Open a pull request — **the PR title must follow [Conventional Commits](https://www.conventionalcommits.org/)** (e.g. `feat: …`, `fix: …`); PRs are squash-merged and release-please derives versions and changelogs from the titles
-
-Please read [`CLAUDE.md`](./CLAUDE.md) first — it documents the backend's layered architecture (router → service → repository → model) and naming conventions.
-
-## 📄 License
-
-[AGPL-3.0](./LICENSE) — free to use, modify, and self-host.
-
----
+auxilia is available under the [AGPL-3.0 license](./LICENSE).
 
 <div align="center">
-  <sub>Built with ❤️ using <a href="https://www.langchain.com/langgraph">LangGraph</a> and the <a href="https://modelcontextprotocol.io/">Model Context Protocol</a>.</sub>
+  <sub>
+    Built with <a href="https://www.langchain.com/langgraph">LangGraph</a> and
+    the <a href="https://modelcontextprotocol.io/">Model Context Protocol</a>.
+  </sub>
 </div>
