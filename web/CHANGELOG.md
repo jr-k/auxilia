@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.133](https://github.com/jr-k/auxilia/compare/web-v0.12.132...web-v0.12.133) (2026-11-09)
+
+
+### Bug Fixes
+
+* **web:** improve role badge contrast ([530267a](https://github.com/jr-k/auxilia/commit/530267a521da8f0c124777d1b77f28c0f6c33875))
+
 ## [0.12.132](https://github.com/jr-k/auxilia/compare/web-v0.12.131...web-v0.12.132) (2026-11-09)
 
 
