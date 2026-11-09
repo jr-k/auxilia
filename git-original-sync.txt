@@ -1,5 +1,5 @@
 Upstream: https://github.com/keurcien/auxilia
-Synchronization date: 2026-10-27
+Synchronization date: 2026-11-09
 Mode: compatible forward-port (not verbatim cherry-picks)
 
 0cd8f036864febcbf20543d5570a77b8e65edf64	feat(agents): let agent editors manage subagents (#392)
@@ -34,3 +34,10 @@ f40f1e0a3a2f203caca0aeb37c80d992de74676b	build(web): upgrade Node.js from 22 to 
 cd5c223be3b105ed0a5ce3b75a427e4b787d09fa	feat(skills): sync applies upstream skill updates directly (#424) [compatible forward-port for multi-workspace and current UI]
 4e53e6007151c7df2c0357f1ff933b2d1ea95d65	fix(attachments): keep host notices out of the chat and in regenerations (#438) [compatible forward-port without tests]
 afe2c40ddd944147812f12484e64d4c9735d155f	fix(artifacts): restore the presented file when it shares a timestamp with its attachment (#440) [compatible forward-port in repository ordering]
+26e077ae1bb546e853cde01f662d2ee5a4ccef35	build(web): upgrade Node.js from 22 to 24 (#437) [already covered by f40f1e0a3a2f203caca0aeb37c80d992de74676b / local c7fe537e]
+dcc6f82c2833827704a76c08f921f0d5769b04b3	feat(mcp): answer MCP elicitation requests in the chat (#444) [compatible forward-port for workspace-scoped runtime, renamed tools, Slack, Telegram and WhatsApp]
+1fc9046df581640780c5bcb95d09b987e3d0891a	perf(runs): wake the dispatcher and stream sessions through Redis (#447) [compatible forward-port with workspace-scoped thread markers and post-commit signaling]
+4482f0eaff2a36146c5d5e997c74fe7b6595ad5f	deps(web): upgrade @langchain/langgraph-sdk to 1.12.8 and @langchain/react to 1.2.8 (#449)
+d9925f479bc645b85df214bc37cf56286aec35ba	Improve Slack agent search and import existing thread context (#452) [covered by dedicated agent bots and existing Slack context import; shared picker not applicable]
+4bc326b5b3d1492908a33580082bf4dd7a52d15c	fix(slack): require a mention to activate channel threads (#454) [covered by configurable require_mention_in_threads]
+ba6e9fd0f3a7c2c8f5cf58cf225f7573fbdfa299	feat(langfuse): review config and label in a dialog before publishing (#457) [compatible forward-port for workspace-scoped Langfuse clients and server-owned publisher metadata]
