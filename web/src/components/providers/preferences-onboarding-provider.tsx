@@ -180,7 +180,6 @@ export function PreferencesOnboardingProvider({
 
 	const step = steps[activeStep];
 	const isLastStep = activeStep === steps.length - 1;
-	const StepIcon = step.icon;
 
 	const complete = async () => {
 		if (user === null || saving) return;
@@ -288,13 +287,7 @@ export function PreferencesOnboardingProvider({
 							className="flex min-w-0 flex-col px-4 py-5 sm:px-7 sm:py-6"
 						>
 							<div className="flex-1">
-								<div className="flex size-11 items-center justify-center rounded-[12px] border border-petrol/20 bg-petrol/[0.07] text-petrol dark:text-panel-terminal">
-									<StepIcon className="size-5" />
-								</div>
-								<p className="mt-5 text-[11px] font-medium text-meta">
-									Step {activeStep + 1} of {steps.length}
-								</p>
-								<h3 className="mt-1 text-[20px] font-bold text-foreground">
+								<h3 className="text-[20px] font-bold text-foreground">
 									{step.title}
 								</h3>
 								<p className="mt-2 max-w-[460px] text-[13.5px] leading-6 text-subtle dark:text-panel-body">
@@ -345,7 +338,7 @@ export function PreferencesOnboardingProvider({
 									type="button"
 									disabled={saving}
 									onClick={() => {
-										setOpen(false);
+										void complete();
 									}}
 									className="cursor-pointer text-[12px] font-semibold text-meta transition-colors hover:text-foreground disabled:cursor-default disabled:opacity-50"
 								>
