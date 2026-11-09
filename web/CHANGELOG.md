@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.132](https://github.com/jr-k/auxilia/compare/web-v0.12.131...web-v0.12.132) (2026-11-09)
+
+
+### Features
+
+* **mcp:** disconnect personal server accounts ([3d3b374](https://github.com/jr-k/auxilia/commit/3d3b3743186dce5cbfcd828bde2298503d152d6d))
+
 ## [0.12.131](https://github.com/jr-k/auxilia/compare/web-v0.12.130...web-v0.12.131) (2026-11-09)
 
 
