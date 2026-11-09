@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.99](https://github.com/jr-k/auxilia/compare/backend-v0.11.98...backend-v0.11.99) (2026-11-09)
+
+
+### Bug Fixes
+
+* **mcp:** invalidate disconnected OAuth flows ([5cbfb7d](https://github.com/jr-k/auxilia/commit/5cbfb7d76aa1d8ad14b580c3d74e89badc5ef681))
+
 ## [0.11.98](https://github.com/jr-k/auxilia/compare/backend-v0.11.97...backend-v0.11.98) (2026-11-09)
 
 
