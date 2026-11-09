@@ -37,6 +37,7 @@ from app.users.schemas import (
     InstanceUserMembershipResponse,
     InstanceUserResponse,
     PasswordChange,
+    PreferencesOnboardingPatch,
     ProfilePatch,
     TwoFactorConfirmRequest,
     TwoFactorDisableRequest,
@@ -116,6 +117,15 @@ class UserService(BaseService[UserDB, UserRepository]):
             " ".join(part for part in (user.first_name, user.last_name) if part).strip()
             or None
         )
+        self.db.add(user)
+        await self.db.flush()
+        await self.db.refresh(user)
+        return user
+
+    async def update_preferences_onboarding(
+        self, user: UserDB, data: PreferencesOnboardingPatch
+    ) -> UserDB:
+        user.preferences_onboarding_version = data.version
         self.db.add(user)
         await self.db.flush()
         await self.db.refresh(user)

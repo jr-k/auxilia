@@ -92,6 +92,16 @@ export async function updateProfile(payload: {
 	return response.data;
 }
 
+export async function updatePreferencesOnboarding(
+	version: number,
+): Promise<number> {
+	const response = await api.put<{ version: number }>(
+		"/users/me/preferences-onboarding",
+		{ version },
+	);
+	return response.data.version;
+}
+
 export async function changePassword(payload: {
 	currentPassword: string | null;
 	newPassword: string;

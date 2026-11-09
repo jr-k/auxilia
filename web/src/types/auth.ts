@@ -18,6 +18,7 @@ export interface CurrentUser {
 	twoFactorEnabled: boolean;
 	twoFactorEnforced: boolean;
 	twoFactorRequired: boolean;
+	preferencesOnboardingVersion: number;
 	supervision: {
 		actorId: string;
 		actorName: string | null;

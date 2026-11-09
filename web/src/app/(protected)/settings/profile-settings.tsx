@@ -9,6 +9,7 @@ import {
 	Link2,
 	Loader2,
 	Menu,
+	RotateCcw,
 	ShieldCheck,
 	Unlink,
 	UserRound,
@@ -18,6 +19,7 @@ import { useCallback, useEffect, useState } from "react";
 import { SlackLogo } from "@/components/slack-logo";
 import { TelegramLogo } from "@/components/telegram-logo";
 import { WhatsAppLogo } from "@/components/whatsapp-logo";
+import { usePreferencesOnboarding } from "@/components/providers/preferences-onboarding-provider";
 import { ImageUpload } from "@/components/ui/image-upload";
 import { Switch } from "@/components/ui/switch";
 import { getApiErrorMessage } from "@/lib/api/errors";
@@ -1104,6 +1106,9 @@ function TwoFactorCard({ user }: { user: CurrentUser }) {
 
 function PreferencesCard() {
 	const appName = useAppearanceStore((state) => state.appearance.appName);
+	const user = useUserStore((state) => state.user);
+	const setUser = useUserStore((state) => state.setUser);
+	const { openOnboarding } = usePreferencesOnboarding();
 	const confirmExternalLinks = useConfirmExternalLinks();
 	const responseSoundEnabled = useResponseSoundEnabled();
 	const showShortcutsInMenu = useShowShortcutsInMenu();
@@ -1111,6 +1116,8 @@ function PreferencesCard() {
 	const webPushError = useWebPushStore((state) => state.error);
 	const enableWebPush = useWebPushStore((state) => state.enable);
 	const disableWebPush = useWebPushStore((state) => state.disable);
+	const [onboardingResetting, setOnboardingResetting] = useState(false);
+	const [onboardingError, setOnboardingError] = useState<string | null>(null);
 	const webPushDescription = {
 		loading: "Checking notification status…",
 		unsupported: "This browser does not support Web Push notifications.",
@@ -1128,6 +1135,29 @@ function PreferencesCard() {
 		"unsupported",
 		"not-configured",
 	].includes(webPushState);
+
+	const restartOnboarding = async () => {
+		if (user === null || onboardingResetting) return;
+		setOnboardingResetting(true);
+		setOnboardingError(null);
+		try {
+			const version = await usersApi.updatePreferencesOnboarding(0);
+			const currentUser = useUserStore.getState().user;
+			if (currentUser?.id === user.id) {
+				setUser({
+					...currentUser,
+					preferencesOnboardingVersion: version,
+				});
+			}
+			openOnboarding();
+		} catch (error) {
+			setOnboardingError(
+				getApiErrorMessage(error, "Could not reset the preferences onboarding."),
+			);
+		} finally {
+			setOnboardingResetting(false);
+		}
+	};
 
 	return (
 		<div className="flex flex-col gap-4">
@@ -1237,6 +1267,40 @@ function PreferencesCard() {
 						className="cursor-pointer"
 					/>
 				</div>
+			</section>
+			<section className="rounded-[12px] border border-border bg-card p-5">
+				<SectionHeading
+					icon={<RotateCcw className="size-4" />}
+					title="Preferences onboarding"
+					description="Review the four preference choices whenever you want."
+				/>
+				<div className="flex flex-wrap items-center justify-between gap-4 rounded-[9px] border border-input px-4 py-3.5">
+					<div>
+						<p className="text-[13px] font-semibold text-foreground">
+							View the onboarding again
+						</p>
+						<p className="mt-0.5 text-[12px] leading-5 text-subtle dark:text-panel-body">
+							This resets only the onboarding progress. Your current choices
+							stay unchanged.
+						</p>
+					</div>
+					<button
+						type="button"
+						disabled={onboardingResetting || user === null}
+						onClick={() => {
+							void restartOnboarding();
+						}}
+						className="flex cursor-pointer items-center gap-2 rounded-[7px] border border-input px-3.5 py-2 text-[12px] font-semibold text-foreground transition-colors hover:border-border-hover disabled:cursor-default disabled:opacity-50"
+					>
+						{onboardingResetting ? (
+							<Loader2 className="size-3.5 animate-spin" />
+						) : (
+							<RotateCcw className="size-3.5" />
+						)}
+						{onboardingResetting ? "Resetting…" : "View onboarding"}
+					</button>
+				</div>
+				<Feedback error={onboardingError} success={null} />
 			</section>
 		</div>
 	);

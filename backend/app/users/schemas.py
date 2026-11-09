@@ -94,12 +94,21 @@ class CurrentUserResponse(UserResponse):
     two_factor_enabled: bool = False
     two_factor_enforced: bool = False
     two_factor_required: bool = False
+    preferences_onboarding_version: int = 0
     supervision: SupervisionInfo | None = None
 
 
 class ProfilePatch(SQLModel):
     first_name: str | None = Field(default=None, max_length=100)
     last_name: str | None = Field(default=None, max_length=100)
+
+
+class PreferencesOnboardingPatch(SQLModel):
+    version: int = Field(ge=0)
+
+
+class PreferencesOnboardingResponse(SQLModel):
+    version: int
 
 
 class PasswordChange(SQLModel):

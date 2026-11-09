@@ -19,6 +19,8 @@ from app.users.schemas import (
     CurrentUserResponse,
     InstanceUserResponse,
     PasswordChange,
+    PreferencesOnboardingPatch,
+    PreferencesOnboardingResponse,
     ProfilePatch,
     TwoFactorConfirmRequest,
     TwoFactorDisableRequest,
@@ -122,6 +124,19 @@ async def update_profile(
     return CurrentUserResponse.model_validate(
         user, update={"workspace_id": current_user.active_workspace_id}
     )
+
+
+@router.put(
+    "/me/preferences-onboarding",
+    response_model=PreferencesOnboardingResponse,
+)
+async def update_preferences_onboarding(
+    data: PreferencesOnboardingPatch,
+    current_user: UserDB = Depends(get_current_user),
+    service: UserService = Depends(get_user_service),
+) -> PreferencesOnboardingResponse:
+    user = await service.update_preferences_onboarding(current_user, data)
+    return PreferencesOnboardingResponse(version=user.preferences_onboarding_version)
 
 
 @router.put("/me/password", status_code=204)
