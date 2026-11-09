@@ -10,12 +10,16 @@ import {
 	Loader2,
 	Menu,
 	RotateCcw,
+	ServerCog,
 	ShieldCheck,
 	Unlink,
+	Unplug,
 	UserRound,
 	Volume2,
 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
+import { DisconnectSummaryDialog } from "@/app/(protected)/mcp-servers/components/disconnect-summary-dialog";
+import { useConfirmDialog } from "@/components/providers/dialog-provider";
 import { SlackLogo } from "@/components/slack-logo";
 import { TelegramLogo } from "@/components/telegram-logo";
 import { WhatsAppLogo } from "@/components/whatsapp-logo";
@@ -23,6 +27,7 @@ import { usePreferencesOnboarding } from "@/components/providers/preferences-onb
 import { ImageUpload } from "@/components/ui/image-upload";
 import { Switch } from "@/components/ui/switch";
 import { getApiErrorMessage } from "@/lib/api/errors";
+import * as mcpServersApi from "@/lib/api/resources/mcp-servers";
 import * as notificationsApi from "@/lib/api/resources/notifications";
 import * as usersApi from "@/lib/api/resources/users";
 import {
@@ -38,6 +43,7 @@ import { useAppearanceStore } from "@/stores/appearance-store";
 import { useUserStore } from "@/stores/user-store";
 import { useWebPushStore } from "@/stores/web-push-store";
 import type { CurrentUser } from "@/types/auth";
+import type { MCPConnectionDisconnectSummary } from "@/types/mcp-servers";
 import type {
 	SlackIdentity,
 	SlackLinkCode,
@@ -731,6 +737,85 @@ function ConnectedAccountsCard() {
 	);
 }
 
+function MCPAccountsCard() {
+	const confirmDialog = useConfirmDialog();
+	const [isDisconnecting, setIsDisconnecting] = useState(false);
+	const [error, setError] = useState<string | null>(null);
+	const [summary, setSummary] =
+		useState<MCPConnectionDisconnectSummary | null>(null);
+	const [summaryOpen, setSummaryOpen] = useState(false);
+
+	const disconnectAll = async () => {
+		if (
+			!(await confirmDialog({
+				title: "Disconnect all your MCP accounts?",
+				description:
+					"Only your personal OAuth accounts in this workspace will be disconnected. Other users, API keys, service accounts, and shared integrations will be preserved.",
+				confirmLabel: "Disconnect all my accounts",
+				destructive: true,
+			}))
+		)
+			return;
+
+		setError(null);
+		setIsDisconnecting(true);
+		try {
+			const result = await mcpServersApi.disconnectAllMyMcpConnections();
+			setSummary(result);
+			setSummaryOpen(true);
+		} catch (caught: unknown) {
+			setError(
+				getApiErrorMessage(caught, "Failed to disconnect your MCP accounts."),
+			);
+		} finally {
+			setIsDisconnecting(false);
+		}
+	};
+
+	return (
+		<section className="rounded-[12px] border border-border bg-card p-5">
+			<SectionHeading
+				icon={<ServerCog className="size-4" />}
+				title="MCP accounts"
+				description="Manage your personal OAuth connections to MCP servers in this workspace."
+			/>
+			<div className="flex items-center gap-3 rounded-[9px] border border-input px-4 py-3.5">
+				<span className="flex size-9 shrink-0 items-center justify-center rounded-[8px] border border-border bg-background text-petrol shadow-sm dark:border-white/10 dark:text-panel-terminal">
+					<ServerCog className="size-4" />
+				</span>
+				<div className="min-w-0 flex-1">
+					<p className="text-[13px] font-semibold text-foreground">
+						Personal MCP connections
+					</p>
+					<p className="mt-0.5 text-[12px] leading-[1.45] text-subtle dark:text-panel-body">
+						Disconnect your accounts without affecting other users or shared
+						workspace credentials.
+					</p>
+				</div>
+				<button
+					type="button"
+					disabled={isDisconnecting}
+					onClick={() => {
+						void disconnectAll();
+					}}
+					className="flex shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-[7px] border border-input bg-card px-3 py-1.5 text-[12px] font-semibold text-destructive disabled:cursor-default disabled:opacity-50"
+				>
+					<Unplug className="size-3.5" />
+					{isDisconnecting
+						? "Disconnecting…"
+						: "Disconnect all my MCP accounts"}
+				</button>
+			</div>
+			{error && <p className="mt-3 text-[12px] text-destructive">{error}</p>}
+			<DisconnectSummaryDialog
+				open={summaryOpen}
+				onOpenChange={setSummaryOpen}
+				summary={summary}
+			/>
+		</section>
+	);
+}
+
 function PasswordCard() {
 	const [currentPassword, setCurrentPassword] = useState("");
 	const [newPassword, setNewPassword] = useState("");
@@ -1331,7 +1416,7 @@ const sectionCopy: Record<
 	"connected-accounts": {
 		title: "Connected accounts",
 		description:
-			"Link external identities so side-channel agents can apply your Auxilia permissions.",
+			"Manage side-channel identities and personal MCP connections.",
 	},
 };
 
@@ -1371,8 +1456,13 @@ export default function ProfileSettings({
 			<div className={section === "preferences" ? "" : "hidden"}>
 				<PreferencesCard />
 			</div>
-			<div className={section === "connected-accounts" ? "" : "hidden"}>
+			<div
+				className={
+					section === "connected-accounts" ? "flex flex-col gap-4" : "hidden"
+				}
+			>
 				<ConnectedAccountsCard />
+				<MCPAccountsCard />
 			</div>
 		</div>
 	);

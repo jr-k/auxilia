@@ -47,7 +47,7 @@ function CredentialNote({
 	const isCustomHttp = authType === "custom_http";
 	return (
 		<div className="flex items-start gap-3.5 rounded-[10px] border border-border bg-card p-[18px]">
-			<span className="flex size-[34px] shrink-0 items-center justify-center rounded-[9px] bg-petrol-tint text-petrol">
+			<span className="flex size-[34px] shrink-0 items-center justify-center rounded-[9px] bg-petrol-tint text-petrol dark:bg-white/10 dark:text-panel-terminal">
 				{isApiKey || isCustomHttp ? (
 					<KeyRound className="size-4" />
 				) : isServiceIdentity ? (
