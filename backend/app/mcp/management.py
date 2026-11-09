@@ -66,10 +66,12 @@ from app.teams.service import TeamService
 from app.threads.models import ThreadSource
 from app.threads.schemas import (
     ThreadBulkPlacementUpdate,
+    ThreadCompletionUpdate,
     ThreadCreate,
     ThreadModelUpdate,
     ThreadPatch,
     ThreadPlacementUpdate,
+    ThreadReadStateUpdate,
     ThreadResourcesPatch,
 )
 from app.threads.service import ThreadService
@@ -250,6 +252,41 @@ def register_management_tools(mcp: MCPServer) -> None:
             if thread.user_id != user.id:
                 raise NotFoundError("Thread not found")
             return to_json(await service.update_resources(thread_id, data))
+
+    @mcp.tool()
+    async def set_conversation_read_state(
+        thread_id: str, is_unread: bool, ctx: Context
+    ) -> dict[str, Any]:
+        """Mark one owned conversation as unread or read for the caller."""
+        async with tool_session(ctx) as (db, user, workspace_id):
+            service = ThreadService(db, workspace_id)
+            thread = await service.get(thread_id)
+            if thread.user_id != user.id:
+                raise NotFoundError("Thread not found")
+            return to_json(
+                await service.update_read_state(
+                    thread_id,
+                    user.id,
+                    ThreadReadStateUpdate(is_unread=is_unread),
+                )
+            )
+
+    @mcp.tool()
+    async def set_conversation_completion(
+        thread_id: str, completed: bool, ctx: Context
+    ) -> dict[str, Any]:
+        """Complete or reopen one conversation owned by the caller."""
+        async with tool_session(ctx) as (db, user, workspace_id):
+            service = ThreadService(db, workspace_id)
+            thread = await service.get(thread_id)
+            if thread.user_id != user.id:
+                raise NotFoundError("Thread not found")
+            return to_json(
+                await service.update_completion(
+                    thread_id,
+                    ThreadCompletionUpdate(completed=completed),
+                )
+            )
 
     @mcp.tool()
     async def set_conversation_placement(
