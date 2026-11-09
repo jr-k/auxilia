@@ -16,6 +16,7 @@ import {
 	Unplug,
 	UserRound,
 	Volume2,
+	Wrench,
 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { DisconnectSummaryDialog } from "@/app/(protected)/mcp-servers/components/disconnect-summary-dialog";
@@ -775,9 +776,9 @@ function MCPAccountsCard() {
 	return (
 		<section className="rounded-[12px] border border-border bg-card p-5">
 			<SectionHeading
-				icon={<ServerCog className="size-4" />}
-				title="MCP accounts"
-				description="Manage your personal OAuth connections to MCP servers in this workspace."
+				icon={<Wrench className="size-4" />}
+				title="Tools"
+				description="Manage your personal connections to tools in this workspace."
 			/>
 			<div className="flex items-center gap-3 rounded-[9px] border border-input px-4 py-3.5">
 				<span className="flex size-9 shrink-0 items-center justify-center rounded-[8px] border border-border bg-background text-petrol shadow-sm dark:border-white/10 dark:text-panel-terminal">
