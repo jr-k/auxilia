@@ -174,19 +174,14 @@ class RedisTokenStorage(TokenStorage):
         await self.redis.delete(self._tokens_key())
 
     async def get_connection_generation(self) -> str:
-        """Stable generation used to reject callbacks opened before disconnect."""
-        key = self._generation_key()
-        current = await self.redis.get(key)
-        if current:
-            return current.decode() if isinstance(current, bytes) else current
+        """Disconnect marker captured by a newly opened authorization flow.
 
-        generated = secrets.token_urlsafe(24)
-        created = await self.redis.set(key, generated, nx=True)
-        if created:
-            return generated
-        current = await self.redis.get(key)
+        An absent marker means this connection has never been explicitly
+        disconnected. Only a disconnect creates or rotates the marker.
+        """
+        current = await self.redis.get(self._generation_key())
         if not current:
-            raise RuntimeError("Could not initialize MCP connection generation")
+            return ""
         return current.decode() if isinstance(current, bytes) else current
 
     async def rotate_connection_generation(self) -> str:
@@ -196,7 +191,15 @@ class RedisTokenStorage(TokenStorage):
         return generated
 
     async def generation_matches(self, expected: str) -> bool:
-        current = await self.get_connection_generation()
+        current_raw = await self.redis.get(self._generation_key())
+        if not current_raw:
+            # There is no evidence that a disconnect happened. In particular,
+            # do not reject first-time connections because a lazily initialized
+            # marker disappeared while the user was approving consent.
+            return True
+        current = (
+            current_raw.decode() if isinstance(current_raw, bytes) else current_raw
+        )
         return secrets.compare_digest(current, expected)
 
     async def clear_connection_data(self) -> int:
