@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.12.130](https://github.com/jr-k/auxilia/compare/web-v0.12.129...web-v0.12.130) (2026-11-09)
+
+
+### Features
+
+* **langfuse:** review prompt publication ([f36d2ae](https://github.com/jr-k/auxilia/commit/f36d2aec787deec2c73176b9450e8e7eee225c4f))
+* **runtime:** add MCP elicitation and Redis wakeups ([4ea8530](https://github.com/jr-k/auxilia/commit/4ea85309ffbbc0e31fbc235897db6364073ed0d1))
+
+
+### Dependencies
+
+* **web:** upgrade LangGraph streaming client ([8a63b8d](https://github.com/jr-k/auxilia/commit/8a63b8dde7a33e1b9d51dfc5caf3dcf96e5b6b34))
+
 ## [0.12.129](https://github.com/jr-k/auxilia/compare/web-v0.12.128...web-v0.12.129) (2026-11-09)
 
 

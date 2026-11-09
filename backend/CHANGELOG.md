@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.11.96](https://github.com/jr-k/auxilia/compare/backend-v0.11.95...backend-v0.11.96) (2026-11-09)
+
+
+### Features
+
+* **langfuse:** review prompt publication ([f36d2ae](https://github.com/jr-k/auxilia/commit/f36d2aec787deec2c73176b9450e8e7eee225c4f))
+* **runtime:** add MCP elicitation and Redis wakeups ([4ea8530](https://github.com/jr-k/auxilia/commit/4ea85309ffbbc0e31fbc235897db6364073ed0d1))
+
 ## [0.11.95](https://github.com/jr-k/auxilia/compare/backend-v0.11.94...backend-v0.11.95) (2026-11-09)
 
 
