@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.95](https://github.com/jr-k/auxilia/compare/backend-v0.11.94...backend-v0.11.95) (2026-11-09)
+
+
+### Features
+
+* **preferences:** add guided preferences onboarding ([2a72984](https://github.com/jr-k/auxilia/commit/2a729841bde13d23f55ae42d2b2291f137a8ad2c))
+
 ## [0.11.94](https://github.com/jr-k/auxilia/compare/backend-v0.11.93...backend-v0.11.94) (2026-11-08)
 
 
