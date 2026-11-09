@@ -32,6 +32,7 @@ interface Gesture {
 	identifier: number;
 	startX: number;
 	startY: number;
+	startedOpen: boolean;
 	engaged: boolean;
 	lastDistance: number;
 	lastTime: number;
@@ -152,6 +153,7 @@ export function useEdgeSwipe({
 				settleTimerRef.current = null;
 				distanceRef.current = targetDistance;
 				if (targetOpen) {
+					setGestureStartDistance(drawerWidth);
 					content.style.transition = "none";
 					content.style.transform = transformFor(drawerWidth);
 					content.style.willChange = "";
@@ -180,6 +182,7 @@ export function useEdgeSwipe({
 
 	const handleSheetOpenChange = useCallback(
 		(nextOpen: boolean) => {
+			distanceRef.current = nextOpen ? drawerWidth : 0;
 			if (!nextOpen) {
 				if (settleTimerRef.current !== null) {
 					window.clearTimeout(settleTimerRef.current);
@@ -190,7 +193,7 @@ export function useEdgeSwipe({
 			}
 			onOpenChange(nextOpen);
 		},
-		[clearGestureStyles, onOpenChange],
+		[clearGestureStyles, drawerWidth, onOpenChange],
 	);
 
 	useEffect(() => {
@@ -203,30 +206,62 @@ export function useEdgeSwipe({
 		};
 
 		const handleTouchStart = (event: TouchEvent) => {
-			if (openRef.current || event.touches.length !== 1) {
+			if (event.touches.length !== 1) {
 				reset();
 				return;
 			}
 
 			const touch = event.touches[0];
-			const startsAtEdge =
-				edge === "left"
-					? touch.clientX <= EDGE_ZONE_PX
-					: touch.clientX >= window.innerWidth - EDGE_ZONE_PX;
-			if (!startsAtEdge) {
-				reset();
-				return;
+			const startedOpen = openRef.current;
+			if (startedOpen) {
+				const content = contentRef.current;
+				const target = event.target;
+				if (
+					content === null ||
+					!(target instanceof Node) ||
+					!content.contains(target)
+				) {
+					reset();
+					return;
+				}
+			} else {
+				const startsAtEdge =
+					edge === "left"
+						? touch.clientX <= EDGE_ZONE_PX
+						: touch.clientX >= window.innerWidth - EDGE_ZONE_PX;
+				if (!startsAtEdge) {
+					reset();
+					return;
+				}
 			}
 
 			gesture = {
 				identifier: touch.identifier,
 				startX: touch.clientX,
 				startY: touch.clientY,
+				startedOpen,
 				engaged: false,
-				lastDistance: 0,
+				lastDistance: startedOpen ? drawerWidth : 0,
 				lastTime: event.timeStamp,
 				velocity: 0,
 			};
+		};
+
+		const finishGesture = (timeStamp: number) => {
+			if (!gesture?.engaged) {
+				reset();
+				return;
+			}
+
+			const velocity =
+				timeStamp - gesture.lastTime > 80 ? 0 : gesture.velocity;
+			const shouldOpen =
+				Math.abs(velocity) >= OPEN_VELOCITY_THRESHOLD
+					? velocity > 0
+					: distanceRef.current / drawerWidth >=
+						OPEN_PROGRESS_THRESHOLD;
+			reset();
+			settle(shouldOpen);
 		};
 
 		const handleTouchMove = (event: TouchEvent) => {
@@ -235,35 +270,45 @@ export function useEdgeSwipe({
 				(candidate) => candidate.identifier === gesture?.identifier,
 			);
 			if (!touch) {
-				reset();
+				finishGesture(event.timeStamp);
 				return;
 			}
 
 			const deltaX = touch.clientX - gesture.startX;
 			const deltaY = touch.clientY - gesture.startY;
-			const directionalDistance = edge === "left" ? deltaX : -deltaX;
+			const directionalDelta = edge === "left" ? deltaX : -deltaX;
+			const expectedDelta = gesture.startedOpen
+				? -directionalDelta
+				: directionalDelta;
 			const verticalDistance = Math.abs(deltaY);
-
-			if (
-				directionalDistance < -12 ||
-				(verticalDistance > MAX_VERTICAL_DRIFT_PX &&
-					verticalDistance > Math.abs(deltaX))
-			) {
-				reset();
-				return;
-			}
 
 			if (!gesture.engaged) {
 				const isHorizontal =
-					directionalDistance >= DIRECTION_LOCK_PX &&
-					directionalDistance > verticalDistance * 1.15;
-				if (!isHorizontal) return;
+					expectedDelta >= DIRECTION_LOCK_PX &&
+					expectedDelta > verticalDistance * 1.15;
+				if (!isHorizontal) {
+					if (
+						expectedDelta < -12 ||
+						(verticalDistance > MAX_VERTICAL_DRIFT_PX &&
+							verticalDistance > Math.abs(deltaX))
+					) {
+						reset();
+					}
+					return;
+				}
 
 				gesture.engaged = true;
-				distanceRef.current = Math.min(drawerWidth, directionalDistance);
+				distanceRef.current = Math.min(
+					drawerWidth,
+					Math.max(
+						0,
+						(gesture.startedOpen ? drawerWidth : 0) +
+							directionalDelta,
+					),
+				);
 				setGestureStartDistance(distanceRef.current);
 				setGestureControlled(true);
-				onOpenChange(true);
+				if (!gesture.startedOpen) onOpenChange(true);
 				window.requestAnimationFrame(() => {
 					applyDistance(distanceRef.current);
 				});
@@ -272,7 +317,11 @@ export function useEdgeSwipe({
 			if (event.cancelable) event.preventDefault();
 			const boundedDistance = Math.min(
 				drawerWidth,
-				Math.max(0, directionalDistance),
+				Math.max(
+					0,
+					(gesture.startedOpen ? drawerWidth : 0) +
+						directionalDelta,
+				),
 			);
 			const elapsed = Math.max(1, event.timeStamp - gesture.lastTime);
 			gesture.velocity =
@@ -283,23 +332,24 @@ export function useEdgeSwipe({
 		};
 
 		const handleTouchEnd = (event: TouchEvent) => {
-			if (!gesture?.engaged) {
-				reset();
+			if (
+				gesture &&
+				!Array.from(event.changedTouches).some(
+					(touch) => touch.identifier === gesture?.identifier,
+				)
+			) {
 				return;
 			}
-			const velocity =
-				event.timeStamp - gesture.lastTime > 80 ? 0 : gesture.velocity;
-			const shouldOpen =
-				distanceRef.current / drawerWidth >= OPEN_PROGRESS_THRESHOLD ||
-				velocity >= OPEN_VELOCITY_THRESHOLD;
-			reset();
-			settle(shouldOpen);
+			finishGesture(event.timeStamp);
 		};
 
 		const handleTouchCancel = () => {
-			const wasEngaged = gesture?.engaged === true;
-			reset();
-			if (wasEngaged) settle(false);
+			finishGesture(gesture?.lastTime ?? 0);
+		};
+
+		const handleInterruption = () => {
+			if (gesture?.engaged) finishGesture(gesture.lastTime);
+			else reset();
 		};
 
 		document.addEventListener("touchstart", handleTouchStart, {
@@ -312,12 +362,19 @@ export function useEdgeSwipe({
 		document.addEventListener("touchcancel", handleTouchCancel, {
 			passive: true,
 		});
+		window.addEventListener("blur", handleInterruption);
+		document.addEventListener("visibilitychange", handleInterruption);
 
 		return () => {
 			document.removeEventListener("touchstart", handleTouchStart);
 			document.removeEventListener("touchmove", handleTouchMove);
 			document.removeEventListener("touchend", handleTouchEnd);
 			document.removeEventListener("touchcancel", handleTouchCancel);
+			window.removeEventListener("blur", handleInterruption);
+			document.removeEventListener(
+				"visibilitychange",
+				handleInterruption,
+			);
 			if (settleTimerRef.current !== null) {
 				window.clearTimeout(settleTimerRef.current);
 				settleTimerRef.current = null;
