@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.135](https://github.com/jr-k/auxilia/compare/web-v0.12.134...web-v0.12.135) (2026-11-09)
+
+
+### Bug Fixes
+
+* **web:** clarify connected tools section ([ef8a875](https://github.com/jr-k/auxilia/commit/ef8a87564e7efa0adfc0026261a141d6cd78b43d))
+
 ## [0.12.134](https://github.com/jr-k/auxilia/compare/web-v0.12.133...web-v0.12.134) (2026-11-09)
 
 
