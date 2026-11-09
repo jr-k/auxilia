@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.100](https://github.com/jr-k/auxilia/compare/backend-v0.11.99...backend-v0.11.100) (2026-11-09)
+
+
+### Bug Fixes
+
+* **mcp:** accept OAuth callbacks without disconnect marker ([f38381e](https://github.com/jr-k/auxilia/commit/f38381edcc2d328484eaa95ae42d5fa8934246ca))
+
 ## [0.11.99](https://github.com/jr-k/auxilia/compare/backend-v0.11.98...backend-v0.11.99) (2026-11-09)
 
 
