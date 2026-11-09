@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.131](https://github.com/jr-k/auxilia/compare/web-v0.12.130...web-v0.12.131) (2026-11-09)
+
+
+### Bug Fixes
+
+* **chat:** avoid refresh after tool connection ([c1d2c6c](https://github.com/jr-k/auxilia/commit/c1d2c6ca1051111b0c63c110c37c54ee7d007f3b))
+
 ## [0.12.130](https://github.com/jr-k/auxilia/compare/web-v0.12.129...web-v0.12.130) (2026-11-09)
 
 

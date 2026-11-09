@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.97](https://github.com/jr-k/auxilia/compare/backend-v0.11.96...backend-v0.11.97) (2026-11-09)
+
+
+### Features
+
+* **mcp:** manage conversation state ([ef90f4c](https://github.com/jr-k/auxilia/commit/ef90f4c5905f7f41fc1c704df4c60b18b97fa717))
+
 ## [0.11.96](https://github.com/jr-k/auxilia/compare/backend-v0.11.95...backend-v0.11.96) (2026-11-09)
 
 
