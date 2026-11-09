@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.129](https://github.com/jr-k/auxilia/compare/web-v0.12.128...web-v0.12.129) (2026-11-09)
+
+
+### Bug Fixes
+
+* **preferences:** persist skipped onboarding ([6a1a04c](https://github.com/jr-k/auxilia/commit/6a1a04c8aa2a7718ccfa87ff695c7c8d30858f4d))
+
 ## [0.12.128](https://github.com/jr-k/auxilia/compare/web-v0.12.127...web-v0.12.128) (2026-11-09)
 
 
