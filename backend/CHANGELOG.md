@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.11.98](https://github.com/jr-k/auxilia/compare/backend-v0.11.97...backend-v0.11.98) (2026-11-09)
+
+
+### Features
+
+* **mcp:** disconnect personal server accounts ([3d3b374](https://github.com/jr-k/auxilia/commit/3d3b3743186dce5cbfcd828bde2298503d152d6d))
+
+
+### Bug Fixes
+
+* **triggers:** preserve existing resource selections ([e6ca459](https://github.com/jr-k/auxilia/commit/e6ca459d98178589646e63381074d207cb69b6c4))
+
 ## [0.11.97](https://github.com/jr-k/auxilia/compare/backend-v0.11.96...backend-v0.11.97) (2026-11-09)
 
 
