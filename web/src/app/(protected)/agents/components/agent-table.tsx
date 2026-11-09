@@ -27,9 +27,21 @@ import { buildGroupTree } from "@/lib/groups";
 const MAX_INLINE_AVATARS = 3;
 
 const ROLE_BADGES: Record<AgentPermission, { label: string; className: string }> = {
-	owner: { label: "Owner", className: "bg-success-bg text-success" },
-	admin: { label: "Admin", className: "bg-success-bg text-success" },
-	editor: { label: "Editor", className: "bg-warning-bg text-warning" },
+	owner: {
+		label: "Owner",
+		className:
+			"bg-success-bg text-success dark:bg-emerald-950 dark:text-emerald-300",
+	},
+	admin: {
+		label: "Admin",
+		className:
+			"bg-success-bg text-success dark:bg-emerald-950 dark:text-emerald-300",
+	},
+	editor: {
+		label: "Editor",
+		className:
+			"bg-warning-bg text-warning dark:bg-amber-950 dark:text-amber-300",
+	},
 	member: {
 		label: "Member",
 		className: "bg-neutral-bg text-meta dark:bg-white/10 dark:text-panel-dim",
@@ -38,7 +50,8 @@ const ROLE_BADGES: Record<AgentPermission, { label: string; className: string }>
 
 const NO_ACCESS_BADGE = {
 	label: "No access",
-	className: "bg-[#FBEFED] text-[#B04A3A] dark:bg-[#B04A3A]/10",
+	className:
+		"bg-[#FBEFED] text-[#B04A3A] dark:bg-rose-950 dark:text-rose-300",
 };
 
 interface AgentTableProps {

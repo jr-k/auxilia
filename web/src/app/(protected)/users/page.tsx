@@ -572,7 +572,7 @@ export default function UsersPage() {
 	const renderRoleControl = (user: ListedUser) => {
 		if (user.isInstanceOwner) {
 			return (
-				<span className="inline-flex rounded-full bg-amber-500/12 px-2.5 py-1 text-[11.5px] font-semibold text-amber-800 dark:bg-amber-400/15 dark:text-amber-200">
+				<span className="inline-flex rounded-[7px] bg-amber-500/12 px-2.5 py-1 text-[11.5px] font-semibold text-amber-800 dark:bg-amber-400/15 dark:text-amber-200">
 					Owner
 				</span>
 			);
