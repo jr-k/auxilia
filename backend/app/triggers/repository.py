@@ -79,6 +79,13 @@ class TriggerRepository(BaseRepository[TriggerDB]):
         result = await self.db.execute(stmt)
         return list(result.scalars().all())
 
+    async def list_for_agent_for_update(self, agent_id: UUID) -> list[TriggerDB]:
+        stmt = self._scope(
+            select(TriggerDB).where(TriggerDB.agent_id == agent_id)
+        ).with_for_update()
+        result = await self.db.execute(stmt)
+        return list(result.scalars().all())
+
     async def list_team_ids(self, trigger_id: UUID) -> list[UUID]:
         stmt = select(TriggerTeamDB.team_id).where(
             TriggerTeamDB.trigger_id == trigger_id

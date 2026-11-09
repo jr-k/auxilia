@@ -62,6 +62,7 @@ from app.sandbox.schemas import SandboxAgentResponse
 from app.service import BaseService
 from app.skills.service import SkillService
 from app.teams.repository import TeamRepository
+from app.triggers.resources import TriggerResourceService
 from app.users.models import WorkspaceRole
 from app.users.service import UserService
 from app.utils.images import ProcessedImage
@@ -776,6 +777,13 @@ class AgentService(BaseService[AgentDB, AgentRepository]):
         current_agent = await self.repository.get_scoped_for_update(agent_id)
         if not isinstance(current_agent, AgentDB):
             raise NotFoundError(self.not_found_message)
+        trigger_resources = TriggerResourceService(
+            self.db,
+            self.workspace_id,
+            agents=self.repository,
+            skills=self.skill_service.repository,
+        )
+        trigger_resource_snapshot = await trigger_resources.capture_affected(agent_id)
         stored_team_ids = (
             await self.repository.get_team_ids(agent_id)
             if current_agent.visibility == ResourceVisibility.teams
@@ -852,6 +860,7 @@ class AgentService(BaseService[AgentDB, AgentRepository]):
             )
         else:
             await self.skill_service.set_for_agent(agent_id, config.skill_ids)
+        await trigger_resources.preserve_additions(trigger_resource_snapshot)
         response = await self.get(
             agent_id, user_id=user_id, user_role=user_role, user_team_id=user_team_id
         )
