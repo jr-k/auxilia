@@ -10,7 +10,11 @@ import pytest
 from app.agents.mcp_servers.service import get_agent_mcp_server_service
 from app.exceptions import DomainValidationError, NotFoundError
 from app.main import app
-from app.mcp.servers.schemas import MCPServerAgentResponse
+from app.mcp.servers.schemas import (
+    MCPConnectionDisconnectSummary,
+    MCPConnectionReference,
+    MCPServerAgentResponse,
+)
 from app.mcp.servers.service import get_mcp_server_service
 
 
@@ -129,6 +133,53 @@ def test_manual_oauth_callback_requires_authentication(client, mcp_server_servic
 
     assert response.status_code == 401
     mcp_server_service.handle_manual_oauth_callback.assert_not_called()
+
+
+def test_personal_disconnect_requires_authentication(client, mcp_server_service):
+    response = client.delete(f"/mcp-servers/{uuid4()}/my-connection")
+
+    assert response.status_code == 401
+    mcp_server_service.disconnect_my_connection.assert_not_called()
+
+
+def test_personal_disconnect_uses_current_user(
+    client, mcp_server_service, current_user
+):
+    server_id = uuid4()
+    mcp_server_service.disconnect_my_connection.return_value = (
+        MCPConnectionDisconnectSummary(
+            already_absent=[
+                MCPConnectionReference(server_id=server_id, server_name="Docs")
+            ]
+        )
+    )
+
+    response = client.delete(f"/mcp-servers/{server_id}/my-connection")
+
+    assert response.status_code == 200
+    assert response.json()["already_absent"][0]["server_id"] == str(server_id)
+    mcp_server_service.disconnect_my_connection.assert_awaited_once_with(
+        server_id, current_user
+    )
+
+
+def test_disconnect_all_uses_current_user(client, mcp_server_service, current_user):
+    mcp_server_service.disconnect_all_my_connections.return_value = (
+        MCPConnectionDisconnectSummary()
+    )
+
+    response = client.delete("/mcp-servers/connections/mine")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "disconnected": [],
+        "already_absent": [],
+        "failed": [],
+        "unaffected_shared": [],
+    }
+    mcp_server_service.disconnect_all_my_connections.assert_awaited_once_with(
+        current_user
+    )
 
 
 def test_manual_oauth_callback_completes_for_current_user(

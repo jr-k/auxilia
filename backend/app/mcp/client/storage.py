@@ -432,8 +432,10 @@ class TokenStorageFactory:
     ) -> int:
         """Delete all Redis keys for one user's connection to an MCP server.
 
-        Scans for keys matching mcp:{user_id}:{mcp_server_id}:* and deletes
-        them (tokens, client info, AS and protected-resource metadata).
+        Scans for keys matching
+        mcp:{workspace_id}:{user_id}:{mcp_server_id}:* and deletes them
+        (tokens, client info, AS and protected-resource metadata, and the
+        authorization-probe cache).
 
         Returns:
             Number of keys deleted.
@@ -445,6 +447,19 @@ class TokenStorageFactory:
             deleted += 1
         return deleted
 
+    async def list_connected_server_ids(
+        self, workspace_id: str, user_id: str
+    ) -> list[str]:
+        """Server ids for which this workspace member holds stored OAuth tokens."""
+        pattern = f"mcp:{workspace_id}:{user_id}:*:tokens"
+        server_ids: list[str] = []
+        async for key in self.redis.scan_iter(match=pattern):
+            value = key.decode() if isinstance(key, bytes) else key
+            parts = value.split(":")
+            if len(parts) == 5:
+                server_ids.append(parts[3])
+        return server_ids
+
     async def list_connected_user_ids(
         self, workspace_id: str, mcp_server_id: str
     ) -> list[str]:
@@ -455,7 +470,8 @@ class TokenStorageFactory:
         pattern = f"mcp:{workspace_id}:*:{mcp_server_id}:tokens"
         user_ids: list[str] = []
         async for key in self.redis.scan_iter(match=pattern):
-            parts = key.split(":")
+            value = key.decode() if isinstance(key, bytes) else key
+            parts = value.split(":")
             if len(parts) == 5:
                 user_ids.append(parts[2])
         return user_ids

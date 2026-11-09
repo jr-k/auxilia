@@ -115,6 +115,25 @@ async def test_list_connected_user_ids_matches_token_keys_only():
 
 
 @pytest.mark.asyncio
+async def test_list_connected_server_ids_is_scoped_to_user_and_workspace():
+    factory = _factory()
+    other_workspace = "00000000-0000-0000-0000-000000000099"
+    factory.redis.store = {
+        f"mcp:{TEST_WORKSPACE_ID}:u1:s1:tokens": "t",
+        f"mcp:{TEST_WORKSPACE_ID}:u1:s2:tokens": "t",
+        f"mcp:{TEST_WORKSPACE_ID}:u2:s3:tokens": "t",
+        f"mcp:{other_workspace}:u1:s4:tokens": "t",
+        f"mcp:{TEST_WORKSPACE_ID}:u1:s5:authprobe": "1",
+    }
+
+    server_ids = await factory.list_connected_server_ids(
+        str(TEST_WORKSPACE_ID), "u1"
+    )
+
+    assert sorted(server_ids) == ["s1", "s2"]
+
+
+@pytest.mark.asyncio
 async def test_clear_user_server_data_scopes_to_one_user():
     factory = _factory()
     factory.redis.store = {
@@ -122,14 +141,17 @@ async def test_clear_user_server_data_scopes_to_one_user():
         f"mcp:{TEST_WORKSPACE_ID}:u1:s1:client_info": "c",
         f"mcp:{TEST_WORKSPACE_ID}:u2:s1:tokens": "t",
         f"mcp:{TEST_WORKSPACE_ID}:u1:s2:tokens": "t",
+        f"mcp:{TEST_WORKSPACE_ID}:u1:s1:authprobe": "1",
+        "mcp:00000000-0000-0000-0000-000000000099:u1:s1:tokens": "t",
     }
 
     deleted = await factory.clear_user_server_data(str(TEST_WORKSPACE_ID), "u1", "s1")
 
-    assert deleted == 2
+    assert deleted == 3
     assert set(factory.redis.store) == {
         f"mcp:{TEST_WORKSPACE_ID}:u2:s1:tokens",
         f"mcp:{TEST_WORKSPACE_ID}:u1:s2:tokens",
+        "mcp:00000000-0000-0000-0000-000000000099:u1:s1:tokens",
     }
 
 

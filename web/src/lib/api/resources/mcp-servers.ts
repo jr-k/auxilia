@@ -12,6 +12,7 @@ import type {
 	ListToolsResult,
 	MCPAuthType,
 	MCPCatalogSyncResult,
+	MCPConnectionDisconnectSummary,
 	MCPServer,
 	MCPServerConnection,
 	MCPServerCreate,
@@ -156,6 +157,24 @@ export async function deleteMcpServerConnection(
 	userId: string,
 ): Promise<void> {
 	await api.delete(`/mcp-servers/${serverId}/connections/${userId}`);
+}
+
+/** Disconnect only the signed-in user's OAuth account from one server. */
+export async function disconnectMyMcpConnection(
+	serverId: string,
+): Promise<MCPConnectionDisconnectSummary> {
+	const response = await api.delete<MCPConnectionDisconnectSummary>(
+		`/mcp-servers/${serverId}/my-connection`,
+	);
+	return response.data;
+}
+
+/** Disconnect all personal OAuth accounts in the active workspace. */
+export async function disconnectAllMyMcpConnections(): Promise<MCPConnectionDisconnectSummary> {
+	const response = await api.delete<MCPConnectionDisconnectSummary>(
+		"/mcp-servers/connections/mine",
+	);
+	return response.data;
 }
 
 /** Probe a saved server as the caller (may answer with an OAuth URL). */

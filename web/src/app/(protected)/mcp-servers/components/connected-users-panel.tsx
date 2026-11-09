@@ -6,7 +6,12 @@ import * as mcpServersApi from "@/lib/api/resources/mcp-servers";
 import { getApiErrorMessage } from "@/lib/api/errors";
 import { useConfirmDialog } from "@/components/providers/dialog-provider";
 import { UserAvatar } from "@/components/ui/user-avatar";
-import { MCPAuthType, MCPServerConnection } from "@/types/mcp-servers";
+import {
+	MCPAuthType,
+	MCPConnectionDisconnectSummary,
+	MCPServerConnection,
+} from "@/types/mcp-servers";
+import { DisconnectSummaryDialog } from "./disconnect-summary-dialog";
 
 function StatusBadge({ status }: { status: MCPServerConnection["status"] }) {
 	const active = status === "active";
@@ -81,6 +86,8 @@ interface ConnectedUsersPanelProps {
 	isAdmin: boolean;
 	/** Confirms + calls the reset endpoint; resolves true when it ran. */
 	onResetAll: () => Promise<boolean>;
+	onReconnect: () => void;
+	connectionRevision: string;
 }
 
 /**
@@ -93,12 +100,20 @@ export function ConnectedUsersPanel({
 	authType,
 	isAdmin,
 	onResetAll,
+	onReconnect,
+	connectionRevision,
 }: ConnectedUsersPanelProps) {
 	const confirmDialog = useConfirmDialog();
 	const [connections, setConnections] = useState<MCPServerConnection[]>([]);
 	const [isLoading, setIsLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 	const [revokingId, setRevokingId] = useState<string | null>(null);
+	const [personalConnected, setPersonalConnected] = useState<boolean | null>(null);
+	const [personalError, setPersonalError] = useState<string | null>(null);
+	const [isDisconnecting, setIsDisconnecting] = useState(false);
+	const [disconnectSummary, setDisconnectSummary] =
+		useState<MCPConnectionDisconnectSummary | null>(null);
+	const [summaryOpen, setSummaryOpen] = useState(false);
 	const canView = authType === "oauth2" && isAdmin;
 
 	const fetchConnections = useCallback(async () => {
@@ -134,21 +149,63 @@ export function ConnectedUsersPanel({
 		};
 	}, [canView, serverId]);
 
+	useEffect(() => {
+		if (authType !== "oauth2") return;
+		let active = true;
+		setPersonalConnected(null);
+		void mcpServersApi
+			.isMcpServerConnected(serverId)
+			.then((connected) => {
+				if (!active) return;
+				setPersonalConnected(connected);
+				setPersonalError(null);
+			})
+			.catch((err: unknown) => {
+				if (!active) return;
+				setPersonalError(
+					getApiErrorMessage(err, "Failed to load your connection status."),
+				);
+			});
+		return () => {
+			active = false;
+		};
+	}, [authType, connectionRevision, serverId]);
+
 	if (authType !== "oauth2") {
 		return <CredentialNote authType={authType} />;
-	}
-
-	if (!isAdmin) {
-		return (
-			<div className="rounded-[10px] border border-dashed border-input px-5 py-8 text-center text-[13px] font-medium text-meta dark:border-white/15 dark:text-panel-dim">
-				Only workspace admins can view and manage user connections.
-			</div>
-		);
 	}
 
 	const handleResetAll = async () => {
 		if (await onResetAll()) {
 			await fetchConnections();
+		}
+	};
+
+	const handlePersonalDisconnect = async () => {
+		if (
+			!(await confirmDialog({
+				title: "Disconnect your account?",
+				description:
+					"You will need to reconnect before using this MCP server again. Other users and shared credentials are not affected.",
+				confirmLabel: "Disconnect my account",
+				destructive: true,
+			}))
+		)
+			return;
+		setIsDisconnecting(true);
+		setPersonalError(null);
+		try {
+			const result = await mcpServersApi.disconnectMyMcpConnection(serverId);
+			setDisconnectSummary(result);
+			setSummaryOpen(true);
+			if (result.failed.length === 0) setPersonalConnected(false);
+			if (isAdmin) await fetchConnections();
+		} catch (err) {
+			setPersonalError(
+				getApiErrorMessage(err, "Failed to disconnect your account."),
+			);
+		} finally {
+			setIsDisconnecting(false);
 		}
 	};
 
@@ -183,101 +240,156 @@ export function ConnectedUsersPanel({
 
 	return (
 		<div className="flex min-h-0 flex-1 flex-col">
-			<div className="mb-3 flex flex-none items-baseline gap-2.5">
-				<span className="text-[10.5px] font-semibold text-subtle dark:text-panel-dim">
-					Connected users
-				</span>
-				<span className="text-[10.5px] text-meta dark:text-panel-dim">
-					{isLoading ? (
-						"…"
-					) : error && connections.length === 0 ? (
-						"Not available"
-					) : (
-						<span className="font-mono">{connections.length}</span>
-					)}
-				</span>
-				<span className="flex-1" />
-				{connections.length > 0 && (
+			<div className="rounded-[10px] border border-border bg-card p-4">
+				<div className="flex items-center gap-3">
+					<div className="min-w-0 flex-1">
+						<p className="text-[13.5px] font-semibold text-foreground">
+							Your connection
+						</p>
+						<p className="mt-0.5 text-[12px] text-meta dark:text-panel-dim">
+							{personalConnected === null
+								? "Checking your account…"
+								: personalConnected
+									? "Your personal OAuth account is connected."
+									: "No personal account is connected."}
+						</p>
+					</div>
+					{personalConnected === false && (
 					<button
 						type="button"
-						title="Revokes all user connections, users will need to re-authenticate."
 						onClick={() => {
-							void handleResetAll();
+								onReconnect();
 						}}
-						className="cursor-pointer text-[12px] font-semibold text-[#B04A3A] transition-colors hover:text-destructive"
+							className="cursor-pointer rounded-[7px] bg-petrol px-3 py-[6px] text-[12px] font-semibold text-white transition-colors hover:bg-petrol/90"
 					>
-						Reset all connections
+							Reconnect
 					</button>
+					)}
+					{personalConnected === true && (
+						<button
+							type="button"
+							disabled={isDisconnecting}
+							onClick={() => {
+								void handlePersonalDisconnect();
+							}}
+							className="cursor-pointer rounded-[7px] border border-border px-3 py-[6px] text-[12px] font-semibold text-[#B04A3A] transition-colors hover:bg-[#FBEFED] disabled:cursor-default disabled:opacity-50 dark:hover:bg-rose-950"
+						>
+							{isDisconnecting ? "Disconnecting…" : "Disconnect my account"}
+						</button>
+					)}
+				</div>
+				{personalError && (
+					<p className="mt-3 rounded-[8px] bg-destructive/10 px-3 py-2 text-[12px] text-destructive">
+						{personalError}
+					</p>
 				)}
 			</div>
 
-			{error && (
-				<div className="mb-3 flex-none rounded-[10px] bg-destructive/10 px-4 py-2.5 text-[12.5px] font-medium text-destructive">
-					{error}
+			{isAdmin && (
+				<div className="mt-5 flex min-h-0 flex-1 flex-col">
+					<div className="mb-3 flex flex-none items-baseline gap-2.5">
+						<span className="text-[10.5px] font-semibold text-subtle dark:text-panel-dim">
+							Connected users
+						</span>
+						<span className="text-[10.5px] text-meta dark:text-panel-dim">
+							{isLoading ? (
+								"…"
+							) : error && connections.length === 0 ? (
+								"Not available"
+							) : (
+								<span className="font-mono">{connections.length}</span>
+							)}
+						</span>
+						<span className="flex-1" />
+						{connections.length > 0 && (
+							<button
+								type="button"
+								title="Revokes all user connections, users will need to re-authenticate."
+								onClick={() => {
+									void handleResetAll();
+								}}
+								className="cursor-pointer text-[12px] font-semibold text-[#B04A3A] transition-colors hover:text-destructive"
+							>
+								Reset all connections
+							</button>
+						)}
+					</div>
+
+					{error && (
+						<div className="mb-3 flex-none rounded-[10px] bg-destructive/10 px-4 py-2.5 text-[12.5px] font-medium text-destructive">
+							{error}
+						</div>
+					)}
+
+					<div className="min-h-0 overflow-y-auto rounded-[10px] border border-border bg-card [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+						{isLoading ? (
+							<div className="px-4 py-8 text-center text-[13px] font-medium text-meta dark:text-panel-dim">
+								Loading connections…
+							</div>
+						) : error && connections.length === 0 ? (
+							<div className="px-4 py-8 text-center">
+								<button
+									type="button"
+									onClick={() => {
+										setIsLoading(true);
+										void fetchConnections();
+									}}
+									className="cursor-pointer text-[13px] font-semibold text-petrol hover:underline dark:text-panel-terminal"
+								>
+									Retry loading connections
+								</button>
+							</div>
+						) : connections.length === 0 ? (
+							<div className="px-4 py-8 text-center text-[13px] font-medium text-meta dark:text-panel-dim">
+								No one is connected to this server yet.
+							</div>
+						) : (
+							connections.map((connection) => (
+								<div
+									key={connection.userId}
+									className="flex items-center gap-3 border-b border-hairline px-4 py-[11px] transition-colors last:border-b-0 hover:bg-sidebar dark:border-white/5 dark:hover:bg-white/5"
+								>
+									<UserAvatar
+										name={connection.name}
+										pictureUrl={connection.pictureUrl}
+										userId={connection.userId}
+										imageRevision={connection.imageRevision}
+										className="shrink-0"
+									/>
+									<span className="min-w-0 flex-1">
+										<span className="block truncate text-[13.5px] font-semibold text-foreground">
+											{connection.name || "Unknown user"}
+										</span>
+										<span className="mt-px block truncate font-mono text-[10.5px] text-meta dark:text-panel-dim">
+											{connection.email || connection.userId}
+										</span>
+									</span>
+									<StatusBadge status={connection.status} />
+									<button
+										type="button"
+										disabled={revokingId === connection.userId}
+										onClick={() => {
+											void handleRevoke(connection);
+										}}
+										className="cursor-pointer rounded-[7px] border border-border px-3 py-[5px] text-[12px] font-medium text-[#B04A3A] transition-colors hover:border-[#F0D5D0] hover:bg-[#FBEFED] disabled:cursor-default disabled:opacity-50 dark:hover:bg-rose-950"
+									>
+										{revokingId === connection.userId
+											? "Revoking…"
+											: "Revoke"}
+									</button>
+								</div>
+							))
+						)}
+					</div>
 				</div>
 			)}
 
-			{/* Hugs its rows; caps at the panel height (flex shrink) and then
-			    scrolls internally. */}
-			<div className="min-h-0 overflow-y-auto rounded-[10px] border border-border bg-card [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-				{isLoading ? (
-					<div className="px-4 py-8 text-center text-[13px] font-medium text-meta dark:text-panel-dim">
-						Loading connections…
-					</div>
-				) : error && connections.length === 0 ? (
-					// A failed load must not masquerade as "no one is connected".
-					<div className="px-4 py-8 text-center">
-						<button
-							type="button"
-							onClick={() => {
-								setIsLoading(true);
-								void fetchConnections();
-							}}
-							className="cursor-pointer text-[13px] font-semibold text-petrol hover:underline dark:text-panel-terminal"
-						>
-							Retry loading connections
-						</button>
-					</div>
-				) : connections.length === 0 ? (
-					<div className="px-4 py-8 text-center text-[13px] font-medium text-meta dark:text-panel-dim">
-						No one is connected to this server yet.
-					</div>
-				) : (
-					connections.map((connection) => (
-						<div
-							key={connection.userId}
-							className="flex items-center gap-3 border-b border-hairline px-4 py-[11px] transition-colors last:border-b-0 hover:bg-sidebar dark:border-white/5 dark:hover:bg-white/5"
-						>
-							<UserAvatar
-								name={connection.name}
-								pictureUrl={connection.pictureUrl}
-								userId={connection.userId}
-								imageRevision={connection.imageRevision}
-								className="shrink-0"
-							/>
-							<span className="min-w-0 flex-1">
-								<span className="block truncate text-[13.5px] font-semibold text-foreground">
-									{connection.name || "Unknown user"}
-								</span>
-								<span className="mt-px block truncate font-mono text-[10.5px] text-meta dark:text-panel-dim">
-									{connection.email || connection.userId}
-								</span>
-							</span>
-							<StatusBadge status={connection.status} />
-							<button
-								type="button"
-								disabled={revokingId === connection.userId}
-								onClick={() => {
-									void handleRevoke(connection);
-								}}
-								className="cursor-pointer rounded-[7px] border border-border px-3 py-[5px] text-[12px] font-medium text-[#B04A3A] transition-colors hover:border-[#F0D5D0] hover:bg-[#FBEFED] disabled:cursor-default disabled:opacity-50 dark:hover:bg-rose-950"
-							>
-								{revokingId === connection.userId ? "Revoking…" : "Revoke"}
-							</button>
-						</div>
-					))
-				)}
-			</div>
+			<DisconnectSummaryDialog
+				open={summaryOpen}
+				onOpenChange={setSummaryOpen}
+				summary={disconnectSummary}
+				title="Your MCP account disconnect report"
+			/>
 		</div>
 	);
 }

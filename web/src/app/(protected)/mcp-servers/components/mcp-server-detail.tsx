@@ -668,6 +668,10 @@ export default function MCPServerDetail({
 					authType={server.authType}
 					isAdmin={isAdmin}
 					onResetAll={handleReset}
+					onReconnect={() => {
+						void runSavedTest(server);
+					}}
+					connectionRevision={testStatus}
 				/>
 			)}
 		</div>

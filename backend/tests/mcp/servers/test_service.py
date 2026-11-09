@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 from mcp.shared.auth import OAuthClientInformationFull
@@ -25,7 +25,12 @@ from app.mcp.client.storage import RedisTokenStorage
 from app.mcp.compatibility import OAuthRedirectMode
 from app.mcp.servers import service as service_module
 from app.mcp.servers.models import MCPAuthType
-from app.mcp.servers.schemas import MCPServerCreate, MCPServerPatch
+from app.mcp.servers.schemas import (
+    MCPConnectionDisconnectSummary,
+    MCPDisconnectedConnection,
+    MCPServerCreate,
+    MCPServerPatch,
+)
 from app.mcp.servers.service import MCPServerService
 from tests.conftest import TEST_WORKSPACE_ID
 
@@ -729,6 +734,146 @@ async def test_delete_connection_clears_only_that_users_keys(
     factory.clear_user_server_data.assert_awaited_once_with(
         str(TEST_WORKSPACE_ID), str(user_id), str(server_id)
     )
+
+
+async def test_disconnect_my_connection_is_idempotent_and_user_scoped(
+    service, monkeypatch
+):
+    server = make_mcp_server()
+    server.auth_type = MCPAuthType.oauth2
+    user = SimpleNamespace(id=uuid4())
+    service.get_visible = AsyncMock(return_value=server)
+    storage = MagicMock()
+    storage.get_stored_token = AsyncMock(
+        side_effect=[
+            SimpleNamespace(token_payload=SimpleNamespace()),
+            None,
+        ]
+    )
+    storage.get_oauth_metadata = AsyncMock(return_value=None)
+    storage.get_client_info = AsyncMock(return_value=None)
+    factory = MagicMock()
+    factory.get_storage.return_value = storage
+    factory.clear_user_server_data = AsyncMock(return_value=4)
+    monkeypatch.setattr(service_module, "TokenStorageFactory", lambda: factory)
+    monkeypatch.setattr(
+        service_module, "revoke_oauth_tokens", AsyncMock(return_value="unsupported")
+    )
+
+    first = await service.disconnect_my_connection(server.id, user)
+    second = await service.disconnect_my_connection(server.id, user)
+
+    assert [item.server_id for item in first.disconnected] == [server.id]
+    assert [item.server_id for item in second.already_absent] == [server.id]
+    factory.clear_user_server_data.assert_awaited_with(
+        str(TEST_WORKSPACE_ID), str(user.id), str(server.id)
+    )
+
+
+async def test_disconnect_provider_failure_does_not_block_local_removal(
+    service, monkeypatch
+):
+    server = make_mcp_server()
+    server.auth_type = MCPAuthType.oauth2
+    user = SimpleNamespace(id=uuid4())
+    service.get_visible = AsyncMock(return_value=server)
+    storage = MagicMock()
+    storage.get_stored_token = AsyncMock(
+        return_value=SimpleNamespace(token_payload=SimpleNamespace())
+    )
+    storage.get_oauth_metadata = AsyncMock(return_value=MagicMock())
+    storage.get_client_info = AsyncMock(return_value=MagicMock())
+    factory = MagicMock()
+    factory.get_storage.return_value = storage
+    factory.clear_user_server_data = AsyncMock(return_value=5)
+    monkeypatch.setattr(service_module, "TokenStorageFactory", lambda: factory)
+    monkeypatch.setattr(
+        service_module, "revoke_oauth_tokens", AsyncMock(return_value="failed")
+    )
+
+    result = await service.disconnect_my_connection(server.id, user)
+
+    assert result.failed == []
+    assert result.disconnected[0].provider_revocation == "failed"
+    assert result.disconnected[0].warning is not None
+
+
+async def test_disconnect_shared_credential_is_unaffected(service, monkeypatch):
+    server = make_mcp_server()
+    server.auth_type = MCPAuthType.api_key
+    user = SimpleNamespace(id=uuid4())
+    service.get_visible = AsyncMock(return_value=server)
+    factory = MagicMock()
+    monkeypatch.setattr(service_module, "TokenStorageFactory", factory)
+
+    result = await service.disconnect_my_connection(server.id, user)
+
+    assert [item.server_id for item in result.unaffected_shared] == [server.id]
+    factory.assert_not_called()
+
+
+async def test_disconnect_all_processes_auxilia_last(service, mock_repo, monkeypatch):
+    user = SimpleNamespace(id=uuid4())
+    regular_id, auxilia_id, shared_id = uuid4(), uuid4(), uuid4()
+    visible = [
+        SimpleNamespace(
+            id=regular_id,
+            name="Regular",
+            auth_type=MCPAuthType.oauth2,
+        ),
+        SimpleNamespace(
+            id=auxilia_id,
+            name="Auxilia",
+            auth_type=MCPAuthType.oauth2,
+        ),
+        SimpleNamespace(
+            id=shared_id,
+            name="Shared",
+            auth_type=MCPAuthType.service_identity,
+        ),
+    ]
+    service.list_responses = AsyncMock(return_value=visible)
+    regular = make_mcp_server(
+        id=regular_id, name="Regular", url="https://regular.example.com/mcp"
+    )
+    regular.auth_type = MCPAuthType.oauth2
+    auxilia = make_mcp_server(
+        id=auxilia_id, name="Auxilia", url="https://auxilia.example.com/mcp"
+    )
+    auxilia.auth_type = MCPAuthType.oauth2
+    mock_repo.list_by_ids = AsyncMock(return_value=[regular, auxilia])
+    factory = MagicMock()
+    factory.list_connected_server_ids = AsyncMock(
+        return_value=[str(regular_id), str(auxilia_id)]
+    )
+    monkeypatch.setattr(service_module, "TokenStorageFactory", lambda: factory)
+    monkeypatch.setattr(
+        service_module, "resource_url", lambda: "https://auxilia.example.com/mcp"
+    )
+    calls: list[UUID] = []
+
+    async def disconnect(**kwargs):
+        calls.append(kwargs["server_id"])
+        return MCPConnectionDisconnectSummary(
+            disconnected=[
+                MCPDisconnectedConnection(
+                    server_id=kwargs["server_id"],
+                    server_name=kwargs["server_name"],
+                    provider_revocation="succeeded",
+                )
+            ]
+        )
+
+    service._disconnect_personal_connection = AsyncMock(side_effect=disconnect)
+
+    result = await service.disconnect_all_my_connections(user)
+
+    assert calls[-1] == auxilia_id
+    assert {item.server_id for item in result.disconnected} == {
+        regular_id,
+        auxilia_id,
+    }
+    assert [item.server_id for item in result.unaffected_shared] == [shared_id]
 
 
 async def test_update_persists_auth_method_only(service, mock_repo):

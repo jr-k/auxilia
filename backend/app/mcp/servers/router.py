@@ -23,6 +23,7 @@ from app.mcp.servers.schemas import (
     ConnectionTestResult,
     ListToolsResult,
     MCPCatalogSyncResponse,
+    MCPConnectionDisconnectSummary,
     MCPServerAgentResponse,
     MCPServerConnectionResponse,
     MCPServerCreate,
@@ -120,6 +121,20 @@ async def get_oauth_client_metadata() -> JSONResponse:
 async def get_legacy_oauth_client_metadata() -> JSONResponse:
     """Keep the original CIMD URL valid for authorization flows already open."""
     return _oauth_client_metadata_response(legacy=True)
+
+
+@router.delete(
+    "/connections/mine", response_model=MCPConnectionDisconnectSummary, status_code=200
+)
+async def disconnect_all_my_mcp_connections(
+    current_user: UserDB = Depends(get_current_user),
+    service: MCPServerService = Depends(get_mcp_server_service),
+) -> MCPConnectionDisconnectSummary:
+    """Disconnect only this authenticated user's personal MCP accounts.
+
+    Other users and workspace-level credentials are left unchanged.
+    """
+    return await service.disconnect_all_my_connections(current_user)
 
 
 @router.get("/{server_id}", response_model=MCPServerResponse)
@@ -252,6 +267,20 @@ async def reset_mcp_server(
     Clears all per-user OAuth tokens, client info, and metadata from Redis.
     """
     return await service.reset(server_id)
+
+
+@router.delete(
+    "/{server_id}/my-connection",
+    response_model=MCPConnectionDisconnectSummary,
+    status_code=200,
+)
+async def disconnect_my_mcp_connection(
+    server_id: UUID,
+    current_user: UserDB = Depends(get_current_user),
+    service: MCPServerService = Depends(get_mcp_server_service),
+) -> MCPConnectionDisconnectSummary:
+    """Disconnect only the authenticated user's account from this MCP server."""
+    return await service.disconnect_my_connection(server_id, current_user)
 
 
 @router.get(

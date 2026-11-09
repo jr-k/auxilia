@@ -65,12 +65,16 @@ The redirect URI you need to configure in the provider is always:
 OAuth tokens live in Redis under keys of the form:
 
 ```
-mcp:{user_id}:{mcp_server_id}:tokens
+mcp:{workspace_id}:{user_id}:{mcp_server_id}:tokens
 ```
 
 Each user has their own token set for every MCP server they've connected. Tokens are refreshed automatically when they expire. OAuth client secrets (for static-credential servers) are encrypted with AES-GCM in Postgres.
 
-## Reconnecting and resetting
+## Disconnecting, reconnecting, and resetting
 
-- **Reconnect** — click **Connect** again to re-authorize. Existing tokens are replaced.
-- **Reset** — admins can wipe all stored OAuth state for a server (all users, all clients). Useful after changing static credentials or rotating an OAuth app.
+- **Disconnect my account** removes only your OAuth tokens, registration metadata, and cached authorization state for one server in the active workspace.
+- **Disconnect all my MCP accounts** applies the same operation to all of your personal OAuth connections. Other users, API keys, service accounts, custom HTTP credentials, and open endpoints are preserved.
+- **Reconnect** opens the normal authorization flow again and stores a new personal token set.
+- **Reset all connections** is a separate admin operation that wipes stored OAuth state for every user of one server. Use it only after changing shared OAuth configuration or rotating an OAuth application.
+
+When an authorization server advertises an OAuth revocation endpoint, **auxilia** also asks the provider to revoke the token. This remote step is best effort. Local credentials are still removed when the provider is unavailable or rejects the revocation request, and the disconnect report shows that warning.

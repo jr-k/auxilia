@@ -215,6 +215,35 @@ class MCPServerConnectionResponse(SQLModel):
     status: Literal["active", "expired"] = "active"
 
 
+class MCPConnectionReference(SQLModel):
+    """Safe identity for one configured MCP server in a disconnect report."""
+
+    server_id: UUID
+    server_name: str
+
+
+class MCPDisconnectedConnection(MCPConnectionReference):
+    """A locally removed personal connection and its remote revocation outcome."""
+
+    provider_revocation: Literal["succeeded", "unsupported", "failed"]
+    warning: str | None = None
+
+
+class MCPConnectionDisconnectFailure(MCPConnectionReference):
+    """A personal connection Auxilia could not remove locally."""
+
+    detail: str
+
+
+class MCPConnectionDisconnectSummary(SQLModel):
+    """Idempotent, user-scoped result shared by REST and internal MCP tools."""
+
+    disconnected: list[MCPDisconnectedConnection] = Field(default_factory=list)
+    already_absent: list[MCPConnectionReference] = Field(default_factory=list)
+    failed: list[MCPConnectionDisconnectFailure] = Field(default_factory=list)
+    unaffected_shared: list[MCPConnectionReference] = Field(default_factory=list)
+
+
 class ConnectionProbeRequest(SQLModel):
     """Candidate credentials to test without saving (create/edit form)."""
 

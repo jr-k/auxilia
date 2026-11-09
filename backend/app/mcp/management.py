@@ -853,6 +853,34 @@ def register_management_tools(mcp: MCPServer) -> None:
             )
 
     @mcp.tool()
+    async def disconnect_my_mcp_connection(
+        server_id: UUID, ctx: Context
+    ) -> dict[str, Any]:
+        """Disconnect only your personal account from one MCP server.
+
+        This does not affect any other user, server configuration, API key,
+        service account, or other shared workspace credential.
+        """
+        async with tool_session(ctx) as (db, user, workspace_id):
+            result = await MCPServerService(
+                db, workspace_id
+            ).disconnect_my_connection(server_id, user)
+            return to_json(result)
+
+    @mcp.tool()
+    async def disconnect_all_my_mcp_connections(ctx: Context) -> dict[str, Any]:
+        """Disconnect all of your personal MCP accounts in this workspace.
+
+        Other users and all shared workspace credentials remain connected. The
+        Auxilia MCP connection carrying this action is processed last.
+        """
+        async with tool_session(ctx) as (db, user, workspace_id):
+            result = await MCPServerService(
+                db, workspace_id
+            ).disconnect_all_my_connections(user)
+            return to_json(result)
+
+    @mcp.tool()
     async def reset_mcp_server_connections(
         server_id: UUID, ctx: Context
     ) -> dict[str, Any]:

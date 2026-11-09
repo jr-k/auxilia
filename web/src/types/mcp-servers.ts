@@ -168,6 +168,28 @@ export interface MCPServerConnection {
 	status: "active" | "expired";
 }
 
+export interface MCPConnectionReference {
+	serverId: string;
+	serverName: string;
+}
+
+export interface MCPDisconnectedConnection extends MCPConnectionReference {
+	providerRevocation: "succeeded" | "unsupported" | "failed";
+	warning?: string | null;
+}
+
+export interface MCPConnectionDisconnectFailure
+	extends MCPConnectionReference {
+	detail: string;
+}
+
+export interface MCPConnectionDisconnectSummary {
+	disconnected: MCPDisconnectedConnection[];
+	alreadyAbsent: MCPConnectionReference[];
+	failed: MCPConnectionDisconnectFailure[];
+	unaffectedShared: MCPConnectionReference[];
+}
+
 export interface MCPCatalogSyncResult {
 	added: string[];
 	removed: string[];

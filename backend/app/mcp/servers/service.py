@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import contextlib
 import logging
 from datetime import UTC, datetime
@@ -29,9 +30,11 @@ from app.mcp.client.connectivity import (
 )
 from app.mcp.client.exceptions import OAuthAuthorizationRequired
 from app.mcp.client.failures import classify_mcp_failure
+from app.mcp.client.revocation import revoke_oauth_tokens
 from app.mcp.client.service_credentials import validate_service_credential
 from app.mcp.client.storage import TokenStorageFactory
 from app.mcp.compatibility import OAuthRedirectMode, OAuthRedirectStrategy
+from app.mcp.oauth.service import resource_url
 from app.mcp.servers import catalog as mcp_catalog
 from app.mcp.servers.models import (
     MCPAuthType,
@@ -43,6 +46,10 @@ from app.mcp.servers.repository import MCPServerRepository
 from app.mcp.servers.schemas import (
     AuthorizationRequired,
     MCPCatalogSyncResponse,
+    MCPConnectionDisconnectFailure,
+    MCPConnectionDisconnectSummary,
+    MCPConnectionReference,
+    MCPDisconnectedConnection,
     MCPServerConnectionResponse,
     MCPServerCreate,
     MCPServerPatch,
@@ -811,6 +818,203 @@ class MCPServerService(BaseService[MCPServerDB, MCPServerRepository]):
             str(self.workspace_id), str(user_id), str(server_id)
         )
         return {"deleted_keys": deleted}
+
+    async def _disconnect_personal_connection(
+        self,
+        *,
+        server_id: UUID,
+        server_name: str,
+        user_id: UUID,
+        factory: TokenStorageFactory,
+    ) -> MCPConnectionDisconnectSummary:
+        """Remove one personal OAuth connection without touching server config."""
+        if self.workspace_id is None:
+            raise RuntimeError("workspace_id is required")
+
+        reference = MCPConnectionReference(
+            server_id=server_id, server_name=server_name
+        )
+        storage = factory.get_storage(
+            str(self.workspace_id), str(user_id), str(server_id)
+        )
+        stored = None
+        metadata = None
+        client_info = None
+        snapshot_failed = False
+        try:
+            stored = await storage.get_stored_token()
+            if stored is not None:
+                try:
+                    metadata = await storage.get_oauth_metadata()
+                    client_info = await storage.get_client_info()
+                except Exception:  # noqa: BLE001 - local deletion still has priority
+                    snapshot_failed = True
+        except Exception:  # noqa: BLE001 - clear corrupt or unreadable local state
+            snapshot_failed = True
+
+        try:
+            deleted = await factory.clear_user_server_data(
+                str(self.workspace_id), str(user_id), str(server_id)
+            )
+        except Exception as exc:  # noqa: BLE001 - one failure must not stop bulk work
+            logger.warning(
+                "Personal MCP disconnect failed for workspace %s user %s server %s (%s)",
+                self.workspace_id,
+                user_id,
+                server_id,
+                type(exc).__name__,
+            )
+            return MCPConnectionDisconnectSummary(
+                failed=[
+                    MCPConnectionDisconnectFailure(
+                        **reference.model_dump(),
+                        detail="Auxilia could not remove the local connection.",
+                    )
+                ]
+            )
+
+        if stored is None and not snapshot_failed:
+            logger.info(
+                "Personal MCP connection already absent for workspace %s user %s server %s",
+                self.workspace_id,
+                user_id,
+                server_id,
+            )
+            return MCPConnectionDisconnectSummary(already_absent=[reference])
+
+        provider_status = (
+            "failed"
+            if snapshot_failed
+            else await revoke_oauth_tokens(
+                server_id=str(server_id),
+                tokens=stored.token_payload,
+                metadata=metadata,
+                client_info=client_info,
+            )
+        )
+        warning = (
+            "The local connection was removed, but the provider could not be notified."
+            if provider_status == "failed"
+            else None
+        )
+        logger.info(
+            "Disconnected personal MCP connection for workspace %s user %s server %s; "
+            "provider revocation=%s; deleted_keys=%s",
+            self.workspace_id,
+            user_id,
+            server_id,
+            provider_status,
+            deleted,
+        )
+        return MCPConnectionDisconnectSummary(
+            disconnected=[
+                MCPDisconnectedConnection(
+                    **reference.model_dump(),
+                    provider_revocation=provider_status,
+                    warning=warning,
+                )
+            ]
+        )
+
+    async def disconnect_my_connection(
+        self, server_id: UUID, user: UserDB
+    ) -> MCPConnectionDisconnectSummary:
+        """Disconnect only the authenticated user's account for one server."""
+        server = await self.get_visible(server_id, user)
+        reference = MCPConnectionReference(
+            server_id=server.id, server_name=server.name
+        )
+        if server.auth_type != MCPAuthType.oauth2:
+            return MCPConnectionDisconnectSummary(unaffected_shared=[reference])
+        return await self._disconnect_personal_connection(
+            server_id=server.id,
+            server_name=server.name,
+            user_id=user.id,
+            factory=TokenStorageFactory(),
+        )
+
+    async def disconnect_all_my_connections(
+        self, user: UserDB
+    ) -> MCPConnectionDisconnectSummary:
+        """Disconnect this user from every personal OAuth account in the workspace."""
+        if self.workspace_id is None:
+            raise RuntimeError("workspace_id is required")
+
+        factory = TokenStorageFactory()
+        visible = await self.list_responses(user)
+        visible_by_id = {server.id: server for server in visible}
+        token_ids: set[UUID] = set()
+        for raw_id in await factory.list_connected_server_ids(
+            str(self.workspace_id), str(user.id)
+        ):
+            try:
+                token_ids.add(UUID(raw_id))
+            except ValueError:
+                logger.warning(
+                    "Ignoring malformed personal MCP connection key in workspace %s "
+                    "for user %s",
+                    self.workspace_id,
+                    user.id,
+                )
+
+        visible_oauth_ids = {
+            server.id for server in visible if server.auth_type == MCPAuthType.oauth2
+        }
+        candidate_ids = token_ids | visible_oauth_ids
+        rows = await self.repository.list_by_ids(candidate_ids)
+        rows_by_id = {server.id: server for server in rows}
+
+        summary = MCPConnectionDisconnectSummary(
+            unaffected_shared=[
+                MCPConnectionReference(
+                    server_id=server.id, server_name=server.name
+                )
+                for server in visible
+                if server.auth_type != MCPAuthType.oauth2
+            ]
+        )
+
+        candidates: list[tuple[UUID, str, bool]] = []
+        for server_id in candidate_ids:
+            row = rows_by_id.get(server_id)
+            response = visible_by_id.get(server_id)
+            name = (
+                response.name
+                if response is not None
+                else row.name
+                if row is not None
+                else "Unavailable MCP server"
+            )
+            is_auxilia = (
+                row is not None
+                and row.url.rstrip("/") == resource_url().rstrip("/")
+            )
+            candidates.append((server_id, name, is_auxilia))
+
+        async def disconnect(
+            candidate: tuple[UUID, str, bool],
+        ) -> MCPConnectionDisconnectSummary:
+            server_id, name, _ = candidate
+            return await self._disconnect_personal_connection(
+                server_id=server_id,
+                server_name=name,
+                user_id=user.id,
+                factory=factory,
+            )
+
+        regular = [candidate for candidate in candidates if not candidate[2]]
+        auxilia = [candidate for candidate in candidates if candidate[2]]
+        results = list(await asyncio.gather(*(disconnect(item) for item in regular)))
+        # The MCP connection carrying this tool call is revoked only after every
+        # other provider has completed, so the operation can return a full report.
+        for candidate in auxilia:
+            results.append(await disconnect(candidate))
+
+        for result in results:
+            summary.disconnected.extend(result.disconnected)
+            summary.already_absent.extend(result.already_absent)
+            summary.failed.extend(result.failed)
+        return summary
 
     async def _complete_oauth(
         self,
