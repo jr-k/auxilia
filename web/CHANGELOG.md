@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.134](https://github.com/jr-k/auxilia/compare/web-v0.12.133...web-v0.12.134) (2026-11-09)
+
+
+### Bug Fixes
+
+* **web:** improve MCP account controls ([32a4e67](https://github.com/jr-k/auxilia/commit/32a4e67435084e00c61ab31a49f5b8e696f73dd1))
+
 ## [0.12.133](https://github.com/jr-k/auxilia/compare/web-v0.12.132...web-v0.12.133) (2026-11-09)
 
 
