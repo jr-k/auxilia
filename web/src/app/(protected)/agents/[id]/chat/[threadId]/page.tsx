@@ -1113,7 +1113,7 @@ const ChatPage = () => {
               onReopen={() => {
                 void updateCompletion(false);
               }}
-              className="w-full max-w-4xl mx-auto lg:px-10 sm:px-6 px-3 py-4"
+              className="w-full max-w-4xl mx-auto px-3 py-2 sm:px-6 sm:py-4 lg:px-10"
               stop={actions.stop}
               stopping={run.isStopping}
               selectedModel={thread?.modelId ?? undefined}

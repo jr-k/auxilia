@@ -24,12 +24,16 @@ import {
 	isToolMessage,
 } from "@langchain/core/messages";
 import {
+	BoxIcon,
 	BrainIcon,
 	ChartNoAxesColumnIncreasingIcon,
 	CheckIcon,
+	ChevronRightIcon,
 	CpuIcon,
 	Loader2,
+	PaperclipIcon,
 	PlugIcon,
+	PlusIcon,
 	XIcon,
 } from "lucide-react";
 import {
@@ -74,6 +78,28 @@ const composerPillClass = cn(
 	"data-[state=open]:bg-petrol-tint dark:data-[state=open]:bg-white/10",
 	"disabled:opacity-60 disabled:cursor-not-allowed",
 	"transition-colors",
+);
+
+// Inside the mobile options sheet the composer pills become full-width rows.
+// The first child is the row's icon: a fixed 20px slot keeps labels aligned
+// whether it is an 18px glyph or a 16px provider logo.
+const mobileOptionRowClass = cn(
+	"max-md:h-12 max-md:w-full max-md:max-w-none max-md:justify-start max-md:gap-3 max-md:rounded-xl max-md:!px-3",
+	"max-md:bg-transparent max-md:text-[15px] max-md:dark:bg-transparent",
+	"max-md:hover:bg-hover max-md:dark:hover:bg-white/5",
+	"max-md:[&>:first-child]:size-5 max-md:[&>:first-child]:shrink-0",
+	"max-md:[&>svg:first-child]:p-px max-md:[&>img:first-child]:p-0.5",
+	"max-md:[&>svg]:text-subtle max-md:dark:[&>svg]:text-panel-body",
+);
+const mobileOptionChevronClass =
+	"hidden max-md:block max-md:size-4 max-md:shrink-0 max-md:text-meta";
+const mobileOptionValueClass =
+	"truncate text-left max-md:ml-auto max-md:pl-3 max-md:font-normal max-md:text-meta max-md:dark:text-panel-dim";
+
+const MobileOptionLabel = ({ children }: { children: string }) => (
+	<span className="hidden text-left text-foreground max-md:inline">
+		{children}
+	</span>
 );
 
 const composerMenuClass =
@@ -211,6 +237,7 @@ const ChatPromptInput = ({
 	usePromptInputDraft(draftKey);
 	const { startAuthorization } = useMcpOAuth();
 	const [connectDialogOpen, setConnectDialogOpen] = useState(false);
+	const [mobileOptionsOpen, setMobileOptionsOpen] = useState(false);
 	const models = useModelsStore((state) => state.models);
 	const fetchModels = useModelsStore((state) => state.fetchModels);
 	const agentName = useChatHeaderStore((state) => state.agentName);
@@ -556,6 +583,10 @@ const ChatPromptInput = ({
 	);
 
 	useEffect(() => {
+		setMobileOptionsOpen(false);
+	}, [draftKey]);
+
+	useEffect(() => {
 		if (!initialFocusPendingRef.current || queueLoading) {
 			return;
 		}
@@ -898,6 +929,16 @@ const ChatPromptInput = ({
 					</div>
 				)}
 				<div className="relative">
+				{mobileOptionsOpen && (
+					<button
+						type="button"
+						aria-label="Close chat options"
+						className="fixed inset-0 z-40 bg-black/25 backdrop-blur-[1px] md:hidden"
+						onClick={() => {
+							setMobileOptionsOpen(false);
+						}}
+					/>
+				)}
 				<PromptInput
 					globalDrop
 					multiple
@@ -914,11 +955,23 @@ const ChatPromptInput = ({
 					}}
 					onSubmit={handleSubmit}
 					className={cn(
-					"min-h-[116px] transition-all duration-200",
+					"transition-all duration-200 md:min-h-[116px]",
 					// Petrol Mono composer (design kit 09): 16px radius, 2px #DCE4E4
 					// border → petrol on focus, depth from the composer shadow.
-					"[&>[data-slot=input-group]]:rounded-2xl",
-					"[&>[data-slot=input-group]]:border-2",
+					// Mobile: one pill row of options button, text and send.
+					"[&>[data-slot=input-group]]:!grid",
+					"[&>[data-slot=input-group]]:grid-cols-[auto_minmax(0,1fr)_auto]",
+					"[&>[data-slot=input-group]]:items-end",
+					"[&>[data-slot=input-group]]:gap-x-1",
+					"[&>[data-slot=input-group]]:p-1.5",
+					"md:[&>[data-slot=input-group]]:!flex",
+					"md:[&>[data-slot=input-group]]:!flex-col",
+					"md:[&>[data-slot=input-group]]:gap-x-0",
+					"md:[&>[data-slot=input-group]]:p-0",
+					"[&>[data-slot=input-group]]:rounded-[26px]",
+					"md:[&>[data-slot=input-group]]:rounded-2xl",
+					"[&>[data-slot=input-group]]:border",
+					"md:[&>[data-slot=input-group]]:border-2",
 					"[&>[data-slot=input-group]]:border-input",
 					"[&>[data-slot=input-group]]:bg-card",
 					"[&>[data-slot=input-group]]:shadow-composer",
@@ -930,7 +983,7 @@ const ChatPromptInput = ({
 					"[&>[data-slot=input-group]]:has-[[data-slot=input-group-control]:focus-visible]:ring-0",
 				)}
 				>
-				<PromptInputAttachments className="w-full justify-start px-[18px] pt-4">
+				<PromptInputAttachments className="order-0 col-span-full w-full justify-start px-1.5 pt-1.5 pb-1 md:px-[18px] md:pt-4 md:pb-0">
 					{(attachment) => <PromptInputAttachment data={attachment} />}
 				</PromptInputAttachments>
 				<PromptInputBody>
@@ -946,22 +999,82 @@ const ChatPromptInput = ({
 						}}
 						placeholder={agentName ? `Reply to ${agentName}…` : "Ask anything…"}
 						className={cn(
-							"text-[15px] font-medium leading-relaxed",
+							// Mobile: 24px lines, so 136px caps the text at five lines.
+							// The placeholder stays on one line: an empty field is sized
+							// from it and would otherwise grow and sit off center.
+							"order-2 min-h-10 max-h-[136px] min-w-0 px-1 py-2 text-base font-medium leading-6",
+							"placeholder:overflow-hidden placeholder:text-ellipsis placeholder:whitespace-nowrap",
+							"md:order-none md:min-h-16 md:max-h-48 md:px-[18px] md:pt-4 md:pb-2 md:text-[15px] md:leading-relaxed",
+							"md:placeholder:whitespace-normal",
 							"text-foreground",
 							"placeholder:text-meta dark:placeholder:text-panel-dim",
-							"px-[18px] pt-4 pb-2",
 						)}
 					/>
 				</PromptInputBody>
-				<PromptInputFooter className="items-end gap-x-2 gap-y-1.5 px-3 pt-0 pb-3">
-					<PromptInputTools className="min-w-0 flex-1 flex-wrap items-center gap-1.5">
+				<PromptInputFooter className="max-md:contents md:items-end md:gap-x-2 md:gap-y-1.5 md:px-3 md:pt-0 md:pb-3">
+					<button
+						type="button"
+						aria-controls="mobile-chat-options"
+						aria-expanded={mobileOptionsOpen}
+						aria-label="Open chat options"
+						onClick={() => {
+							setMobileOptionsOpen((open) => !open);
+						}}
+						className="order-1 flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-full text-subtle transition-colors hover:bg-hover hover:text-foreground md:hidden dark:text-panel-body dark:hover:bg-white/10"
+					>
+						<PlusIcon
+							className={cn(
+								"size-5 transition-transform duration-200",
+								mobileOptionsOpen && "rotate-45",
+							)}
+						/>
+					</button>
+					<PromptInputTools
+						id="mobile-chat-options"
+						aria-label="Chat options"
+						aria-modal={mobileOptionsOpen ? true : undefined}
+						role={mobileOptionsOpen ? "dialog" : "toolbar"}
+						className={cn(
+							"min-w-0 flex-1 flex-wrap items-center gap-1.5",
+							"max-md:fixed max-md:inset-x-3 max-md:bottom-[calc(env(safe-area-inset-bottom)+4.75rem)] max-md:z-50",
+							"max-md:flex-col max-md:flex-nowrap max-md:items-stretch max-md:gap-0.5",
+							"max-md:max-h-[min(70dvh,32rem)] max-md:overflow-y-auto max-md:overscroll-contain",
+							"max-md:rounded-3xl max-md:border max-md:border-border max-md:bg-card max-md:p-2 max-md:shadow-[0_24px_64px_-18px_rgba(10,25,30,0.45)]",
+							!mobileOptionsOpen && "max-md:hidden",
+						)}
+					>
+						<div className="order-0 flex items-center justify-between py-1 pr-1 pl-2.5 md:hidden">
+							<span className="text-[15px] font-semibold text-foreground">
+								Chat options
+							</span>
+							<button
+								type="button"
+								aria-label="Close chat options"
+								onClick={() => {
+									setMobileOptionsOpen(false);
+								}}
+								className="flex size-9 cursor-pointer items-center justify-center rounded-full text-meta transition-colors hover:bg-hover hover:text-foreground dark:hover:bg-white/10"
+							>
+								<XIcon className="size-[18px]" />
+							</button>
+						</div>
 						<PromptInputAddAttachmentButton
 							disabled={effectiveEditingId !== null}
+							onClickCapture={() => {
+								setMobileOptionsOpen(false);
+							}}
+							aria-label="Add files"
+							title="Add files"
 							className={cn(
 								composerPillClass,
 								"w-[34px] px-0 text-subtle dark:text-panel-body",
+								mobileOptionRowClass,
+								"max-md:order-1",
 							)}
-						/>
+						>
+							<PaperclipIcon className="size-4" />
+							<MobileOptionLabel>Add files</MobileOptionLabel>
+						</PromptInputAddAttachmentButton>
 						{conversationStats && (
 							<Dialog
 								open={statsDialogOpen}
@@ -974,9 +1087,12 @@ const ChatPromptInput = ({
 										className={cn(
 											composerPillClass,
 											"w-[34px] cursor-pointer px-0 text-subtle dark:text-panel-body",
+											mobileOptionRowClass,
+											"max-md:order-6",
 										)}
 									>
 										<ChartNoAxesColumnIncreasingIcon className="size-3.5" />
+										<MobileOptionLabel>Conversation stats</MobileOptionLabel>
 									</PromptInputButton>
 								</DialogTrigger>
 								<DialogContent className="max-h-[85vh] gap-0 overflow-y-auto sm:max-w-[600px]">
@@ -1147,13 +1263,21 @@ const ChatPromptInput = ({
 						{readOnlyModel ? (
 							<PromptInputButton
 								disabled
-								className={cn(composerPillClass, "min-w-0 max-w-52")}
-							>
-								{selectedModelData?.chefSlug && (
-									<ModelSelectorLogo provider={selectedModelData.chefSlug} />
+								className={cn(
+									composerPillClass,
+									"min-w-0 max-w-52",
+									mobileOptionRowClass,
+									"max-md:order-2",
 								)}
+							>
+								{selectedModelData?.chefSlug ? (
+									<ModelSelectorLogo provider={selectedModelData.chefSlug} />
+								) : (
+									<BoxIcon className="hidden max-md:block" />
+								)}
+								<MobileOptionLabel>Model</MobileOptionLabel>
 								{selectedModelData?.name && (
-									<span className="truncate text-left">
+									<span className={mobileOptionValueClass}>
 										{selectedModelData.name}
 									</span>
 								)}
@@ -1169,6 +1293,8 @@ const ChatPromptInput = ({
 										className={cn(
 											composerPillClass,
 											"min-w-0 max-w-52 cursor-pointer",
+											mobileOptionRowClass,
+											"max-md:order-2",
 										)}
 									>
 										{selectedModelData ? (
@@ -1176,15 +1302,26 @@ const ChatPromptInput = ({
 												<ModelSelectorLogo
 													provider={selectedModelData.chefSlug}
 												/>
-												<span className="truncate text-left">
+												<MobileOptionLabel>Model</MobileOptionLabel>
+												<span className={mobileOptionValueClass}>
 													{selectedModelData.name}
 												</span>
 											</>
 										) : (
-											<span className="truncate text-left text-meta dark:text-panel-dim">
-												Select model
-											</span>
+											<>
+												<BoxIcon className="hidden max-md:block" />
+												<MobileOptionLabel>Model</MobileOptionLabel>
+												<span
+													className={cn(
+														mobileOptionValueClass,
+														"text-meta dark:text-panel-dim",
+													)}
+												>
+													Select model
+												</span>
+											</>
 										)}
+										<ChevronRightIcon className={mobileOptionChevronClass} />
 									</PromptInputButton>
 								</DialogTrigger>
 								<DialogContent
@@ -1270,9 +1407,17 @@ const ChatPromptInput = ({
 						{readOnlyEffort
 							? // Show a stored explicit effort while keeping it immutable.
 								validatedEffort && (
-									<PromptInputButton disabled className={composerPillClass}>
+									<PromptInputButton
+										disabled
+										className={cn(
+											composerPillClass,
+											mobileOptionRowClass,
+											"max-md:order-3",
+										)}
+									>
 										<BrainIcon className="size-3.5" />
-										<span className="truncate text-left">
+										<MobileOptionLabel>Reasoning</MobileOptionLabel>
+										<span className={mobileOptionValueClass}>
 											{effortLabel(validatedEffort)}
 										</span>
 									</PromptInputButton>
@@ -1304,12 +1449,19 @@ const ChatPromptInput = ({
 										trigger={
 											<PromptInputButton
 												disabled={configurationLocked || effortUpdatePending}
-												className={cn(composerPillClass, "cursor-pointer")}
+												className={cn(
+													composerPillClass,
+													"cursor-pointer",
+													mobileOptionRowClass,
+													"max-md:order-3",
+												)}
 											>
 												<BrainIcon className="size-3.5" />
-												<span className="truncate text-left">
+												<MobileOptionLabel>Reasoning</MobileOptionLabel>
+												<span className={mobileOptionValueClass}>
 													{effortPillLabel}
 												</span>
+												<ChevronRightIcon className={mobileOptionChevronClass} />
 											</PromptInputButton>
 										}
 									/>
@@ -1394,22 +1546,29 @@ const ChatPromptInput = ({
 													? "This conversation is read-only"
 													: "Wait for the current run to finish"
 										}
-										className={cn(composerPillClass, "cursor-pointer")}
+										className={cn(
+											composerPillClass,
+											"cursor-pointer",
+											mobileOptionRowClass,
+											"max-md:order-4",
+										)}
 									>
 										{resourceSettingsSaving ? (
 											<Loader2 className="size-3.5 animate-spin" />
 										) : (
 											<CpuIcon className="size-3.5" />
 										)}
-										<span className="truncate text-left">
+										<MobileOptionLabel>Tool mode</MobileOptionLabel>
+										<span className={mobileOptionValueClass}>
 											{THREAD_TOOL_MODE_LABELS[effectiveThreadToolMode]}
 										</span>
+										<ChevronRightIcon className={mobileOptionChevronClass} />
 									</PromptInputButton>
 								}
 							/>
 						)}
 					</PromptInputTools>
-					<div className="flex shrink-0 items-center gap-1.5">
+					<div className="order-3 flex h-10 shrink-0 items-center justify-end gap-1.5 md:order-none md:h-auto">
 						{status === "streaming" && stop && (
 							<StopButton stop={stop} stopping={stopping} />
 						)}
@@ -1642,10 +1801,17 @@ const ConnectButton = ({
 				needsAttention
 					? "bg-petrol text-white shadow-submit hover:bg-petrol hover:opacity-90 dark:bg-petrol dark:hover:bg-petrol"
 					: "w-[34px] px-0 text-subtle dark:text-panel-body",
+				mobileOptionRowClass,
+				"max-md:order-5 max-md:text-foreground max-md:shadow-none",
 			)}
 		>
 			<PlugIcon className="size-3.5" />
-			{needsAttention && <span>Connect</span>}
+			<MobileOptionLabel>Resources</MobileOptionLabel>
+			{needsAttention && (
+				<span className="max-md:ml-auto max-md:rounded-full max-md:bg-petrol max-md:px-2.5 max-md:py-0.5 max-md:text-[12px] max-md:font-semibold max-md:text-white">
+					Connect
+				</span>
+			)}
 		</button>
 	);
 };
