@@ -34,7 +34,7 @@ export const Conversation = ({
 			className
 		)}
 		initial="smooth"
-		resize="smooth"
+		resize="instant"
 		role="log"
 		{...props}
 	/>
