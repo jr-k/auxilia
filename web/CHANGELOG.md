@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.136](https://github.com/jr-k/auxilia/compare/web-v0.12.135...web-v0.12.136) (2026-11-11)
+
+
+### Bug Fixes
+
+* **web:** avoid repeated chat scroll animations ([601ffbf](https://github.com/jr-k/auxilia/commit/601ffbfdca6cc8b187ca04db0b01c01c42754f99))
+
 ## [0.12.135](https://github.com/jr-k/auxilia/compare/web-v0.12.134...web-v0.12.135) (2026-11-09)
 
 
