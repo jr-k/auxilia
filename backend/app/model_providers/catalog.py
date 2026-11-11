@@ -1,3 +1,4 @@
+import logging
 from functools import lru_cache
 from typing import Any
 
@@ -12,6 +13,8 @@ from langchain_openai import ChatOpenAI
 
 from app.model_providers.settings import model_provider_settings
 
+
+logger = logging.getLogger(__name__)
 
 # provider_api_keys()'s "google" slot when no GOOGLE_API_KEY is configured but
 # Application Default Credentials are available (GCP service account on
@@ -221,8 +224,63 @@ def _nested_anthropic_callers(
     return calls, results
 
 
+def _drop_orphaned_server_blocks(payload_messages: list[dict]) -> list[dict]:
+    """Remove server-tool blocks whose originating call is not in the request.
+
+    A server tool can finish in a later assistant message than its
+    `server_tool_use` (a paused or continued turn). History trimming such as
+    summarization cuts on message boundaries and can keep the result while
+    dropping the call; Anthropic then rejects every later turn of the thread.
+    The same applies to a nested call whose `caller` names a missing call.
+    """
+    seen_calls: set[str] = set()
+    sanitized: list[dict] = []
+    for message in payload_messages:
+        content = message.get("content")
+        if message.get("role") != "assistant" or not isinstance(content, list):
+            sanitized.append(message)
+            continue
+        kept: list = []
+        for block in content:
+            if not isinstance(block, dict):
+                kept.append(block)
+                continue
+            block_type = block.get("type")
+            if block_type in _ANTHROPIC_SERVER_CALL_TYPES:
+                caller = block.get("caller")
+                parent = caller.get("tool_id") if isinstance(caller, dict) else None
+                if parent is not None and parent not in seen_calls:
+                    logger.warning(
+                        "Dropping replayed %s %s: its caller %s is not in the history",
+                        block_type,
+                        block.get("id"),
+                        parent,
+                    )
+                    continue
+                if isinstance(block.get("id"), str):
+                    seen_calls.add(block["id"])
+            elif (
+                block_type in _ANTHROPIC_SERVER_RESULT_TYPES
+                and block.get("tool_use_id") not in seen_calls
+            ):
+                logger.warning(
+                    "Dropping replayed %s for %s: its call is not in the history",
+                    block_type,
+                    block.get("tool_use_id"),
+                )
+                continue
+            kept.append(block)
+        if kept:
+            sanitized.append({**message, "content": kept})
+    return sanitized
+
+
 class ReplaySafeChatAnthropic(ChatAnthropic):
-    """Preserve nested server-tool links until langchain-ai/langchain#41678 ships."""
+    """Keep replayed server-tool blocks valid for the Messages API.
+
+    Restores nested callers until langchain-ai/langchain#41678 ships, and drops
+    server-tool blocks orphaned by history trimming.
+    """
 
     def _get_request_payload(
         self,
@@ -251,6 +309,8 @@ class ReplaySafeChatAnthropic(ChatAnthropic):
                     caller = None
                 if caller is not None:
                     block["caller"] = caller
+        if isinstance(payload.get("messages"), list):
+            payload["messages"] = _drop_orphaned_server_blocks(payload["messages"])
         return payload
 
 
