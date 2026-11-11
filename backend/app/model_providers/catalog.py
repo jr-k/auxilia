@@ -5,6 +5,7 @@ import google.auth
 from google.auth.exceptions import DefaultCredentialsError
 from langchain_anthropic import ChatAnthropic
 from langchain_core.language_models import LanguageModelInput
+from langchain_core.messages import AIMessage, BaseMessage
 from langchain_deepseek import ChatDeepSeek
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_openai import ChatOpenAI
@@ -171,6 +172,88 @@ class ResponsesChatOpenAI(ChatOpenAI):
         return payload
 
 
+_ANTHROPIC_SERVER_CALL_TYPES = frozenset({"server_tool_use", "mcp_tool_use"})
+_ANTHROPIC_SERVER_RESULT_TYPES = frozenset(
+    {
+        "code_execution_tool_result",
+        "bash_code_execution_tool_result",
+        "text_editor_code_execution_tool_result",
+        "mcp_tool_result",
+        "web_search_tool_result",
+        "web_fetch_tool_result",
+    }
+)
+
+
+def _nested_anthropic_callers(
+    messages: list[BaseMessage],
+) -> tuple[dict[str, dict[str, Any]], dict[str, dict[str, Any]]]:
+    """Index non-direct callers that langchain-anthropic drops during replay."""
+    calls: dict[str, dict[str, Any]] = {}
+    results: dict[str, dict[str, Any]] = {}
+    for message in messages:
+        if not isinstance(message, AIMessage) or not isinstance(message.content, list):
+            continue
+        for block in message.content:
+            if not isinstance(block, dict):
+                continue
+            extras = block.get("extras")
+            caller = block.get("caller")
+            if not isinstance(caller, dict) and isinstance(extras, dict):
+                caller = extras.get("caller")
+            if not isinstance(caller, dict) or caller.get("type") == "direct":
+                continue
+
+            block_type = block.get("type")
+            if (
+                block_type in _ANTHROPIC_SERVER_CALL_TYPES
+                or block_type == "server_tool_call"
+            ):
+                if isinstance(block.get("id"), str):
+                    calls[block["id"]] = caller
+            elif block_type in _ANTHROPIC_SERVER_RESULT_TYPES:
+                if isinstance(block.get("tool_use_id"), str):
+                    results[block["tool_use_id"]] = caller
+            elif block_type == "server_tool_result" and isinstance(
+                block.get("tool_call_id"), str
+            ):
+                results[block["tool_call_id"]] = caller
+    return calls, results
+
+
+class ReplaySafeChatAnthropic(ChatAnthropic):
+    """Preserve nested server-tool links until langchain-ai/langchain#41678 ships."""
+
+    def _get_request_payload(
+        self,
+        input_: LanguageModelInput,
+        *,
+        stop: list[str] | None = None,
+        **kwargs: Any,
+    ) -> dict:
+        messages = self._convert_input(input_).to_messages()
+        calls, results = _nested_anthropic_callers(messages)
+        payload = super()._get_request_payload(input_, stop=stop, **kwargs)
+
+        for message in payload.get("messages", []):
+            content = message.get("content")
+            if not isinstance(content, list):
+                continue
+            for block in content:
+                if not isinstance(block, dict):
+                    continue
+                block_type = block.get("type")
+                if block_type in _ANTHROPIC_SERVER_CALL_TYPES:
+                    caller = calls.get(block.get("id"))
+                elif block_type in _ANTHROPIC_SERVER_RESULT_TYPES:
+                    caller = results.get(block.get("tool_use_id"))
+                else:
+                    caller = None
+                if caller is not None:
+                    block["caller"] = caller
+        return payload
+
+
 class ChatModelFactory:
     def create(
         self,
@@ -246,7 +329,7 @@ class ChatModelFactory:
                     kwargs["effort"] = reasoning_effort or "medium"
                 else:
                     kwargs["thinking"] = {"type": "enabled", "budget_tokens": 1024}
-                return ChatAnthropic(
+                return ReplaySafeChatAnthropic(
                     model=model_id,
                     temperature=1,
                     max_tokens=32768,
