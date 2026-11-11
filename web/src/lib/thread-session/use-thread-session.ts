@@ -860,8 +860,7 @@ export function useThreadSession({
 
   const syncLatest = useCallback(async () => {
     const forThread = threadId;
-    const [hydrationResult, readResult, runsResult] = await Promise.allSettled([
-      rehydrate(),
+    const [readResult, runsResult] = await Promise.allSettled([
       transport.readThread(forThread),
       transport.listThreadRuns(forThread),
     ]);
@@ -874,24 +873,36 @@ export function useThreadSession({
         thread: readResult.value.thread,
       });
     }
+    let runActive = false;
     if (runsResult.status === "fulfilled") {
       const runs = runsResult.value;
       const latest = runs[0];
+      runActive = latest?.status === "pending" || latest?.status === "running";
       runActivityGeneration.current += 1;
       setRunHistory({ threadId: forThread, runs });
       setDurableRunActivity({
         threadId: forThread,
-        active: latest?.status === "pending" || latest?.status === "running",
+        active: runActive,
         retryable:
           latest?.status === "error" || latest?.status === "timeout",
       });
     }
     useActiveRunsStore.getState().requestPoll();
 
-    if (hydrationResult.status === "rejected") {
-      throw hydrationResult.reason;
+    // Swapping threads clears the transcript before refetching it, so it
+    // is reserved for a run this page is not streaming: an idle controller
+    // defers its event pump, and only a swap opens it. Otherwise the
+    // checkpoint is merged into the transcript already on screen.
+    if (runActive && !latestStream.current.isLoading) {
+      await rehydrate();
+    } else {
+      await streamController.hydrate(forThread);
     }
-  }, [rehydrate, threadId, transport]);
+
+    if (runsResult.status === "rejected") {
+      throw runsResult.reason;
+    }
+  }, [rehydrate, streamController, threadId, transport]);
 
   const retryInitial = useCallback(async () => {
     userActed();

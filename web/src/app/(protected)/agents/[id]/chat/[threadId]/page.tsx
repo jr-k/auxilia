@@ -279,6 +279,14 @@ const ChatPage = () => {
   useEffect(() => {
     transcriptMessages.current = transcript.messages;
   }, [transcript.messages]);
+  const [scrolledThreadId, setScrolledThreadId] = useState<string | null>(
+    null,
+  );
+  const transcriptShown =
+    transcript.hydrated && transcript.messages.length > 0;
+  useEffect(() => {
+    if (transcriptShown) setScrolledThreadId(threadId);
+  }, [threadId, transcriptShown]);
   useEffect(() => {
     runStatusRef.current = run.status;
   }, [run.status]);
@@ -921,7 +929,9 @@ const ChatPage = () => {
       )}
       <div className="h-full flex flex-col w-full overflow-hidden">
         <div className="h-full relative flex flex-1 flex-col min-h-0 w-full">
-          <Conversation>
+          <Conversation
+            initial={scrolledThreadId === threadId ? "instant" : "smooth"}
+          >
             <ConversationContent className="max-w-4xl mx-auto w-full pb-16 lg:px-10 sm:px-6 px-2">
               <ConversationBody
                 key={threadId}
