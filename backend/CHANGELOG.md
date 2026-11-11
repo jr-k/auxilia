@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.102](https://github.com/jr-k/auxilia/compare/backend-v0.11.101...backend-v0.11.102) (2026-11-11)
+
+
+### Bug Fixes
+
+* **runtime:** drop orphaned Anthropic server-tool blocks on replay ([62273dc](https://github.com/jr-k/auxilia/commit/62273dc7903b6316f02d6ce3f081f35a084b4bcf))
+
 ## [0.11.101](https://github.com/jr-k/auxilia/compare/backend-v0.11.100...backend-v0.11.101) (2026-11-11)
 
 

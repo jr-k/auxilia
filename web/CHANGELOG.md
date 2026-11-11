@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.12.137](https://github.com/jr-k/auxilia/compare/web-v0.12.136...web-v0.12.137) (2026-11-11)
+
+
+### Features
+
+* **web:** compact mobile chat composer ([924ac19](https://github.com/jr-k/auxilia/commit/924ac19f5b2462db8f3065097be65055055953ae))
+
+
+### Bug Fixes
+
+* **web:** keep the transcript on screen when a thread tab resumes ([80e8ed0](https://github.com/jr-k/auxilia/commit/80e8ed064aea49b2bcf10c9fb107fcfc7ee284d9))
+
 ## [0.12.136](https://github.com/jr-k/auxilia/compare/web-v0.12.135...web-v0.12.136) (2026-11-11)
 
 
