@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.101](https://github.com/jr-k/auxilia/compare/backend-v0.11.100...backend-v0.11.101) (2026-11-11)
+
+
+### Bug Fixes
+
+* **runtime:** preserve Anthropic server-tool callers ([37f25ff](https://github.com/jr-k/auxilia/commit/37f25ffcdc13ae340e1f0d69d9ca552090fa7e9b))
+
 ## [0.11.100](https://github.com/jr-k/auxilia/compare/backend-v0.11.99...backend-v0.11.100) (2026-11-09)
 
 
