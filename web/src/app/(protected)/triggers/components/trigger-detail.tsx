@@ -369,8 +369,13 @@ export default function TriggerDetail({ trigger }: TriggerDetailProps) {
 								  liveTrigger.canManage ? (
 									<div className="overflow-hidden rounded-[10px] border border-border bg-card">
 										<div className="flex items-center gap-3 p-3">
-											<code className="min-w-0 flex-1 truncate rounded-md bg-sidebar px-3 py-2.5 text-[11.5px] text-foreground dark:bg-white/5">
-												{webhookUrl}
+											<code className="min-w-0 flex-1 rounded-md bg-sidebar px-3 py-2.5 text-[11.5px] leading-5 break-all text-foreground dark:bg-white/5">
+												{liveTrigger.webhookUrl}
+												{waitForAnswer && (
+													<span className="font-semibold text-petrol dark:text-panel-terminal">
+														?wait=true
+													</span>
+												)}
 											</code>
 											<button
 												type="button"
@@ -394,12 +399,13 @@ export default function TriggerDetail({ trigger }: TriggerDetailProps) {
 											/>
 											<span className="min-w-0">
 												<span className="block text-[12.5px] font-semibold text-foreground">
-													Wait for the answer
+													Add <code>?wait=true</code> to the link
 												</span>
 												<span className="block text-[11.5px] leading-5 text-meta dark:text-panel-dim">
 													{waitForAnswer
-														? "The call stays open until the run finishes and returns the agent's answer."
-														: "The call returns immediately while the run continues in the background."}
+														? "Calls to this link stay open until the run finishes and return the agent's answer."
+														: "Calls to this link return immediately while the run continues in the background."}{" "}
+													Only the copied link changes, not the trigger.
 												</span>
 											</span>
 										</label>
