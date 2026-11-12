@@ -186,6 +186,35 @@ _ANTHROPIC_SERVER_RESULT_TYPES = frozenset(
         "web_fetch_tool_result",
     }
 )
+_FOREIGN_V1_BLOCK_TYPES = frozenset(
+    {"server_tool_call", "server_tool_call_chunk", "server_tool_result", "non_standard"}
+)
+
+
+def _drop_foreign_server_blocks(message: BaseMessage) -> BaseMessage:
+    """Strip another provider's server-tool blocks from a replayed AI message.
+
+    A thread can switch models mid-conversation. langchain-anthropic only
+    translates v1 server-tool and non-standard blocks produced by Anthropic and
+    forwards the rest verbatim (e.g. an OpenAI web search), which the Messages
+    API rejects. The visible answer text is kept.
+    """
+    if (
+        not isinstance(message, AIMessage)
+        or not isinstance(message.content, list)
+        or message.response_metadata.get("model_provider") == "anthropic"
+    ):
+        return message
+    content = [
+        block
+        for block in message.content
+        if not (
+            isinstance(block, dict) and block.get("type") in _FOREIGN_V1_BLOCK_TYPES
+        )
+    ]
+    if len(content) == len(message.content):
+        return message
+    return message.model_copy(update={"content": content})
 
 
 def _nested_anthropic_callers(
@@ -278,8 +307,9 @@ def _drop_orphaned_server_blocks(payload_messages: list[dict]) -> list[dict]:
 class ReplaySafeChatAnthropic(ChatAnthropic):
     """Keep replayed server-tool blocks valid for the Messages API.
 
-    Restores nested callers until langchain-ai/langchain#41678 ships, and drops
-    server-tool blocks orphaned by history trimming.
+    Restores nested callers until langchain-ai/langchain#41678 ships, drops
+    server-tool blocks orphaned by history trimming, and drops server-tool
+    blocks produced by another provider.
     """
 
     def _get_request_payload(
@@ -289,9 +319,12 @@ class ReplaySafeChatAnthropic(ChatAnthropic):
         stop: list[str] | None = None,
         **kwargs: Any,
     ) -> dict:
-        messages = self._convert_input(input_).to_messages()
+        messages = [
+            _drop_foreign_server_blocks(message)
+            for message in self._convert_input(input_).to_messages()
+        ]
         calls, results = _nested_anthropic_callers(messages)
-        payload = super()._get_request_payload(input_, stop=stop, **kwargs)
+        payload = super()._get_request_payload(messages, stop=stop, **kwargs)
 
         for message in payload.get("messages", []):
             content = message.get("content")
