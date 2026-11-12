@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.103](https://github.com/jr-k/auxilia/compare/backend-v0.11.102...backend-v0.11.103) (2026-11-12)
+
+
+### Bug Fixes
+
+* **runtime:** let project viewers read a shared thread's runs ([5a6b064](https://github.com/jr-k/auxilia/commit/5a6b064098ba07b2c8ffba88dda5fa501fdb1058))
+
 ## [0.11.102](https://github.com/jr-k/auxilia/compare/backend-v0.11.101...backend-v0.11.102) (2026-11-11)
 
 
