@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.104](https://github.com/jr-k/auxilia/compare/backend-v0.11.103...backend-v0.11.104) (2026-11-12)
+
+
+### Bug Fixes
+
+* **models:** drop foreign server-tool blocks when replaying a thread to Anthropic ([f990bf6](https://github.com/jr-k/auxilia/commit/f990bf607235cfc8711f9574f039c69c39a57755))
+
 ## [0.11.103](https://github.com/jr-k/auxilia/compare/backend-v0.11.102...backend-v0.11.103) (2026-11-12)
 
 
