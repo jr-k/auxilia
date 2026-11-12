@@ -40,6 +40,8 @@ from app.runtime.runs.schemas import (
 )
 from app.runtime.runs.service import RunService
 from app.runtime.runs.state import RunStatus
+from app.threads.dependencies import authorize_thread_read
+from app.threads.models import ThreadDB
 from app.threads.schemas import ThreadResponse
 from app.threads.service import ThreadService, get_thread_service
 from app.users.models import UserDB
@@ -98,6 +100,16 @@ async def authorize_thread_for_run_service(
     db: AsyncSession = Depends(get_db),
 ) -> ThreadResponse:
     """Release the auth transaction before RunService opens its own session."""
+    await db.commit()
+    return thread
+
+
+async def authorize_thread_read_for_run_service(
+    thread: ThreadDB = Depends(authorize_thread_read),
+    db: AsyncSession = Depends(get_db),
+) -> ThreadDB:
+    """Read-only variant: anyone who can open the thread (a viewer of its
+    project or trigger, an agent admin) may read its runs and queue."""
     await db.commit()
     return thread
 
@@ -221,7 +233,7 @@ async def create_run(
 @router.get("")
 async def list_runs(
     thread_id: str,
-    thread: ThreadResponse = Depends(authorize_thread_for_run_service),
+    thread: ThreadDB = Depends(authorize_thread_read_for_run_service),
     runs: RunService = Depends(get_run_service),
 ) -> list[RunResponse]:
     return [
@@ -233,7 +245,7 @@ async def list_runs(
 @router.get("/active")
 async def get_active_run(
     thread_id: str,
-    thread: ThreadResponse = Depends(authorize_thread_for_run_service),
+    thread: ThreadDB = Depends(authorize_thread_read_for_run_service),
     runs: RunService = Depends(get_run_service),
 ) -> RunResponse | None:
     record = await runs.get_active(thread_id, thread.workspace_id)
@@ -256,7 +268,7 @@ async def retry_failed_run(
 @router.get("/queue")
 async def list_prompt_queue(
     thread_id: str,
-    thread: ThreadResponse = Depends(authorize_thread_for_run_service),
+    thread: ThreadDB = Depends(authorize_thread_read_for_run_service),
     runs: RunService = Depends(get_run_service),
 ) -> list[QueuedPromptResponse]:
     return _queued_responses(
@@ -381,7 +393,7 @@ async def remove_prompt_queue_item(
 async def read_run(
     thread_id: str,
     run_id: str,
-    thread: ThreadResponse = Depends(authorize_thread_for_run_service),
+    thread: ThreadDB = Depends(authorize_thread_read_for_run_service),
     runs: RunService = Depends(get_run_service),
 ) -> RunResponse:
     record = await runs.get(run_id, thread.workspace_id)
