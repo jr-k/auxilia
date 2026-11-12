@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.138](https://github.com/jr-k/auxilia/compare/web-v0.12.137...web-v0.12.138) (2026-11-12)
+
+
+### Features
+
+* **triggers:** optionally wait for a webhook run and return the agent's answer ([e54738a](https://github.com/jr-k/auxilia/commit/e54738a4fa5756c600e5beecae676e02ec52cda4))
+
 ## [0.12.137](https://github.com/jr-k/auxilia/compare/web-v0.12.136...web-v0.12.137) (2026-11-11)
 
 
