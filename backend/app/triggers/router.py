@@ -1,7 +1,7 @@
 from datetime import UTC, datetime
 from uuid import UUID
 
-from fastapi import APIRouter, Body, Depends, Query
+from fastapi import APIRouter, Body, Depends, Query, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import get_current_user, require_editor
@@ -15,6 +15,7 @@ from app.triggers.schemas import (
     TriggerRunResponse,
     TriggerThreadResponse,
     WebhookTriggerInvoke,
+    WebhookTriggerResult,
 )
 from app.triggers.service import TriggerService, get_trigger_service
 from app.users.models import UserDB
@@ -59,16 +60,27 @@ async def preview_schedule(
 
 @router.post(
     "/webhooks/{webhook_id}",
-    response_model=TriggerRunResponse,
+    response_model=WebhookTriggerResult | TriggerRunResponse,
     status_code=202,
 )
 async def invoke_webhook_trigger(
     webhook_id: UUID,
+    response: Response,
     data: WebhookTriggerInvoke = Body(default_factory=WebhookTriggerInvoke),
+    wait: bool = Query(
+        False,
+        description=(
+            "Block until the run finishes and return the agent's final answer "
+            "(200) instead of acknowledging the run immediately (202)."
+        ),
+    ),
     db: AsyncSession = Depends(get_db),
-) -> TriggerRunResponse:
+) -> WebhookTriggerResult | TriggerRunResponse:
     """Start a webhook trigger with optional per-call execution overrides."""
-    return await TriggerService(db).invoke_webhook(webhook_id, data)
+    result = await TriggerService(db).invoke_webhook(webhook_id, data, wait=wait)
+    if wait:
+        response.status_code = 200
+    return result
 
 
 @router.get("/{trigger_id}/threads", response_model=list[TriggerThreadResponse])

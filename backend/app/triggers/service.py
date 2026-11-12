@@ -13,6 +13,7 @@ from app.agents.models import EffectivePermission, ToolStatus
 from app.auth.settings import auth_settings
 from app.database import get_db
 from app.exceptions import (
+    DomainError,
     DomainValidationError,
     NotFoundError,
     PermissionDeniedError,
@@ -23,7 +24,9 @@ from app.projects.repository import ProjectRepository
 from app.projects.service import ProjectService
 from app.realtime.schemas import WorkspaceEventKind
 from app.realtime.service import stage_workspace_event
+from app.runtime.agent import read_run_result
 from app.runtime.runs.service import RunService
+from app.runtime.runs.state import RunStatus
 from app.service import BaseService
 from app.teams.repository import TeamRepository
 from app.threads.models import ThreadSource
@@ -40,6 +43,7 @@ from app.triggers.schemas import (
     TriggerRunResponse,
     TriggerThreadResponse,
     WebhookTriggerInvoke,
+    WebhookTriggerResult,
 )
 from app.triggers.settings import trigger_settings
 from app.users.models import UserDB, WorkspaceRole
@@ -734,9 +738,14 @@ class TriggerService(BaseService[TriggerDB, TriggerRepository]):
         return TriggerRunResponse(thread_id=thread.id, run_id=record.id)
 
     async def invoke_webhook(
-        self, webhook_id: UUID, data: WebhookTriggerInvoke
-    ) -> TriggerRunResponse:
-        """Resolve webhook overrides and atomically create its thread and run."""
+        self, webhook_id: UUID, data: WebhookTriggerInvoke, *, wait: bool = False
+    ) -> TriggerRunResponse | WebhookTriggerResult:
+        """Resolve webhook overrides and atomically create its thread and run.
+
+        With ``wait``, block until the run is terminal and return the agent's
+        final answer, so a caller that cannot subscribe to the event stream
+        (n8n, Zapier, a CRM flow) gets the result in the HTTP response.
+        """
         trigger = await self.repository.get_by_webhook_id_for_update(webhook_id)
         if trigger is None or not trigger.is_active:
             # Keep inactive and unknown webhook URLs indistinguishable to
@@ -789,10 +798,22 @@ class TriggerService(BaseService[TriggerDB, TriggerRepository]):
         self.db.add(trigger)
         await self.db.flush()
         # The run and its webhook metadata must be durable before a dispatcher
-        # can claim it from another session.
+        # can claim it from another session. This also releases the pooled
+        # connection before ``wait`` blocks for the whole run.
         await self.db.commit()
         await runs.signal_created(record)
-        return TriggerRunResponse(thread_id=thread.id, run_id=record.id)
+        if not wait:
+            return TriggerRunResponse(thread_id=thread.id, run_id=record.id)
+
+        record = await runs.wait_for_terminal(record.id)
+        if record.status is not RunStatus.success:
+            raise DomainError(
+                record.error or f"Run did not complete ({record.status.value})"
+            )
+        result = await read_run_result(trigger.workspace_id, thread.id)
+        return WebhookTriggerResult(
+            thread_id=thread.id, run_id=record.id, content=result["content"]
+        )
 
     async def _create_fire_thread(
         self,

@@ -65,6 +65,7 @@ export default function TriggerDetail({ trigger }: TriggerDetailProps) {
 	const [mode, setMode] = useState<"read" | "edit">("read");
 	const [isRunning, setIsRunning] = useState(false);
 	const [copied, setCopied] = useState(false);
+	const [waitForAnswer, setWaitForAnswer] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const [rightTab, setRightTab] = useState<"frequency" | "resources">(
 		"frequency",
@@ -124,10 +125,15 @@ export default function TriggerDetail({ trigger }: TriggerDetailProps) {
 			? parseCronExpression(liveTrigger.cronExpression)
 			: null;
 
+	const webhookUrl =
+		liveTrigger.triggerType === "webhook" && liveTrigger.webhookUrl
+			? `${liveTrigger.webhookUrl}${waitForAnswer ? "?wait=true" : ""}`
+			: null;
+
 	const handleCopyWebhook = async () => {
-		if (liveTrigger.triggerType !== "webhook" || !liveTrigger.webhookUrl) return;
+		if (!webhookUrl) return;
 		try {
-			await navigator.clipboard.writeText(liveTrigger.webhookUrl);
+			await navigator.clipboard.writeText(webhookUrl);
 			setCopied(true);
 			window.setTimeout(() => {
 				setCopied(false);
@@ -364,7 +370,7 @@ export default function TriggerDetail({ trigger }: TriggerDetailProps) {
 									<div className="overflow-hidden rounded-[10px] border border-border bg-card">
 										<div className="flex items-center gap-3 p-3">
 											<code className="min-w-0 flex-1 truncate rounded-md bg-sidebar px-3 py-2.5 text-[11.5px] text-foreground dark:bg-white/5">
-												{liveTrigger.webhookUrl}
+												{webhookUrl}
 											</code>
 											<button
 												type="button"
@@ -381,6 +387,22 @@ export default function TriggerDetail({ trigger }: TriggerDetailProps) {
 												{copied ? "Copied" : "Copy"}
 											</button>
 										</div>
+										<label className="flex cursor-pointer items-center gap-3 border-t border-hairline px-4 py-3 dark:border-white/5">
+											<Switch
+												checked={waitForAnswer}
+												onCheckedChange={setWaitForAnswer}
+											/>
+											<span className="min-w-0">
+												<span className="block text-[12.5px] font-semibold text-foreground">
+													Wait for the answer
+												</span>
+												<span className="block text-[11.5px] leading-5 text-meta dark:text-panel-dim">
+													{waitForAnswer
+														? "The call stays open until the run finishes and returns the agent's answer."
+														: "The call returns immediately while the run continues in the background."}
+												</span>
+											</span>
+										</label>
 										<div className="border-t border-hairline px-4 py-3 dark:border-white/5">
 											<p className="text-[11.5px] leading-5 text-meta dark:text-panel-dim">
 												Send JSON with optional <code>agent_id</code>,{" "}

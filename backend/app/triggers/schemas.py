@@ -197,6 +197,13 @@ class TriggerRunResponse(SQLModel):
     run_id: str
 
 
+class WebhookTriggerResult(TriggerRunResponse):
+    """A webhook firing awaited to completion (`?wait=true`): the agent's
+    final answer alongside the thread and run it landed in."""
+
+    content: str
+
+
 class WebhookTriggerInvoke(SQLModel):
     """Per-call overrides accepted by a webhook trigger."""
 
