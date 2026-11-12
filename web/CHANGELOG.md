@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.139](https://github.com/jr-k/auxilia/compare/web-v0.12.138...web-v0.12.139) (2026-11-12)
+
+
+### Bug Fixes
+
+* **triggers:** make the webhook wait toggle visibly change the link ([b2ac865](https://github.com/jr-k/auxilia/commit/b2ac865b6c7644f6769f84f204b8371ece4a0e14))
+
 ## [0.12.138](https://github.com/jr-k/auxilia/compare/web-v0.12.137...web-v0.12.138) (2026-11-12)
 
 
