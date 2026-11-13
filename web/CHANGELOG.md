@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.140](https://github.com/jr-k/auxilia/compare/web-v0.12.139...web-v0.12.140) (2026-11-13)
+
+
+### Features
+
+* **triggers:** toggle push notifications per trigger, off by default ([fb27966](https://github.com/jr-k/auxilia/commit/fb27966ae590767b741da49dea0304c4c89d1da1))
+
 ## [0.12.139](https://github.com/jr-k/auxilia/compare/web-v0.12.138...web-v0.12.139) (2026-11-12)
 
 

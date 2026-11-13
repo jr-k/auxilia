@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.106](https://github.com/jr-k/auxilia/compare/backend-v0.11.105...backend-v0.11.106) (2026-11-13)
+
+
+### Features
+
+* **triggers:** toggle push notifications per trigger, off by default ([fb27966](https://github.com/jr-k/auxilia/commit/fb27966ae590767b741da49dea0304c4c89d1da1))
+
 ## [0.11.105](https://github.com/jr-k/auxilia/compare/backend-v0.11.104...backend-v0.11.105) (2026-11-12)
 
 
