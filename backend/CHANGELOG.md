@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.107](https://github.com/jr-k/auxilia/compare/backend-v0.11.106...backend-v0.11.107) (2026-11-13)
+
+
+### Features
+
+* **triggers:** append webhook instructions to the trigger's with ?append=true ([232169b](https://github.com/jr-k/auxilia/commit/232169b60960773e455f7c31b31b8f87a52629d0))
+
 ## [0.11.106](https://github.com/jr-k/auxilia/compare/backend-v0.11.105...backend-v0.11.106) (2026-11-13)
 
 

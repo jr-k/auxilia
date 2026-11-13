@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.141](https://github.com/jr-k/auxilia/compare/web-v0.12.140...web-v0.12.141) (2026-11-13)
+
+
+### Features
+
+* **triggers:** append webhook instructions to the trigger's with ?append=true ([232169b](https://github.com/jr-k/auxilia/commit/232169b60960773e455f7c31b31b8f87a52629d0))
+
 ## [0.12.140](https://github.com/jr-k/auxilia/compare/web-v0.12.139...web-v0.12.140) (2026-11-13)
 
 
