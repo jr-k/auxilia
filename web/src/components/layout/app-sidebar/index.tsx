@@ -34,6 +34,7 @@ import {
 	UserRound,
 	Info,
 	FolderKanban,
+	MessageSquare,
 	MessagesSquare,
 	FolderInput,
 	Mail,
@@ -231,11 +232,17 @@ function IconSlot({ children }: { children: React.ReactNode }) {
 	);
 }
 
-function ThreadCompletionFilterControl({
-	value,
+function CycleFilterControl({
+	name,
+	copy,
+	icon: Icon,
+	active,
 	onChange,
 }: {
-	value: ThreadCompletionFilter;
+	name: string;
+	copy: { label: string; description: string };
+	icon: LucideIcon;
+	active: boolean;
 	onChange: () => void;
 }) {
 	return (
@@ -244,21 +251,13 @@ function ThreadCompletionFilterControl({
 				<button
 					type="button"
 					onClick={onChange}
-					aria-label={`Thread filter: ${THREAD_FILTER_COPY[value].label}`}
+					aria-label={`${name}: ${copy.label}`}
 					className={cn(
 						"relative flex size-4 shrink-0 cursor-pointer items-center justify-center rounded-[4px] transition-colors after:absolute after:-inset-1.5 hover:bg-sidebar-accent hover:text-sidebar-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring",
-						value === "mixed"
-							? "text-sidebar-muted"
-							: "text-sidebar-active-icon",
+						active ? "text-sidebar-active-icon" : "text-sidebar-muted",
 					)}
 				>
-					{value === "mixed" ? (
-						<CircleDashed className="size-3" />
-					) : value === "completed" ? (
-						<CircleCheck className="size-3" />
-					) : (
-						<Circle className="size-3" />
-					)}
+					<Icon className="size-3" />
 				</button>
 			</TooltipTrigger>
 			<TooltipContent
@@ -267,17 +266,52 @@ function ThreadCompletionFilterControl({
 				className="px-2.5 py-2 shadow-xl"
 			>
 				<div className="flex min-w-44 flex-col gap-0.5">
-					<span className="font-semibold">
-						{THREAD_FILTER_COPY[value].label}
-					</span>
-					<span className="text-[10px] opacity-70">
-						{THREAD_FILTER_COPY[value].description}
-					</span>
+					<span className="font-semibold">{copy.label}</span>
+					<span className="text-[10px] opacity-70">{copy.description}</span>
 				</div>
 			</TooltipContent>
 		</Tooltip>
 	);
 }
+
+const THREAD_FILTER_ICON: Record<ThreadCompletionFilter, LucideIcon> = {
+	mixed: CircleDashed,
+	uncompleted: Circle,
+	completed: CircleCheck,
+};
+
+type ThreadSourceFilter = "all" | "conversations" | "triggers";
+
+const NEXT_THREAD_SOURCE_FILTER: Record<ThreadSourceFilter, ThreadSourceFilter> =
+	{
+		all: "conversations",
+		conversations: "triggers",
+		triggers: "all",
+	};
+
+const THREAD_SOURCE_FILTER_COPY: Record<
+	ThreadSourceFilter,
+	{ label: string; description: string }
+> = {
+	all: {
+		label: "All threads",
+		description: "Showing conversations and trigger runs",
+	},
+	conversations: {
+		label: "Conversations",
+		description: "Showing conversations only",
+	},
+	triggers: {
+		label: "Trigger runs",
+		description: "Showing trigger runs only",
+	},
+};
+
+const THREAD_SOURCE_FILTER_ICON: Record<ThreadSourceFilter, LucideIcon> = {
+	all: MessagesSquare,
+	conversations: MessageSquare,
+	triggers: AlarmClock,
+};
 
 export function AppSidebar() {
 	const router = useRouter();
@@ -317,9 +351,17 @@ export function AppSidebar() {
 	);
 	const [threadCompletionFilter, setThreadCompletionFilter] =
 		useState<ThreadCompletionFilter>("mixed");
+	const [threadSourceFilter, setThreadSourceFilter] =
+		useState<ThreadSourceFilter>("all");
 	const [movingThread, setMovingThread] =
 		useState<ThreadPlacementTarget | null>(null);
 	const filteredThreads = threads.filter((thread) => {
+		if (threadSourceFilter !== "all") {
+			const isTriggerThread = thread.source === "trigger";
+			if (isTriggerThread !== (threadSourceFilter === "triggers")) {
+				return false;
+			}
+		}
 		if (threadCompletionFilter === "mixed") return true;
 		if (threadCompletionFilter === "completed") {
 			return thread.completedAt != null;
@@ -368,6 +410,18 @@ export function AppSidebar() {
 		});
 	}, []);
 
+	useEffect(() => {
+		const saved = window.localStorage.getItem(
+			"auxilia:recent-threads-source-filter",
+		);
+		if (saved !== "all" && saved !== "conversations" && saved !== "triggers") {
+			return;
+		}
+		queueMicrotask(() => {
+			setThreadSourceFilter(saved);
+		});
+	}, []);
+
 	const changeSidebarMode = (mode: "threads" | "projects") => {
 		if (mode === "projects") selection.clear();
 		setSidebarMode(mode);
@@ -382,6 +436,13 @@ export function AppSidebar() {
 			"auxilia:recent-threads-completion-filter",
 			next,
 		);
+	};
+
+	const cycleThreadSourceFilter = () => {
+		const next = NEXT_THREAD_SOURCE_FILTER[threadSourceFilter];
+		selection.clear();
+		setThreadSourceFilter(next);
+		window.localStorage.setItem("auxilia:recent-threads-source-filter", next);
 	};
 
 	const navCounts: Record<string, number | undefined> = {
@@ -594,8 +655,18 @@ export function AppSidebar() {
 								<SidebarGroupLabel className="h-auto overflow-hidden whitespace-nowrap pl-2 pr-[5px] pt-2 pb-1.5 font-sans text-[10px] font-semibold text-sidebar-muted-highlight group-data-[collapsible=icon]:mt-0">
 									<span>Recent threads</span>
 									<div className="ml-auto flex items-center gap-1">
-										<ThreadCompletionFilterControl
-											value={threadCompletionFilter}
+										<CycleFilterControl
+											name="Thread source filter"
+											copy={THREAD_SOURCE_FILTER_COPY[threadSourceFilter]}
+											icon={THREAD_SOURCE_FILTER_ICON[threadSourceFilter]}
+											active={threadSourceFilter !== "all"}
+											onChange={cycleThreadSourceFilter}
+										/>
+										<CycleFilterControl
+											name="Thread filter"
+											copy={THREAD_FILTER_COPY[threadCompletionFilter]}
+											icon={THREAD_FILTER_ICON[threadCompletionFilter]}
+											active={threadCompletionFilter !== "mixed"}
 											onChange={cycleThreadCompletionFilter}
 										/>
 										<Link
@@ -915,8 +986,11 @@ export function AppSidebar() {
 								<SidebarGroupLabel className="h-auto overflow-hidden whitespace-nowrap pl-2 pr-[5px] pt-2 pb-1.5 font-sans text-[10px] font-semibold text-sidebar-muted-highlight group-data-[collapsible=icon]:mt-0">
 									<span>Projects</span>
 									<div className="ml-auto flex items-center">
-										<ThreadCompletionFilterControl
-											value={threadCompletionFilter}
+										<CycleFilterControl
+											name="Thread filter"
+											copy={THREAD_FILTER_COPY[threadCompletionFilter]}
+											icon={THREAD_FILTER_ICON[threadCompletionFilter]}
+											active={threadCompletionFilter !== "mixed"}
 											onChange={cycleThreadCompletionFilter}
 										/>
 									</div>
