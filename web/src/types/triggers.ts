@@ -20,6 +20,7 @@ interface TriggerBase {
 	reasoningEffort: string | null;
 	triggerType: TriggerType;
 	isActive: boolean;
+	notificationsEnabled: boolean;
 	lastRunAt: string | null;
 	createdAt: string;
 	updatedAt: string;
@@ -63,6 +64,7 @@ interface TriggerCreateBase {
 	modelId: string;
 	reasoningEffort?: string | null;
 	isActive?: boolean;
+	notificationsEnabled?: boolean;
 	visibility?: ResourceVisibility;
 	teamIds?: string[];
 	projectId?: string | null;
@@ -95,6 +97,7 @@ export interface TriggerUpdate {
 	cronExpression?: string;
 	timezone?: string;
 	isActive?: boolean;
+	notificationsEnabled?: boolean;
 	visibility?: ResourceVisibility;
 	teamIds?: string[];
 	projectId?: string | null;

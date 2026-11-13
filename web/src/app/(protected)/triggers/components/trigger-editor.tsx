@@ -29,6 +29,7 @@ import {
 	AsyncSearchSelect,
 	type AsyncSearchOption,
 } from "@/components/ui/async-search-select";
+import { Switch } from "@/components/ui/switch";
 import { UnderlineTabs } from "@/components/ui/underline-tabs";
 import { VisibilityBadge } from "@/components/ui/visibility-badge";
 import { VisibilityPicker } from "@/components/ui/visibility-picker";
@@ -61,6 +62,7 @@ interface TriggerFormState {
 	disabledSandboxIds: string[] | null;
 	disabledSubagentIds: string[] | null;
 	disabledMcpTools: Record<string, string[]> | null;
+	notificationsEnabled: boolean;
 }
 
 function browserTimezone(): string {
@@ -85,6 +87,7 @@ function defaultForm(): TriggerFormState {
 		disabledSandboxIds: null,
 		disabledSubagentIds: null,
 		disabledMcpTools: null,
+		notificationsEnabled: false,
 	};
 }
 
@@ -112,6 +115,7 @@ function fromTrigger(trigger: Trigger): TriggerFormState {
 		disabledSandboxIds: trigger.disabledSandboxIds,
 		disabledSubagentIds: trigger.disabledSubagentIds,
 		disabledMcpTools: trigger.disabledMcpTools,
+		notificationsEnabled: trigger.notificationsEnabled,
 	};
 }
 
@@ -131,6 +135,7 @@ function toComparablePayload(form: TriggerFormState, triggerType: TriggerType) {
 		disabledSandboxIds: form.disabledSandboxIds,
 		disabledSubagentIds: form.disabledSubagentIds,
 		disabledMcpTools: form.disabledMcpTools,
+		notificationsEnabled: form.notificationsEnabled,
 		...(triggerType === "schedule"
 			? {
 					cronExpression: buildCronExpression(form.schedule),
@@ -278,6 +283,7 @@ export default function TriggerEditor({
 			disabledSandboxIds: form.disabledSandboxIds,
 			disabledSubagentIds: form.disabledSubagentIds,
 			disabledMcpTools: form.disabledMcpTools,
+			notificationsEnabled: form.notificationsEnabled,
 		};
 		try {
 			let saved: Trigger;
@@ -453,6 +459,26 @@ export default function TriggerEditor({
 							}}
 						/>
 					</EditorSection>
+
+					<div className="flex items-center justify-between gap-6 rounded-[10px] border border-input bg-card px-4 py-3.5">
+						<div>
+							<p className="text-[13px] font-semibold text-foreground">
+								Push notifications
+							</p>
+							<p className="mt-0.5 text-[12px] leading-5 text-meta dark:text-panel-dim">
+								Notify the trigger owner when a run finishes, fails or needs
+								input.
+							</p>
+						</div>
+						<Switch
+							checked={form.notificationsEnabled}
+							onCheckedChange={(checked) => {
+								setField("notificationsEnabled", checked);
+							}}
+							aria-label="Push notifications"
+							className="shrink-0 cursor-pointer"
+						/>
+					</div>
 
 					<EditorSection label="Instructions" className="flex-1">
 						<div className="flex min-h-[300px] flex-1 flex-col rounded-[10px] border border-input bg-sidebar p-4 transition-[border-color,box-shadow] focus-within:border-petrol focus-within:shadow-[0_0_0_3px_rgba(22,96,110,0.10)] dark:bg-white/5">

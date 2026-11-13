@@ -41,6 +41,9 @@ class TriggerBase(SQLModel):
     cron_expression: str | None = Field(default=None, max_length=255, nullable=True)
     timezone: str | None = Field(default=None, max_length=64, nullable=True)
     is_active: bool = Field(default=True, nullable=False)
+    # Web Push to the owner when a firing's run ends. Off by default: a
+    # recurring trigger would otherwise notify on every occurrence.
+    notifications_enabled: bool = Field(default=False, nullable=False)
 
 
 class TriggerDB(TriggerBase, BaseDBModel, table=True):

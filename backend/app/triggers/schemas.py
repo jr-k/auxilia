@@ -108,6 +108,7 @@ class TriggerPatch(SQLModel):
     cron_expression: str | None = None
     timezone: str | None = None
     is_active: bool | None = None
+    notifications_enabled: bool | None = None
     project_id: UUID | None = None
     folder_id: UUID | None = None
     visibility: ResourceVisibility | None = None
@@ -165,6 +166,7 @@ class TriggerResponse(SQLModel):
     timezone: str | None = None
     webhook_url: str | None = None
     is_active: bool
+    notifications_enabled: bool = False
     next_run_at: datetime | None = None
     last_run_at: datetime | None = None
     disabled_mcp_server_ids: list[UUID] | None = None
