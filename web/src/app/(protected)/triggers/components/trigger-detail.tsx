@@ -66,6 +66,7 @@ export default function TriggerDetail({ trigger }: TriggerDetailProps) {
 	const [isRunning, setIsRunning] = useState(false);
 	const [copied, setCopied] = useState(false);
 	const [waitForAnswer, setWaitForAnswer] = useState(false);
+	const [appendInstructions, setAppendInstructions] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const [rightTab, setRightTab] = useState<"frequency" | "resources">(
 		"frequency",
@@ -125,9 +126,16 @@ export default function TriggerDetail({ trigger }: TriggerDetailProps) {
 			? parseCronExpression(liveTrigger.cronExpression)
 			: null;
 
+	const webhookQuery = [
+		waitForAnswer ? "wait=true" : null,
+		appendInstructions ? "append=true" : null,
+	]
+		.filter(Boolean)
+		.join("&");
+	const webhookQuerySuffix = webhookQuery ? `?${webhookQuery}` : "";
 	const webhookUrl =
 		liveTrigger.triggerType === "webhook" && liveTrigger.webhookUrl
-			? `${liveTrigger.webhookUrl}${waitForAnswer ? "?wait=true" : ""}`
+			? `${liveTrigger.webhookUrl}${webhookQuerySuffix}`
 			: null;
 
 	const handleCopyWebhook = async () => {
@@ -371,9 +379,9 @@ export default function TriggerDetail({ trigger }: TriggerDetailProps) {
 										<div className="flex items-center gap-3 p-3">
 											<code className="min-w-0 flex-1 rounded-md bg-sidebar px-3 py-2.5 text-[11.5px] leading-5 break-all text-foreground dark:bg-white/5">
 												{liveTrigger.webhookUrl}
-												{waitForAnswer && (
+												{webhookQuerySuffix && (
 													<span className="font-semibold text-petrol dark:text-panel-terminal">
-														?wait=true
+														{webhookQuerySuffix}
 													</span>
 												)}
 											</code>
@@ -405,6 +413,23 @@ export default function TriggerDetail({ trigger }: TriggerDetailProps) {
 													{waitForAnswer
 														? "Calls to this link stay open until the run finishes and return the agent's answer."
 														: "Calls to this link return immediately while the run continues in the background."}{" "}
+													Only the copied link changes, not the trigger.
+												</span>
+											</span>
+										</label>
+										<label className="flex cursor-pointer items-center gap-3 border-t border-hairline px-4 py-3 dark:border-white/5">
+											<Switch
+												checked={appendInstructions}
+												onCheckedChange={setAppendInstructions}
+											/>
+											<span className="min-w-0">
+												<span className="block text-[12.5px] font-semibold text-foreground">
+													Add <code>?append=true</code> to the link
+												</span>
+												<span className="block text-[11.5px] leading-5 text-meta dark:text-panel-dim">
+													{appendInstructions
+														? "Instructions sent in the request are added after this trigger's instructions."
+														: "Instructions sent in the request replace this trigger's instructions."}{" "}
 													Only the copied link changes, not the trigger.
 												</span>
 											</span>

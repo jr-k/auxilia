@@ -74,10 +74,19 @@ async def invoke_webhook_trigger(
             "(200) instead of acknowledging the run immediately (202)."
         ),
     ),
+    append: bool = Query(
+        False,
+        description=(
+            "Append the request's instructions after the trigger's instructions "
+            "instead of replacing them."
+        ),
+    ),
     db: AsyncSession = Depends(get_db),
 ) -> WebhookTriggerResult | TriggerRunResponse:
     """Start a webhook trigger with optional per-call execution overrides."""
-    result = await TriggerService(db).invoke_webhook(webhook_id, data, wait=wait)
+    result = await TriggerService(db).invoke_webhook(
+        webhook_id, data, wait=wait, append=append
+    )
     if wait:
         response.status_code = 200
     return result

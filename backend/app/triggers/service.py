@@ -738,13 +738,21 @@ class TriggerService(BaseService[TriggerDB, TriggerRepository]):
         return TriggerRunResponse(thread_id=thread.id, run_id=record.id)
 
     async def invoke_webhook(
-        self, webhook_id: UUID, data: WebhookTriggerInvoke, *, wait: bool = False
+        self,
+        webhook_id: UUID,
+        data: WebhookTriggerInvoke,
+        *,
+        wait: bool = False,
+        append: bool = False,
     ) -> TriggerRunResponse | WebhookTriggerResult:
         """Resolve webhook overrides and atomically create its thread and run.
 
         With ``wait``, block until the run is terminal and return the agent's
         final answer, so a caller that cannot subscribe to the event stream
         (n8n, Zapier, a CRM flow) gets the result in the HTTP response.
+
+        With ``append``, the request's instructions follow the trigger's own
+        instead of replacing them.
         """
         trigger = await self.repository.get_by_webhook_id_for_update(webhook_id)
         if trigger is None or not trigger.is_active:
@@ -756,9 +764,16 @@ class TriggerService(BaseService[TriggerDB, TriggerRepository]):
         await self._ensure_project_visible_to_owner(trigger, owner)
         agent_id = data.agent_id or trigger.agent_id
         model_id = data.model_id if data.model_id is not None else trigger.model_id
-        instructions = (
-            data.instructions if data.instructions is not None else trigger.instructions
-        )
+        if data.instructions is None:
+            instructions = trigger.instructions
+        elif append:
+            instructions = "\n\n".join(
+                part
+                for part in (trigger.instructions.strip(), data.instructions.strip())
+                if part
+            )
+        else:
+            instructions = data.instructions
         if not instructions.strip():
             raise DomainValidationError("Webhook instructions cannot be empty")
 
