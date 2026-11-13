@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.142](https://github.com/jr-k/auxilia/compare/web-v0.12.141...web-v0.12.142) (2026-11-13)
+
+
+### Features
+
+* **sidebar:** filter recent threads by conversations or trigger runs ([494caa7](https://github.com/jr-k/auxilia/commit/494caa71329a10dbce99e4da3435a68230e4922b))
+
 ## [0.12.141](https://github.com/jr-k/auxilia/compare/web-v0.12.140...web-v0.12.141) (2026-11-13)
 
 
