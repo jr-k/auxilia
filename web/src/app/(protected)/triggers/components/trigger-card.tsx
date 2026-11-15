@@ -20,6 +20,7 @@ import { getApiErrorMessage } from "@/lib/api/errors";
 import { useAgentsStore } from "@/stores/agents-store";
 import { useTriggersStore } from "@/stores/triggers-store";
 import { useRunTrigger } from "@/hooks/use-run-trigger";
+import { LONG_PRESS_TARGET_CLASS, useLongPress } from "@/hooks/use-long-press";
 import { AgentAvatar } from "@/components/ui/agent-avatar";
 import { VisibilityBadge } from "@/components/ui/visibility-badge";
 import { DropdownMenu } from "@/components/ui/dropdown-menu";
@@ -74,13 +75,24 @@ export default function TriggerCard({
 		);
 	};
 
+	const longPress = useLongPress();
+	const pressProps = longPress.bind(
+		trigger.canManage
+			? () => {
+					if (!selected) onToggleSelection(false);
+				}
+			: undefined,
+	);
+
 	return (
 		<div
 			className={`group flex h-full cursor-pointer flex-col gap-3 rounded-2xl border bg-white p-5 transition-[border-color,box-shadow] duration-[130ms] ease-out hover:shadow-[0_6px_18px_-4px_rgba(33,36,31,0.08)] dark:bg-card ${
 				selected
 					? "border-petrol/45 shadow-[inset_0_0_0_1px_rgba(38,103,81,0.12)] dark:border-petrol/60"
 					: "border-[#E9EEEB] hover:border-[#D7E0DB] dark:border-white/10 dark:hover:border-white/20"
-			}`}
+			} ${trigger.canManage ? LONG_PRESS_TARGET_CLASS : ""}`}
+			{...pressProps}
+			onClickCapture={longPress.onClickCapture}
 			onClick={(event) => {
 				if (selectionMode && trigger.canManage) {
 					onToggleSelection(event.shiftKey);

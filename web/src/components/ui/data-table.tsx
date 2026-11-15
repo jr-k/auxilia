@@ -4,6 +4,7 @@ import { useState, type CSSProperties, type ReactNode } from "react";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight, Folder } from "lucide-react";
 import type { GroupNode } from "@/lib/groups";
+import { LONG_PRESS_TARGET_CLASS, useLongPress } from "@/hooks/use-long-press";
 
 export interface DataTableColumn<T> {
 	key: string;
@@ -297,6 +298,7 @@ export function DataTable<T>({
 	isRowSelected,
 	className = "",
 }: DataTableProps<T>) {
+	const longPress = useLongPress();
 	const gridTemplates = {
 		"--dt-cols": columns
 			.filter((c) => !c.hideBelowMd && !c.hideBelowLg)
@@ -336,16 +338,29 @@ export function DataTable<T>({
 		const selectedClass = selected
 			? "bg-petrol/[0.055] dark:bg-petrol/10"
 			: "";
+		const longPressSelectable =
+			!!onRowSelectionClick && (isRowSelectable?.(row) ?? true);
+		const pressProps = longPress.bind(
+			longPressSelectable
+				? () => {
+						if (!(isRowSelected?.(row) ?? false)) {
+							onRowSelectionClick(row, false);
+						}
+					}
+				: undefined,
+		);
+		const pressClass = longPressSelectable ? LONG_PRESS_TARGET_CLASS : "";
 		if (getRowHref) {
 			if (selectRow) {
 				return (
 					<div
 						key={rowKey(row)}
 						data-selected={selected || undefined}
+						{...pressProps}
 						onClick={(event) => {
 							selectRow(row, event.shiftKey);
 						}}
-						className={`${gridClass} ${ROW_CLASS} ${selectedClass} cursor-pointer`}
+						className={`${gridClass} ${ROW_CLASS} ${selectedClass} ${pressClass} cursor-pointer`}
 					>
 						{renderCells(row, depth)}
 					</div>
@@ -356,7 +371,8 @@ export function DataTable<T>({
 					key={rowKey(row)}
 					href={getRowHref(row)}
 					data-selected={selected || undefined}
-					className={`${gridClass} ${ROW_CLASS} ${selectedClass}`}
+					{...pressProps}
+					className={`${gridClass} ${ROW_CLASS} ${selectedClass} ${pressClass}`}
 				>
 					{renderCells(row, depth)}
 				</Link>
@@ -367,10 +383,11 @@ export function DataTable<T>({
 				<div
 					key={rowKey(row)}
 					data-selected={selected || undefined}
+					{...pressProps}
 					onClick={(event) => {
 						selectRow(row, event.shiftKey);
 					}}
-					className={`${gridClass} ${ROW_CLASS} ${selectedClass} cursor-pointer`}
+					className={`${gridClass} ${ROW_CLASS} ${selectedClass} ${pressClass} cursor-pointer`}
 				>
 					{renderCells(row, depth)}
 				</div>
@@ -383,6 +400,7 @@ export function DataTable<T>({
 					role="button"
 					tabIndex={0}
 					data-selected={selected || undefined}
+					{...pressProps}
 					onClick={() => {
 						onRowClick(row);
 					}}
@@ -393,7 +411,7 @@ export function DataTable<T>({
 							onRowClick(row);
 						}
 					}}
-					className={`${gridClass} ${ROW_CLASS} ${selectedClass} cursor-pointer`}
+					className={`${gridClass} ${ROW_CLASS} ${selectedClass} ${pressClass} cursor-pointer`}
 				>
 					{renderCells(row, depth)}
 				</div>
@@ -403,7 +421,8 @@ export function DataTable<T>({
 			<div
 				key={rowKey(row)}
 				data-selected={selected || undefined}
-				className={`${gridClass} ${ROW_CLASS} ${selectedClass}`}
+				{...pressProps}
+				className={`${gridClass} ${ROW_CLASS} ${selectedClass} ${pressClass}`}
 			>
 				{renderCells(row, depth)}
 			</div>
@@ -439,6 +458,7 @@ export function DataTable<T>({
 
 			<div
 				style={tableWidthStyle}
+				onClickCapture={longPress.onClickCapture}
 				className={`${tableGutterClass} rounded-[10px] border border-border bg-card dark:border-white/10 ${
 					scrollBody
 						? "relative min-h-0 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
