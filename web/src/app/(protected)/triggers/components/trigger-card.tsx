@@ -9,6 +9,7 @@ import {
 	Pause,
 	Pencil,
 	Play,
+	Repeat1,
 	Trash2,
 	TriangleAlert,
 	Webhook,
@@ -204,6 +205,17 @@ export default function TriggerCard({
 						{frequency}
 					</span>
 				</div>
+				{trigger.runOnce && (
+					<div
+						className="flex h-[30px] max-w-full min-w-0 items-center gap-1.5 rounded-[4px] border border-[#ECF1EE] bg-[#F4F7F5] px-3 dark:border-white/10 dark:bg-white/5"
+						title="This trigger pauses itself as soon as it fires."
+					>
+						<Repeat1 className="size-[13px] shrink-0 text-[#7C8C84] dark:text-muted-foreground" />
+						<span className="truncate font-[family-name:var(--font-dm-sans)] text-[12.5px] font-medium text-[#4A5B53] dark:text-white/80">
+							Run once
+						</span>
+					</div>
+				)}
 				{!trigger.modelAvailable && (
 					<div
 						className="flex h-[30px] max-w-full min-w-0 items-center gap-1.5 rounded-[4px] border border-[#F0E4D3] bg-[#FDF6EC] px-3 dark:border-amber-400/20 dark:bg-amber-950/30"
