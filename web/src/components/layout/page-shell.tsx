@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
 // every other route renders in the default padded scroll container.
 const CHAT_ROUTE = /^\/agents\/[^/]+\/chat(\/|$)/;
 const WORKSPACE_ROUTE = /^\/(agents|users)$/;
+const AGENT_THREADS_ROUTE = /^\/agents\/[^/]+\/threads$/;
 const AGENT_EDITOR_ROUTE = /^\/agents\/[^/]+$/;
 const MCP_SERVERS_ROUTE = /^\/mcp-servers(\/|$)/;
 const TRIGGERS_ROUTE = /^\/triggers(\/|$)/;
@@ -29,6 +30,7 @@ export function PageShell({ children }: { children: React.ReactNode }) {
 	const isChat = CHAT_ROUTE.test(pathname);
 	const isWorkspace =
 		WORKSPACE_ROUTE.test(pathname) ||
+		AGENT_THREADS_ROUTE.test(pathname) ||
 		AGENT_EDITOR_ROUTE.test(pathname) ||
 		MCP_SERVERS_ROUTE.test(pathname) ||
 		TRIGGERS_ROUTE.test(pathname) ||

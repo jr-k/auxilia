@@ -43,4 +43,27 @@ describe("DataTable", () => {
 		expect(container).toHaveClass("relative", "overflow-hidden");
 		expect(container).not.toHaveClass("overflow-y-auto");
 	});
+
+	it("folds lg-only columns out of the mobile and md grids", () => {
+		const { container } = render(
+			<DataTable
+				columns={[
+					{ key: "name", header: "Name", width: "2fr", mobileWidth: "1fr", cell: (row) => row.name },
+					{ key: "owner", header: "Owner", width: "1fr", hideBelowLg: true, cell: () => "Owner" },
+					{ key: "created", header: "Created", width: "110px", mobileWidth: "auto", cell: () => "today" },
+				]}
+				rows={rows.slice(0, 1)}
+				rowKey={(row) => row.id}
+			/>,
+		);
+
+		const table = container.querySelector<HTMLElement>("[style*='--dt-cols']");
+		expect(table?.style.getPropertyValue("--dt-cols")).toBe("1fr auto");
+		expect(table?.style.getPropertyValue("--dt-cols-md")).toBe("2fr 110px");
+		expect(table?.style.getPropertyValue("--dt-cols-lg")).toBe("2fr 1fr 110px");
+		expect(screen.getByText("Owner", { selector: "div" })).toHaveClass(
+			"hidden",
+			"lg:block",
+		);
+	});
 });

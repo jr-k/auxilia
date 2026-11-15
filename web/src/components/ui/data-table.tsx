@@ -14,6 +14,9 @@ export interface DataTableColumn<T> {
 	mobileWidth?: string;
 	/** Render the column only on md+ screens. */
 	hideBelowMd?: boolean;
+	/** Render the column only on lg+ screens, for columns that crowd the
+	 * md range next to the sidebar. */
+	hideBelowLg?: boolean;
 	align?: "left" | "center" | "right";
 	cell: (row: T) => ReactNode;
 }
@@ -143,10 +146,13 @@ function DataTableTreeGroup<T>({
 	);
 }
 
-function cellClass(column: Pick<DataTableColumn<never>, "hideBelowMd" | "align">): string {
+function cellClass(
+	column: Pick<DataTableColumn<never>, "hideBelowMd" | "hideBelowLg" | "align">,
+): string {
 	return [
 		"min-w-0",
 		column.hideBelowMd ? "hidden md:block" : "",
+		column.hideBelowLg ? "hidden lg:block" : "",
 		column.align === "center" ? "text-center" : "",
 		column.align === "right" ? "text-right" : "",
 	]
@@ -258,7 +264,8 @@ export function DataTablePaginationFooter({
  * mono count + numbered pagination below it (design 7a/13b/13c).
  *
  * Layout is a CSS grid so columns can collapse below `md` (`hideBelowMd`,
- * `mobileWidth`); the two grid templates are passed down as CSS variables.
+ * `mobileWidth`) or `lg` (`hideBelowLg`); the grid templates are passed down
+ * as CSS variables.
  * Rows link (`getRowHref`) or run a click handler (`onRowClick`); pagination
  * can be server-side or a client-side slice — the caller owns `rows` either
  * way. The footer renders whenever `pagination` is provided and there are
@@ -292,13 +299,17 @@ export function DataTable<T>({
 }: DataTableProps<T>) {
 	const gridTemplates = {
 		"--dt-cols": columns
-			.filter((c) => !c.hideBelowMd)
+			.filter((c) => !c.hideBelowMd && !c.hideBelowLg)
 			.map((c) => c.mobileWidth ?? c.width ?? "1fr")
 			.join(" "),
-		"--dt-cols-md": columns.map((c) => c.width ?? "1fr").join(" "),
+		"--dt-cols-md": columns
+			.filter((c) => !c.hideBelowLg)
+			.map((c) => c.width ?? "1fr")
+			.join(" "),
+		"--dt-cols-lg": columns.map((c) => c.width ?? "1fr").join(" "),
 	} as CSSProperties;
 	const gridClass =
-		"grid items-center gap-4 px-[18px] [grid-template-columns:var(--dt-cols)] md:[grid-template-columns:var(--dt-cols-md)]";
+		"grid items-center gap-4 px-[18px] [grid-template-columns:var(--dt-cols)] md:[grid-template-columns:var(--dt-cols-md)] lg:[grid-template-columns:var(--dt-cols-lg)]";
 	const tableWidthStyle = minTableWidth
 		? ({ minWidth: minTableWidth } satisfies CSSProperties)
 		: undefined;

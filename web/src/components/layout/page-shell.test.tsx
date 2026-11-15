@@ -26,6 +26,7 @@ describe("PageShell", () => {
 		["chat", "/agents/agent-1/chat/thread-1"],
 		["workspace list", "/triggers"],
 		["workspace list", "/agents"],
+		["agent thread history", "/agents/agent-1/threads"],
 		["default page", "/notifications"],
 	])("contains absolutely positioned content on a %s route", (_, pathname) => {
 		navigation.pathname = pathname;
@@ -48,5 +49,18 @@ describe("PageShell", () => {
 
 		const scroller = screen.getByText("Page content").parentElement;
 		expect(scroller).toHaveClass("relative", "overflow-y-auto");
+	});
+
+	it("lets the agent thread history own its scroll area", () => {
+		navigation.pathname = "/agents/agent-1/threads";
+		render(
+			<PageShell>
+				<p>History</p>
+			</PageShell>,
+		);
+
+		const wrapper = screen.getByText("History").parentElement;
+		expect(wrapper).toHaveClass("overflow-hidden");
+		expect(wrapper).not.toHaveClass("overflow-y-auto");
 	});
 });

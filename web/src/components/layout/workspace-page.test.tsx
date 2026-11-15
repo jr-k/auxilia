@@ -1,11 +1,13 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
+import type { BreadcrumbSegment } from "./subpage-header";
 import { WorkspacePage } from "./workspace-page";
 
-function renderPage(fillHeight?: boolean) {
+function renderPage(fillHeight?: boolean, parents?: BreadcrumbSegment[]) {
 	render(
 		<WorkspacePage
 			slug="triggers"
+			parents={parents}
 			title="Triggers"
 			intro="Run agents automatically."
 			fillHeight={fillHeight}
@@ -49,5 +51,26 @@ describe("WorkspacePage", () => {
 			expect(classes(element)).not.toContain("flex-1");
 			expect(classes(element)).toContain("tall:min-h-0");
 		});
+	});
+
+	it("links parent breadcrumb segments and keeps the safe area clear", () => {
+		const scrollArea = renderPage(false, [
+			{ label: "agents", href: "/agents" },
+			{ label: "Support bot", href: "/agents/agent-1" },
+		]);
+
+		const crumbs = screen.getByRole("navigation");
+		expect(crumbs).toHaveTextContent("workspace/agents/Support bot/triggers");
+		expect(screen.getByRole("link", { name: "agents" })).toHaveAttribute(
+			"href",
+			"/agents",
+		);
+		expect(screen.getByRole("link", { name: "Support bot" })).toHaveAttribute(
+			"href",
+			"/agents/agent-1",
+		);
+		expect(scrollArea.firstElementChild).toHaveClass(
+			"pb-[calc(2.5rem+env(safe-area-inset-bottom))]",
+		);
 	});
 });
