@@ -9,6 +9,14 @@
  * internally; shorter ones scroll the whole page instead. */
 @custom-variant tall (@media (min-height: 640px));
 
+/* Space taken by a bottom tab bar (SettingsTabBar, shown below lg), so
+ * bottom-anchored overlays such as toasts stay above it. */
+@media (width < 64rem) {
+	:root:has([data-settings-tab-bar]) {
+		--bottom-tab-bar-offset: calc(3.5rem + 1px + env(safe-area-inset-bottom));
+	}
+}
+
 /* ============================================================
  * Petrol Mono design system — tokens
  * Source of truth: design/README.md + design/Petrol Mono Design System.dc.html
