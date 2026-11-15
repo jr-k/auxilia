@@ -50,8 +50,11 @@ export function PageShell({ children }: { children: React.ReactNode }) {
 				/>
 			)}
 
+			{/* Every main is `relative` so no absolutely positioned descendant can
+			    fall back to the viewport as containing block, escape the shell's
+			    overflow and make the document scroll behind the page. */}
 			{isChat ? (
-				<main className="flex-1 min-w-0 flex h-svh flex-col bg-background overflow-hidden">
+				<main className="relative flex-1 min-w-0 flex h-svh flex-col bg-background overflow-hidden">
 					<SupervisionBanner />
 					<ChatHeader />
 					<div className="flex flex-1 flex-col min-h-0 overflow-hidden">
@@ -59,16 +62,16 @@ export function PageShell({ children }: { children: React.ReactNode }) {
 					</div>
 				</main>
 			) : isWorkspace ? (
-				<main className="flex h-svh min-w-0 flex-1 flex-col overflow-hidden">
+				<main className="relative flex h-svh min-w-0 flex-1 flex-col overflow-hidden">
 					<SupervisionBanner />
 					<div className="flex min-h-0 flex-1 overflow-hidden [&>*]:!h-full">
 						{children}
 					</div>
 				</main>
 			) : (
-				<main className="flex h-svh min-w-0 flex-1 flex-col overflow-hidden">
+				<main className="relative flex h-svh min-w-0 flex-1 flex-col overflow-hidden">
 					<SupervisionBanner />
-					<div className="min-h-0 flex-1 overflow-y-auto [scrollbar-width:none] [&>*]:!h-full [&::-webkit-scrollbar]:hidden">
+					<div className="relative min-h-0 flex-1 overflow-y-auto [scrollbar-width:none] [&>*]:!h-full [&::-webkit-scrollbar]:hidden">
 						{children}
 					</div>
 				</main>

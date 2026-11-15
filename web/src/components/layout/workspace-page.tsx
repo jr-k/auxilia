@@ -23,8 +23,10 @@ interface WorkspacePageProps {
 	actions?: React.ReactNode;
 	/** Right side of the page header (tabs, view toggles) */
 	headerRight?: React.ReactNode;
-	/** Pin the page (no page scroll) and give children the remaining height —
-	 * for content that scrolls internally (e.g. a capped table body). */
+	/** On tall viewports, pin the page (no page scroll) and give children the
+	 * remaining height — for content that scrolls internally (e.g. a capped
+	 * table body). Short viewports keep a single page scroll so the header
+	 * cannot squeeze the content out of view. */
 	fillHeight?: boolean;
 	/** Let dense list pages use the full workspace width instead of the
 	 * standard reading-width cap. */
@@ -73,17 +75,20 @@ export function WorkspacePage({
 					{actions}
 				</div>
 			</header>
+			{/* `relative` makes the scroll area the containing block of absolutely
+			    positioned descendants (sr-only labels, checkboxes): without it they
+			    escape its overflow and extend the document into a second scroll. */}
 			<div
-				className={
-					fillHeight
-						? "flex min-h-0 flex-1 flex-col overflow-hidden"
-						: "flex-1 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-				}
+				data-workspace-scroll=""
+				className={cn(
+					"relative min-h-0 flex-1 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+					fillHeight && "flex flex-col tall:overflow-hidden",
+				)}
 			>
 				<PageContainer
 					className={cn(
 						"px-4 pt-8 pb-10 sm:px-6 lg:px-8",
-						fillHeight && "flex min-h-0 flex-1 flex-col",
+						fillHeight && "tall:flex tall:min-h-0 tall:flex-1 tall:flex-col",
 						fullWidth && "@min-screen-xl/layout:max-w-none",
 					)}
 				>
@@ -113,9 +118,10 @@ export function WorkspacePage({
 						)}
 					</div>
 					<div
-						className={
-							fillHeight ? "mt-4 flex min-h-0 flex-1 flex-col" : "mt-4"
-						}
+						className={cn(
+							"mt-4",
+							fillHeight && "tall:flex tall:min-h-0 tall:flex-1 tall:flex-col",
+						)}
 					>
 						{children}
 					</div>

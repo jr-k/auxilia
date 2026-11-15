@@ -430,8 +430,8 @@ export function DataTable<T>({
 				style={tableWidthStyle}
 				className={`${tableGutterClass} rounded-[10px] border border-border bg-card dark:border-white/10 ${
 					scrollBody
-						? "min-h-0 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-						: "overflow-hidden"
+						? "relative min-h-0 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+						: "relative overflow-hidden"
 				}`}
 			>
 				{showSkeleton ? (

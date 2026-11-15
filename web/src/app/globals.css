@@ -5,6 +5,9 @@
 @source "../../node_modules/@streamdown/code/dist/*.js";
 
 @custom-variant dark (&:is(.dark *));
+/* Viewports tall enough to pin a list page's header and scroll its table body
+ * internally; shorter ones scroll the whole page instead. */
+@custom-variant tall (@media (min-height: 640px));
 
 /* ============================================================
  * Petrol Mono design system — tokens
