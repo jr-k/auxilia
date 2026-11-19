@@ -103,9 +103,9 @@ class ContextFootprintMiddleware(AgentMiddleware):
         estimate: dict[str, int], message: AIMessage, window: int | None
     ) -> dict[str, Any]:
         estimated_total = estimate["system"] + estimate["tools"] + estimate["messages"]
-        usage = message.usage_metadata or {}
-        reported = usage.get("input_tokens")
-        measured = isinstance(reported, int) and reported > 0 and estimated_total > 0
+        usage = message.usage_metadata
+        reported = usage["input_tokens"] if usage else 0
+        measured = reported > 0 and estimated_total > 0
         total = reported if measured else estimated_total
         scale = total / estimated_total if estimated_total else 1.0
         system = round(estimate["system"] * scale)
