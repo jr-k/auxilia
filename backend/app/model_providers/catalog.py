@@ -382,6 +382,12 @@ class ChatModelFactory:
                 # Use Responses for every native OpenAI model so newly added
                 # reasoning models can bind tools without an endpoint allowlist.
                 # LangChain translates reasoning_effort to reasoning.effort.
+                #
+                # store=False: the checkpoint replays the whole history on
+                # every call, so nothing reads OpenAI's stored copy, and
+                # storing fails outright once a turn grows large ("The
+                # response is too large to store"). Reasoning then travels
+                # encrypted instead of by stored id.
                 return ResponsesChatOpenAI(
                     model=model_id,
                     api_key=api_key,
@@ -389,6 +395,8 @@ class ChatModelFactory:
                     use_responses_api=True,
                     reasoning_effort=reasoning_effort,
                     stream_usage=True,
+                    store=False,
+                    include=["reasoning.encrypted_content"],
                 )
             case "deepseek":
                 # DeepSeek V4 selects thinking by parameters: `thinking.type`
