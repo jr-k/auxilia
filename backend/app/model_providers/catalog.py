@@ -363,6 +363,26 @@ class ChatModelFactory:
         api_key: str | None,
         reasoning_effort: str | None = None,
         base_url: str | None = None,
+        context_window: int | None = None,
+    ):
+        model = self._build(provider, model_id, api_key, reasoning_effort, base_url)
+        # The catalog wins over langchain's bundled profile, which lags new
+        # models; whatever reads the window (the context footprint, deepagents'
+        # summarization) reads it from the profile.
+        if context_window is not None:
+            model.profile = {
+                **(model.profile or {}),
+                "max_input_tokens": context_window,
+            }
+        return model
+
+    def _build(
+        self,
+        provider: str,
+        model_id: str,
+        api_key: str | None,
+        reasoning_effort: str | None,
+        base_url: str | None,
     ):
         # `reasoning_effort` is a value from the model's whitelist-declared
         # levels (ModelService.ensure_available resolves and clamps it) —
