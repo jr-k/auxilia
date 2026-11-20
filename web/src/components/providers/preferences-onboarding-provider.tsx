@@ -287,7 +287,7 @@ export function PreferencesOnboardingProvider({
 							className="flex min-w-0 flex-col px-4 py-5 sm:px-7 sm:py-6"
 						>
 							<div className="flex-1">
-								<h3 className="text-[20px] font-bold text-foreground">
+								<h3 className="text-[20px] font-semibold text-foreground">
 									{step.title}
 								</h3>
 								<p className="mt-2 max-w-[460px] text-[13.5px] leading-6 text-subtle dark:text-panel-body">

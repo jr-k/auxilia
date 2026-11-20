@@ -272,7 +272,7 @@ export function ConnectedUsersPanel({
 							onClick={() => {
 								void handlePersonalDisconnect();
 							}}
-							className="cursor-pointer rounded-[7px] border border-border px-3 py-[6px] text-[12px] font-semibold text-[#B04A3A] transition-colors hover:bg-[#FBEFED] disabled:cursor-default disabled:opacity-50 dark:hover:bg-rose-950"
+							className="cursor-pointer rounded-[7px] border border-border px-3 py-[6px] text-[12px] font-semibold text-danger transition-colors hover:bg-danger-bg disabled:cursor-default disabled:opacity-50 dark:hover:bg-rose-950"
 						>
 							{isDisconnecting ? "Disconnecting…" : "Disconnect my account"}
 						</button>
@@ -308,7 +308,7 @@ export function ConnectedUsersPanel({
 								onClick={() => {
 									void handleResetAll();
 								}}
-								className="cursor-pointer text-[12px] font-semibold text-[#B04A3A] transition-colors hover:text-destructive"
+								className="cursor-pointer text-[12px] font-semibold text-danger transition-colors hover:text-destructive"
 							>
 								Reset all connections
 							</button>
@@ -371,7 +371,7 @@ export function ConnectedUsersPanel({
 										onClick={() => {
 											void handleRevoke(connection);
 										}}
-										className="cursor-pointer rounded-[7px] border border-border px-3 py-[5px] text-[12px] font-medium text-[#B04A3A] transition-colors hover:border-[#F0D5D0] hover:bg-[#FBEFED] disabled:cursor-default disabled:opacity-50 dark:hover:bg-rose-950"
+										className="cursor-pointer rounded-[7px] border border-border px-3 py-[5px] text-[12px] font-medium text-danger transition-colors hover:border-[#F0D5D0] hover:bg-danger-bg disabled:cursor-default disabled:opacity-50 dark:hover:bg-rose-950"
 									>
 										{revokingId === connection.userId
 											? "Revoking…"

@@ -173,7 +173,7 @@ function BackupCodes({
 	};
 
 	return (
-		<div className="rounded-[10px] border border-petrol/30 bg-[#F2F8F8] p-4 dark:bg-petrol/10">
+		<div className="rounded-[10px] border border-petrol/30 bg-petrol-tint p-4 dark:bg-petrol/10">
 			<div className="flex items-start justify-between gap-4">
 				<div>
 					<p className="text-[13px] font-semibold text-foreground">
@@ -1095,7 +1095,7 @@ function TwoFactorCard({ user }: { user: CurrentUser }) {
 				</div>
 			) : status.enabled ? (
 				<div>
-					<div className="mb-4 flex items-center justify-between rounded-[9px] border border-petrol/20 bg-[#F2F8F8] px-4 py-3 dark:bg-petrol/10">
+					<div className="mb-4 flex items-center justify-between rounded-[9px] border border-petrol/20 bg-petrol-tint px-4 py-3 dark:bg-petrol/10">
 						<div className="flex items-center gap-2.5">
 							<span className="size-2 rounded-full bg-emerald-500" />
 							<span className="text-[13px] font-semibold text-foreground">

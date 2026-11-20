@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronRight, Flame, TrendingUp } from "lucide-react";
+import { ChevronRight, TrendingUp } from "lucide-react";
 import { UnderlineTabs } from "@/components/ui/underline-tabs";
 import { TrendChip, VendorMark } from "@/components/usage/usage-badge";
 import {
@@ -85,10 +85,10 @@ export function UsageBreakdown({
 	const filterable = FILTERABLE.has(current);
 
 	return (
-		<section className="rounded-2xl border border-[#E9EEEB] bg-white dark:border-white/10 dark:bg-card">
-			<div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-2 border-b border-[#F0F3F1] px-5 pt-4 dark:border-white/5">
+		<section className="rounded-2xl border border-border bg-white dark:border-white/10 dark:bg-card">
+			<div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-2 border-b border-border px-5 pt-4 dark:border-white/5">
 				<div className="pb-3">
-					<h2 className="text-[15px] font-bold text-foreground">Where the spend goes</h2>
+					<h2 className="text-[15px] font-semibold text-foreground">Where the spend goes</h2>
 					<p className="mt-0.5 text-[12.5px] text-meta dark:text-panel-dim">
 						{filterable
 							? "Select a row to focus the whole page on it."
@@ -144,8 +144,8 @@ export function UsageBreakdown({
 									<tr
 										key={row.key ?? "none"}
 										className={cn(
-											"group border-t border-[#F0F3F1] dark:border-white/5",
-											selectable && "cursor-pointer hover:bg-[#F7FAF8] dark:hover:bg-white/[0.03]",
+											"group border-t border-border dark:border-white/5",
+											selectable && "cursor-pointer hover:bg-surface dark:hover:bg-white/[0.03]",
 											active && "bg-petrol-tint/60 dark:bg-white/[0.05]",
 										)}
 										onClick={
@@ -221,7 +221,7 @@ export function UsageBreakdown({
 					{rows.length > COLLAPSED_ROWS && (
 						<button
 							type="button"
-							className="w-full cursor-pointer border-t border-[#F0F3F1] py-2.5 text-[12.5px] font-semibold text-petrol transition-colors hover:bg-[#F7FAF8] dark:border-white/5 dark:text-panel-terminal dark:hover:bg-white/[0.03]"
+							className="w-full cursor-pointer border-t border-border py-2.5 text-[12.5px] font-semibold text-petrol transition-colors hover:bg-surface dark:border-white/5 dark:text-panel-terminal dark:hover:bg-white/[0.03]"
 							onClick={() => {
 								setExpanded((value) => !value);
 							}}
@@ -282,13 +282,10 @@ export function RisingUsage({
 		.slice(0, 5);
 
 	return (
-		<section className="flex flex-col rounded-2xl border border-[#E9EEEB] bg-white p-5 dark:border-white/10 dark:bg-card">
-			<div className="flex items-center gap-2">
-				<Flame className="size-4 text-[#C27A3A]" />
-				<h2 className="text-[15px] font-bold text-foreground">Biggest increases</h2>
-			</div>
+		<section className="flex flex-col rounded-2xl border border-border bg-white p-5 dark:border-white/10 dark:bg-card">
+			<h2 className="text-[15px] font-semibold text-foreground">Biggest increases</h2>
 			<p className="mt-0.5 text-[12.5px] text-meta dark:text-panel-dim">
-				Compared with {previousLabel}.
+				Compared with {previousLabel}
 			</p>
 			{movers.length === 0 ? (
 				<div className="flex flex-1 flex-col items-center justify-center gap-2 py-8 text-center">
@@ -306,7 +303,7 @@ export function RisingUsage({
 							<li key={`${mover.dimension}-${mover.key}`}>
 								<button
 									type="button"
-									className="flex w-full cursor-pointer items-center gap-3 rounded-[8px] px-2 py-2 text-left transition-colors hover:bg-[#F7FAF8] dark:hover:bg-white/[0.04]"
+									className="flex w-full cursor-pointer items-center gap-3 rounded-[8px] px-2 py-2 text-left transition-colors hover:bg-surface dark:hover:bg-white/[0.04]"
 									onClick={() => {
 										onSelect(mover.dimension, mover.key);
 									}}
@@ -320,7 +317,7 @@ export function RisingUsage({
 										</div>
 									</div>
 									<div className="shrink-0 text-right">
-										<div className="font-mono text-[13px] font-semibold tabular-nums text-[#A8662C] dark:text-amber-300">
+										<div className="font-mono text-[13px] font-semibold tabular-nums text-warning dark:text-amber-300">
 											+{formatMoney(mover.delta, currency)}
 										</div>
 										<div className="text-[11px] tabular-nums text-meta">

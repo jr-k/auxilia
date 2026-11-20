@@ -52,7 +52,7 @@ const STATUS_COPY = new Map<
 	unchanged: { label: "Unchanged", className: "bg-neutral-bg text-subtle dark:bg-white/10 dark:text-panel-body" },
 	gone: {
 		label: "Gone",
-		className: "bg-[#FBEFED] text-[#B04A3A] dark:bg-[#B04A3A]/15",
+		className: "bg-danger-bg text-danger dark:bg-[#B04A3A]/15",
 		note: "keeps working, pinned",
 	},
 	skipped: {

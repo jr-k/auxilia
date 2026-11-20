@@ -126,7 +126,7 @@ function ArtifactIcon({ entry, large }: { entry: Entry; large?: boolean }) {
           className="rounded-[3px] object-contain"
         />
       ) : (
-        <span className="text-[13px] font-bold text-label">
+        <span className="text-[13px] font-semibold text-label">
           {serverName.charAt(0).toUpperCase()}
         </span>
       )}
@@ -313,7 +313,7 @@ function Card({
     >
       <ArtifactIcon entry={entry} />
       <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <span className="truncate text-[13.5px] font-bold">
+        <span className="truncate text-[13.5px] font-semibold">
           {entryTitle(entry)}
         </span>
         <span className="font-mono text-[11px] text-label">
@@ -494,7 +494,7 @@ function FileList({
   return (
     <>
       <header className="flex items-center gap-2.5 border-b border-hairline py-3 pl-5 pr-3">
-        <h2 className="text-[14.5px] font-bold">Artifacts in this thread</h2>
+        <h2 className="text-[14.5px] font-semibold">Artifacts in this thread</h2>
         <span className="flex-1 font-mono text-[11px] text-label">
           {entries.length}
         </span>
@@ -521,7 +521,7 @@ function FileList({
             >
               <ArtifactIcon entry={entry} large />
               <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                <span className="truncate text-[13.5px] font-bold">
+                <span className="truncate text-[13.5px] font-semibold">
                   {entryTitle(entry)}
                 </span>
                 <span className="truncate font-mono text-[11px] text-label">
@@ -842,7 +842,7 @@ export function ArtifactWorkspace({
                     <span className="w-2" />
                   )}
                   <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                    <h2 className="truncate text-[14.5px] font-bold">
+                    <h2 className="truncate text-[14.5px] font-semibold">
                       {selected ? selected.title : app && appTitle(app)}
                     </h2>
                     <p className="truncate font-mono text-[11px] text-label">

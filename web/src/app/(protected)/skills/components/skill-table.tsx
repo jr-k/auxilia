@@ -118,7 +118,7 @@ function UsedByAvatars({
 								onClick={(event) => {
 									event.stopPropagation();
 								}}
-								className="-ml-1.5 rounded-[5px] ring-2 ring-card transition-transform first:ml-0 hover:z-10 hover:-translate-y-0.5 focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-petrol dark:ring-[#12191C]"
+								className="-ml-1.5 rounded-[5px] ring-2 ring-card first:ml-0 hover:z-10 focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-petrol dark:ring-[#12191C]"
 							>
 								{avatar}
 							</Link>
@@ -574,7 +574,7 @@ export default function SkillTable({
 						className={`group relative flex min-h-[200px] animate-in flex-col rounded-xl border bg-white p-4 fade-in slide-in-from-bottom-3 transition-[border-color,box-shadow] duration-400 ease-out hover:shadow-[0_3px_10px_rgba(30,45,40,0.06)] dark:bg-card ${
 							selection.isSelected(skill.id)
 								? "border-petrol/45 shadow-[inset_0_0_0_1px_rgba(38,103,81,0.12)] dark:border-petrol/60"
-								: "border-[#e1ebe6] hover:border-[#cfe0d8] dark:border-white/10 dark:hover:border-white/20"
+								: "border-border hover:border-input dark:border-white/10 dark:hover:border-white/20"
 						}`}
 						style={{
 							animationDelay: `${index * 40}ms`,
@@ -645,7 +645,7 @@ export default function SkillTable({
 						<p className="pointer-events-none mt-3 line-clamp-3 min-h-[57px] flex-1 text-[12.5px] leading-[1.5] text-subtle dark:text-muted-foreground">
 							{skill.description}
 						</p>
-						<div className="pointer-events-none mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-[#edf2ef] pt-3 dark:border-white/5">
+						<div className="pointer-events-none mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3 dark:border-white/5">
 							<div>
 								{skill.scriptCount > 0 ? (
 									<SkillRequirementChip scriptCount={skill.scriptCount} />

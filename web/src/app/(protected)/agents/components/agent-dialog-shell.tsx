@@ -46,7 +46,7 @@ export default function AgentDialogShell({
 						{agent.emoji || "🤖"}
 					</div>
 					<div className="min-w-0 flex-1">
-						<div className="truncate text-[16px] leading-snug font-bold text-ink dark:text-panel-button">
+						<div className="truncate text-[16px] leading-snug font-semibold text-ink dark:text-panel-button">
 							{agent.name}
 						</div>
 						<div className="mt-0.5 text-[13px] leading-[1.5] text-label dark:text-panel-dim">

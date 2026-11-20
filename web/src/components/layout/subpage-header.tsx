@@ -1,7 +1,10 @@
+"use client";
+
 import Link from "next/link";
 import { Lock } from "lucide-react";
 import { Fragment } from "react";
 import { cn } from "@/lib/utils";
+import { useWorkspacesStore } from "@/stores/workspaces-store";
 
 export interface BreadcrumbSegment {
 	label: string;
@@ -9,9 +12,63 @@ export interface BreadcrumbSegment {
 }
 
 /**
+ * Breadcrumb trail of every top bar. The active workspace is always the
+ * root, so callers pass only the segments below it, with page names
+ * ("MCP servers"), never route slugs.
+ */
+export function Breadcrumbs({ trail }: { trail: BreadcrumbSegment[] }) {
+	const workspaceName = useWorkspacesStore(
+		(state) =>
+			state.workspaces.find(
+				(workspace) => workspace.id === state.activeWorkspaceId,
+			)?.name,
+	);
+	const segments: BreadcrumbSegment[] = [
+		{ label: workspaceName ?? "Workspace", href: "/" },
+		...trail,
+	];
+	return (
+		<nav
+			aria-label="Breadcrumb"
+			className="flex min-w-0 items-center overflow-hidden whitespace-nowrap text-[12px] text-meta dark:text-panel-dim"
+		>
+			{segments.map((segment, i) => {
+				const isLast = i === segments.length - 1;
+				const segmentClass = cn(
+					"block truncate",
+					isLast ? "max-w-[60%] shrink-0 font-medium text-foreground" : "min-w-0",
+				);
+				return (
+					<Fragment key={`${segment.label}-${i}`}>
+						{i > 0 && (
+							<span className="mx-1.5 shrink-0 text-ghost dark:text-panel-dim">
+								/
+							</span>
+						)}
+						{segment.href && !isLast ? (
+							<Link
+								href={segment.href}
+								className={cn(
+									segmentClass,
+									"rounded-[3px] transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-petrol/35",
+								)}
+							>
+								{segment.label}
+							</Link>
+						) : (
+							<span className={segmentClass}>{segment.label}</span>
+						)}
+					</Fragment>
+				);
+			})}
+		</nav>
+	);
+}
+
+/**
  * 52px top bar for workspace subpages (MCP servers add/custom/detail,
- * trigger editor/detail): mono breadcrumb trail on the left, an optional
- * status badge (e.g. UNSAVED), action buttons on the right. Mirrors the
+ * trigger editor/detail): breadcrumb trail on the left, an optional
+ * status badge (e.g. Unsaved), action buttons on the right. Mirrors the
  * agent editor's header bar.
  */
 export function SubpageHeader({
@@ -25,41 +82,7 @@ export function SubpageHeader({
 }) {
 	return (
 		<header className="flex h-[52px] shrink-0 items-center gap-3 border-b border-border pl-14 pr-4 md:px-7">
-			<nav className="flex min-w-0 items-center overflow-hidden whitespace-nowrap text-[11.5px] text-meta dark:text-panel-dim">
-				{trail.map((segment, i) => {
-					const isLast = i === trail.length - 1;
-					const href = segment.href ?? (i === 0 ? "/" : undefined);
-					const segmentClass = cn(
-						"block truncate",
-						i === 0 || isLast ? "shrink-0" : "min-w-0",
-						isLast && "font-medium text-foreground",
-					);
-					return (
-						<Fragment key={`${segment.label}-${i}`}>
-							{i > 0 && (
-								<span className="mx-1 shrink-0 text-ghost dark:text-panel-dim">
-									/
-								</span>
-							)}
-							{href ? (
-								<Link
-									href={href}
-									className={cn(
-										segmentClass,
-										"rounded-[3px] transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-petrol/35",
-									)}
-								>
-									{segment.label}
-								</Link>
-							) : (
-								<span className={segmentClass}>
-									{segment.label}
-								</span>
-							)}
-						</Fragment>
-					);
-				})}
-			</nav>
+			<Breadcrumbs trail={trail} />
 			{badge}
 			<div className="ml-auto flex shrink-0 items-center gap-2">{children}</div>
 		</header>

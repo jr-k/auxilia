@@ -9,11 +9,11 @@ function badgeFor(authType: MCPAuthType): { label: string; className: string } {
 			return {
 				label: "OAuth 2.0",
 				className:
-					"bg-[#E7F0FA] text-[#2E6FA8] dark:bg-sky-950 dark:text-sky-300",
+					"bg-neutral-bg text-subtle dark:bg-white/10 dark:text-panel-body",
 			};
 		case "api_key":
 			return {
-				label: "API Key Bearer",
+				label: "API key",
 				className:
 					"bg-neutral-bg text-subtle dark:bg-white/10 dark:text-panel-body",
 			};
@@ -21,13 +21,13 @@ function badgeFor(authType: MCPAuthType): { label: string; className: string } {
 			return {
 				label: "Service identity",
 				className:
-					"bg-[#E8F3EE] text-[#2E7054] dark:bg-emerald-950 dark:text-emerald-300",
+					"bg-neutral-bg text-subtle dark:bg-white/10 dark:text-panel-body",
 			};
 		case "custom_http":
 			return {
 				label: "Custom HTTP",
 				className:
-					"bg-[#F3ECE2] text-[#805A2F] dark:bg-amber-950 dark:text-amber-300",
+					"bg-neutral-bg text-subtle dark:bg-white/10 dark:text-panel-body",
 			};
 		case "none":
 			return {
@@ -38,7 +38,7 @@ function badgeFor(authType: MCPAuthType): { label: string; className: string } {
 	}
 }
 
-/** Mono-caps auth chip: OAUTH 2.0 (blue) · API KEY / OPEN (neutral). */
+/** Neutral auth chip: OAuth 2.0, API key, Open… */
 export function AuthTypeBadge({
 	authType,
 	className,
@@ -50,7 +50,7 @@ export function AuthTypeBadge({
 	return (
 		<span
 			className={cn(
-				"inline-flex shrink-0 items-center rounded-[4px] px-2 py-[3px] text-[9.5px] font-semibold ",
+				"inline-flex shrink-0 items-center rounded-[4px] px-2 py-[3px] text-[10.5px] font-medium",
 				badge.className,
 				className,
 			)}

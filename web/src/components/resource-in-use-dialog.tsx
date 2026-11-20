@@ -80,7 +80,7 @@ export default function ResourceInUseDialog({
 				</DialogHeader>
 
 				{error && (
-					<div className="rounded-[10px] bg-[#FBEFED] px-3.5 py-2.5 text-[13px] font-medium text-[#B04A3A] dark:bg-[#B04A3A]/10">
+					<div className="rounded-[10px] bg-danger-bg px-3.5 py-2.5 text-[13px] font-medium text-danger dark:bg-[#B04A3A]/10">
 						{error}
 					</div>
 				)}
@@ -113,19 +113,19 @@ export default function ResourceInUseDialog({
 					{agents.length === 1 ? "agent" : "agents"} will lose {consequence}. Threads are unaffected.
 				</p>
 
-				<div className="flex items-start gap-3 rounded-[10px] border border-[#B04A3A]/20 bg-[#FBEFED]/70 px-3.5 py-3 dark:border-[#B04A3A]/25 dark:bg-[#B04A3A]/10">
+				<div className="flex items-start gap-3 rounded-[10px] border border-danger/20 bg-danger-bg/70 px-3.5 py-3 dark:border-[#B04A3A]/25 dark:bg-[#B04A3A]/10">
 					<Checkbox
 						checked={acknowledged}
 						aria-label="Confirm detach and delete"
 						onCheckedChange={setAcknowledged}
-						className="mt-0.5 border-[#B04A3A]/45"
+						className="mt-0.5 border-danger/45"
 					/>
 					<button
 						type="button"
 						onClick={() => {
 							setAcknowledged((current) => !current);
 						}}
-						className="cursor-pointer text-left text-[12.5px] leading-[1.5] text-[#86392F] dark:text-[#E7A69D]"
+						className="cursor-pointer text-left text-[12.5px] leading-[1.5] text-danger dark:text-[#E7A69D]"
 					>
 						I understand that <span className="font-semibold">{resourceName}</span> will be
 						removed from {agents.length === 1 ? "1 agent" : `${agents.length} agents`} and
@@ -148,7 +148,7 @@ export default function ResourceInUseDialog({
 						onClick={() => {
 							void handleConfirm();
 						}}
-						className="inline-flex cursor-pointer items-center justify-center rounded-[7px] bg-[#B04A3A] px-4 py-2 text-[12.5px] font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-default disabled:opacity-50"
+						className="inline-flex cursor-pointer items-center justify-center rounded-[7px] bg-danger px-4 py-2 text-[12.5px] font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-default disabled:opacity-50"
 					>
 						{isDeleting
 							? "Removing…"

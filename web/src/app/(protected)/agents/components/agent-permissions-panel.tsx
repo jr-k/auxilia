@@ -163,7 +163,7 @@ export default function AgentPermissionsPanel({
 						}}
 					>
 						<SearchBar
-							placeholder="Search users by name or email…"
+							placeholder="Search users by name or email"
 							value={search}
 							onChange={setSearch}
 						/>
@@ -272,7 +272,7 @@ export default function AgentPermissionsPanel({
 								/>
 								<button
 									aria-label={`Remove ${user.name ?? "user"}`}
-									className="flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-[7px] text-meta transition-all hover:bg-hover hover:text-foreground md:opacity-0 md:group-hover:opacity-100 dark:text-panel-dim dark:hover:bg-white/10"
+									className="flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-[7px] text-meta transition hover:bg-hover hover:text-foreground md:opacity-0 md:group-hover:opacity-100 dark:text-panel-dim dark:hover:bg-white/10"
 									onClick={() => { removeUser(user.id); }}
 								>
 									<Trash2 className="size-3.5" />

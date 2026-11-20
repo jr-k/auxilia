@@ -61,15 +61,14 @@ export default function NewTriggerPage() {
 		<div className="flex h-svh min-w-0 flex-1 flex-col bg-background animate-in fade-in duration-300">
 			<SubpageHeader
 				trail={[
-					{ label: "workspace" },
-					{ label: "triggers", href: "/triggers" },
-					{ label: "new" },
+					{ label: "Triggers", href: "/triggers" },
+					{ label: "New trigger" },
 				]}
 			/>
 			<main className="flex min-h-0 flex-1 items-center justify-center overflow-y-auto px-5 py-12">
 				<div className="w-full max-w-[850px] md:-translate-y-10">
 					<div className="mb-9 max-w-xl">
-						<h1 className="font-[family-name:var(--font-jakarta-sans)] text-[32px] font-bold tracking-[-0.035em] text-foreground">
+						<h1 className="font-display text-[30px] font-bold tracking-[-0.035em] text-foreground">
 							How should it start?
 						</h1>
 						<p className="mt-3 text-[14px] leading-6 text-meta dark:text-panel-dim">
@@ -87,7 +86,7 @@ export default function NewTriggerPage() {
 									onClick={() => {
 										setTriggerType(choice.type);
 									}}
-									className="group relative flex min-h-[132px] cursor-pointer items-start gap-4 overflow-hidden rounded-2xl border border-border bg-card p-5 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-petrol/35 hover:shadow-[0_18px_45px_-28px_rgba(16,73,82,0.45)] focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-petrol/15"
+									className="group relative flex min-h-[132px] cursor-pointer items-start gap-4 overflow-hidden rounded-2xl border border-border bg-card p-5 text-left transition-[border-color,box-shadow] duration-150 hover:border-petrol/35 hover:shadow-[0_8px_24px_rgba(0,0,0,0.06)] focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-petrol/15"
 								>
 									<div
 										className={`flex size-11 shrink-0 items-center justify-center rounded-xl ${choice.accent}`}
@@ -95,7 +94,7 @@ export default function NewTriggerPage() {
 										<Icon className="size-[21px]" />
 									</div>
 									<div className="min-w-0 flex-1 pt-0.5">
-										<h2 className="text-[19px] font-bold tracking-[-0.02em] text-foreground">
+										<h2 className="text-[19px] font-semibold tracking-[-0.02em] text-foreground">
 											{choice.title}
 										</h2>
 										<p className="mt-2 text-[13px] leading-5 text-meta dark:text-panel-dim">
@@ -103,7 +102,7 @@ export default function NewTriggerPage() {
 										</p>
 									</div>
 									<div className="flex self-center">
-										<span className="flex size-7 items-center justify-center rounded-full bg-sidebar text-meta transition-all group-hover:bg-petrol group-hover:text-white dark:bg-white/5">
+										<span className="flex size-7 items-center justify-center rounded-full bg-sidebar text-meta transition group-hover:bg-petrol group-hover:text-white dark:bg-white/5">
 											<ArrowRight className="size-3.5" />
 										</span>
 									</div>

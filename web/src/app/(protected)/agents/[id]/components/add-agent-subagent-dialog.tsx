@@ -152,7 +152,7 @@ export default function AddAgentSubagentDialog({
 				</DialogHeader>
 				<div className="flex flex-col gap-4 overflow-y-auto">
 					<SearchBar
-						placeholder="Search agents..."
+						placeholder="Search agents"
 						value={search}
 						onChange={setSearch}
 					/>

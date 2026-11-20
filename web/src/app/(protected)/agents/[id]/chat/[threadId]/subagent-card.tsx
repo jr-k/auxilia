@@ -339,7 +339,7 @@ export const SubAgentProgress = memo(function SubAgentProgress({
     <div className="flex items-center gap-2 text-[10.5px] text-meta dark:text-panel-dim">
       <div className="h-1 flex-1 overflow-hidden rounded-full bg-hover dark:bg-white/10">
         <div
-          className="h-full rounded-full bg-petrol transition-all duration-300"
+          className="h-full rounded-full bg-petrol transition-[width] duration-300"
           style={{ width: `${(completed / total) * 100}%` }}
         />
       </div>
@@ -370,7 +370,7 @@ export const SynthesisIndicator = memo(function SynthesisIndicator({
   return (
     <div
       className={cn(
-        "flex animate-pulse items-center gap-2 text-[12.5px] italic text-muted-foreground",
+        "flex items-center gap-2 text-[12.5px] text-muted-foreground",
       )}
     >
       <Loader size={12} className="animate-spin" />

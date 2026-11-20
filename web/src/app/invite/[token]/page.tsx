@@ -197,7 +197,7 @@ export default function InviteAcceptPage({
 							/>
 							<div className="h-5">
 								<p
-									className={`text-xs transition-all duration-300 ease-in-out ${
+									className={`text-xs transition-[opacity,transform] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
 										password.length > 0 && password.length < 8
 											? "opacity-100 translate-y-0"
 											: "opacity-0 -translate-y-1 pointer-events-none"

@@ -230,7 +230,7 @@ export function EditWorkspaceDialog({
 											);
 										}}
 										className={cn(
-											"size-7 cursor-pointer rounded-full outline-none transition-transform hover:scale-110 focus-visible:ring-2 focus-visible:ring-ring/50 disabled:opacity-50",
+											"size-7 cursor-pointer rounded-full outline-none transition-opacity hover:opacity-80 focus-visible:ring-2 focus-visible:ring-ring/50 disabled:opacity-50",
 											color === candidate && "ring-2 ring-meta ring-offset-2 ring-offset-canvas",
 										)}
 									/>
@@ -238,7 +238,7 @@ export function EditWorkspaceDialog({
 								<label
 									title="Custom color"
 									className={cn(
-										"relative size-7 cursor-pointer overflow-hidden rounded-full bg-[conic-gradient(#e84393,#e17055,#fdcb6e,#00b894,#0984e3,#6c5ce7,#e84393)] outline-none transition-transform hover:scale-110",
+										"relative size-7 cursor-pointer overflow-hidden rounded-full bg-[conic-gradient(#e84393,#e17055,#fdcb6e,#00b894,#0984e3,#6c5ce7,#e84393)] outline-none transition-opacity hover:opacity-80",
 										color !== null &&
 											!AGENT_COLORS.includes(color) &&
 											"ring-2 ring-meta ring-offset-2 ring-offset-canvas",

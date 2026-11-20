@@ -67,7 +67,7 @@ export function AgentPicker({ value, onChange, disabled }: AgentPickerProps) {
 						emoji={selected.emoji}
 						size="xs"
 					/>
-					<span className="text-[12.5px] font-semibold tracking-[-0.01em] text-petrol truncate">
+					<span className="text-[12.5px] font-semibold text-petrol truncate">
 						{selected.name}
 					</span>
 				</div>
@@ -108,7 +108,7 @@ export function AgentPicker({ value, onChange, disabled }: AgentPickerProps) {
 				{/* Search */}
 				<div className="px-6 pt-4 pb-1">
 					<SearchBar
-						placeholder="Search for an agent..."
+						placeholder="Search agents"
 						value={search}
 						onChange={setSearch}
 					/>
@@ -129,7 +129,7 @@ export function AgentPicker({ value, onChange, disabled }: AgentPickerProps) {
 								data-keyboard-option="true"
 								aria-selected={isActive}
 								className={cn(
-									"my-px flex w-full items-center gap-3.5 px-3 py-2.5 rounded-[10px] cursor-pointer text-left outline-none transition-all duration-200 group focus-visible:ring-2 focus-visible:ring-petrol/35",
+									"my-px flex w-full items-center gap-3.5 px-3 py-2.5 rounded-[10px] cursor-pointer text-left outline-none transition duration-200 group focus-visible:ring-2 focus-visible:ring-petrol/35",
 									isActive
 										? "bg-petrol-tint dark:bg-white/5"
 										: "hover:bg-hover focus-visible:bg-hover dark:hover:bg-white/5 dark:focus-visible:bg-white/5",
@@ -146,7 +146,6 @@ export function AgentPicker({ value, onChange, disabled }: AgentPickerProps) {
 									color={agent.color}
 									emoji={agent.emoji}
 									size="md"
-									className="transition-transform duration-300 group-hover:scale-105"
 								/>
 								<span className="flex-1 text-[13.5px] font-semibold text-foreground truncate">
 									{agent.name}

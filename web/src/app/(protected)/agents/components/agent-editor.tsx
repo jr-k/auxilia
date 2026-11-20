@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useMemo, useRef, useEffect } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
 	ArchiveIcon,
@@ -42,6 +41,7 @@ import { useUnsavedChangesWarning } from "@/hooks/use-unsaved-changes-warning";
 import * as agentsApi from "@/lib/api/resources/agents";
 import * as langfuseApi from "@/lib/api/resources/langfuse";
 import { AgentAvatar } from "@/components/ui/agent-avatar";
+import { Breadcrumbs } from "@/components/layout/subpage-header";
 import { UsageBadge } from "@/components/usage/usage-badge";
 import { ModelPickerChip } from "@/components/editor/model-picker-chip";
 import {
@@ -69,9 +69,6 @@ export type CapabilityTab =
 	| "sandbox"
 	| "slack"
 	| "subagents";
-
-const slugify = (name: string) =>
-	name.trim().toLowerCase().replace(/\s+/g, "-") || "…";
 
 const TOOL_DISCOVERY_LABELS: Record<ToolDiscoveryMode, string> = {
 	disabled: "Eager",
@@ -707,15 +704,12 @@ export default function AgentEditor({
 		<div className="flex h-svh min-w-0 flex-1 flex-col bg-background animate-in fade-in duration-300">
 			{/* Header bar */}
 			<header className="flex h-[52px] shrink-0 items-center gap-3 border-b border-border pl-14 pr-4 md:px-7">
-				<span className="min-w-0 truncate text-[11.5px] text-meta dark:text-panel-dim">
-					<Link href="/agents" className="transition-colors hover:text-foreground">
-						agents
-					</Link>{" "}
-					<span className="text-ghost dark:text-panel-dim">/</span>{" "}
-					<span className="font-medium text-foreground">
-						{slugify(form.name)}
-					</span>
-				</span>
+				<Breadcrumbs
+					trail={[
+						{ label: "Agents", href: "/agents" },
+						{ label: form.name.trim() || (agent ? "Untitled agent" : "New agent") },
+					]}
+				/>
 				{isDirty && (
 					<span className="rounded-[4px] bg-warning-bg px-2 py-0.5 text-[10px] font-semibold text-warning">
 						Unsaved
@@ -900,7 +894,7 @@ export default function AgentEditor({
 													setField("color", c);
 												}}
 												style={{ backgroundColor: c }}
-												className={`size-7 cursor-pointer rounded-full transition-transform hover:scale-110 ${
+												className={`size-7 cursor-pointer rounded-full transition-opacity hover:opacity-80 ${
 													form.color === c
 														? "ring-2 ring-meta ring-offset-2"
 														: ""
@@ -910,7 +904,7 @@ export default function AgentEditor({
 										<label
 											title="Custom color"
 											className={cn(
-												"relative size-7 cursor-pointer overflow-hidden rounded-full bg-[conic-gradient(#e84393,#e17055,#fdcb6e,#00b894,#0984e3,#6c5ce7,#e84393)] transition-transform hover:scale-110",
+												"relative size-7 cursor-pointer overflow-hidden rounded-full bg-[conic-gradient(#e84393,#e17055,#fdcb6e,#00b894,#0984e3,#6c5ce7,#e84393)] transition-opacity hover:opacity-80",
 												!AGENT_COLORS.includes(form.color) &&
 													"ring-2 ring-meta ring-offset-2",
 											)}
@@ -1074,7 +1068,7 @@ export default function AgentEditor({
 									onChange={(e) => {
 										setField("instructions", e.target.value);
 									}}
-									placeholder="Enter instructions for your agent…"
+									placeholder="Enter instructions for your agent"
 									className="min-h-[300px] w-full flex-1 resize-none rounded-lg border border-input bg-sidebar p-4 text-[12.5px] leading-[1.7] text-foreground outline-none transition-[border-color,box-shadow] placeholder:text-meta dark:placeholder:text-panel-dim focus:border-petrol focus:shadow-[0_0_0_3px_rgba(22,96,110,0.10)] [scrollbar-width:thin]"
 								/>
 							))}

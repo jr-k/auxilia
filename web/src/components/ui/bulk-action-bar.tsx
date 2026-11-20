@@ -109,7 +109,7 @@ export function BulkActionBar({
 						className={cn(
 							"inline-flex cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-[7px] px-3 py-1.5 text-[11.5px] font-semibold transition-[background-color,border-color,transform] active:translate-y-px disabled:cursor-default disabled:opacity-50 disabled:active:translate-y-0 [&_svg]:size-3.5",
 							action.destructive
-								? "bg-[#B04A3A] text-white shadow-[0_1px_2px_rgba(105,38,28,0.2)] hover:bg-[#9E4032]"
+								? "bg-danger text-white shadow-[0_1px_2px_rgba(105,38,28,0.2)] hover:bg-[#9E4032]"
 								: "border border-border bg-card text-foreground hover:border-border-hover dark:border-white/10 dark:hover:border-white/20",
 						)}
 					>

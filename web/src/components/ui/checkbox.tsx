@@ -45,7 +45,7 @@ export function Checkbox({
 				"flex size-[18px] shrink-0 cursor-pointer items-center justify-center rounded-[5px] border transition-[background-color,border-color,box-shadow,transform] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-petrol/25 focus-visible:ring-offset-2 active:scale-95 disabled:cursor-not-allowed disabled:opacity-35 aria-disabled:cursor-not-allowed aria-disabled:opacity-35 aria-disabled:active:scale-100",
 				active
 					? "border-petrol bg-petrol text-white shadow-[0_1px_2px_rgba(25,87,67,0.22)]"
-					: "border-[#B9CAC2] bg-card text-transparent hover:border-petrol/70 dark:border-white/25 dark:bg-[#162025]",
+					: "border-border-hover bg-card text-transparent hover:border-petrol/70 dark:border-white/25 dark:bg-[#162025]",
 				className,
 			)}
 		>

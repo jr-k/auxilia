@@ -107,7 +107,7 @@ export default function TimezonePicker({
 										event.stopPropagation();
 									}
 								}}
-								placeholder="Search timezone…"
+								placeholder="Search timezone"
 								className="min-w-0 flex-1 bg-transparent text-[12.5px] text-foreground outline-none placeholder:text-faint"
 							/>
 						</div>

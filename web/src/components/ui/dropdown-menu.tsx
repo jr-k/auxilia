@@ -71,7 +71,7 @@ export function DropdownMenu({
 							return (
 								<DropdownMenuPrimitive.Label
 									key={i}
-									className="px-2.5 pb-1 pt-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-meta dark:text-panel-dim"
+									className="px-2.5 pb-1 pt-1.5 text-[12px] font-medium text-meta dark:text-panel-dim"
 								>
 									{item.sectionLabel}
 								</DropdownMenuPrimitive.Label>
@@ -93,7 +93,7 @@ export function DropdownMenu({
 								className={cn(
 									"flex cursor-pointer select-none items-center gap-2.5 rounded-[6px] px-2.5 py-2 text-[13px] font-medium whitespace-nowrap outline-none transition-colors",
 									item.destructive
-										? "text-[#B04A3A] focus:bg-[#FBEFED] dark:focus:bg-[#B04A3A]/10"
+										? "text-danger focus:bg-danger-bg dark:focus:bg-[#B04A3A]/10"
 										: "text-ink focus:bg-hover dark:text-panel-button dark:focus:bg-white/5",
 									item.active &&
 										!item.destructive &&
@@ -105,7 +105,7 @@ export function DropdownMenu({
 									<span
 										className={cn(
 											"shrink-0 [&_svg]:size-[15px]",
-											item.destructive ? "text-[#B04A3A]" : "text-label",
+											item.destructive ? "text-danger" : "text-label",
 										)}
 									>
 										{item.icon}

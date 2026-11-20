@@ -68,6 +68,8 @@
 	--pm-success-bg: #e1f3ec;
 	--pm-warning: #b07a2a;
 	--pm-warning-bg: #fbf3e2;
+	--pm-danger: #b04a3a; /* destructive text, buttons and hover */
+	--pm-danger-bg: #fbefed;
 
 	/* --- Dark panel (landing terminal, editor test console, login showcase) --- */
 	--pm-panel: #101820;
@@ -132,6 +134,8 @@
 	--color-success-bg: var(--pm-success-bg);
 	--color-warning: var(--pm-warning);
 	--color-warning-bg: var(--pm-warning-bg);
+	--color-danger: var(--pm-danger);
+	--color-danger-bg: var(--pm-danger-bg);
 	--color-panel: var(--pm-panel);
 	--color-panel-card: var(--pm-panel-card);
 	--color-panel-border: var(--pm-panel-border);

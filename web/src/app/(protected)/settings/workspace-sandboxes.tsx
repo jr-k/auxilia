@@ -273,7 +273,7 @@ export default function WorkspaceSandboxes({
 								onClick={() => {
 									void handleDelete(sandbox);
 								}}
-								className="flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-[7px] text-meta transition-colors hover:bg-[#FBEFED] hover:text-[#B04A3A] disabled:cursor-default disabled:opacity-50 dark:hover:bg-rose-950"
+								className="flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-[7px] text-meta transition-colors hover:bg-danger-bg hover:text-danger disabled:cursor-default disabled:opacity-50 dark:hover:bg-rose-950"
 							>
 								<Trash2 className="size-3.5" />
 							</button>

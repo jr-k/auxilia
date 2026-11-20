@@ -47,9 +47,6 @@ import TriggerResources, {
 } from "@/app/(protected)/triggers/components/trigger-resources";
 import { useTriggerDefaultModel } from "@/app/(protected)/triggers/components/use-trigger-default-model";
 
-const slugify = (name: string) =>
-	name.trim().toLowerCase().replace(/\s+/g, "-") || "…";
-
 interface TriggerFormState {
 	name: string;
 	group: string;
@@ -354,9 +351,8 @@ export default function TriggerEditor({
 		<div className="flex h-svh min-w-0 flex-1 flex-col bg-background animate-in fade-in duration-300">
 			<SubpageHeader
 				trail={[
-					{ label: "workspace" },
-					{ label: "triggers", href: "/triggers" },
-					{ label: trigger ? slugify(trigger.name) : "new" },
+					{ label: "Triggers", href: "/triggers" },
+					{ label: trigger ? trigger.name || "Untitled trigger" : "New trigger" },
 				]}
 				badge={isDirty ? <UnsavedBadge /> : undefined}
 			>
@@ -602,7 +598,7 @@ export default function TriggerEditor({
 								onChange={(e) => {
 									setField("instructions", e.target.value);
 								}}
-								placeholder="The message sent to the agent on every run…"
+								placeholder="The message sent to the agent on every run"
 								className="w-full flex-1 resize-none border-none bg-transparent text-[12.5px] leading-[1.7] text-foreground placeholder:text-meta dark:placeholder:text-panel-dim focus:outline-none [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
 							/>
 						</div>

@@ -619,9 +619,8 @@ export function DatabaseConnectionForm({
 		<div className="flex h-svh min-w-0 flex-1 flex-col bg-background animate-in fade-in duration-300">
 			<SubpageHeader
 				trail={[
-					{ label: "workspace" },
-					{ label: "mcp-servers", href: "/mcp-servers" },
-					{ label: isEditing ? connection.name : "new" },
+					{ label: "MCP servers", href: "/mcp-servers" },
+					{ label: isEditing ? connection.name : "New database" },
 				]}
 			>
 				<HeaderButton

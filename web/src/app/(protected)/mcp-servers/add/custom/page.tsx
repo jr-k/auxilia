@@ -130,7 +130,7 @@ function AuthMethodCards({
 						}}
 						className={`flex cursor-pointer flex-col gap-[5px] rounded-[10px] border p-[13px] text-left transition-[border-color,box-shadow] ${
 							selected
-								? "border-petrol bg-[#F7FAFA] shadow-[0_0_0_3px_rgba(22,96,110,0.08)] dark:bg-petrol/10"
+								? "border-petrol bg-surface shadow-[0_0_0_3px_rgba(22,96,110,0.08)] dark:bg-petrol/10"
 								: "border-border hover:border-input"
 						}`}
 					>
@@ -351,10 +351,9 @@ export default function CustomMCPServerPage() {
 		<div className="flex min-h-0 min-w-0 flex-1 flex-col bg-background animate-in fade-in duration-300">
 			<SubpageHeader
 				trail={[
-					{ label: "workspace" },
-					{ label: "mcp-servers", href: "/mcp-servers" },
-					{ label: "add", href: "/mcp-servers/add" },
-					{ label: "custom" },
+					{ label: "MCP servers", href: "/mcp-servers" },
+					{ label: "Add a server", href: "/mcp-servers/add" },
+					{ label: "Custom server" },
 				]}
 			>
 				<HeaderButton

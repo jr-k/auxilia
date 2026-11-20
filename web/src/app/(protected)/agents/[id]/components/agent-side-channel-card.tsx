@@ -638,7 +638,7 @@ function ProviderOption({
 			type="button"
 			data-keyboard-option="true"
 			onClick={onClick}
-			className="group flex w-full cursor-pointer items-center gap-3 rounded-[10px] border border-border bg-card p-3.5 text-left transition-all hover:border-petrol/35 hover:bg-petrol/[0.035] dark:border-white/10"
+			className="group flex w-full cursor-pointer items-center gap-3 rounded-[10px] border border-border bg-card p-3.5 text-left transition hover:border-petrol/35 hover:bg-petrol/[0.035] dark:border-white/10"
 		>
 			{icon}
 			<span className="min-w-0 flex-1">

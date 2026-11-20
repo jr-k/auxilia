@@ -132,7 +132,7 @@ function TableExportDropdown({ className }: { className?: string }) {
 					setOpen((value) => !value);
 				}}
 				className={cn(
-					"cursor-pointer p-1 text-muted-foreground transition-all hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50",
+					"cursor-pointer p-1 text-muted-foreground transition hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50",
 					className,
 				)}
 			>
@@ -201,7 +201,7 @@ function TableFullscreenButton({
 				onClick={() => {
 					setOpen(true);
 				}}
-				className="cursor-pointer p-1 text-muted-foreground transition-all hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+				className="cursor-pointer p-1 text-muted-foreground transition hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
 			>
 				<Maximize2 aria-hidden="true" size={14} />
 			</button>
@@ -228,7 +228,7 @@ function TableFullscreenButton({
 									onClick={() => {
 										setOpen(false);
 									}}
-									className="rounded-md p-1 text-muted-foreground transition-all hover:bg-muted hover:text-foreground"
+									className="rounded-md p-1 text-muted-foreground transition hover:bg-muted hover:text-foreground"
 								>
 									<X aria-hidden="true" size={20} />
 								</button>

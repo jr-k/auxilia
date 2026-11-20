@@ -30,18 +30,15 @@ const MAX_INLINE_AVATARS = 3;
 const ROLE_BADGES: Record<AgentPermission, { label: string; className: string }> = {
 	owner: {
 		label: "Owner",
-		className:
-			"bg-success-bg text-success dark:bg-emerald-950 dark:text-emerald-300",
+		className: "bg-petrol-chip text-petrol dark:bg-white/10 dark:text-panel-terminal",
 	},
 	admin: {
 		label: "Admin",
-		className:
-			"bg-success-bg text-success dark:bg-emerald-950 dark:text-emerald-300",
+		className: "bg-petrol-chip text-petrol dark:bg-white/10 dark:text-panel-terminal",
 	},
 	editor: {
 		label: "Editor",
-		className:
-			"bg-warning-bg text-warning dark:bg-amber-950 dark:text-amber-300",
+		className: "bg-neutral-bg text-subtle dark:bg-white/10 dark:text-panel-body",
 	},
 	member: {
 		label: "Member",
@@ -52,7 +49,7 @@ const ROLE_BADGES: Record<AgentPermission, { label: string; className: string }>
 const NO_ACCESS_BADGE = {
 	label: "No access",
 	className:
-		"bg-[#FBEFED] text-[#B04A3A] dark:bg-rose-950 dark:text-rose-300",
+		"bg-danger-bg text-danger dark:bg-rose-950 dark:text-rose-300",
 };
 
 interface AgentTableProps {
@@ -163,7 +160,7 @@ export default function AgentTable({
 							/>
 						</SelectableLeading>
 						<span className="min-w-0">
-							<span className="flex min-w-0 items-center gap-1.5 text-[12.5px] font-semibold tracking-[-0.01em] text-petrol">
+							<span className="flex min-w-0 items-center gap-1.5 text-[12.5px] font-semibold text-petrol">
 								<span className="truncate">{agent.name}</span>
 								{agent.isDefault && (
 									<Star
@@ -199,7 +196,7 @@ export default function AgentTable({
 										onClick={(event) => {
 											event.stopPropagation();
 										}}
-										className="flex size-6 shrink-0 items-center justify-center overflow-hidden rounded-[6px] border border-border bg-card transition-[border-color,transform] hover:-translate-y-0.5 hover:border-petrol/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-petrol"
+										className="flex size-6 shrink-0 items-center justify-center overflow-hidden rounded-[6px] border border-border bg-card transition-colors hover:border-petrol/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-petrol"
 									>
 										{/* eslint-disable-next-line @next/next/no-img-element */}
 										<img
@@ -270,7 +267,7 @@ export default function AgentTable({
 												? { background: agentColorBackground(sub.color) }
 												: undefined
 										}
-										className="flex size-[22px] shrink-0 items-center justify-center rounded-full border border-[rgba(16,24,32,0.06)] bg-hover text-[11px] transition-[border-color,transform] hover:-translate-y-0.5 hover:border-petrol/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-petrol"
+										className="flex size-[22px] shrink-0 items-center justify-center rounded-full border border-[rgba(16,24,32,0.06)] bg-hover text-[11px] transition-colors hover:border-petrol/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-petrol"
 									>
 										{sub.emoji || "🤖"}
 									</Link>

@@ -62,12 +62,12 @@ export default function AgentsPage() {
 
 	return (
 		<WorkspacePage
-			slug="agents"
+			crumb="Agents"
 			title="Agents"
 			intro="Assistants connected to your team's tools. Chat with them, or let triggers run them on a schedule."
 			fillHeight={viewMode === "table"}
 			search={{
-				placeholder: "Search agents…",
+				placeholder: "Search agents",
 				value: search,
 				onChange: setSearch,
 			}}

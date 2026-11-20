@@ -618,7 +618,7 @@ export default function MCPServerTable({
 								className={`group relative flex min-h-[190px] animate-in flex-col rounded-xl border bg-white p-4 fade-in slide-in-from-bottom-3 transition-[border-color,box-shadow] duration-400 ease-out hover:shadow-[0_3px_10px_rgba(30,45,40,0.06)] dark:bg-card ${
 									selection.isSelected(server.id)
 										? "border-petrol/45 shadow-[inset_0_0_0_1px_rgba(38,103,81,0.12)] dark:border-petrol/60"
-										: "border-[#e1ebe6] hover:border-[#cfe0d8] dark:border-white/10 dark:hover:border-white/20"
+										: "border-border hover:border-input dark:border-white/10 dark:hover:border-white/20"
 								}`}
 								style={{
 									animationDelay: `${index * 40}ms`,
@@ -672,7 +672,7 @@ export default function MCPServerTable({
 										/>
 									</SelectableLeading>
 									<div className="min-w-0 flex-1">
-										<h2 className="truncate text-[14.5px] font-bold tracking-[-0.01em] text-foreground">
+										<h2 className="truncate text-[14.5px] font-semibold text-foreground">
 											{server.name}
 										</h2>
 										<div className="mt-1 flex flex-wrap items-center gap-1.5">
@@ -687,7 +687,7 @@ export default function MCPServerTable({
 								<p className="pointer-events-none mt-3 line-clamp-2 min-h-[38px] flex-1 text-[12.5px] leading-[1.5] text-subtle dark:text-muted-foreground">
 									{server.description || "No description provided."}
 								</p>
-								<p className="pointer-events-none mt-3 truncate border-t border-[#edf2ef] pt-3 font-mono text-[10.5px] text-meta dark:border-white/5 dark:text-panel-dim">
+								<p className="pointer-events-none mt-3 truncate border-t border-border pt-3 font-mono text-[10.5px] text-meta dark:border-white/5 dark:text-panel-dim">
 									{server.managedBy === "database"
 										? (server.managedEndpoint ?? "Managed database")
 										: server.url}

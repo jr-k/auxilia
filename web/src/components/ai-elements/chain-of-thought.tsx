@@ -238,7 +238,7 @@ export const ChainStepIcon = ({
 		<TooltipTrigger asChild>
 			<span
 				aria-label={name}
-				className="relative z-[1] flex size-[22px] shrink-0 cursor-help items-center justify-center rounded-[6px] border border-border bg-card transition-[border-color,box-shadow,transform] hover:-translate-y-px hover:border-petrol/35 hover:shadow-[0_3px_10px_rgba(20,64,70,0.12)]"
+				className="relative z-[1] flex size-[22px] shrink-0 cursor-help items-center justify-center rounded-[6px] border border-border bg-card transition-colors hover:border-petrol/35"
 			>
 				{icon ? (
 					<Image

@@ -97,7 +97,7 @@ function HostCards({ value, onChange, detected }: { value: SkillSourceKind; onCh
 						}}
 						className={`flex cursor-pointer flex-col gap-[5px] rounded-[10px] border p-[13px] text-left transition-[border-color,box-shadow] ${
 							selected
-								? "border-petrol bg-[#F7FAFA] shadow-[0_0_0_3px_rgba(22,96,110,0.08)] dark:bg-petrol/10"
+								? "border-petrol bg-surface shadow-[0_0_0_3px_rgba(22,96,110,0.08)] dark:bg-petrol/10"
 								: "border-border hover:border-input"
 						}`}
 					>
@@ -177,7 +177,7 @@ function PreviewPanel({ preview }: { preview: SkillSourcePreview }) {
 					{skill.issues.length > 0 && (
 						<ul className="mt-1.5 flex flex-col gap-0.5">
 							{skill.issues.map((issue, i) => (
-								<li key={i} className={`text-[10.5px] ${issue.severity === "error" ? "text-[#B04A3A]" : "text-warning"}`}>
+								<li key={i} className={`text-[10.5px] ${issue.severity === "error" ? "text-danger" : "text-warning"}`}>
 									<span className="font-mono">{issue.code}</span> {issue.message}
 									{issue.suggestion ? ` → ${issue.suggestion}` : ""}
 								</li>
@@ -376,7 +376,7 @@ export default function NewSkillSourcePage() {
 					errorMessage="Could not connect the repository."
 				/>
 			)}
-			<SubpageHeader trail={[{ label: "workspace" }, { label: "skills", href: "/skills" }, { label: "connect repository" }]}>
+			<SubpageHeader trail={[{ label: "Skills", href: "/skills" }, { label: "Connect a repository" }]}>
 				<HeaderButton
 					disabled={busy !== null}
 					onClick={() => {
@@ -419,7 +419,7 @@ export default function NewSkillSourcePage() {
 					<div className="mt-8 flex flex-col gap-6">
 						<div className="flex flex-col gap-1.5">
 							<label htmlFor="source-url" className={LABEL_CLASS}>
-								Repository address <span className="text-[#B04A3A]">*</span>
+								Repository address <span className="text-danger">*</span>
 							</label>
 							<input
 								id="source-url"

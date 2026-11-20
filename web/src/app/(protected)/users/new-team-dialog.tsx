@@ -77,7 +77,7 @@ export default function NewTeamDialog({
 					className="flex flex-col gap-5"
 				>
 					{error && (
-						<div className="rounded-[10px] bg-[#FBEFED] px-3.5 py-2.5 text-[13px] font-medium text-[#B04A3A] dark:bg-[#B04A3A]/10">
+						<div className="rounded-[10px] bg-danger-bg px-3.5 py-2.5 text-[13px] font-medium text-danger dark:bg-[#B04A3A]/10">
 							{error}
 						</div>
 					)}
@@ -118,7 +118,7 @@ export default function NewTeamDialog({
 										setColor(c);
 									}}
 									style={{ backgroundColor: c }}
-									className={`size-7 cursor-pointer rounded-full transition-transform hover:scale-110 ${
+									className={`size-7 cursor-pointer rounded-full transition-opacity hover:opacity-80 ${
 										color === c
 											? "ring-2 ring-petrol ring-offset-2 dark:ring-offset-card"
 											: ""
@@ -127,7 +127,7 @@ export default function NewTeamDialog({
 							))}
 							<label
 								title="Custom color"
-								className={`relative size-7 cursor-pointer overflow-hidden rounded-full bg-[conic-gradient(#e84393,#e17055,#fdcb6e,#00b894,#0984e3,#6c5ce7,#e84393)] transition-transform hover:scale-110 ${
+								className={`relative size-7 cursor-pointer overflow-hidden rounded-full bg-[conic-gradient(#e84393,#e17055,#fdcb6e,#00b894,#0984e3,#6c5ce7,#e84393)] transition-opacity hover:opacity-80 ${
 									!AGENT_COLORS.includes(color)
 										? "ring-2 ring-petrol ring-offset-2 dark:ring-offset-card"
 										: ""

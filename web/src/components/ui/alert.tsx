@@ -16,8 +16,8 @@ function getVariant(variant: AlertVariant): VariantConfig {
 	switch (variant) {
 		case "error":
 			return {
-				container: "bg-[#FBEFED] text-[#B04A3A] dark:bg-[#B04A3A]/10",
-				dismissHover: "hover:bg-[#B04A3A]/10",
+				container: "bg-danger-bg text-danger dark:bg-[#B04A3A]/10",
+				dismissHover: "hover:bg-danger/10",
 				Icon: AlertCircle,
 			};
 		case "warning":

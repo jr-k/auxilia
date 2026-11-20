@@ -114,8 +114,8 @@ function ProgressiveToolList({
 			{mode === "agent" && !readOnly && (
 				<div className="flex items-center gap-3 border-b border-hover bg-hover/35 px-4 py-2.5 dark:border-white/5 dark:bg-white/[0.025]">
 					<div className="min-w-0 flex-1">
-						<p className="text-[10.5px] font-semibold tracking-[0.08em] text-label dark:text-muted-foreground">
-							ALL TOOLS
+						<p className="text-[12px] font-medium text-label dark:text-muted-foreground">
+							All tools
 						</p>
 						<p className="mt-0.5 text-[11.5px] text-muted-foreground">
 							Apply one approval policy to every tool
@@ -544,7 +544,7 @@ export default function AgentMCPServer({
 				<div className="ml-auto flex shrink-0 items-center gap-2">
 					{!isCheckingConnection &&
 						(toolsUnavailable ? (
-							<span className="rounded-[4px] bg-[#FBEFED] px-2 py-0.5 text-[9.5px] font-semibold text-[#B04A3A]">
+							<span className="rounded-[4px] bg-danger-bg px-2 py-0.5 text-[9.5px] font-semibold text-danger">
 								Unavailable
 							</span>
 						) : isConnected ? (
@@ -552,13 +552,13 @@ export default function AgentMCPServer({
 								Connected
 							</span>
 						) : (
-							<span className="rounded-[4px] bg-[#FBEFED] px-2 py-0.5 text-[9.5px] font-semibold text-[#B04A3A]">
+							<span className="rounded-[4px] bg-danger-bg px-2 py-0.5 text-[9.5px] font-semibold text-danger">
 								Not connected
 							</span>
 						))}
 					<ChevronRight
 						aria-hidden="true"
-						className={`m-1 size-4 text-meta transition-all dark:text-panel-dim ${
+						className={`m-1 size-4 text-meta transition dark:text-panel-dim ${
 							isExpanded ? "rotate-90" : ""
 						}`}
 					/>
@@ -679,7 +679,7 @@ export default function AgentMCPServer({
 							)}
 							{!readOnly && (
 								<button
-									className="cursor-pointer rounded-[7px] px-3 py-1.5 text-[12.5px] font-semibold text-[#B04A3A] transition-colors hover:bg-[#FBEFED] dark:hover:bg-[#B04A3A]/10"
+									className="cursor-pointer rounded-[7px] px-3 py-1.5 text-[12.5px] font-semibold text-danger transition-colors hover:bg-danger-bg dark:hover:bg-[#B04A3A]/10"
 									onClick={() => {
 										onRemove?.();
 									}}

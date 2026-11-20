@@ -101,9 +101,9 @@ export function ThreeStateToggle({
 		>
 			{selectedIndex >= 0 && (
 				<div
-					className="absolute h-6 w-8 rounded-full bg-card shadow-raised transition-all duration-300 ease-out"
+					className="absolute left-[3px] h-6 w-8 rounded-full bg-card shadow-raised transition-transform duration-200 ease-[cubic-bezier(0.22,1,0.36,1)]"
 					style={{
-						left: `${3 + selectedIndex * 32}px`,
+						transform: `translateX(${selectedIndex * 32}px)`,
 					}}
 				/>
 			)}

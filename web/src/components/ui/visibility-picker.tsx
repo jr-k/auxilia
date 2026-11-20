@@ -202,7 +202,7 @@ export function VisibilityPicker({
 									onKeyDown={(event) => {
 										event.stopPropagation();
 									}}
-									placeholder="Search teams…"
+									placeholder="Search teams"
 									className="h-8 w-full rounded-lg border border-input bg-background pl-8 pr-2 text-[12px] outline-none focus:border-petrol"
 								/>
 							</div>

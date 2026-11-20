@@ -43,7 +43,7 @@ import {
 	HeaderPrimaryButton,
 	SubpageHeader,
 } from "@/components/layout/subpage-header";
-import { isOfficialIcon, slugify } from "../lib/constants";
+import { isOfficialIcon } from "../lib/constants";
 import {
 	buildServiceCredentialsPayload,
 	parseServiceCredentialScopes,
@@ -681,9 +681,8 @@ export default function MCPServerDetail({
 		<div className="flex h-svh min-w-0 flex-1 flex-col bg-background animate-in fade-in duration-300">
 			<SubpageHeader
 				trail={[
-					{ label: "workspace" },
-					{ label: "mcp-servers", href: "/mcp-servers" },
-					{ label: slugify(server.name) },
+					{ label: "MCP servers", href: "/mcp-servers" },
+					{ label: server.name },
 				]}
 			>
 				<HeaderButton
@@ -1386,7 +1385,7 @@ export default function MCPServerDetail({
 									onClick={() => {
 										void handleDelete();
 									}}
-									className="cursor-pointer rounded-[7px] px-3.5 py-[7px] text-[12.5px] font-semibold text-[#B04A3A] transition-colors hover:bg-[#FBEFED] disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-rose-950"
+									className="cursor-pointer rounded-[7px] px-3.5 py-[7px] text-[12.5px] font-semibold text-danger transition-colors hover:bg-danger-bg disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-rose-950"
 								>
 									Delete server
 								</button>

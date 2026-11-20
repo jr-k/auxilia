@@ -32,30 +32,30 @@ const ROLE_BADGE_CONFIG: Record<
 > = {
 	owner: {
 		label: "Owner",
-		bg: "bg-[#e7f0eb] dark:bg-emerald-950",
-		text: "text-[#3d8b63] dark:text-emerald-300",
+		bg: "bg-petrol-chip dark:bg-white/10",
+		text: "text-petrol dark:text-panel-terminal",
 	},
 	admin: {
 		label: "Admin",
-		bg: "bg-[#e7f0eb] dark:bg-emerald-950",
-		text: "text-[#3d8b63] dark:text-emerald-300",
+		bg: "bg-petrol-chip dark:bg-white/10",
+		text: "text-petrol dark:text-panel-terminal",
 	},
 	editor: {
 		label: "Editor",
-		bg: "bg-[#f5edda] dark:bg-amber-950",
-		text: "text-[#9a7b3c] dark:text-amber-300",
+		bg: "bg-neutral-bg dark:bg-white/10",
+		text: "text-subtle dark:text-panel-body",
 	},
 	member: {
 		label: "Member",
-		bg: "bg-[#eef0ee] dark:bg-stone-800",
-		text: "text-[#7d8077] dark:text-stone-400",
+		bg: "bg-neutral-bg dark:bg-white/10",
+		text: "text-label dark:text-panel-dim",
 	},
 };
 
 const NO_ACCESS_BADGE = {
 	label: "No access",
-	bg: "bg-[#F3E4E6] dark:bg-rose-950",
-	text: "text-[#A35462] dark:text-rose-300",
+	bg: "bg-danger-bg dark:bg-rose-950",
+	text: "text-danger dark:text-rose-300",
 };
 
 const MCP_SERVER_PREVIEW_LIMIT = 8;
@@ -130,7 +130,7 @@ export default function AgentCard({
 				className={`group flex h-full cursor-pointer flex-col rounded-xl border bg-white p-4 pb-0 transition-[border-color,box-shadow] duration-[130ms] ease-out hover:shadow-[0_3px_10px_rgba(30,45,40,0.06)] dark:bg-card ${
 					selected
 						? "border-petrol/45 shadow-[inset_0_0_0_1px_rgba(38,103,81,0.12)] dark:border-petrol/60"
-						: "border-[#e1ebe6] hover:border-[#cfe0d8] dark:border-white/10 dark:hover:border-white/20"
+						: "border-border hover:border-input dark:border-white/10 dark:hover:border-white/20"
 				} ${longPressSelectable ? LONG_PRESS_TARGET_CLASS : ""}`}
 				{...pressProps}
 				onClickCapture={longPress.onClickCapture}
@@ -158,7 +158,7 @@ export default function AgentCard({
 						/>
 					</SelectableLeading>
 					<div className="min-w-[90px] flex-1">
-						<div className="flex min-w-0 items-center gap-1.5 font-[family-name:var(--font-jakarta-sans)] text-[14.5px] font-bold tracking-[-0.01em] text-[#1e2d28] dark:text-foreground">
+						<div className="flex min-w-0 items-center gap-1.5 text-[14.5px] font-semibold text-foreground">
 							<span className="truncate">{agent.name}</span>
 							{agent.isDefault && (
 								<Star
@@ -168,7 +168,7 @@ export default function AgentCard({
 							)}
 						</div>
 						{ownerName && (
-							<div className="mt-px truncate text-[11px] text-[#94a59d] dark:text-muted-foreground">
+							<div className="mt-px truncate text-[11px] text-meta dark:text-muted-foreground">
 								by {ownerName}
 							</div>
 						)}
@@ -203,13 +203,13 @@ export default function AgentCard({
 				</div>
 
 				{/* Description — 2-line clamp, reserves height so rows align */}
-				<p className="mb-3 min-h-[38px] flex-1 font-[family-name:var(--font-dm-sans)] text-[12.5px] leading-[1.5] text-[#5f7068] dark:text-muted-foreground line-clamp-2">
+				<p className="mb-3 min-h-[38px] flex-1 font-[family-name:var(--font-dm-sans)] text-[12.5px] leading-[1.5] text-label dark:text-muted-foreground line-clamp-2">
 					{agent.description || "No description provided."}
 				</p>
 
 				{/* Meta — MCP server icons (left) · subagents (right) */}
 				{(resolvedServers.length > 0 || agent.subagents?.length > 0) && (
-					<div className="flex items-center justify-between border-t border-[#edf2ef] dark:border-white/5 py-2.5">
+					<div className="flex items-center justify-between border-t border-border dark:border-white/5 py-2.5">
 						<div className="flex items-center">
 							{resolvedServers
 								.slice(0, MCP_SERVER_PREVIEW_LIMIT)
@@ -217,7 +217,7 @@ export default function AgentCard({
 								<span
 									key={server.id}
 									title={server.name}
-									className="-ml-1.5 flex size-5 items-center justify-center overflow-hidden rounded-full border border-[#e1ebe6] bg-surface first:ml-0 dark:border-white/10 dark:bg-white/5"
+									className="-ml-1.5 flex size-5 items-center justify-center overflow-hidden rounded-full border border-border bg-surface first:ml-0 dark:border-white/10 dark:bg-white/5"
 								>
 									{/* eslint-disable-next-line @next/next/no-img-element */}
 									<img
@@ -240,7 +240,7 @@ export default function AgentCard({
 										.slice(MCP_SERVER_PREVIEW_LIMIT)
 										.map((server) => server.name)
 										.join(", ")}
-									className="-ml-1.5 flex size-5 items-center justify-center rounded-full border border-[#e1ebe6] bg-surface text-[9px] font-semibold text-[#7d8077] first:ml-0 dark:border-white/10 dark:bg-white/5 dark:text-muted-foreground"
+									className="-ml-1.5 flex size-5 items-center justify-center rounded-full border border-border bg-surface text-[9px] font-semibold text-label first:ml-0 dark:border-white/10 dark:bg-white/5 dark:text-muted-foreground"
 								>
 									+{resolvedServers.length - MCP_SERVER_PREVIEW_LIMIT}
 								</span>
@@ -260,7 +260,7 @@ export default function AgentCard({
 													}
 												: undefined
 										}
-										className="-ml-1.5 flex size-5 items-center justify-center rounded-full border border-[#e1ebe6] bg-surface text-[13px] leading-none first:ml-0 dark:border-white/10 dark:bg-white/5"
+										className="-ml-1.5 flex size-5 items-center justify-center rounded-full border border-border bg-surface text-[13px] leading-none first:ml-0 dark:border-white/10 dark:bg-white/5"
 									>
 										{sub.emoji || "🤖"}
 									</span>
@@ -271,7 +271,7 @@ export default function AgentCard({
 											.slice(4)
 											.map((s) => s.name)
 											.join(", ")}
-										className="-ml-1.5 flex size-5 items-center justify-center rounded-full border border-[#e1ebe6] bg-surface text-[9px] font-semibold text-[#7d8077] first:ml-0 dark:border-white/10 dark:bg-white/5 dark:text-muted-foreground"
+										className="-ml-1.5 flex size-5 items-center justify-center rounded-full border border-border bg-surface text-[9px] font-semibold text-label first:ml-0 dark:border-white/10 dark:bg-white/5 dark:text-muted-foreground"
 									>
 										+{agent.subagents.length - 4}
 									</span>

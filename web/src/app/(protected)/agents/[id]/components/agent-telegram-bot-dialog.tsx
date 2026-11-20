@@ -218,7 +218,7 @@ function AgentTelegramSetupGuide({ onDone }: { onDone: () => void }) {
 				className="flex min-w-0 flex-col px-4 py-5 sm:px-6"
 			>
 				<div className="flex-1">
-					<h3 className="text-[18px] font-bold text-foreground">{step.title}</h3>
+					<h3 className="text-[18px] font-semibold text-foreground">{step.title}</h3>
 					<div className="mt-3 text-[13.5px] leading-[1.65] text-subtle dark:text-panel-body">
 						{step.body}
 					</div>
@@ -348,7 +348,7 @@ export default function AgentTelegramBotDialog({
 								onClick={() => {
 									setView("guide");
 								}}
-								className="group flex w-full cursor-pointer items-center gap-3 rounded-[10px] border border-petrol/30 bg-petrol/[0.07] p-4 text-left transition-all hover:border-petrol/45 hover:bg-petrol/[0.11] dark:border-petrol/60 dark:bg-petrol/25 dark:hover:bg-petrol/35"
+								className="group flex w-full cursor-pointer items-center gap-3 rounded-[10px] border border-petrol/30 bg-petrol/[0.07] p-4 text-left transition hover:border-petrol/45 hover:bg-petrol/[0.11] dark:border-petrol/60 dark:bg-petrol/25 dark:hover:bg-petrol/35"
 							>
 								<span className="min-w-0 flex-1">
 									<span className="flex items-center gap-2">
@@ -358,7 +358,7 @@ export default function AgentTelegramBotDialog({
 												: "Set up with BotFather"}
 										</span>
 										{!settings.isConfigured && (
-											<span className="rounded-full bg-petrol/10 px-1.5 py-0.5 text-[9px] font-bold text-petrol dark:bg-panel-terminal/15 dark:text-panel-terminal">
+											<span className="rounded-full bg-petrol/10 px-1.5 py-0.5 text-[10px] font-semibold text-petrol dark:bg-panel-terminal/15 dark:text-panel-terminal">
 												Required
 											</span>
 										)}

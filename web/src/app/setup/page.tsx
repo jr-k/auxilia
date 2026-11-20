@@ -112,7 +112,7 @@ export default function SetupPage() {
 				>
 					<div className="mt-[7px] h-4">
 						<p
-							className={`text-xs text-label transition-all duration-300 ease-in-out ${
+							className={`text-xs text-label transition-[opacity,transform] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
 								password.length > 0 && password.length < 8
 									? "opacity-100 translate-y-0"
 									: "opacity-0 -translate-y-1 pointer-events-none"
@@ -124,7 +124,7 @@ export default function SetupPage() {
 				</AuthField>
 
 				<AuthSubmitButton disabled={isLoading}>
-					{isLoading ? "Creating account…" : "Create admin account →"}
+					{isLoading ? "Creating account…" : "Create admin account"}
 				</AuthSubmitButton>
 			</form>
 		</AuthShell>

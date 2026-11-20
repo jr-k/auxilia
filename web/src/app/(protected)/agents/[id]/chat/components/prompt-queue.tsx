@@ -187,7 +187,7 @@ export function PromptQueue({
 									setOverId(null);
 								}}
 								className={cn(
-									"group flex items-center gap-1.5 rounded-lg border px-2 py-1.5 transition-all",
+									"group flex items-center gap-1.5 rounded-lg border px-2 py-1.5 transition",
 									isEditing
 										? "border-sky-400/50 bg-sky-500/[0.08]"
 										: "border-transparent bg-card/70 hover:border-petrol/15 hover:bg-card",
@@ -238,7 +238,7 @@ export function PromptQueue({
 										void onSendNow(item.id);
 									}}
 									aria-label="Send queued prompt now"
-									className="shrink-0 cursor-pointer rounded-md px-2 py-1 text-[11px] font-semibold text-petrol opacity-80 transition-all hover:bg-petrol/10 disabled:cursor-wait disabled:opacity-40 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
+									className="shrink-0 cursor-pointer rounded-md px-2 py-1 text-[11px] font-semibold text-petrol opacity-80 transition hover:bg-petrol/10 disabled:cursor-wait disabled:opacity-40 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
 								>
 									Send now
 								</button>
@@ -249,7 +249,7 @@ export function PromptQueue({
 										onEdit(item);
 									}}
 									aria-label="Edit queued prompt"
-									className="flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-md text-meta opacity-70 transition-all hover:bg-sky-500/10 hover:text-sky-600 disabled:cursor-wait disabled:opacity-40 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
+									className="flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-md text-meta opacity-70 transition hover:bg-sky-500/10 hover:text-sky-600 disabled:cursor-wait disabled:opacity-40 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
 								>
 									<PencilIcon className="size-3.5" />
 								</button>
@@ -260,7 +260,7 @@ export function PromptQueue({
 										void onRemove(item.id);
 									}}
 									aria-label="Remove queued prompt"
-									className="flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-md text-meta opacity-70 transition-all hover:bg-destructive/10 hover:text-destructive disabled:cursor-wait disabled:opacity-40 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
+									className="flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-md text-meta opacity-70 transition hover:bg-destructive/10 hover:text-destructive disabled:cursor-wait disabled:opacity-40 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
 								>
 									<Trash2Icon className="size-3.5" />
 								</button>

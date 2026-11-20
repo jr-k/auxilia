@@ -351,9 +351,8 @@ export default function SkillEditor({
 		<div className="flex h-svh min-w-0 flex-1 flex-col bg-background animate-in fade-in duration-300">
 			<SubpageHeader
 				trail={[
-					{ label: "workspace" },
-					{ label: "skills", href: "/skills" },
-					{ label: name || (skill ? skill.name : "new") },
+					{ label: "Skills", href: "/skills" },
+					{ label: name || (skill ? skill.name : "New skill") },
 				]}
 				badge={isDirty ? <UnsavedBadge /> : undefined}
 			>
@@ -491,7 +490,7 @@ export default function SkillEditor({
 													}));
 												}}
 												className={cn(
-													"size-7 cursor-pointer rounded-full transition-transform hover:scale-110",
+													"size-7 cursor-pointer rounded-full transition-opacity hover:opacity-80",
 													draft.color === candidate &&
 														"ring-2 ring-meta ring-offset-2 ring-offset-card",
 												)}
@@ -500,7 +499,7 @@ export default function SkillEditor({
 										<label
 											title="Custom color"
 											className={cn(
-												"relative size-7 cursor-pointer overflow-hidden rounded-full bg-[conic-gradient(#e84393,#e17055,#fdcb6e,#00b894,#0984e3,#6c5ce7,#e84393)] transition-transform hover:scale-110",
+												"relative size-7 cursor-pointer overflow-hidden rounded-full bg-[conic-gradient(#e84393,#e17055,#fdcb6e,#00b894,#0984e3,#6c5ce7,#e84393)] transition-opacity hover:opacity-80",
 												draft.color !== null &&
 													!AGENT_COLORS.includes(draft.color) &&
 													"ring-2 ring-meta ring-offset-2 ring-offset-card",
@@ -748,7 +747,7 @@ export default function SkillEditor({
 										onChange={(e) => {
 											setFields({ body: e.target.value });
 										}}
-										placeholder="The procedure the agent follows once it picks this skill…"
+										placeholder="The procedure the agent follows once it picks this skill"
 										className={editorClass}
 									/>
 								)}

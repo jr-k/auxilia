@@ -74,7 +74,7 @@ export default function AgentSandbox({
 				</span>
 				<ChevronRight
 					aria-hidden="true"
-					className={`ml-auto mr-1 size-4 text-meta transition-all dark:text-panel-dim ${
+					className={`ml-auto mr-1 size-4 text-meta transition dark:text-panel-dim ${
 						isExpanded ? "rotate-90" : ""
 					}`}
 				/>
@@ -127,7 +127,7 @@ export default function AgentSandbox({
 					{!readOnly && (
 						<div className="flex justify-center border-t border-hover px-4 py-2 dark:border-white/5">
 							<button
-								className="cursor-pointer rounded-[7px] px-3 py-1.5 text-[12.5px] font-semibold text-[#B04A3A] transition-colors hover:bg-[#FBEFED] dark:hover:bg-[#B04A3A]/10"
+								className="cursor-pointer rounded-[7px] px-3 py-1.5 text-[12.5px] font-semibold text-danger transition-colors hover:bg-danger-bg dark:hover:bg-[#B04A3A]/10"
 								onClick={() => {
 									onRemove?.();
 								}}

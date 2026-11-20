@@ -418,7 +418,7 @@ export default function SandboxDialog({
 					className="flex flex-col gap-4"
 				>
 					{error && (
-						<div className="rounded-[10px] bg-[#FBEFED] px-3.5 py-2.5 text-[13px] font-medium text-[#B04A3A] dark:bg-[#B04A3A]/10">
+						<div className="rounded-[10px] bg-danger-bg px-3.5 py-2.5 text-[13px] font-medium text-danger dark:bg-[#B04A3A]/10">
 							{error}
 						</div>
 					)}
@@ -692,7 +692,7 @@ export default function SandboxDialog({
 							className={`rounded-[8px] px-3.5 py-2.5 text-[13px] font-medium ${
 								testStatus === "success"
 									? "bg-success-bg text-success dark:bg-emerald-950 dark:text-emerald-300"
-									: "bg-[#FBEFED] text-[#B04A3A] dark:bg-[#B04A3A]/10"
+									: "bg-danger-bg text-danger dark:bg-[#B04A3A]/10"
 							}`}
 						>
 							{testMessage}

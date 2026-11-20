@@ -588,15 +588,15 @@ export default function TriggerList({
 
 	if (triggers.length === 0) {
 		return (
-			<div className="flex flex-col items-center justify-center gap-4 rounded-2xl border border-dashed border-[#D7E0DB] dark:border-white/10 py-20">
-				<div className="flex items-center justify-center size-12 rounded-2xl bg-[#EDF4F0] dark:bg-emerald-950/40">
-					<AlarmClock className="size-6 text-[#3D8B63] dark:text-emerald-400" />
+			<div className="flex flex-col items-center justify-center gap-4 rounded-2xl border border-dashed border-input dark:border-white/10 py-20">
+				<div className="flex items-center justify-center size-12 rounded-2xl bg-hover dark:bg-emerald-950/40">
+					<AlarmClock className="size-6 text-success dark:text-emerald-400" />
 				</div>
 				<div className="text-center">
-					<p className="font-[family-name:var(--font-jakarta-sans)] text-[16px] font-bold text-[#1E2D28] dark:text-foreground">
+					<p className="text-[16px] font-semibold text-foreground">
 						No triggers yet
 					</p>
-					<p className="mt-1 font-[family-name:var(--font-dm-sans)] text-[13.5px] text-[#6B7F76] dark:text-muted-foreground">
+					<p className="mt-1 font-[family-name:var(--font-dm-sans)] text-[13.5px] text-label dark:text-muted-foreground">
 						Run an agent from a schedule or an external webhook.
 					</p>
 				</div>
@@ -618,7 +618,7 @@ export default function TriggerList({
 
 	if (visibleTriggers.length === 0) {
 		return (
-			<div className="py-16 text-center font-[family-name:var(--font-dm-sans)] text-[13.5px] text-[#A3B5AD] dark:text-muted-foreground">
+			<div className="py-16 text-center font-[family-name:var(--font-dm-sans)] text-[13.5px] text-meta dark:text-muted-foreground">
 				{query ? (
 					<>
 						No trigger matches “{search}”.{" "}

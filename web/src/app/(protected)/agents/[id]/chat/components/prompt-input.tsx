@@ -995,7 +995,7 @@ const ChatPromptInput = ({
 					}}
 					onSubmit={handleSubmit}
 					className={cn(
-					"transition-all duration-200 md:min-h-[116px]",
+					"md:min-h-[116px]",
 					// Petrol Mono composer (design kit 09): 16px radius, 2px #DCE4E4
 					// border → petrol on focus, depth from the composer shadow.
 					// Mobile: one pill row of options button, text and send.
@@ -1037,7 +1037,7 @@ const ChatPromptInput = ({
 							event.preventDefault();
 							cancelEdit();
 						}}
-						placeholder={agentName ? `Reply to ${agentName}…` : "Ask anything…"}
+						placeholder={agentName ? `Reply to ${agentName}` : "Write a message"}
 						className={cn(
 							// Mobile: 24px lines, so 136px caps the text at five lines.
 							// The placeholder stays on one line: an empty field is sized
@@ -1418,7 +1418,7 @@ const ChatPromptInput = ({
 
 									<div className="px-5 pb-3 sm:px-6">
 										<SearchBar
-											placeholder="Search models..."
+											placeholder="Search models"
 											value={modelSearch}
 											onChange={setModelSearch}
 										/>
@@ -1816,7 +1816,7 @@ const SubmitButton = ({ disabled = false }: { disabled?: boolean }) => {
 			type="submit"
 			disabled={isDisabled}
 			className={cn(
-				"flex size-[38px] items-center justify-center rounded-full transition-all",
+				"flex size-[38px] items-center justify-center rounded-full transition",
 				isDisabled
 					? "cursor-not-allowed bg-hover text-ghost dark:bg-white/5 dark:text-panel-dim"
 					: "cursor-pointer bg-petrol text-white shadow-submit hover:opacity-90",

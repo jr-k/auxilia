@@ -92,10 +92,10 @@ export function UsageChart({
 					))}
 					{average > 0 && (
 						<div
-							className="pointer-events-none absolute inset-x-0 z-[1] border-t border-dashed border-[#C27A3A]/60"
+							className="pointer-events-none absolute inset-x-0 z-[1] border-t border-dashed border-warning/60"
 							style={{ bottom: `${(average / ceiling) * 100}%` }}
 						>
-							<span className="absolute -top-[9px] right-0 rounded-[3px] bg-canvas px-1 text-[10px] font-semibold text-[#A8662C] dark:bg-card dark:text-amber-300">
+							<span className="absolute -top-[9px] right-0 rounded-[3px] bg-canvas px-1 text-[10px] font-semibold text-warning dark:bg-card dark:text-amber-300">
 								Avg {format(average)}
 							</span>
 						</div>
@@ -158,7 +158,7 @@ export function UsageChart({
 									</div>
 									{spike && (
 										<span
-											className="absolute left-1/2 size-1.5 -translate-x-1/2 rounded-full bg-[#C27A3A] ring-2 ring-canvas dark:ring-card"
+											className="absolute left-1/2 size-1.5 -translate-x-1/2 rounded-full bg-warning ring-2 ring-canvas dark:ring-card"
 											style={{ bottom: `calc(${height}% + 5px)` }}
 										/>
 									)}
@@ -242,14 +242,14 @@ function ChartTooltip({
 				{partial && <span className="text-[10.5px] text-meta">In progress</span>}
 			</div>
 			<div className="mt-1.5 flex items-baseline gap-2">
-				<span className="font-display text-[20px] font-bold tabular-nums text-foreground">
+				<span className="font-display text-[20px] font-semibold tabular-nums text-foreground">
 					{formatMoney(point.cost, currency)}
 				</span>
 				{ratio !== null && value > 0 && (
 					<span
 						className={cn(
 							"text-[11px] font-semibold tabular-nums",
-							ratio > SPIKE_FACTOR ? "text-[#A8662C] dark:text-amber-300" : "text-meta",
+							ratio > SPIKE_FACTOR ? "text-warning dark:text-amber-300" : "text-meta",
 						)}
 					>
 						{ratio >= 1

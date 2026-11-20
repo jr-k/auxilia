@@ -205,10 +205,10 @@ export default function AgentThreadsPage() {
 
 	return (
 		<WorkspacePage
-			slug="threads"
+			crumb="Threads"
 			parents={[
-				{ label: "agents", href: "/agents" },
-				{ label: agent?.name ?? "agent", href: `/agents/${agentId}` },
+				{ label: "Agents", href: "/agents" },
+				{ label: agent?.name ?? "Agent", href: `/agents/${agentId}` },
 			]}
 			title="Thread history"
 			intro="Every conversation with this agent across the workspace, newest first."

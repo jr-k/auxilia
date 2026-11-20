@@ -43,12 +43,12 @@ export default function MCPServersPage() {
 
 	return (
 		<WorkspacePage
-			slug="mcp-servers"
+			crumb="MCP servers"
 			title="MCP servers"
 			intro="Remote Model Context Protocol endpoints wired into your workspace."
 			fillHeight={viewMode === "table"}
 			search={{
-				placeholder: "Search servers…",
+				placeholder: "Search servers",
 				value: search,
 				onChange: setSearch,
 			}}

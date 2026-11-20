@@ -142,7 +142,7 @@ export function UsageFilterSearch({
 									if (event.key !== "Escape") event.stopPropagation();
 								}}
 								aria-label="Search projects, vendors, models, users, agents and triggers"
-								placeholder="Project, vendor, model, user…"
+								placeholder="Project, vendor, model, user"
 								className="h-9 w-full rounded-[7px] border border-input bg-background pl-8 pr-3 text-[12.5px] text-foreground outline-none placeholder:text-meta focus:border-petrol"
 							/>
 						</div>
