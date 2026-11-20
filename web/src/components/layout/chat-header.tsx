@@ -806,12 +806,12 @@ export function ChatHeader() {
 					onClick={() => {
 						void openAgentEditor(agentId);
 					}}
-					className="min-w-0 cursor-pointer truncate rounded-sm text-[14px] font-semibold leading-none tracking-[-0.01em] text-foreground transition-colors hover:text-petrol focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-petrol/40 dark:hover:text-panel-terminal"
+					className="min-w-0 cursor-pointer truncate rounded-sm text-[14px] font-semibold leading-none text-foreground transition-colors hover:text-petrol focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-petrol/40 dark:hover:text-panel-terminal"
 				>
 					{agentName}
 				</button>
 			) : (
-				<span className="min-w-0 truncate text-[14px] font-semibold leading-none tracking-[-0.01em] text-foreground">
+				<span className="min-w-0 truncate text-[14px] font-semibold leading-none text-foreground">
 					{agentName}
 				</span>
 			)}

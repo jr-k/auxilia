@@ -149,7 +149,7 @@ export default function RunHistoryCard({
 										strokeLinejoin="round"
 									/>
 								</svg>
-								<span className="text-[10.5px] font-semibold text-[#B04A3A]">
+								<span className="text-[10.5px] font-semibold text-danger">
 									Failed
 								</span>
 							</span>

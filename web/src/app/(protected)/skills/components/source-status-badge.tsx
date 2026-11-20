@@ -19,9 +19,9 @@ function badgeFor(status: SkillSourceStatus | null): { label: string; className:
 		case "unavailable":
 			return { label: "Unreachable", className: "bg-warning-bg text-warning" };
 		case "not_found":
-			return { label: "Not found", className: "bg-[#FBEFED] text-[#B04A3A] dark:bg-[#B04A3A]/15" };
+			return { label: "Not found", className: "bg-danger-bg text-danger dark:bg-[#B04A3A]/15" };
 		case "invalid":
-			return { label: "Invalid", className: "bg-[#FBEFED] text-[#B04A3A] dark:bg-[#B04A3A]/15" };
+			return { label: "Invalid", className: "bg-danger-bg text-danger dark:bg-[#B04A3A]/15" };
 		case null:
 			return { label: "Never synced", className: "bg-neutral-bg text-subtle dark:bg-white/10 dark:text-panel-body" };
 	}

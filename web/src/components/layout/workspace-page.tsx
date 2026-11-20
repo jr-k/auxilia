@@ -1,13 +1,12 @@
 "use client";
 
-import Link from "next/link";
-import { Fragment } from "react";
-
 import { PageContainer } from "@/components/layout/page-container";
-import type { BreadcrumbSegment } from "@/components/layout/subpage-header";
+import {
+	Breadcrumbs,
+	type BreadcrumbSegment,
+} from "@/components/layout/subpage-header";
 import { SearchBar } from "@/components/ui/search-bar";
 import { cn } from "@/lib/utils";
-import { useWorkspacesStore } from "@/stores/workspaces-store";
 
 interface WorkspaceSearch {
 	placeholder: string;
@@ -16,10 +15,10 @@ interface WorkspaceSearch {
 }
 
 interface WorkspacePageProps {
-	/** Breadcrumb segment: `workspace / <slug>` */
-	slug: string;
-	/** Linked segments between the workspace and `slug`, for nested pages
-	 * (e.g. `workspace / agents / <agent> / threads`). */
+	/** Last breadcrumb segment, the page name: `<workspace> / <crumb>` */
+	crumb: string;
+	/** Linked segments between the workspace and `crumb`, for nested pages
+	 * (e.g. `<workspace> / Agents / <agent> / Threads`). */
 	parents?: BreadcrumbSegment[];
 	title: string;
 	intro: string;
@@ -45,7 +44,7 @@ interface WorkspacePageProps {
  * scrollable content area with the Space Grotesk page header.
  */
 export function WorkspacePage({
-	slug,
+	crumb,
 	parents = [],
 	title,
 	intro,
@@ -56,44 +55,11 @@ export function WorkspacePage({
 	fullWidth = false,
 	children,
 }: WorkspacePageProps) {
-	const workspaceName = useWorkspacesStore((state) =>
-		state.workspaces.find((workspace) => workspace.id === state.activeWorkspaceId)?.name,
-	);
 	return (
 		<div className="flex h-svh min-w-0 flex-1 flex-col bg-background">
 			{/* pl-14 below md leaves room for the floating sidebar trigger */}
 			<header className="flex h-[52px] shrink-0 items-center gap-3 border-b border-border pl-14 pr-4 md:px-8">
-				<nav className="flex min-w-0 items-center whitespace-nowrap text-[11.5px] text-meta dark:text-panel-dim">
-					<Link
-						href="/"
-						className="min-w-0 truncate rounded-[3px] transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-petrol/35"
-					>
-						{workspaceName ?? "workspace"}
-					</Link>
-					<span className="mx-1.5 shrink-0 text-ghost dark:text-panel-dim">
-						/
-					</span>
-					{parents.map((segment, index) => (
-						<Fragment key={`${segment.label}-${index}`}>
-							{segment.href ? (
-								<Link
-									href={segment.href}
-									className="min-w-0 truncate rounded-[3px] transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-petrol/35"
-								>
-									{segment.label}
-								</Link>
-							) : (
-								<span className="min-w-0 truncate">{segment.label}</span>
-							)}
-							<span className="mx-1.5 shrink-0 text-ghost dark:text-panel-dim">
-								/
-							</span>
-						</Fragment>
-					))}
-					<span className="max-w-[50%] shrink-0 truncate font-medium text-foreground">
-						{slug}
-					</span>
-				</nav>
+				<Breadcrumbs trail={[...parents, { label: crumb }]} />
 				<div className="ml-auto flex shrink-0 items-center gap-2 lg:gap-3">
 					{actions}
 				</div>

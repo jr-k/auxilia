@@ -71,8 +71,8 @@ function TokenRevealBanner({ plaintext }: { plaintext: string }) {
 	};
 
 	return (
-		<div className="mb-3 flex items-center gap-3 rounded-[10px] border border-sparkline bg-[#F2F8F8] px-4 py-[13px] dark:border-petrol/40 dark:bg-petrol/10">
-			<span className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-[#DCE9EB] bg-white text-petrol dark:border-white/10 dark:bg-white/10 dark:text-panel-terminal">
+		<div className="mb-3 flex items-center gap-3 rounded-[10px] border border-sparkline bg-petrol-tint px-4 py-[13px] dark:border-petrol/40 dark:bg-petrol/10">
+			<span className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-input bg-white text-petrol dark:border-white/10 dark:bg-white/10 dark:text-panel-terminal">
 				<KeyRound className="size-[15px]" />
 			</span>
 			<span className="min-w-0 flex-1">
@@ -123,6 +123,16 @@ function isAdminSettingsTab(
 }
 
 type ProfilePageSection = ProfileSection | "memories" | "threads" | "tokens";
+
+const PROFILE_SECTION_LABELS: Record<ProfilePageSection, string> = {
+	information: "Information",
+	security: "Security",
+	preferences: "Preferences",
+	memories: "Memories",
+	"connected-accounts": "Connected accounts",
+	threads: "Threads",
+	tokens: "Access tokens",
+};
 
 function isProfileSection(value: string): value is ProfilePageSection {
 	return (
@@ -264,7 +274,7 @@ export default function SettingsPage() {
 					onClick={() => {
 						void handleDelete(token);
 					}}
-					className="flex size-7 cursor-pointer items-center justify-center rounded-[7px] text-meta transition-colors hover:bg-[#FBEFED] hover:text-[#B04A3A] dark:hover:bg-rose-950"
+					className="flex size-7 cursor-pointer items-center justify-center rounded-[7px] text-meta transition-colors hover:bg-danger-bg hover:text-danger dark:hover:bg-rose-950"
 				>
 					<Trash2 className="size-3.5" />
 				</button>
@@ -286,12 +296,8 @@ export default function SettingsPage() {
 			<SubpageHeader
 				trail={
 					tab === "profile"
-						? [
-								{ label: "workspace" },
-								{ label: "profile" },
-								{ label: profileSection },
-							]
-						: [{ label: "workspace" }, { label: "settings" }]
+						? [{ label: "Profile" }, { label: PROFILE_SECTION_LABELS[profileSection] }]
+						: [{ label: "Settings" }]
 				}
 			/>
 
@@ -320,7 +326,7 @@ export default function SettingsPage() {
 					{tab === "profile" ? (
 						<div className="hidden lg:flex lg:flex-col">
 							<div className="shrink-0 lg:mb-5">
-								<p className="mb-1.5 px-3.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-meta dark:text-panel-dim">
+								<p className="mb-2 px-3.5 text-[12px] font-medium text-meta dark:text-panel-dim">
 									Account
 								</p>
 								<button
@@ -387,7 +393,7 @@ export default function SettingsPage() {
 								</button>
 							</div>
 							<div className="shrink-0">
-								<p className="mb-1.5 px-3.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-meta dark:text-panel-dim">
+								<p className="mb-2 px-3.5 text-[12px] font-medium text-meta dark:text-panel-dim">
 									Developer
 								</p>
 								<button
@@ -411,7 +417,7 @@ export default function SettingsPage() {
 						<div className="hidden lg:flex lg:flex-col">
 						{isAdmin && (
 							<div className="shrink-0 lg:mb-5">
-								<p className="mb-1.5 px-3.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-meta dark:text-panel-dim">
+								<p className="mb-2 px-3.5 text-[12px] font-medium text-meta dark:text-panel-dim">
 									General
 								</p>
 								<button
@@ -432,7 +438,7 @@ export default function SettingsPage() {
 						)}
 						{isAdmin && (
 							<div className="shrink-0 lg:mb-5">
-								<p className="mb-1.5 px-3.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-meta dark:text-panel-dim">
+								<p className="mb-2 px-3.5 text-[12px] font-medium text-meta dark:text-panel-dim">
 									Integrations
 								</p>
 								<button
@@ -480,7 +486,7 @@ export default function SettingsPage() {
 						)}
 						{isAdmin && (
 							<div className="shrink-0 lg:mb-5">
-								<p className="mb-1.5 px-3.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-meta dark:text-panel-dim">
+								<p className="mb-2 px-3.5 text-[12px] font-medium text-meta dark:text-panel-dim">
 									Server
 								</p>
 								<button

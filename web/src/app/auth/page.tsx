@@ -211,7 +211,7 @@ function AuthPageContent() {
 						required
 					/>
 					<AuthSubmitButton disabled={isLoading}>
-						{isLoading ? "Verifying…" : "Verify →"}
+						{isLoading ? "Verifying…" : "Verify"}
 					</AuthSubmitButton>
 					<button
 						type="button"
@@ -280,7 +280,7 @@ function AuthPageContent() {
 					/>
 
 					<AuthSubmitButton disabled={isLoading}>
-						{isLoading ? "Signing in…" : "Sign in →"}
+						{isLoading ? "Signing in…" : "Sign in"}
 					</AuthSubmitButton>
 				</form>
 			)}

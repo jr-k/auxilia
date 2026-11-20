@@ -126,7 +126,7 @@ test("demo walkthrough", async ({ page, baseURL }) => {
 			title: "Connect your tools",
 			sub: "One-click installs from the official catalog — or any remote MCP server.",
 		});
-		await cursorClick(page, page.getByRole("link", { name: "MCP Servers" }));
+		await cursorClick(page, page.getByRole("link", { name: "MCP servers" }));
 		await page.waitForURL("**/mcp-servers");
 		await beat(page, 1800);
 

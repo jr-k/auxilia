@@ -6,7 +6,7 @@ import { WorkspacePage } from "./workspace-page";
 function renderPage(fillHeight?: boolean, parents?: BreadcrumbSegment[]) {
 	render(
 		<WorkspacePage
-			slug="triggers"
+			crumb="Triggers"
 			parents={parents}
 			title="Triggers"
 			intro="Run agents automatically."
@@ -55,13 +55,13 @@ describe("WorkspacePage", () => {
 
 	it("links parent breadcrumb segments and keeps the safe area clear", () => {
 		const scrollArea = renderPage(false, [
-			{ label: "agents", href: "/agents" },
+			{ label: "Agents", href: "/agents" },
 			{ label: "Support bot", href: "/agents/agent-1" },
 		]);
 
 		const crumbs = screen.getByRole("navigation");
-		expect(crumbs).toHaveTextContent("workspace/agents/Support bot/triggers");
-		expect(screen.getByRole("link", { name: "agents" })).toHaveAttribute(
+		expect(crumbs).toHaveTextContent("Workspace/Agents/Support bot/Triggers");
+		expect(screen.getByRole("link", { name: "Agents" })).toHaveAttribute(
 			"href",
 			"/agents",
 		);

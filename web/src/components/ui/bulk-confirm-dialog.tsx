@@ -95,7 +95,7 @@ export function BulkConfirmDialog({
 		<Dialog open={open} onOpenChange={isBusy ? undefined : handleOpenChange}>
 			<DialogContent className="overflow-hidden p-0 sm:max-w-[520px]">
 				<div className="border-b border-border bg-gradient-to-b from-[#F8FBF9] to-card px-6 pb-5 pt-6 dark:border-white/10 dark:from-white/[0.04] dark:to-card">
-					<div className="mb-4 flex size-10 items-center justify-center rounded-[11px] bg-[#FBEFED] text-[#B04A3A] shadow-[inset_0_0_0_1px_rgba(176,74,58,0.08)] dark:bg-[#B04A3A]/15">
+					<div className="mb-4 flex size-10 items-center justify-center rounded-[11px] bg-danger-bg text-danger shadow-[inset_0_0_0_1px_rgba(176,74,58,0.08)] dark:bg-[#B04A3A]/15">
 						<Trash2 className="size-[18px]" />
 					</div>
 					<DialogHeader>
@@ -137,26 +137,26 @@ export function BulkConfirmDialog({
 						</div>
 					)}
 					{acknowledgement && failures.length === 0 && (
-						<div className="flex items-start gap-3 rounded-[9px] border border-[#B04A3A]/20 bg-[#FBEFED]/70 px-3.5 py-3 dark:border-[#B04A3A]/25 dark:bg-[#B04A3A]/10">
+						<div className="flex items-start gap-3 rounded-[9px] border border-danger/20 bg-danger-bg/70 px-3.5 py-3 dark:border-[#B04A3A]/25 dark:bg-[#B04A3A]/10">
 							<Checkbox
 								checked={acknowledged}
 								aria-label="Confirm destructive bulk action"
 								onCheckedChange={setAcknowledged}
-								className="mt-0.5 border-[#B04A3A]/45"
+								className="mt-0.5 border-danger/45"
 							/>
 							<button
 								type="button"
 								onClick={() => {
 									setAcknowledged((current) => !current);
 								}}
-								className="cursor-pointer text-left text-[12px] leading-[1.5] text-[#86392F] dark:text-[#E7A69D]"
+								className="cursor-pointer text-left text-[12px] leading-[1.5] text-danger dark:text-[#E7A69D]"
 							>
 								{acknowledgement}
 							</button>
 						</div>
 					)}
 					{failures.length > 0 && (
-						<div className="rounded-[9px] bg-[#FBEFED] px-3.5 py-2.5 text-[12px] leading-[1.45] text-[#B04A3A] dark:bg-[#B04A3A]/10">
+						<div className="rounded-[9px] bg-danger-bg px-3.5 py-2.5 text-[12px] leading-[1.45] text-danger dark:bg-[#B04A3A]/10">
 							<p className="font-semibold">
 								{failures.length} item{failures.length === 1 ? "" : "s"} could not be processed.
 							</p>

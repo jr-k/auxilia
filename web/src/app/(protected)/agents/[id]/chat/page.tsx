@@ -428,8 +428,10 @@ const StarterChatPage = () => {
 								}}
 								className="flex cursor-pointer items-center gap-2 transition-opacity hover:opacity-80"
 							>
-								<h1 className="text-4xl font-bold">{headerAgent.name}</h1>
-								<ChevronDown className="ml-8 mt-1 size-5 text-muted-foreground" />
+								<h1 className="font-display text-[32px] font-bold tracking-[-0.035em]">
+									{headerAgent.name}
+								</h1>
+								<ChevronDown className="mt-1 size-5 text-muted-foreground" />
 							</button>
 						</div>
 					) : (
@@ -444,9 +446,11 @@ const StarterChatPage = () => {
 							/>
 						</div>
 					)}
-					<p className="text-lg text-muted-foreground">
-						Ask me anything to begin
-					</p>
+					{headerAgent?.description?.trim() && (
+						<p className="mx-auto max-w-[560px] text-pretty text-[16px] leading-[1.6] text-body dark:text-panel-body">
+							{headerAgent.description}
+						</p>
+					)}
 				</div>
 
 				<div className="w-full">

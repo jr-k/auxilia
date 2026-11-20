@@ -224,7 +224,7 @@ export default function AgentSubagentList({
 										{!readOnly && (
 											<button
 												type="button"
-												className="flex cursor-pointer items-center gap-1 rounded-[7px] px-3 py-1.5 text-[12.5px] font-semibold text-[#B04A3A] transition-colors hover:bg-[#FBEFED] dark:hover:bg-[#B04A3A]/10"
+												className="flex cursor-pointer items-center gap-1 rounded-[7px] px-3 py-1.5 text-[12.5px] font-semibold text-danger transition-colors hover:bg-danger-bg dark:hover:bg-[#B04A3A]/10"
 												onClick={() => {
 													handleRemove(sub.id);
 												}}

@@ -105,7 +105,7 @@ export function ResourceScopeFilterDropdown({
 					className="z-50 max-h-[min(70dvh,36rem)] w-[min(300px,calc(100vw-2rem))] overflow-y-auto rounded-[7px] border border-border bg-card shadow-[0_14px_40px_rgba(16,24,32,0.14)] dark:border-white/10"
 				>
 					<div className="p-1.5">
-						<p className="px-3 pb-1 pt-1 text-[9.5px] font-semibold uppercase tracking-[0.08em] text-meta">
+						<p className="px-3 pb-1 pt-1 text-[12px] font-medium text-meta">
 							Visibility
 						</p>
 						<DropdownMenuPrimitive.Item
@@ -179,7 +179,7 @@ export function ResourceScopeFilterDropdown({
 										}
 										if (event.key.length === 1) event.stopPropagation();
 									}}
-									placeholder="Search teams…"
+									placeholder="Search teams"
 									className="h-8 w-full rounded-[5px] border border-input bg-background pl-8 pr-2 text-[12px] outline-none focus:border-petrol"
 								/>
 							</div>

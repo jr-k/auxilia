@@ -53,7 +53,7 @@ export default function ModelOnboardingPage() {
 					{isContinuing && (
 						<Loader2 className="size-4 animate-spin" aria-hidden="true" />
 					)}
-					{isContinuing ? "Opening agents…" : "Continue to agents →"}
+					{isContinuing ? "Opening agents…" : "Continue to agents"}
 				</button>
 			</AuthShell>
 		</SupervisionPageFrame>

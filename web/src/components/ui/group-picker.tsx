@@ -136,7 +136,7 @@ export function GroupPicker({ value, groups, onChange }: GroupPickerProps) {
 							ref={inputRef}
 							value={query}
 							maxLength={255}
-							placeholder="Search or create group…"
+							placeholder="Search or create group"
 							onChange={(event) => {
 								setQuery(event.target.value);
 								setActiveIndex(0);

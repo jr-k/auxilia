@@ -163,7 +163,7 @@ export default function MCPToolsDialog({
 								<div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
 									<h3
 										className={cn(
-											"text-[15px] font-bold",
+											"text-[15px] font-semibold",
 											isDisabled
 												? "text-meta dark:text-panel-dim"
 												: "text-foreground",
@@ -182,7 +182,7 @@ export default function MCPToolsDialog({
 											status === "needs_approval" &&
 												"bg-hover text-label dark:bg-white/10 dark:text-panel-dim",
 											isDisabled &&
-												"bg-[#FBEFED] text-[#B04A3A] dark:bg-[#B04A3A]/10",
+												"bg-danger-bg text-danger dark:bg-[#B04A3A]/10",
 										)}
 									>
 										{toolStatusLabel(status)}

@@ -575,7 +575,7 @@ export default function UsersPage() {
 	const renderRoleControl = (user: ListedUser) => {
 		if (user.isInstanceOwner) {
 			return (
-				<span className="inline-flex rounded-[7px] bg-amber-500/12 px-2.5 py-1 text-[11.5px] font-semibold text-amber-800 dark:bg-amber-400/15 dark:text-amber-200">
+				<span className="inline-flex rounded-[7px] bg-petrol-chip px-2.5 py-1 text-[11.5px] font-semibold text-petrol dark:bg-white/10 dark:text-panel-terminal">
 					Owner
 				</span>
 			);
@@ -724,7 +724,7 @@ export default function UsersPage() {
 					{
 						label: "No team",
 						icon: (
-							<span className="block size-2 rounded-full border border-[#c3d2cb] dark:border-white/25" />
+							<span className="block size-2 rounded-full border border-border-hover dark:border-white/25" />
 						),
 						onClick: () => {
 							void handleTeamChange(user.id, null);
@@ -809,7 +809,7 @@ export default function UsersPage() {
 				<button
 					type="button"
 					aria-label={`Remove ${user.name || user.email || "user"}`}
-					className="flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-[7px] text-ghost opacity-100 transition-all hover:bg-[#FBEFED] hover:text-[#B04A3A] md:opacity-0 md:group-hover:opacity-100 dark:hover:bg-rose-950"
+					className="flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-[7px] text-ghost opacity-100 transition hover:bg-danger-bg hover:text-danger md:opacity-0 md:group-hover:opacity-100 dark:hover:bg-rose-950"
 					onClick={() => { void handleRemoveUser(user.id, user.name); }}
 				>
 					<X className="size-[15px]" />
@@ -841,7 +841,7 @@ export default function UsersPage() {
 									{user.name || "Unnamed"}
 								</span>
 								{isCurrentUser && (
-									<span className="shrink-0 rounded-[4px] bg-petrol-tint px-1.5 py-0.5 text-[9px] font-bold text-petrol dark:bg-white/10 dark:text-panel-terminal">
+									<span className="shrink-0 rounded-[4px] bg-petrol-tint px-1.5 py-0.5 text-[10px] font-semibold text-petrol dark:bg-white/10 dark:text-panel-terminal">
 										You
 									</span>
 								)}
@@ -963,7 +963,7 @@ export default function UsersPage() {
 
 	return (
 		<WorkspacePage
-			slug="users"
+			crumb="Users"
 			title="Users"
 			intro={
 				isOwner
@@ -971,7 +971,7 @@ export default function UsersPage() {
 					: "Manage who's in your workspace and what they can do."
 			}
 			search={{
-				placeholder: "Search users…",
+				placeholder: "Search users",
 				value: search,
 				onChange: setSearch,
 			}}
@@ -1174,7 +1174,7 @@ export default function UsersPage() {
 								return (
 									<article
 										key={user.id}
-										className="group flex min-h-[190px] flex-col rounded-xl border border-[#e1ebe6] bg-card p-4 transition-[border-color,box-shadow] hover:border-[#cfe0d8] hover:shadow-[0_3px_10px_rgba(30,45,40,0.06)] dark:border-white/10 dark:hover:border-white/20"
+										className="group flex min-h-[190px] flex-col rounded-xl border border-border bg-card p-4 transition-[border-color,box-shadow] hover:border-input hover:shadow-[0_3px_10px_rgba(30,45,40,0.06)] dark:border-white/10 dark:hover:border-white/20"
 									>
 										<div className="flex min-w-0 items-start gap-3">
 											<UserAvatar
@@ -1190,7 +1190,7 @@ export default function UsersPage() {
 														{user.name || "Unnamed"}
 													</h2>
 													{isCurrentUser && (
-														<span className="shrink-0 rounded-[4px] bg-petrol-tint px-1.5 py-0.5 text-[9px] font-bold text-petrol dark:bg-white/10 dark:text-panel-terminal">
+														<span className="shrink-0 rounded-[4px] bg-petrol-tint px-1.5 py-0.5 text-[10px] font-semibold text-petrol dark:bg-white/10 dark:text-panel-terminal">
 															You
 														</span>
 													)}
@@ -1219,7 +1219,7 @@ export default function UsersPage() {
 												<button
 													type="button"
 													aria-label={`Remove ${user.name || user.email || "user"}`}
-													className="flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-[7px] text-ghost transition-colors hover:bg-[#FBEFED] hover:text-[#B04A3A] dark:hover:bg-rose-950"
+													className="flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-[7px] text-ghost transition-colors hover:bg-danger-bg hover:text-danger dark:hover:bg-rose-950"
 													onClick={() => {
 														void handleRemoveUser(user.id, user.name);
 													}}
@@ -1287,7 +1287,7 @@ export default function UsersPage() {
 
 			{/* Teams */}
 			<div className="flex items-baseline gap-2.5 pt-[18px] pb-3">
-				<span className="text-[14px] font-bold tracking-[-0.01em] text-foreground">
+				<span className="text-[14px] font-semibold text-foreground">
 					Teams
 				</span>
 				<span className="font-mono text-[10.5px] text-meta dark:text-panel-dim">
@@ -1330,7 +1330,7 @@ export default function UsersPage() {
 							{isAdmin && (
 								<DropdownMenu
 									trigger={
-										<button className="flex size-7 cursor-pointer items-center justify-center rounded-[7px] text-meta transition-all hover:bg-hover md:opacity-0 md:group-hover:opacity-100 dark:hover:bg-white/10">
+										<button className="flex size-7 cursor-pointer items-center justify-center rounded-[7px] text-meta transition hover:bg-hover md:opacity-0 md:group-hover:opacity-100 dark:hover:bg-white/10">
 											<MoreVertical className="size-[18px]" />
 										</button>
 									}
@@ -1368,7 +1368,7 @@ export default function UsersPage() {
 			{invites.length > 0 && (
 				<>
 					<div className="flex items-baseline gap-2.5 pt-[22px] pb-3">
-						<span className="text-[14px] font-bold tracking-[-0.01em] text-foreground">
+						<span className="text-[14px] font-semibold text-foreground">
 							Pending invites
 						</span>
 						<span className="font-mono text-[10.5px] text-meta dark:text-panel-dim">
@@ -1425,7 +1425,7 @@ export default function UsersPage() {
 									)}
 									{isAdmin && (
 										<button
-											className="cursor-pointer rounded-[7px] border border-border px-3 py-1.5 text-[12px] font-medium text-[#B04A3A] transition-colors hover:bg-[#FBEFED] dark:border-white/10 dark:hover:bg-rose-950"
+											className="cursor-pointer rounded-[7px] border border-border px-3 py-1.5 text-[12px] font-medium text-danger transition-colors hover:bg-danger-bg dark:border-white/10 dark:hover:bg-rose-950"
 											onClick={() => { void handleDeleteInvite(invite.id); }}
 										>
 											Revoke

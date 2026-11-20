@@ -79,7 +79,7 @@ function ModelBadge({
 		tone === "accent"
 			? "bg-petrol-tint text-petrol dark:bg-white/10 dark:text-panel-terminal"
 			: tone === "destructive"
-				? "bg-[#FBEFED] text-[#B04A3A] dark:bg-[#B04A3A]/10"
+				? "bg-danger-bg text-danger dark:bg-[#B04A3A]/10"
 				: "bg-hover text-subtle dark:bg-white/10 dark:text-panel-body";
 	return (
 		<span
@@ -130,7 +130,7 @@ function ModelRoleCard({
 								<p className="truncate text-[13px] font-semibold text-foreground">
 									{model.displayName}
 								</p>
-								<span className="shrink-0 rounded-[4px] bg-hover px-1.5 py-0.5 text-[8.5px] font-semibold uppercase tracking-[0.04em] text-meta dark:bg-white/10 dark:text-panel-dim">
+								<span className="shrink-0 rounded-[4px] bg-hover px-1.5 py-0.5 text-[11px] font-medium text-meta dark:bg-white/10 dark:text-panel-dim">
 									{providerLabel(model.provider)}
 								</span>
 							</div>

@@ -174,7 +174,7 @@ export function ModelPickerChip({
 
 				<div className="px-6 pb-3">
 					<SearchBar
-						placeholder="Search models..."
+						placeholder="Search models"
 						value={search}
 						onChange={setSearch}
 					/>

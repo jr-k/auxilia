@@ -133,7 +133,7 @@ const navItems: {
 		match: "prefix",
 	},
 	{
-		title: "MCP Servers",
+		title: "MCP servers",
 		href: "/mcp-servers",
 		icon: Server,
 	},

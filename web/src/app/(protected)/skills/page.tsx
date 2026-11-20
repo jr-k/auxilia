@@ -88,7 +88,7 @@ export default function SkillsPage() {
 
 	return (
 		<WorkspacePage
-			slug="skills"
+			crumb="Skills"
 			title="Skills"
 			intro={
 				view === "sources"
@@ -98,7 +98,7 @@ export default function SkillsPage() {
 			fillHeight={view === "sources" || viewMode === "table"}
 			search={
 				view === "library"
-					? { placeholder: "Search skills…", value: search, onChange: setSearch }
+					? { placeholder: "Search skills", value: search, onChange: setSearch }
 					: undefined
 			}
 			headerRight={

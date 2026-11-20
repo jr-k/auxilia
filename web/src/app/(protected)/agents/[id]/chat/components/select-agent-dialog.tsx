@@ -57,7 +57,7 @@ export function SelectAgentDialog({
 				{/* Search */}
 				<div className="px-6 pt-4 pb-1">
 					<SearchBar
-						placeholder="Search for an agent..."
+						placeholder="Search agents"
 						value={searchQuery}
 						onChange={setSearchQuery}
 					/>
@@ -85,7 +85,6 @@ export function SelectAgentDialog({
 								color={agent.color}
 								emoji={agent.emoji}
 								size="md"
-								className="transition-transform duration-300 group-hover:scale-105"
 							/>
 							<span className="text-[13.5px] font-semibold text-ink dark:text-panel-button truncate">
 								{agent.name}

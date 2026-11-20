@@ -1,4 +1,4 @@
-import { Sparkles } from "lucide-react";
+import { AlarmClock, Webhook } from "lucide-react";
 import { Trigger } from "@/types/triggers";
 import { describeSchedule, parseCronExpression } from "@/lib/triggers/schedule";
 
@@ -30,12 +30,16 @@ export default function TriggerSummaryBanner({
 	return (
 		<div className="flex flex-col rounded-xl bg-petrol-tint px-6 py-5 dark:bg-white/5">
 			<div className="mb-3 flex items-center gap-2">
-				<Sparkles className="size-3 text-petrol dark:text-panel-terminal" />
-				<span className="text-[10.5px] font-semibold text-petrol dark:text-panel-terminal">
+				{trigger.triggerType === "schedule" ? (
+					<AlarmClock className="size-3.5 text-petrol dark:text-panel-terminal" />
+				) : (
+					<Webhook className="size-3.5 text-petrol dark:text-panel-terminal" />
+				)}
+				<span className="text-[12px] font-medium text-petrol dark:text-panel-terminal">
 					What this trigger does
 				</span>
 			</div>
-			<p className="text-[18px] font-semibold leading-[1.5] tracking-[-0.015em] text-foreground">
+			<p className="text-[18px] font-medium leading-[1.5] text-foreground">
 				{summary}
 			</p>
 		</div>

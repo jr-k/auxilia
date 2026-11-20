@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 import type { UsageBudget, UsageTotals } from "@/types/usage";
 
 const CARD =
-	"flex min-w-0 flex-col rounded-2xl border border-[#E9EEEB] bg-white p-5 dark:border-white/10 dark:bg-card";
+	"flex min-w-0 flex-col rounded-2xl border border-border bg-white p-5 dark:border-white/10 dark:bg-card";
 
 function Kpi({
 	label,
@@ -26,7 +26,7 @@ function Kpi({
 		<div className={CARD}>
 			<div className="text-[12.5px] font-medium text-meta dark:text-panel-dim">{label}</div>
 			<div className="mt-1.5 flex flex-wrap items-baseline gap-x-2 gap-y-1">
-				<span className="font-display text-[28px] leading-none font-bold tabular-nums text-foreground">
+				<span className="font-display text-[28px] leading-none font-semibold tabular-nums text-foreground">
 					{value}
 				</span>
 				{current !== undefined && previous !== undefined && (
@@ -137,8 +137,8 @@ function BudgetCard({ budget, currency }: { budget: UsageBudget; currency: strin
 	const projected = budget.projected / budget.monthly;
 	const tone = used >= 1 ? "over" : projected > 1 ? "risk" : "ok";
 	const barClass = {
-		over: "bg-[#B04A3A]",
-		risk: "bg-[#C27A3A]",
+		over: "bg-danger",
+		risk: "bg-warning",
 		ok: "bg-petrol",
 	}[tone];
 
@@ -149,7 +149,7 @@ function BudgetCard({ budget, currency }: { budget: UsageBudget; currency: strin
 				<span
 					className={cn(
 						"rounded-full px-2 py-px text-[10.5px] font-semibold",
-						tone === "over" && "bg-[#B04A3A]/10 text-[#B04A3A] dark:text-red-300",
+						tone === "over" && "bg-danger/10 text-danger dark:text-red-300",
 						tone === "risk" && "bg-warning-bg text-warning dark:bg-amber-950/40 dark:text-amber-300",
 						tone === "ok" && "bg-success-bg text-success dark:bg-emerald-950/40 dark:text-emerald-300",
 					)}
@@ -158,7 +158,7 @@ function BudgetCard({ budget, currency }: { budget: UsageBudget; currency: strin
 				</span>
 			</div>
 			<div className="mt-1.5 flex items-baseline gap-1.5">
-				<span className="font-display text-[28px] leading-none font-bold tabular-nums text-foreground">
+				<span className="font-display text-[28px] leading-none font-semibold tabular-nums text-foreground">
 					{formatMoney(budget.monthToDate, currency)}
 				</span>
 				<span className="text-[13px] tabular-nums text-meta">

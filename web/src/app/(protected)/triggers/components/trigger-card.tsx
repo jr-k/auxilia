@@ -91,7 +91,7 @@ export default function TriggerCard({
 			className={`group flex h-full cursor-pointer flex-col gap-3 rounded-2xl border bg-white p-5 transition-[border-color,box-shadow] duration-[130ms] ease-out hover:shadow-[0_6px_18px_-4px_rgba(33,36,31,0.08)] dark:bg-card ${
 				selected
 					? "border-petrol/45 shadow-[inset_0_0_0_1px_rgba(38,103,81,0.12)] dark:border-petrol/60"
-					: "border-[#E9EEEB] hover:border-[#D7E0DB] dark:border-white/10 dark:hover:border-white/20"
+					: "border-border hover:border-input dark:border-white/10 dark:hover:border-white/20"
 			} ${trigger.canManage ? LONG_PRESS_TARGET_CLASS : ""}`}
 			{...pressProps}
 			onClickCapture={longPress.onClickCapture}
@@ -115,11 +115,11 @@ export default function TriggerCard({
 				>
 					<span
 						className={`block size-2 rounded-full ${
-							trigger.isActive ? "bg-[#3D8B63]" : "bg-[#C2CFC8]"
+							trigger.isActive ? "bg-success" : "bg-ghost"
 						}`}
 					/>
 				</SelectableLeading>
-				<div className="min-w-[90px] flex-1 truncate font-[family-name:var(--font-jakarta-sans)] text-[17px] font-bold tracking-[-0.012em] text-[#1A2620] dark:text-foreground">
+				<div className="min-w-[90px] flex-1 truncate text-[16px] font-semibold text-foreground">
 					{trigger.name}
 				</div>
 				<div className="ml-auto flex max-w-full shrink-0 items-center gap-1.5">
@@ -137,7 +137,7 @@ export default function TriggerCard({
 								trigger={
 									<button
 										type="button"
-										className="flex size-7 cursor-pointer items-center justify-center rounded-[7px] text-meta opacity-100 transition-all hover:bg-hover hover:text-ink md:opacity-0 md:group-hover:opacity-100 focus-visible:opacity-100 data-[state=open]:bg-hover data-[state=open]:opacity-100 dark:hover:bg-white/10 dark:hover:text-panel-button"
+										className="flex size-7 cursor-pointer items-center justify-center rounded-[7px] text-meta opacity-100 transition hover:bg-hover hover:text-ink md:opacity-0 md:group-hover:opacity-100 focus-visible:opacity-100 data-[state=open]:bg-hover data-[state=open]:opacity-100 dark:hover:bg-white/10 dark:hover:text-panel-button"
 									>
 										<MoreVertical className="size-[15px]" />
 										<span className="sr-only">Trigger options</span>
@@ -189,13 +189,13 @@ export default function TriggerCard({
 			</div>
 
 			{/* Instructions excerpt */}
-			<p className="flex-1 font-[family-name:var(--font-dm-sans)] text-[13.5px] leading-[1.45] text-[#6B7F76] dark:text-muted-foreground line-clamp-1">
+			<p className="flex-1 font-[family-name:var(--font-dm-sans)] text-[13.5px] leading-[1.45] text-label dark:text-muted-foreground line-clamp-1">
 				{trigger.instructions}
 			</p>
 
 			{/* Chips: agent · frequency */}
-			<div className="flex flex-wrap gap-2 border-t border-[#F0F3F1] dark:border-white/5 pt-3.5">
-				<div className="flex h-[30px] max-w-full min-w-0 items-center gap-1.75 rounded-[4px] border border-[#ECF1EE] bg-[#F4F7F5] pl-1.5 pr-3 dark:border-white/10 dark:bg-white/5">
+			<div className="flex flex-wrap gap-2 border-t border-border dark:border-white/5 pt-3.5">
+				<div className="flex h-[30px] max-w-full min-w-0 items-center gap-1.75 rounded-[4px] border border-border bg-hover pl-1.5 pr-3 dark:border-white/10 dark:bg-white/5">
 					<AgentAvatar
 						agentId={agent?.id}
 						name={agent?.name}
@@ -205,53 +205,53 @@ export default function TriggerCard({
 						size="xs"
 						className="size-5! text-[11px]!"
 					/>
-					<span className="truncate font-[family-name:var(--font-dm-sans)] text-[12.5px] font-semibold text-[#4A5B53] dark:text-white/80">
+					<span className="truncate font-[family-name:var(--font-dm-sans)] text-[12.5px] font-semibold text-body dark:text-white/80">
 						{agent?.name ?? "Unknown agent"}
 					</span>
 				</div>
-				<div className="flex h-[30px] max-w-full min-w-0 items-center gap-1.5 rounded-[4px] border border-[#ECF1EE] bg-[#F4F7F5] px-3 dark:border-white/10 dark:bg-white/5">
+				<div className="flex h-[30px] max-w-full min-w-0 items-center gap-1.5 rounded-[4px] border border-border bg-hover px-3 dark:border-white/10 dark:bg-white/5">
 					{trigger.triggerType === "schedule" ? (
-						<Clock className="size-[13px] shrink-0 text-[#7C8C84] dark:text-muted-foreground" />
+						<Clock className="size-[13px] shrink-0 text-label dark:text-muted-foreground" />
 					) : (
-						<Webhook className="size-[13px] shrink-0 text-[#7C8C84] dark:text-muted-foreground" />
+						<Webhook className="size-[13px] shrink-0 text-label dark:text-muted-foreground" />
 					)}
-					<span className="truncate font-[family-name:var(--font-dm-sans)] text-[12.5px] font-medium text-[#4A5B53] dark:text-white/80">
+					<span className="truncate font-[family-name:var(--font-dm-sans)] text-[12.5px] font-medium text-body dark:text-white/80">
 						{frequency}
 					</span>
 				</div>
 				{trigger.runOnce && (
 					<div
-						className="flex h-[30px] max-w-full min-w-0 items-center gap-1.5 rounded-[4px] border border-[#ECF1EE] bg-[#F4F7F5] px-3 dark:border-white/10 dark:bg-white/5"
+						className="flex h-[30px] max-w-full min-w-0 items-center gap-1.5 rounded-[4px] border border-border bg-hover px-3 dark:border-white/10 dark:bg-white/5"
 						title="This trigger pauses itself as soon as it fires."
 					>
-						<Repeat1 className="size-[13px] shrink-0 text-[#7C8C84] dark:text-muted-foreground" />
-						<span className="truncate font-[family-name:var(--font-dm-sans)] text-[12.5px] font-medium text-[#4A5B53] dark:text-white/80">
+						<Repeat1 className="size-[13px] shrink-0 text-label dark:text-muted-foreground" />
+						<span className="truncate font-[family-name:var(--font-dm-sans)] text-[12.5px] font-medium text-body dark:text-white/80">
 							Run once
 						</span>
 					</div>
 				)}
 				{trigger.autoComplete && (
 					<div
-						className="flex h-[30px] max-w-full min-w-0 items-center gap-1.5 rounded-[4px] border border-[#ECF1EE] bg-[#F4F7F5] px-3 dark:border-white/10 dark:bg-white/5"
+						className="flex h-[30px] max-w-full min-w-0 items-center gap-1.5 rounded-[4px] border border-border bg-hover px-3 dark:border-white/10 dark:bg-white/5"
 						title="Each run's conversation is marked as completed once it succeeds."
 					>
-						<CircleCheck className="size-[13px] shrink-0 text-[#7C8C84] dark:text-muted-foreground" />
-						<span className="truncate font-[family-name:var(--font-dm-sans)] text-[12.5px] font-medium text-[#4A5B53] dark:text-white/80">
+						<CircleCheck className="size-[13px] shrink-0 text-label dark:text-muted-foreground" />
+						<span className="truncate font-[family-name:var(--font-dm-sans)] text-[12.5px] font-medium text-body dark:text-white/80">
 							Completes automatically
 						</span>
 					</div>
 				)}
 				{!trigger.modelAvailable && (
 					<div
-						className="flex h-[30px] max-w-full min-w-0 items-center gap-1.5 rounded-[4px] border border-[#F0E4D3] bg-[#FDF6EC] px-3 dark:border-amber-400/20 dark:bg-amber-950/30"
+						className="flex h-[30px] max-w-full min-w-0 items-center gap-1.5 rounded-[4px] border border-warning/20 bg-warning-bg px-3 dark:border-amber-400/20 dark:bg-amber-950/30"
 						title={
 							trigger.modelId
 								? `The model used by this trigger (${trigger.modelDisplayName ?? trigger.modelId}) is no longer available, so it cannot run.`
 								: "No model is available in this workspace, so this trigger cannot run."
 						}
 					>
-						<TriangleAlert className="size-[13px] shrink-0 text-[#B4643C] dark:text-amber-400" />
-						<span className="truncate font-[family-name:var(--font-dm-sans)] text-[12.5px] font-medium text-[#B4643C] dark:text-amber-400">
+						<TriangleAlert className="size-[13px] shrink-0 text-warning dark:text-amber-400" />
+						<span className="truncate font-[family-name:var(--font-dm-sans)] text-[12.5px] font-medium text-warning dark:text-amber-400">
 							Model unavailable
 						</span>
 					</div>

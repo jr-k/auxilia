@@ -50,15 +50,15 @@ export function ThreadSourceBadge({
 		) : source === "whatsapp" ? (
 			<WhatsAppLogo className="size-3.5" />
 		) : source === "web" ? (
-			<Globe className="h-3.5 w-3.5 shrink-0 text-[#A3B5AD] dark:text-muted-foreground" />
+			<Globe className="h-3.5 w-3.5 shrink-0 text-meta dark:text-muted-foreground" />
 		) : source === "trigger" ? (
-			<AlarmClock className="h-3.5 w-3.5 shrink-0 text-[#3D8B63] dark:text-emerald-400" />
+			<AlarmClock className="h-3.5 w-3.5 shrink-0 text-success dark:text-emerald-400" />
 		) : (
-			<Plug className="h-3.5 w-3.5 shrink-0 text-[#A3B5AD] dark:text-muted-foreground" />
+			<Plug className="h-3.5 w-3.5 shrink-0 text-meta dark:text-muted-foreground" />
 		);
 	return (
 		<span
-			className={`inline-flex items-center gap-1.5 text-[12px] font-medium text-[#6E7C76] dark:text-muted-foreground ${className}`}
+			className={`inline-flex items-center gap-1.5 text-[12px] font-medium text-label dark:text-muted-foreground ${className}`}
 			title={`Thread initiated from ${label}`}
 		>
 			{icon}

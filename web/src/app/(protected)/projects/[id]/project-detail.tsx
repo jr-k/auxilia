@@ -1509,8 +1509,7 @@ export default function ProjectDetailView({
 				<div className="contents" inert={modalInfoOpen}>
 					<SubpageHeader
 						trail={[
-							{ label: "workspace", href: "/" },
-							{ label: "projects" },
+							{ label: "Projects" },
 							{
 								label: detail.emoji
 									? `${detail.emoji} ${detail.name}`

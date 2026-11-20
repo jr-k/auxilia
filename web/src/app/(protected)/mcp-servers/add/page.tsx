@@ -51,7 +51,7 @@ function CatalogCard({
 				<ServerIconTile iconUrl={server.iconUrl} name={server.name} size={38} />
 				<div className="min-w-0 flex-1">
 					<div className="flex items-center gap-2">
-						<span className="truncate text-[14.5px] font-bold tracking-[-0.01em] text-foreground">
+						<span className="truncate text-[14.5px] font-semibold text-foreground">
 							{server.name}
 						</span>
 						<AuthTypeBadge
@@ -230,9 +230,8 @@ export default function AddMCPServerPage() {
 		<div className="flex h-svh min-w-0 flex-1 flex-col bg-background animate-in fade-in duration-300">
 			<SubpageHeader
 				trail={[
-					{ label: "workspace" },
-					{ label: "mcp-servers", href: "/mcp-servers" },
-					{ label: "add" },
+					{ label: "MCP servers", href: "/mcp-servers" },
+					{ label: "Add a server" },
 				]}
 			>
 				{user?.role === "admin" && (
@@ -274,7 +273,7 @@ export default function AddMCPServerPage() {
 
 					<div className="mt-6 flex flex-col gap-3.5 md:flex-row md:items-start">
 						<SearchBar
-							placeholder="Search the catalog…"
+							placeholder="Search the catalog"
 							value={searchQuery}
 							onChange={setSearchQuery}
 							className="w-full md:max-w-[420px] [&_input]:h-10"
@@ -286,7 +285,7 @@ export default function AddMCPServerPage() {
 							<span className="flex size-[26px] shrink-0 items-center justify-center rounded-[7px] bg-petrol-tint text-petrol">
 								<Database className="size-[14px]" />
 							</span>
-							<span className="min-w-0 flex-1 truncate text-[13px] font-bold tracking-[-0.01em] text-foreground">
+							<span className="min-w-0 flex-1 truncate text-[13px] font-semibold text-foreground">
 								Connect a database
 							</span>
 							<ChevronRight className="size-4 text-meta transition-colors group-hover:text-foreground" />
@@ -298,7 +297,7 @@ export default function AddMCPServerPage() {
 							<span className="flex size-[26px] shrink-0 items-center justify-center rounded-[7px] bg-petrol-tint text-petrol">
 								<Plus className="size-[14px]" />
 							</span>
-							<span className="min-w-0 flex-1 truncate text-[13px] font-bold tracking-[-0.01em] text-foreground">
+							<span className="min-w-0 flex-1 truncate text-[13px] font-semibold text-foreground">
 								Add a custom server
 							</span>
 							<ChevronRight className="size-4 text-meta transition-colors group-hover:text-foreground" />

@@ -21,7 +21,7 @@ const TodoProgressBar = memo(({ todos }: TodoProgressBarProps) => {
 		<div className="flex items-center gap-2 text-xs text-muted-foreground">
 			<div className="h-1.5 flex-1 rounded-full bg-muted overflow-hidden">
 				<div
-					className="h-full rounded-full bg-primary transition-all duration-300"
+					className="h-full rounded-full bg-primary transition-[width] duration-300"
 					style={{ width: `${pct}%` }}
 				/>
 			</div>

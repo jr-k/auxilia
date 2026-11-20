@@ -116,7 +116,7 @@ function AuthorizationContent() {
 								<ShieldCheck className="size-5" />
 							</div>
 							<div className="min-w-0">
-								<p className="font-display text-[16px] font-bold text-foreground">
+								<p className="font-display text-[16px] font-semibold text-foreground">
 									{clientName}
 								</p>
 								{clientHost && (

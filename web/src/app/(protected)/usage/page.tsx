@@ -55,7 +55,7 @@ const SCOPE_LABELS: Record<UsageScope, string> = {
 };
 
 const PANEL =
-	"rounded-2xl border border-[#E9EEEB] bg-white dark:border-white/10 dark:bg-card";
+	"rounded-2xl border border-border bg-white dark:border-white/10 dark:bg-card";
 
 function Segmented<K extends string>({
 	options,
@@ -72,7 +72,7 @@ function Segmented<K extends string>({
 		<div
 			role="radiogroup"
 			aria-label={label}
-			className="flex shrink-0 rounded-[8px] border border-input bg-[#F4F7F5] p-0.5 dark:border-white/10 dark:bg-white/[0.04]"
+			className="flex shrink-0 rounded-[8px] border border-input bg-hover p-0.5 dark:border-white/10 dark:bg-white/[0.04]"
 		>
 			{options.map((option) => (
 				<button
@@ -232,7 +232,7 @@ export default function UsagePage() {
 
 	return (
 		<WorkspacePage
-			slug="usage"
+			crumb="Usage"
 			title="Usage"
 			intro={
 				scope === "personal"
@@ -379,7 +379,7 @@ export default function UsagePage() {
 							<section className={cn(PANEL, "min-w-0 p-5")}>
 								<div className="mb-5 flex flex-wrap items-start justify-between gap-3">
 									<div>
-										<h2 className="text-[15px] font-bold text-foreground">
+										<h2 className="text-[15px] font-semibold text-foreground">
 											{metric === "cost" ? "Spend over time" : "Tokens over time"}
 										</h2>
 										<p className="mt-0.5 text-[12.5px] text-meta dark:text-panel-dim">
@@ -419,7 +419,7 @@ export default function UsagePage() {
 											lastInProgress={report.end === today}
 										/>
 										{metric === "cost" && channelLegend.length > 0 && (
-											<div className="mt-4 border-t border-[#F0F3F1] pt-3.5 dark:border-white/5">
+											<div className="mt-4 border-t border-border pt-3.5 dark:border-white/5">
 												<ChannelLegend rows={channelLegend} currency={currency} />
 											</div>
 										)}
@@ -499,7 +499,7 @@ function TopSpenders({
 
 	return (
 		<section className={cn(PANEL, "p-5")}>
-			<h2 className="text-[15px] font-bold text-foreground">Top consumers</h2>
+			<h2 className="text-[15px] font-semibold text-foreground">Top consumers</h2>
 			<p className="mt-0.5 text-[12.5px] text-meta dark:text-panel-dim">
 				Agents, triggers and projects with the highest spend.
 			</p>
@@ -508,7 +508,7 @@ function TopSpenders({
 					<li key={`${dimension}-${row.key}`}>
 						<button
 							type="button"
-							className="flex w-full cursor-pointer items-center gap-3 rounded-[8px] px-2 py-2 text-left transition-colors hover:bg-[#F7FAF8] dark:hover:bg-white/[0.04]"
+							className="flex w-full cursor-pointer items-center gap-3 rounded-[8px] px-2 py-2 text-left transition-colors hover:bg-surface dark:hover:bg-white/[0.04]"
 							onClick={() => {
 								onSelect(dimension, row.key as string);
 							}}

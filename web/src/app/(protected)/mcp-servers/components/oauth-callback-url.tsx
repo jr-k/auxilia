@@ -43,7 +43,7 @@ export function OAuthCallbackUrl({ showLabel = true }: { showLabel?: boolean }) 
 			{showLabel && (
 				<label
 					htmlFor={inputId}
-					className="text-[11px] font-semibold uppercase tracking-[0.07em] text-meta dark:text-panel-dim"
+					className="text-[12px] font-medium text-meta dark:text-panel-dim"
 				>
 					Callback URL
 				</label>

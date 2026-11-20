@@ -48,9 +48,6 @@ import { VisibilityBadge } from "@/components/ui/visibility-badge";
 import { UsageBadge } from "@/components/usage/usage-badge";
 import RunHistoryCard from "@/app/(protected)/triggers/components/run-history-card";
 
-const slugify = (name: string) =>
-	name.trim().toLowerCase().replace(/\s+/g, "-") || "…";
-
 interface TriggerDetailProps {
 	trigger: Trigger;
 	/** `?edit=1` from a list's row menu; ignored when the viewer can't manage. */
@@ -190,9 +187,8 @@ export default function TriggerDetail({
 		<div className="flex h-svh min-w-0 flex-1 flex-col bg-background animate-in fade-in duration-300">
 			<SubpageHeader
 				trail={[
-					{ label: "workspace" },
-					{ label: "triggers", href: "/triggers" },
-					{ label: slugify(liveTrigger.name) },
+					{ label: "Triggers", href: "/triggers" },
+					{ label: liveTrigger.name },
 				]}
 			>
 				<UsageBadge

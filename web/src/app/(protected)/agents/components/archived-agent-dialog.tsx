@@ -62,7 +62,7 @@ export default function ArchivedAgentDialog({
 		>
 			{confirmingDelete ? (
 				<>
-					<div className="mb-5 flex items-start gap-2.5 rounded-[10px] bg-[#FBEFED] px-4 py-3 text-[13px] leading-[1.55] text-[#B04A3A] dark:bg-[#B04A3A]/10">
+					<div className="mb-5 flex items-start gap-2.5 rounded-[10px] bg-danger-bg px-4 py-3 text-[13px] leading-[1.55] text-danger dark:bg-[#B04A3A]/10">
 						<TriangleAlert className="mt-0.5 size-4 shrink-0" />
 						<span>
 							This permanently deletes the agent, its tool connections, and
@@ -99,7 +99,7 @@ export default function ArchivedAgentDialog({
 					<div className="flex justify-end gap-2">
 						<button
 							disabled={busy}
-							className="cursor-pointer rounded-[7px] border border-input px-[18px] py-2 text-[13px] font-semibold text-[#B04A3A] transition-colors hover:bg-[#FBEFED] disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-[#B04A3A]/10"
+							className="cursor-pointer rounded-[7px] border border-input px-[18px] py-2 text-[13px] font-semibold text-danger transition-colors hover:bg-danger-bg disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-[#B04A3A]/10"
 							onClick={() => {
 								setConfirmingDelete(true);
 							}}

@@ -239,7 +239,7 @@ export default function AgentToolList({
 				<div className="mb-3 flex min-h-[24px] shrink-0 items-center justify-between">
 					<div className="flex items-center gap-2.5">
 						<span className="text-[10.5px] font-semibold text-label dark:text-muted-foreground">
-							MCP Servers{" "}
+							MCP servers{" "}
 							<span className="tracking-normal text-meta dark:text-panel-dim">
 								{enabledServers.length}
 							</span>

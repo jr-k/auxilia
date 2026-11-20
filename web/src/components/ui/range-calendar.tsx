@@ -133,7 +133,7 @@ export function RangeCalendar({
 													: inRange
 														? "text-petrol hover:bg-petrol/10 dark:text-panel-terminal"
 														: "text-foreground hover:bg-hover dark:hover:bg-white/10",
-												day === today && !endpoint && "font-bold underline underline-offset-4",
+												day === today && !endpoint && "font-semibold underline underline-offset-4",
 												disabled &&
 													"cursor-default text-meta/40 hover:bg-transparent dark:text-panel-dim/40 dark:hover:bg-transparent",
 											)}

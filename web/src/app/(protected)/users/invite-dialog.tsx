@@ -157,7 +157,7 @@ export default function InviteDialog({
 						className="flex flex-col gap-5"
 					>
 						{error && (
-							<div className="rounded-[10px] bg-[#FBEFED] px-3.5 py-2.5 text-[13px] font-medium text-[#B04A3A] dark:bg-[#B04A3A]/10">
+							<div className="rounded-[10px] bg-danger-bg px-3.5 py-2.5 text-[13px] font-medium text-danger dark:bg-[#B04A3A]/10">
 								{error}
 							</div>
 						)}

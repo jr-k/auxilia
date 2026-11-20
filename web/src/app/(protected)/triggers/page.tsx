@@ -45,13 +45,13 @@ export default function TriggersPage() {
 
 	return (
 		<WorkspacePage
-			slug="triggers"
+			crumb="Triggers"
 			title="Triggers"
 			intro="Run agents automatically on a schedule or from an external webhook."
 			fillHeight={viewMode === "table"}
 			fullWidth
 			search={{
-				placeholder: "Search triggers…",
+				placeholder: "Search triggers",
 				value: search,
 				onChange: setSearch,
 			}}

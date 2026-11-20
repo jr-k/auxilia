@@ -647,7 +647,7 @@ export function ConnectServersDialog({
 										<Fragment key={server.id}>
 											{startsConnectedGroup && (
 												<div className="flex items-center gap-2 px-1 pt-2">
-													<span className="text-[9.5px] font-semibold uppercase tracking-[0.08em] text-meta dark:text-panel-dim">
+													<span className="text-[12px] font-medium text-meta dark:text-panel-dim">
 														Connected
 													</span>
 													<span className="h-px flex-1 bg-hairline dark:bg-white/8" />

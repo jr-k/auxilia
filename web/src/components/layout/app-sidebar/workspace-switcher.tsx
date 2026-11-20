@@ -122,7 +122,7 @@ export function WorkspaceSwitcher() {
 										}
 										if (event.key.length === 1) event.stopPropagation();
 									}}
-									placeholder="Search workspaces…"
+									placeholder="Search workspaces"
 									aria-label="Search workspaces"
 									className="min-w-0 flex-1 bg-transparent text-[12.5px] text-foreground outline-none placeholder:text-faint"
 								/>

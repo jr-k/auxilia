@@ -472,7 +472,7 @@ export default function ProfileMemories() {
 							onChange={(event) => {
 								setQuery(event.target.value);
 							}}
-							placeholder="Search your memories…"
+							placeholder="Search your memories"
 							className={`${inputClass} pl-9`}
 						/>
 					</label>

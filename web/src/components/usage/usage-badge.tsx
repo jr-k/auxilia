@@ -49,8 +49,8 @@ const EMPTY_SUMMARY: UsageSummary = {
 const TOKEN_SEGMENTS = [
 	{ key: "input", label: "Input", className: "bg-petrol" },
 	{ key: "cacheRead", label: "Cached", className: "bg-petrol/45" },
-	{ key: "cacheCreation", label: "Cache write", className: "bg-[#C27A3A]" },
-	{ key: "output", label: "Output", className: "bg-[#3D8B63]" },
+	{ key: "cacheCreation", label: "Cache write", className: "bg-warning" },
+	{ key: "output", label: "Output", className: "bg-success" },
 ] as const;
 
 const DIMENSION_PARAM: Partial<Record<UsageDimension, string>> = {
@@ -346,7 +346,7 @@ export function UsageSummaryCard({
 
 			<div className="mt-3 text-[11px] text-meta">This month</div>
 			<div className="mt-0.5 flex items-baseline gap-2">
-				<span className="font-display text-[24px] font-bold tabular-nums text-foreground">
+				<span className="font-display text-[24px] font-semibold tabular-nums text-foreground">
 					<Money totals={summary.month} currency={currency} />
 				</span>
 				<TrendChip current={pace} previous={summary.previousMonth.cost} />
@@ -420,7 +420,7 @@ export function UsageSummaryCard({
 type BadgeVariant = "chip" | "header" | "pill";
 
 const VARIANT_CLASS: Record<BadgeVariant, string> = {
-	chip: "flex h-[30px] max-w-full min-w-0 items-center gap-1.5 rounded-[4px] border border-[#ECF1EE] bg-[#F4F7F5] px-3 text-[12.5px] font-medium text-[#4A5B53] dark:border-white/10 dark:bg-white/5 dark:text-white/80",
+	chip: "flex h-[30px] max-w-full min-w-0 items-center gap-1.5 rounded-[4px] border border-border bg-hover px-3 text-[12.5px] font-medium text-body dark:border-white/10 dark:bg-white/5 dark:text-white/80",
 	header:
 		"flex items-center gap-1.5 whitespace-nowrap rounded-[7px] border border-input bg-card px-3 py-2 text-[13px] font-semibold text-foreground transition-colors hover:border-border-hover dark:border-white/10 dark:bg-white/[0.03] dark:hover:border-white/20",
 	pill: "inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-[4px] bg-petrol-tint px-[9px] py-[3px] text-[10.5px] font-semibold text-petrol dark:bg-white/10 dark:text-panel-terminal",
@@ -494,7 +494,7 @@ export function UsageBadge({
 					)}
 				>
 					{variant !== "pill" && (
-						<Coins className="size-[13px] shrink-0 text-[#7C8C84] dark:text-muted-foreground" />
+						<Coins className="size-[13px] shrink-0 text-label dark:text-muted-foreground" />
 					)}
 					<span className="flex min-w-0 items-baseline gap-1 truncate">
 						{label}

@@ -43,24 +43,24 @@ function EmptyState({
 	return (
 		<div className="flex flex-col items-center justify-center py-16 px-8 animate-in fade-in slide-in-from-bottom-2 duration-400">
 			{/* Icon bubble */}
-			<div className="w-[72px] h-[72px] rounded-full bg-[#F5F8F6] dark:bg-white/5 flex items-center justify-center mb-5">
-				<div className="w-12 h-12 rounded-full bg-[#EDF4F0] dark:bg-white/10 flex items-center justify-center">
+			<div className="w-[72px] h-[72px] rounded-full bg-surface dark:bg-white/5 flex items-center justify-center mb-5">
+				<div className="w-12 h-12 rounded-full bg-hover dark:bg-white/10 flex items-center justify-center">
 					{icon}
 				</div>
 			</div>
 
-			<div className="font-[family-name:var(--font-jakarta-sans)] text-[17px] font-bold text-[#1E2D28] dark:text-foreground tracking-[-0.01em] mb-1.5">
+			<div className="text-[16px] font-semibold text-foreground mb-1.5">
 				{title}
 			</div>
 
-			<div className="font-[family-name:var(--font-dm-sans)] text-[14px] text-[#8FA89E] dark:text-muted-foreground font-medium text-center max-w-[320px] leading-relaxed mb-6">
+			<div className="font-[family-name:var(--font-dm-sans)] text-[14px] text-meta dark:text-muted-foreground font-medium text-center max-w-[320px] leading-relaxed mb-6">
 				{subtitle}
 			</div>
 
 			{action && (
 				<button
 					onClick={action.onClick}
-					className="flex items-center gap-1.5 px-5.5 py-2.5 rounded-full border-[1.5px] border-[#E0E8E4] dark:border-white/10 bg-white dark:bg-transparent font-[family-name:var(--font-dm-sans)] text-[13.5px] font-semibold text-[#1E2D28] dark:text-foreground cursor-pointer transition-all hover:bg-[#F8FAF9] dark:hover:bg-white/5 hover:-translate-y-0.5"
+					className="flex items-center gap-1.5 px-5.5 py-2.5 rounded-full border-[1.5px] border-border dark:border-white/10 bg-white dark:bg-transparent font-[family-name:var(--font-dm-sans)] text-[13.5px] font-semibold text-foreground dark:text-foreground cursor-pointer transition hover:bg-surface dark:hover:bg-white/5 hover:-translate-y-0.5"
 				>
 					{action.icon}
 					{action.label}
@@ -170,11 +170,11 @@ function AgentSection({
 					}`}
 				/>
 				<Folder className="size-4 shrink-0 text-meta" />
-				<h2 className="whitespace-nowrap text-[13.5px] font-bold tracking-[-0.01em] text-foreground">
+				<h2 className="whitespace-nowrap text-[13.5px] font-semibold text-foreground">
 					{node.name}
 				</h2>
 				<span className="font-mono text-[11px] text-meta">{node.count}</span>
-				<div className="h-px flex-1 bg-[#E8EFE9] dark:bg-white/10" />
+				<div className="h-px flex-1 bg-hover dark:bg-white/10" />
 			</button>
 
 			{expanded && (
@@ -395,7 +395,7 @@ export default function AgentList({
 	if (archived && agents.length === 0) {
 		return (
 			<EmptyState
-				icon={<Archive className="size-[22px] text-[#4CA882]" />}
+				icon={<Archive className="size-[22px] text-petrol dark:text-panel-terminal" />}
 				title="No archived agents"
 				subtitle="Agents you archive show up here, where they can be restored or deleted permanently."
 			/>
@@ -406,14 +406,14 @@ export default function AgentList({
 	if (agents.length === 0) {
 		return (
 			<EmptyState
-				icon={<Zap className="size-[22px] text-[#4CA882]" />}
+				icon={<Zap className="size-[22px] text-petrol dark:text-panel-terminal" />}
 				title="Create your first agent"
 				subtitle="Agents help your team automate tasks and access your data tools."
 				action={
 					onCreateAgent
 						? {
 								label: "Create an agent",
-								icon: <Plus className="size-[15px] text-[#4CA882]" />,
+								icon: <Plus className="size-[15px] text-petrol dark:text-panel-terminal" />,
 								onClick: onCreateAgent,
 							}
 						: undefined
@@ -426,14 +426,14 @@ export default function AgentList({
 	if (search && visible.length === 0) {
 		return (
 			<EmptyState
-				icon={<Search className="size-[22px] text-[#4CA882]" />}
+				icon={<Search className="size-[22px] text-petrol dark:text-panel-terminal" />}
 				title="No agents found"
 				subtitle="Try adjusting your search to find what you're looking for."
 				action={
 					onClearSearch
 						? {
 								label: "Clear search",
-								icon: <Search className="size-[15px] text-[#4CA882]" />,
+								icon: <Search className="size-[15px] text-petrol dark:text-panel-terminal" />,
 								onClick: onClearSearch,
 							}
 						: undefined
@@ -445,7 +445,7 @@ export default function AgentList({
 	if (visible.length === 0) {
 		return (
 			<EmptyState
-				icon={<Search className="size-[22px] text-[#4CA882]" />}
+				icon={<Search className="size-[22px] text-petrol dark:text-panel-terminal" />}
 				title="No agents match this filter"
 				subtitle="Choose another visibility filter."
 			/>

@@ -511,7 +511,7 @@ export default function ProfileThreads() {
 						<input
 							type="search"
 							value={search}
-							placeholder="Search conversations or agents…"
+							placeholder="Search conversations or agents"
 							onChange={(event) => {
 								setSearch(event.target.value);
 								resetOffset();

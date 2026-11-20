@@ -106,7 +106,7 @@ function DialogTitle({
 		<DialogPrimitive.Title
 			data-slot="dialog-title"
 			className={cn(
-				"text-[16px] leading-snug font-bold text-ink dark:text-panel-button",
+				"text-[16px] leading-snug font-semibold text-ink dark:text-panel-button",
 				className
 			)}
 			{...props}
@@ -140,7 +140,7 @@ const dialogButtonVariants = cva(
 				outline:
 					"border border-input text-ink transition-colors hover:border-border-hover dark:text-panel-button dark:hover:border-white/30",
 				destructive:
-					"bg-[#B04A3A] text-white transition-opacity hover:opacity-90",
+					"bg-danger text-white transition-opacity hover:opacity-90",
 			},
 		},
 		defaultVariants: {

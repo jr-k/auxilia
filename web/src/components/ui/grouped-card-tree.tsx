@@ -70,11 +70,11 @@ function GroupedCardNode<T>({
 					)}
 				/>
 				<Folder className="size-4 shrink-0 text-meta" />
-				<h2 className="whitespace-nowrap text-[13.5px] font-bold tracking-[-0.01em] text-foreground">
+				<h2 className="whitespace-nowrap text-[13.5px] font-semibold text-foreground">
 					{node.name}
 				</h2>
 				<span className="font-mono text-[11px] text-meta">{node.count}</span>
-				<div className="h-px flex-1 bg-[#E8EFE9] dark:bg-white/10" />
+				<div className="h-px flex-1 bg-hover dark:bg-white/10" />
 			</button>
 			{expanded && (
 				<div className="mb-6">
