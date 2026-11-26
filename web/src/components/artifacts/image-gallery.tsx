@@ -238,7 +238,7 @@ function Frame({
       src={slot.url}
       alt={altText(image, position)}
       sizes={large ? "92vw" : "(max-width: 640px) 100vw, 576px"}
-      className="object-contain"
+      className="object-scale-down"
       draggable={false}
     />
   );
