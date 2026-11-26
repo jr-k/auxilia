@@ -141,7 +141,7 @@ async def public_address(host: str, port: int) -> str:
         )
     except OSError as exc:
         raise ImageUnavailableError(f"the host {host} could not be resolved") from exc
-    addresses = []
+    addresses: list[ipaddress.IPv4Address | ipaddress.IPv6Address | None] = []
     for *_, sockaddr in infos:
         try:
             addresses.append(ipaddress.ip_address(sockaddr[0]))
