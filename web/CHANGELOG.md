@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.174](https://github.com/jr-k/auxilia/compare/web-v0.12.173...web-v0.12.174) (2026-11-26)
+
+
+### Bug Fixes
+
+* **gallery:** show small images at their real size instead of upscaling ([#371](https://github.com/jr-k/auxilia/issues/371)) ([5177fc7](https://github.com/jr-k/auxilia/commit/5177fc77bbae1ea9dd7d07c491e2cac7c7ddc1f7))
+
 ## [0.12.173](https://github.com/jr-k/auxilia/compare/web-v0.12.172...web-v0.12.173) (2026-11-26)
 
 
