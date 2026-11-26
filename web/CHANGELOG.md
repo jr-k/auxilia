@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.173](https://github.com/jr-k/auxilia/compare/web-v0.12.172...web-v0.12.173) (2026-11-26)
+
+
+### Features
+
+* **gallery:** show images an MCP server only references by id ([#369](https://github.com/jr-k/auxilia/issues/369)) ([22cbc61](https://github.com/jr-k/auxilia/commit/22cbc6109cf01ca6544625e740949ee88228359b))
+
 ## [0.12.172](https://github.com/jr-k/auxilia/compare/web-v0.12.171...web-v0.12.172) (2026-11-26)
 
 

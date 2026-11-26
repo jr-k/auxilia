@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.131](https://github.com/jr-k/auxilia/compare/backend-v0.11.130...backend-v0.11.131) (2026-11-26)
+
+
+### Features
+
+* **gallery:** show images an MCP server only references by id ([#369](https://github.com/jr-k/auxilia/issues/369)) ([22cbc61](https://github.com/jr-k/auxilia/commit/22cbc6109cf01ca6544625e740949ee88228359b))
+
 ## [0.11.130](https://github.com/jr-k/auxilia/compare/backend-v0.11.129...backend-v0.11.130) (2026-11-26)
 
 
