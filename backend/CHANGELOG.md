@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.132](https://github.com/jr-k/auxilia/compare/backend-v0.11.131...backend-v0.11.132) (2026-11-27)
+
+
+### Bug Fixes
+
+* **mcp:** manual loopback OAuth and region options for AWS MCP ([#373](https://github.com/jr-k/auxilia/issues/373)) ([10b522d](https://github.com/jr-k/auxilia/commit/10b522da8ccf2fac04d64ae4549c954050865e2e))
+
 ## [0.11.131](https://github.com/jr-k/auxilia/compare/backend-v0.11.130...backend-v0.11.131) (2026-11-26)
 
 
