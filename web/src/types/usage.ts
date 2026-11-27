@@ -11,7 +11,9 @@ export type UsageDimension =
 	| "user"
 	| "model"
 	| "vendor"
-	| "workspace";
+	| "workspace"
+	| "mcp"
+	| "skill";
 
 export type UsageChannel =
 	| "web"
@@ -95,6 +97,11 @@ export interface UsageBreakdownRow {
 	share: number;
 	/** Vendor slug of model and vendor rows, for their logo. */
 	vendor?: string | null;
+	/**
+	 * MCP server and skill rows: their tool calls. Cost and tokens are the
+	 * calls' shares, `calls` the model calls they were part of.
+	 */
+	toolCalls?: number | null;
 }
 
 export interface UsageBudget {
