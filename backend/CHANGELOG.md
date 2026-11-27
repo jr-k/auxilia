@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.133](https://github.com/jr-k/auxilia/compare/backend-v0.11.132...backend-v0.11.133) (2026-11-27)
+
+
+### Features
+
+* **usage:** break down spend by MCP server and skill ([#375](https://github.com/jr-k/auxilia/issues/375)) ([5fa6bbb](https://github.com/jr-k/auxilia/commit/5fa6bbba2e8bfaf0b50eed94262199612d3e8e36))
+
 ## [0.11.132](https://github.com/jr-k/auxilia/compare/backend-v0.11.131...backend-v0.11.132) (2026-11-27)
 
 
