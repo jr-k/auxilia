@@ -87,6 +87,36 @@ class LLMUsageDB(BaseDBModel, table=True):
     )
 
 
+class LLMUsageToolShareDB(BaseDBModel, table=True):
+    """One MCP server's or skill's share of a model call that called tools.
+
+    A call's cost is split evenly between its tool calls; per dimension the
+    shares of a call add up to 1, the NULL key holding the tools that belong
+    to no server or skill. Calls without tool calls have no shares at all.
+    """
+
+    __tablename__ = "llm_usage_tool_shares"
+    __table_args__ = (
+        UniqueConstraint(
+            "usage_id",
+            "dimension",
+            "key",
+            name="uq_llm_usage_tool_shares_usage_dimension_key",
+            postgresql_nulls_not_distinct=True,
+        ),
+    )
+
+    usage_id: UUID = Field(
+        foreign_key="llm_usage.id", ondelete="CASCADE", nullable=False
+    )
+    # "mcp" or "skill".
+    dimension: str = Field(sa_column=Column(String(16), nullable=False))
+    # No foreign key: a deleted server or skill must not merge into "none".
+    key: UUID | None = Field(default=None, nullable=True)
+    weight: Decimal = Field(sa_column=Column(Numeric(12, 10), nullable=False))
+    tool_calls: int = Field(sa_column=Column(Integer, nullable=False))
+
+
 class UsageSettingsDB(BaseDBModel, table=True):
     __tablename__ = "workspace_usage_settings"
     __table_args__ = (
@@ -119,5 +149,11 @@ class UsageLedgerStateDB(SQLModel, table=True):
         sa_column=Column(DateTime(timezone=True), nullable=False)
     )
     backfill_completed_at: datetime | None = Field(
+        default=None, sa_column=Column(DateTime(timezone=True), nullable=True)
+    )
+    tool_shares_started_at: datetime = Field(
+        sa_column=Column(DateTime(timezone=True), nullable=False)
+    )
+    tool_shares_backfill_completed_at: datetime | None = Field(
         default=None, sa_column=Column(DateTime(timezone=True), nullable=True)
     )

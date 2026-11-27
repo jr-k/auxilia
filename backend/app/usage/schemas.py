@@ -92,6 +92,9 @@ class UsageBreakdownRow(BaseModel):
     share: float
     # Vendor slug of model and vendor rows, for their logo.
     vendor: str | None = None
+    # MCP server and skill rows: their tool calls. Cost and tokens are the
+    # calls' shares, `calls` the model calls they were part of.
+    tool_calls: int | None = None
 
 
 class UsageBudget(BaseModel):

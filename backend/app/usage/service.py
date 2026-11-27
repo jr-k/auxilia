@@ -17,6 +17,7 @@ from app.exceptions import DomainValidationError, PermissionDeniedError
 from app.model_providers.whitelist import SupportedModel, get_whitelist
 from app.usage.models import UsageChannel
 from app.usage.repository import (
+    TOOL_DIMENSIONS,
     Granularity,
     UsageDimension,
     UsageFilter,
@@ -70,6 +71,14 @@ MISSING_LABELS = {
     UsageDimension.user: "Deleted user",
     UsageDimension.model: "Unknown model",
     UsageDimension.workspace: "Deleted workspace",
+    UsageDimension.mcp: "No MCP server",
+    UsageDimension.skill: "No skill",
+}
+
+# Tool shares keep the id of a deleted server or skill: NULL means "none".
+DELETED_LABELS = {
+    UsageDimension.mcp: "Deleted MCP server",
+    UsageDimension.skill: "Deleted skill",
 }
 
 OTHER_VENDOR_LABEL = "Other"
@@ -559,6 +568,8 @@ class UsageService:
             UsageDimension.trigger,
             UsageDimension.model,
             UsageDimension.vendor,
+            UsageDimension.mcp,
+            UsageDimension.skill,
         ]
         if scope is not UsageScope.personal:
             dimensions.append(UsageDimension.user)
@@ -654,15 +665,20 @@ class UsageService:
         }
         labels = await self._labels(dimension, [row.key for row in rows])
         catalog = await _catalog() if dimension is UsageDimension.model else {}
+        is_tool = dimension in TOOL_DIMENSIONS
         result = []
         for row in rows:
             cost = converter.money(row.cost_usd)
             tokens = int(row.total_tokens)
+            missing = (
+                DELETED_LABELS[dimension]
+                if is_tool and row.key is not None
+                else MISSING_LABELS.get(dimension, "Unknown")
+            )
             result.append(
                 UsageBreakdownRow(
                     key=str(row.key) if row.key is not None else None,
-                    label=labels.get(row.key)
-                    or MISSING_LABELS.get(dimension, "Unknown"),
+                    label=labels.get(row.key) or missing,
                     cost=cost,
                     previous_cost=previous_cost.get(row.key, 0),
                     calls=int(row.calls),
@@ -670,6 +686,7 @@ class UsageService:
                     tokens=tokens,
                     share=_share(cost, tokens, totals),
                     vendor=_vendor(row.key, catalog)[0] if catalog else None,
+                    tool_calls=int(row.tool_calls) if is_tool else None,
                 )
             )
         return result

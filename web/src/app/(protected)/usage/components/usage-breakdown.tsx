@@ -43,6 +43,8 @@ export const DIMENSION_LABELS: Record<UsageDimension, { tab: string; singular: s
 	model: { tab: "Models", singular: "Model" },
 	vendor: { tab: "Vendors", singular: "Vendor" },
 	workspace: { tab: "Workspaces", singular: "Workspace" },
+	mcp: { tab: "MCP servers", singular: "MCP server" },
+	skill: { tab: "Skills", singular: "Skill" },
 };
 
 const TAB_ORDER: UsageDimension[] = [
@@ -53,8 +55,12 @@ const TAB_ORDER: UsageDimension[] = [
 	"user",
 	"model",
 	"vendor",
+	"mcp",
+	"skill",
 	"workspace",
 ];
+
+const TOOL_DIMENSIONS = new Set<UsageDimension>(["mcp", "skill"]);
 
 const COLLAPSED_ROWS = 10;
 
@@ -83,6 +89,7 @@ export function UsageBreakdown({
 	const visible = expanded ? rows : rows.slice(0, COLLAPSED_ROWS);
 	const maxShare = Math.max(0, ...rows.map((row) => row.share));
 	const filterable = FILTERABLE.has(current);
+	const byTool = TOOL_DIMENSIONS.has(current);
 
 	return (
 		<section className="rounded-2xl border border-[#E9EEEB] bg-white dark:border-white/10 dark:bg-card">
@@ -90,9 +97,11 @@ export function UsageBreakdown({
 				<div className="pb-3">
 					<h2 className="text-[15px] font-bold text-foreground">Where the spend goes</h2>
 					<p className="mt-0.5 text-[12.5px] text-meta dark:text-panel-dim">
-						{filterable
-							? "Select a row to focus the whole page on it."
-							: "Ranked by cost over the selected period."}
+						{byTool
+							? "Each model call's cost is split evenly between the tools it called."
+							: filterable
+								? "Select a row to focus the whole page on it."
+								: "Ranked by cost over the selected period."}
 					</p>
 				</div>
 				<UnderlineTabs
@@ -123,7 +132,12 @@ export function UsageBreakdown({
 								<th className="py-2.5 pr-3 pl-5 font-medium">{DIMENSION_LABELS[current].singular}</th>
 								<th className="w-[28%] px-3 py-2.5 font-medium">Share of spend</th>
 								<th className="px-3 py-2.5 text-right font-medium">Tokens</th>
-								<th className="px-3 py-2.5 text-right font-medium">Calls</th>
+								{byTool && (
+									<th className="px-3 py-2.5 text-right font-medium">Tool calls</th>
+								)}
+								<th className="px-3 py-2.5 text-right font-medium">
+									{byTool ? "Model calls" : "Calls"}
+								</th>
 								<th className="px-3 py-2.5 text-right font-medium">Cost</th>
 								{showChange && (
 									<th className="py-2.5 pr-5 pl-3 text-right font-medium">Change</th>
@@ -196,6 +210,11 @@ export function UsageBreakdown({
 										<td className="px-3 py-2.5 text-right text-subtle dark:text-panel-body">
 											{formatTokens(row.tokens)}
 										</td>
+										{byTool && (
+											<td className="px-3 py-2.5 text-right text-subtle dark:text-panel-body">
+												{formatCount(row.toolCalls ?? 0)}
+											</td>
+										)}
 										<td className="px-3 py-2.5 text-right text-subtle dark:text-panel-body">
 											{formatCount(row.calls)}
 										</td>

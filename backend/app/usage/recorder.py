@@ -24,6 +24,7 @@ from app.threads.models import ThreadDB, ThreadSource
 from app.triggers.models import TriggerDB, TriggerType
 from app.usage.models import UsageChannel
 from app.usage.repository import UsageRepository
+from app.usage.tools import ToolOwners, tool_shares
 
 
 logger = logging.getLogger(__name__)
@@ -41,9 +42,17 @@ class UsageAttribution:
     trigger_id: UUID | None
     channel: UsageChannel
     model_id: str | None
+    tool_owners: ToolOwners
 
     @classmethod
-    async def for_thread(cls, db: AsyncSession, thread: ThreadDB) -> UsageAttribution:
+    async def for_thread(
+        cls,
+        db: AsyncSession,
+        thread: ThreadDB,
+        tool_owners: ToolOwners | None = None,
+    ) -> UsageAttribution:
+        if tool_owners is None:
+            tool_owners = await load_tool_owners(db, thread.workspace_id)
         return cls(
             workspace_id=thread.workspace_id,
             thread_id=thread.id,
@@ -53,7 +62,13 @@ class UsageAttribution:
             trigger_id=thread.trigger_id,
             channel=await _channel(db, thread),
             model_id=thread.model_id,
+            tool_owners=tool_owners,
         )
+
+
+async def load_tool_owners(db: AsyncSession, workspace_id: UUID) -> ToolOwners:
+    servers, skills = await UsageRepository(db).tool_owners(workspace_id)
+    return ToolOwners.build(servers, skills)
 
 
 async def _channel(db: AsyncSession, thread: ThreadDB) -> UsageChannel:
@@ -98,6 +113,7 @@ def usage_row(
         "output_tokens": usage.output,
         "total_tokens": usage.total,
         "cost_usd": cost.cost_details.total if cost.cost_details else None,
+        "tool_shares": tool_shares(message, attribution.tool_owners),
     }
 
 

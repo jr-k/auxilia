@@ -9,6 +9,7 @@ from uuid import UUID, uuid4
 from sqlalchemy import (
     ColumnElement,
     Row,
+    Select,
     func,
     literal_column,
     or_,
@@ -22,12 +23,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import col
 
 from app.agents.models import AgentDB
+from app.mcp.servers.models import MCPServerDB
 from app.projects.models import ProjectDB
 from app.repository import BaseRepository
+from app.skills.models import SkillDB
 from app.threads.models import ThreadDB
 from app.triggers.models import TriggerDB
 from app.usage.models import (
     LLMUsageDB,
+    LLMUsageToolShareDB,
     UsageChannel,
     UsageLedgerStateDB,
     UsageSettingsDB,
@@ -47,6 +51,12 @@ class UsageDimension(StrEnum):
     # never queried as a column.
     vendor = "vendor"
     workspace = "workspace"
+    # Weighted by the tool shares of each call (`LLMUsageToolShareDB`).
+    mcp = "mcp"
+    skill = "skill"
+
+
+TOOL_DIMENSIONS = frozenset({UsageDimension.mcp, UsageDimension.skill})
 
 
 class Granularity(StrEnum):
@@ -151,15 +161,69 @@ class UsageRepository(BaseRepository[LLMUsageDB]):
         super().__init__(LLMUsageDB, db)
 
     async def insert_many(self, rows: Sequence[dict[str, Any]]) -> None:
-        """Insert ledger rows; a call already recorded for its thread is skipped."""
+        """Insert ledger rows and their `tool_shares`; a call already recorded
+        for its thread is skipped, shares included."""
+        if not rows:
+            return
+        values = []
+        shares_by_id: dict[UUID, list[dict[str, Any]]] = {}
+        for row in rows:
+            usage_id = uuid4()
+            columns = dict(row)
+            shares_by_id[usage_id] = columns.pop("tool_shares", [])
+            values.append({"id": usage_id, **columns})
+        stmt = (
+            pg_insert(LLMUsageDB)
+            .values(values)
+            .on_conflict_do_nothing(constraint="uq_llm_usage_thread_message")
+            .returning(col(LLMUsageDB.id))
+        )
+        inserted = await self.db.scalars(stmt)
+        await self.insert_tool_shares(
+            [
+                {"usage_id": usage_id, **share}
+                for usage_id in inserted
+                for share in shares_by_id[usage_id]
+            ]
+        )
+
+    async def insert_tool_shares(self, rows: Sequence[dict[str, Any]]) -> None:
+        """Insert shares; a call's share already recorded is skipped."""
         if not rows:
             return
         stmt = (
-            pg_insert(LLMUsageDB)
+            pg_insert(LLMUsageToolShareDB)
             .values([{"id": uuid4(), **row} for row in rows])
-            .on_conflict_do_nothing(constraint="uq_llm_usage_thread_message")
+            .on_conflict_do_nothing(
+                constraint="uq_llm_usage_tool_shares_usage_dimension_key"
+            )
         )
         await self.db.execute(stmt)
+
+    async def usage_ids_by_message(self, thread_id: str) -> dict[str, UUID]:
+        stmt = select(col(LLMUsageDB.message_id), col(LLMUsageDB.id)).where(
+            col(LLMUsageDB.thread_id) == thread_id,
+            col(LLMUsageDB.message_id).is_not(None),
+        )
+        result = await self.db.execute(stmt)
+        return {row.message_id: row.id for row in result}
+
+    async def tool_owners(
+        self, workspace_id: UUID
+    ) -> tuple[list[tuple[UUID, str]], list[tuple[UUID, str]]]:
+        """(id, name) of the workspace's MCP servers, then of its skills."""
+        servers_stmt = select(col(MCPServerDB.id), col(MCPServerDB.name)).where(
+            col(MCPServerDB.workspace_id) == workspace_id
+        )
+        skills_stmt = select(col(SkillDB.id), col(SkillDB.name)).where(
+            col(SkillDB.workspace_id) == workspace_id
+        )
+        servers = await self.db.execute(servers_stmt)
+        skills = await self.db.execute(skills_stmt)
+        return (
+            [(row.id, row.name) for row in servers],
+            [(row.id, row.name) for row in skills],
+        )
 
     async def totals(
         self, scope: UsageFilter, start: datetime | None, end: datetime | None
@@ -240,6 +304,8 @@ class UsageRepository(BaseRepository[LLMUsageDB]):
         dimension: UsageDimension,
         limit: int,
     ) -> list[Row]:
+        if dimension in TOOL_DIMENSIONS:
+            return await self._tool_breakdown(scope, start, end, dimension, limit)
         column = _DIMENSION_COLUMNS[dimension]
         conditions = [*scope.conditions(), *_in_range(start, end)]
         if dimension is UsageDimension.trigger:
@@ -250,6 +316,48 @@ class UsageRepository(BaseRepository[LLMUsageDB]):
             .where(*conditions)
             .group_by(column)
             .order_by(cost.desc(), func.sum(LLMUsageDB.total_tokens).desc())
+            .limit(limit)
+        )
+        result = await self.db.execute(stmt)
+        return list(result.all())
+
+    async def _tool_breakdown(
+        self,
+        scope: UsageFilter,
+        start: datetime | None,
+        end: datetime | None,
+        dimension: UsageDimension,
+        limit: int,
+    ) -> list[Row]:
+        """Measures weighted by each call's shares; a call without shares
+        counts whole under the NULL key."""
+        share = LLMUsageToolShareDB
+        key = col(share.key)
+        weight = func.coalesce(col(share.weight), 1)
+        cost = func.coalesce(func.sum(col(LLMUsageDB.cost_usd) * weight), 0)
+        tokens = func.coalesce(
+            func.round(func.sum(col(LLMUsageDB.total_tokens) * weight)), 0
+        )
+        stmt: Select = (
+            select(
+                key.label("key"),
+                cost.label("cost_usd"),
+                func.count().label("calls"),
+                func.count()
+                .filter(col(LLMUsageDB.cost_usd).is_(None))
+                .label("unpriced_calls"),
+                tokens.label("total_tokens"),
+                func.coalesce(func.sum(col(share.tool_calls)), 0).label("tool_calls"),
+            )
+            .select_from(LLMUsageDB)
+            .outerjoin(
+                share,
+                (col(share.usage_id) == col(LLMUsageDB.id))
+                & (col(share.dimension) == dimension.value),
+            )
+            .where(*scope.conditions(), *_in_range(start, end))
+            .group_by(key)
+            .order_by(cost.desc(), tokens.desc())
             .limit(limit)
         )
         result = await self.db.execute(stmt)
@@ -329,6 +437,8 @@ class UsageRepository(BaseRepository[LLMUsageDB]):
             UsageDimension.project: ProjectDB,
             UsageDimension.trigger: TriggerDB,
             UsageDimension.workspace: WorkspaceDB,
+            UsageDimension.mcp: MCPServerDB,
+            UsageDimension.skill: SkillDB,
         }.get(dimension)
         if model is None:
             return {}
@@ -394,5 +504,13 @@ class UsageLedgerStateRepository:
             update(UsageLedgerStateDB)
             .where(UsageLedgerStateDB.id == 1)
             .values(backfill_completed_at=datetime.now(UTC))
+        )
+        await self.db.execute(stmt)
+
+    async def mark_tool_shares_backfill_completed(self) -> None:
+        stmt = (
+            update(UsageLedgerStateDB)
+            .where(col(UsageLedgerStateDB.id) == 1)
+            .values(tool_shares_backfill_completed_at=datetime.now(UTC))
         )
         await self.db.execute(stmt)
