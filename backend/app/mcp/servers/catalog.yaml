@@ -170,6 +170,44 @@ servers:
     auth_type: oauth2
     icon_url: "https://pub-fee562950db945e0af49322d187f2a02.r2.dev/assets/icons/aws-mcp.png"
     supports_dcr: true
+    url_options:
+      - label: "US East (N. Virginia)"
+        url: "https://aws-mcp.us-east-1.api.aws/mcp"
+        description: "us-east-1"
+      - label: "US West (Oregon)"
+        url: "https://aws-mcp.us-west-2.api.aws/mcp"
+        description: "us-west-2"
+      - label: "Canada (Central)"
+        url: "https://aws-mcp.ca-central-1.api.aws/mcp"
+        description: "ca-central-1"
+      - label: "Europe (Ireland)"
+        url: "https://aws-mcp.eu-west-1.api.aws/mcp"
+        description: "eu-west-1"
+      - label: "Europe (London)"
+        url: "https://aws-mcp.eu-west-2.api.aws/mcp"
+        description: "eu-west-2"
+      - label: "Europe (Frankfurt)"
+        url: "https://aws-mcp.eu-central-1.api.aws/mcp"
+        description: "eu-central-1"
+      - label: "Asia Pacific (Tokyo)"
+        url: "https://aws-mcp.ap-northeast-1.api.aws/mcp"
+        description: "ap-northeast-1"
+      - label: "Asia Pacific (Singapore)"
+        url: "https://aws-mcp.ap-southeast-1.api.aws/mcp"
+        description: "ap-southeast-1"
+      - label: "Asia Pacific (Sydney)"
+        url: "https://aws-mcp.ap-southeast-2.api.aws/mcp"
+        description: "ap-southeast-2"
+    quirks:
+      - name: aws-loopback-oauth
+        oauth:
+          redirect_strategy:
+            mode: loopback_manual
+            redirect_uri: "http://127.0.0.1:4789/oauth/callback"
+            sign_in_url: "https://console.aws.amazon.com/"
+            application_type: native
+            token_endpoint_auth_method: none
+            manual_completion_required: true
     description: >-
       Executes AWS service operations using the user's AWS identity through the
       AWS-managed MCP server.
