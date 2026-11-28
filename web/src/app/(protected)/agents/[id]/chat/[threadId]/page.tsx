@@ -773,9 +773,6 @@ const ChatPage = () => {
             </HeaderTip>
           )}
           {meta.viewerRole === null && (
-            <ChatNotificationsToggle notifications={notifications} />
-          )}
-          {meta.viewerRole === null && (
             <ChatMoveToProjectButton onMove={openMoveDialog} />
           )}
           {meta.viewerRole === null && (
@@ -797,6 +794,9 @@ const ChatPage = () => {
               void updateMemoriesEnabled(enabled);
             }}
           />
+          {meta.viewerRole === null && (
+            <ChatNotificationsToggle notifications={notifications} />
+          )}
         </ChatHeaderActions>
       )}
       {meta.status === "ready" && meta.viewerRole === null && (
