@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.176](https://github.com/jr-k/auxilia/compare/web-v0.12.175...web-v0.12.176) (2026-11-28)
+
+
+### Features
+
+* **chat:** move the notifications toggle next to memories in the header ([#377](https://github.com/jr-k/auxilia/issues/377)) ([aa59359](https://github.com/jr-k/auxilia/commit/aa593595e8c1551e60a39f2dd951892537a09c8e))
+
 ## [0.12.175](https://github.com/jr-k/auxilia/compare/web-v0.12.174...web-v0.12.175) (2026-11-27)
 
 
